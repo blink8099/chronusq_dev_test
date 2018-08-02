@@ -214,13 +214,13 @@ namespace ChronusQ {
 
     for(auto ithread = 0, iMat = 0; ithread < nthreads; ithread++) {
       AXthreads.emplace_back();
-    for(auto jMat = 0; jMat < NMat; jMat++, iMat++) {
-      if(nthreads == 1) {
-        AXthreads.back().push_back(list[jMat].AX);
-      } else {
-        AXthreads.back().push_back(AXRaw + iMat*NB*NB);
+      for(auto jMat = 0; jMat < NMat; jMat++, iMat++) {
+        if(nthreads == 1) {
+          AXthreads.back().push_back(list[jMat].AX);
+        } else {
+          AXthreads.back().push_back(AXRaw + iMat*NB*NB);
+        }
       }
-    }
     }
 
 
@@ -412,7 +412,7 @@ namespace ChronusQ {
 
       size_t n3,n4;
 
-      for(size_t s3(0), bf3_s(0), s34(0); s3 <= S3_MAX; s3++, bf3_s += n3) { 
+      for(size_t s3(0ul), bf3_s(0ul), s34(0ul); s3 <= S3_MAX; s3++, bf3_s += n3) { 
         n3 = basisSet_.shells[s3].size(); // Size of Shell 3
 
 #ifdef _SHZ_SCREEN
@@ -526,7 +526,6 @@ namespace ChronusQ {
           
           // Hermetian contraction
           if( list[iMat].HER ) { 
-
             if( list[iMat].contType == COULOMB )
             for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)      
             for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++) { 
@@ -545,7 +544,6 @@ namespace ChronusQ {
 
               // J(2,1) and J(3,4) are handled on symmetrization after
               // contraction
-                
             } // kl loop
             } // ij loop
 
@@ -676,6 +674,7 @@ namespace ChronusQ {
 #endif
 
 #ifdef _BATCH_DIRECT
+#if 0
       assert(nthreads == 1);
 
 #ifdef _SUB_TIMINGS
@@ -773,6 +772,7 @@ namespace ChronusQ {
 #endif
 
 #endif
+#endif
 
     }; // s2
     }; // s1
@@ -824,14 +824,12 @@ namespace ChronusQ {
       if( list[iMat].HER ) {
 
         MatAdd('N','C',NB,NB,TT(0.5),AXthreads[iTh][iMat],NB,TT(0.5),
-          AXthreads[iTh][iMat],NB,reinterpret_cast<TT*>(intBuffer),NB);
+          AXthreads[iTh][iMat],NB,SCR,NB);
 
         if( nthreads != 1 )
-          MatAdd('N','N',NB,NB,TT(1.),reinterpret_cast<TT*>(intBuffer),NB,
-            TT(1.), list[iMat].AX,NB,list[iMat].AX,NB);
+          MatAdd('N','N',NB,NB,TT(1.),SCR,NB,TT(1.), list[iMat].AX,NB,list[iMat].AX,NB);
         else
-          SetMat('N',NB,NB,TT(1.),reinterpret_cast<TT*>(intBuffer),NB,
-            list[iMat].AX,NB);
+          SetMat('N',NB,NB,TT(1.),SCR,NB,list[iMat].AX,NB);
 
       } else {
 
