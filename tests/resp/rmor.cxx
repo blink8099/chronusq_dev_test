@@ -26,44 +26,42 @@
 
 #include "resp.hpp"
 
-#define CQMORTEST_IMPL(TNAME, JTYPE, HER, AHER, IN, REF) \
-BOOST_FIXTURE_TEST_CASE( TNAME, JTYPE ){ CQMORTEST(HER,AHER,IN,REF); }
-
-BOOST_AUTO_TEST_SUITE( RHF_MOR )
+#define CQMORTEST_IMPL(TNAME, HER, AHER, IN, REF) \
+TEST( RHF_MOR, TNAME ){ CQMORTEST(HER,AHER,IN,REF); }
 
 
 // Full Dimensional Tests
 
 // Water 6-31G(d) MOR
-CQMORTEST_IMPL( Water_631Gd_MOR, SerialJob, true, true, 
+CQMORTEST_IMPL( Water_631Gd_MOR,  true, true, 
     "resp/serial/rmor/water_6-31Gd_rhf_mor",
     "water_6-31Gd_rhf_interp.bin.ref" )
 
 
 // Water 6-31G(d) MOR (GMRES)
-CQMORTEST_IMPL( Water_631Gd_MOR_GMRES, SerialJob, true, true, 
+CQMORTEST_IMPL( Water_631Gd_MOR_GMRES,  true, true, 
     "resp/serial/rmor/water_6-31Gd_rhf_mor_gmres",
     "water_6-31Gd_rhf_interp.bin.ref" )
 
 // Water 6-31G(d) MOR (GMRES + DIRECT)
-CQMORTEST_IMPL( Water_631Gd_MOR_GMRES_DIRECT, SerialJob, true, true, 
+CQMORTEST_IMPL( Water_631Gd_MOR_GMRES_DIRECT,  true, true, 
     "resp/serial/rmor/water_6-31Gd_rhf_mor_gmres_direct",
     "water_6-31Gd_rhf_interp.bin.ref" )
 
 #ifdef _CQ_DO_PARTESTS
 
   // SMP Water 6-31G(d) MOR
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR, ParallelJob, true, true, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR,  true, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR (GMRES)
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_GMRES, ParallelJob, true, true, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_GMRES,  true, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_gmres",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR (GMRES + DIRECT)
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_GMRES_DIRECT, ParallelJob, true, true, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_GMRES_DIRECT,  true, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_gmres_direct",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
@@ -76,25 +74,25 @@ CQMORTEST_IMPL( Water_631Gd_MOR_GMRES_DIRECT, SerialJob, true, true,
 // A+B / A-B TESTS
    
 // Water 6-31G(d) MOR A+B / A-B
-CQMORTEST_IMPL( Water_631Gd_MOR_APB_AMB, SerialJob, true, true, 
+CQMORTEST_IMPL( Water_631Gd_MOR_APB_AMB,  true, true, 
     "resp/serial/rmor/water_6-31Gd_rhf_mor_apb_amb",
     "water_6-31Gd_rhf_interp.bin.ref" )
 
 
 // Water 6-31G(d) MOR A+B / A-B (GMRES)
-CQMORTEST_IMPL( Water_631Gd_MOR_APB_AMB_GMRES, SerialJob, true, true, 
+CQMORTEST_IMPL( Water_631Gd_MOR_APB_AMB_GMRES,  true, true, 
     "resp/serial/rmor/water_6-31Gd_rhf_mor_apb_amb_gmres",
     "water_6-31Gd_rhf_interp.bin.ref" )
 
 #ifdef _CQ_DO_PARTESTS
 
   // SMP Water 6-31G(d) MOR A+B /A-B
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_APB_AMB, ParallelJob, true, true, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_APB_AMB,  true, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_apb_amb",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR A+B /A-B (GMRES)
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_APB_AMB_GMRES, ParallelJob, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_APB_AMB_GMRES,  
       true, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_apb_amb_gmres",
       "water_6-31Gd_rhf_interp.bin.ref" )
@@ -106,24 +104,24 @@ CQMORTEST_IMPL( Water_631Gd_MOR_APB_AMB_GMRES, SerialJob, true, true,
 // REDUCED HERMETIAN TESTS 
    
 // Water 6-31G(d) MOR REDUCED HERMETIAN 
-CQMORTEST_IMPL( Water_631Gd_MOR_RED_HER, SerialJob, true, false, 
+CQMORTEST_IMPL( Water_631Gd_MOR_RED_HER,  true, false, 
     "resp/serial/rmor/water_6-31Gd_rhf_mor_reduced_her",
     "water_6-31Gd_rhf_interp.bin.ref" )
 
 // Water 6-31G(d) MOR REDUCED HERMETIAN (GMRES)
-CQMORTEST_IMPL( Water_631Gd_MOR_RED_HER_GMRES, SerialJob, true, false, 
+CQMORTEST_IMPL( Water_631Gd_MOR_RED_HER_GMRES,  true, false, 
     "resp/serial/rmor/water_6-31Gd_rhf_mor_reduced_her_gmres",
     "water_6-31Gd_rhf_interp.bin.ref" )
 
 #ifdef _CQ_DO_PARTESTS
 
   // SMP Water 6-31G(d) MOR REDUCED HERMETIAN
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_HER, ParallelJob, true, false, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_HER,  true, false, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_reduced_her",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR REDUCED HERMETIAN (GMRES)
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_HER_GMRES, ParallelJob, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_HER_GMRES,  
       true, false, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_reduced_her_gmres",
       "water_6-31Gd_rhf_interp.bin.ref" )
@@ -136,25 +134,25 @@ CQMORTEST_IMPL( Water_631Gd_MOR_RED_HER_GMRES, SerialJob, true, false,
 // REDUCED ANTI-HERMETIAN TESTS 
    
 // Water 6-31G(d) MOR REDUCED ANTI-HERMETIAN 
-CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER, SerialJob, false, true, 
+CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER,  false, true, 
     "resp/serial/rmor/water_6-31Gd_rhf_mor_reduced_antiher",
     "water_6-31Gd_rhf_interp.bin.ref" )
 
 // Water 6-31G(d) MOR REDUCED ANTI-HERMETIAN (GMRES)
-CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_GMRES, SerialJob, false, true, 
+CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_GMRES,  false, true, 
     "resp/serial/rmor/water_6-31Gd_rhf_mor_reduced_antiher_gmres",
     "water_6-31Gd_rhf_interp.bin.ref" )
 
 #ifdef _CQ_DO_PARTESTS
 
   // SMP Water 6-31G(d) MOR REDUCED ANTI-HERMETIAN
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_ANTIHER, ParallelJob, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_ANTIHER,  
       false, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_reduced_antiher",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR REDUCED ANTI-HERMETIAN (GMRES)
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_ANTIHER_GMRES, ParallelJob, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_ANTIHER_GMRES,  
       false, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_reduced_antiher_gmres",
       "water_6-31Gd_rhf_interp.bin.ref" )
@@ -172,24 +170,24 @@ CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_GMRES, SerialJob, false, true,
   // Distributed Full Dimensional Tests
 
   // Water 6-31G(d) MOR
-  CQMORTEST_IMPL( Water_631Gd_MOR_DISTMATFROMROOT, SerialJob, true, true, 
+  CQMORTEST_IMPL( Water_631Gd_MOR_DISTMATFROMROOT,  true, true, 
       "resp/serial/rmor/water_6-31Gd_rhf_mor_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_DISTMATFROMROOT, ParallelJob, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_DISTMATFROMROOT,  
       true, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // Water 6-31G(d) MOR (GMRES)
-  CQMORTEST_IMPL( Water_631Gd_MOR_GMRES_DISTMATFROMROOT, SerialJob, 
+  CQMORTEST_IMPL( Water_631Gd_MOR_GMRES_DISTMATFROMROOT,  
       true, true, 
       "resp/serial/rmor/water_6-31Gd_rhf_mor_gmres_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR (GMRES)
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_GMRES_DISTMATFROMROOT, ParallelJob, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_GMRES_DISTMATFROMROOT,  
       true, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_gmres_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
@@ -200,26 +198,25 @@ CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_GMRES, SerialJob, false, true,
   // Distributed A+B / A-B Dimensional Tests
     
   // Water 6-31G(d) MOR A+B / A-B
-  CQMORTEST_IMPL( Water_631Gd_MOR_APB_AMB_DISTMATFROMROOT, SerialJob, 
+  CQMORTEST_IMPL( Water_631Gd_MOR_APB_AMB_DISTMATFROMROOT,  
       true, true, 
       "resp/serial/rmor/water_6-31Gd_rhf_mor_apb_amb_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR A+B / A-B
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_APB_AMB_DISTMATFROMROOT, ParallelJob, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_APB_AMB_DISTMATFROMROOT,  
       true, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_apb_amb_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // Water 6-31G(d) MOR A+B / A-B (GMRES)
-  CQMORTEST_IMPL( Water_631Gd_MOR_APB_AMB_GMRES_DISTMATFROMROOT, SerialJob, 
+  CQMORTEST_IMPL( Water_631Gd_MOR_APB_AMB_GMRES_DISTMATFROMROOT,  
       true, true, 
       "resp/serial/rmor/water_6-31Gd_rhf_mor_apb_amb_gmres_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR A+B / A-B (GMRES)
   CQMORTEST_IMPL( PAR_Water_631Gd_MOR_APB_AMB_GMRES_DISTMATFROMROOT, 
-      ParallelJob, 
       true, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_apb_amb_gmres_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
@@ -229,26 +226,25 @@ CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_GMRES, SerialJob, false, true,
   // Distributed Reduced Hermetian Tests
 
   // Water 6-31G(d) MOR REDUCED HERMETIAN
-  CQMORTEST_IMPL( Water_631Gd_MOR_RED_HER_DISTMATFROMROOT, SerialJob, 
+  CQMORTEST_IMPL( Water_631Gd_MOR_RED_HER_DISTMATFROMROOT,  
       true, false, 
       "resp/serial/rmor/water_6-31Gd_rhf_mor_reduced_her_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR REDUCED HERMETIAN
-  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_HER_DISTMATFROMROOT, ParallelJob, 
+  CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_HER_DISTMATFROMROOT,  
       true, false, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_reduced_her_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // Water 6-31G(d) MOR REDUCED HERMETIAN (GMRES)
-  CQMORTEST_IMPL( Water_631Gd_MOR_RED_HER_GMRES_DISTMATFROMROOT, SerialJob, 
+  CQMORTEST_IMPL( Water_631Gd_MOR_RED_HER_GMRES_DISTMATFROMROOT,  
       true, false, 
       "resp/serial/rmor/water_6-31Gd_rhf_mor_reduced_her_gmres_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR REDUCED HERMETIAN (GMRES)
   CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_HER_GMRES_DISTMATFROMROOT, 
-      ParallelJob, 
       true, false, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_reduced_her_gmres_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
@@ -259,27 +255,26 @@ CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_GMRES, SerialJob, false, true,
   // Distributed Reduced Anti-Hermetian Tests
 
   // Water 6-31G(d) MOR REDUCED ANTIHERMETIAN
-  CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_DISTMATFROMROOT, SerialJob, 
+  CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_DISTMATFROMROOT,  
       false, true, 
       "resp/serial/rmor/water_6-31Gd_rhf_mor_reduced_antiher_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR REDUCED ANTIHERMETIAN
   CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_ANTIHER_DISTMATFROMROOT, 
-      ParallelJob, false, true, 
+       false, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_reduced_antiher_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // Water 6-31G(d) MOR REDUCED ANTIHERMETIAN (GMRES)
   CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_GMRES_DISTMATFROMROOT, 
-      SerialJob, 
       false, true, 
       "resp/serial/rmor/water_6-31Gd_rhf_mor_reduced_antiher_gmres_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
   // SMP Water 6-31G(d) MOR REDUCED ANTIHERMETIAN (GMRES)
   CQMORTEST_IMPL( PAR_Water_631Gd_MOR_RED_ANTIHER_GMRES_DISTMATFROMROOT, 
-      ParallelJob, false, true, 
+       false, true, 
       "resp/parallel/rmor/water_6-31Gd_rhf_mor_reduced_antiher_gmres_distfromroot",
       "water_6-31Gd_rhf_interp.bin.ref" )
 
@@ -288,8 +283,5 @@ CQMORTEST_IMPL( Water_631Gd_MOR_RED_ANTIHER_GMRES, SerialJob, false, true,
 
 #endif
 
-
-// End RHF_MOR suite
-BOOST_AUTO_TEST_SUITE_END()
 
 #endif

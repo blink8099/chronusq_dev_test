@@ -25,11 +25,9 @@
 #include "rt.hpp"
 
 
-BOOST_AUTO_TEST_SUITE( X2CHF_RT )
-
 
 // Water 6-311+G(d,p) X2CDelta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( Water_6311pGdp_X2C_Delta_Y, SerialJob ) {
+TEST( X2CHF_RT, Water_6311pGdp_X2C_Delta_Y ) {
 
   CQRTTEST( rt/serial/grt/water_6-311pGdp_x2c_delta_y,
     water_6-311pGdp_x2c_delta_y.bin.ref );
@@ -39,7 +37,7 @@ BOOST_FIXTURE_TEST_CASE( Water_6311pGdp_X2C_Delta_Y, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-311+G(d,p) X2CDelta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( PAR_Water_6311pGdp_X2C_Delta_Y, ParallelJob ) {
+TEST( X2CHF_RT, PAR_Water_6311pGdp_X2C_Delta_Y ) {
 
   CQRTTEST( rt/parallel/grt/water_6-311pGdp_x2c_delta_y,
     water_6-311pGdp_x2c_delta_y.bin.ref );
@@ -49,6 +47,4 @@ BOOST_FIXTURE_TEST_CASE( PAR_Water_6311pGdp_X2C_Delta_Y, ParallelJob ) {
 #endif
 
 
-// End X2C_RT suite
-BOOST_AUTO_TEST_SUITE_END()
 

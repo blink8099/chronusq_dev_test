@@ -24,10 +24,8 @@
 
 #include "scf.hpp"
 
-BOOST_AUTO_TEST_SUITE( MISC_SCF )
-
 // Water 6-31G(d) {0., 0.01, 0.} Electric Field test
-BOOST_FIXTURE_TEST_CASE( Water_631Gd_ed_0_0pt01_0, SerialJob ) {
+TEST( MISC_SCF, Water_631Gd_ed_0_0pt01_0 ) {
 
   CQSCFTEST( "scf/serial/rhf/water_6-31Gd_ed_0_0.01_0", 
     "water_6-31Gd_ed_0_0.01_0.bin.ref" );
@@ -35,7 +33,7 @@ BOOST_FIXTURE_TEST_CASE( Water_631Gd_ed_0_0pt01_0, SerialJob ) {
 };
 
 // Water 6-31G(d) {0.01, 0., 0.} Electric Field test
-BOOST_FIXTURE_TEST_CASE( Water_631Gd_ed_0pt01_0_0, SerialJob ) {
+TEST( MISC_SCF, Water_631Gd_ed_0pt01_0_0 ) {
 
   CQSCFTEST( "scf/serial/rhf/water_6-31Gd_ed_0.01_0_0", 
     "water_6-31Gd_ed_0.01_0_0.bin.ref" );
@@ -43,7 +41,7 @@ BOOST_FIXTURE_TEST_CASE( Water_631Gd_ed_0pt01_0_0, SerialJob ) {
 };
 
 // Water 6-31G(d) {0., 0., 0.01} Electric Field test
-BOOST_FIXTURE_TEST_CASE( Water_631Gd_ed_0_0_0pt01, SerialJob ) {
+TEST( MISC_SCF, Water_631Gd_ed_0_0_0pt01 ) {
 
   CQSCFTEST( "scf/serial/rhf/water_6-31Gd_ed_0_0_0.01", 
     "water_6-31Gd_ed_0_0_0.01.bin.ref" );
@@ -51,10 +49,8 @@ BOOST_FIXTURE_TEST_CASE( Water_631Gd_ed_0_0_0pt01, SerialJob ) {
 };
 
 // O2 Minimal basis
-BOOST_FIXTURE_TEST_CASE( O2_STO3G, SerialJob ) {
+TEST( MISC_SCF, O2_STO3G ) {
 
   CQSCFTEST( "scf/serial/uhf/oxygen_sto-3g", "oxygen_sto-3g.bin.ref" );
 
 };
-
-BOOST_AUTO_TEST_SUITE_END()

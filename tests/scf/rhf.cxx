@@ -24,10 +24,9 @@
 
 #include "scf.hpp"
 
-BOOST_AUTO_TEST_SUITE( RHF )
 
 // Water 6-31G(d) test
-BOOST_FIXTURE_TEST_CASE( Water_631Gd, SerialJob ) {
+TEST( RHF, Water_631Gd ) {
 
   CQSCFTEST( "scf/serial/rhf/water_6-31Gd", "water_6-31Gd.bin.ref" );
  
@@ -36,7 +35,7 @@ BOOST_FIXTURE_TEST_CASE( Water_631Gd, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-31G(d) test
-BOOST_FIXTURE_TEST_CASE( PAR_Water_631Gd, ParallelJob ) {
+TEST( RHF, PAR_Water_631Gd ) {
 
   CQSCFTEST( "scf/parallel/rhf/water_6-31Gd", "water_6-31Gd.bin.ref" );
  
@@ -44,6 +43,5 @@ BOOST_FIXTURE_TEST_CASE( PAR_Water_631Gd, ParallelJob ) {
 
 #endif
 
-BOOST_AUTO_TEST_SUITE_END()
 
 

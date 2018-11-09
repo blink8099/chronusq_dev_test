@@ -29,23 +29,29 @@ set(FUNC_TEST_BINARY_ROOT "${TEST_BINARY_ROOT}/func" )
 # Set up compilation of Functionality test exe
 add_executable(functest ../ut.cxx contract.cxx ordqz.cxx gplhr.cxx)
 
-target_compile_definitions(functest PUBLIC BOOST_TEST_MODULE=FUNC)
+target_compile_definitions(functest PUBLIC CQ_FUNC_TEST)
 target_include_directories(functest PUBLIC ${FUNC_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
 target_link_libraries(functest PUBLIC ${CQEX_LINK})
+target_link_libraries(functest PUBLIC ChronusQ::gtest)
+
 
 if(CQEX_DEP)
   add_dependencies(functest ${CQEX_DEP})
 endif()
 
-# Add the Tests
-add_test( DIRECT_CONTRACTION functest --report_level=detailed --run_test=DIRECT_CONTRACTION)
-add_test( ORDQZ functest --report_level=detailed --run_test=ORDQZ)
-add_test( GPLHR functest --report_level=detailed --run_test=GPLHR_TESTS)
 
+
+
+include( CQTestGeneration )
+
+
+add_cq_test( DIRECT_CONTRACTION functest "DIRECT_CONTRACTION*" )
+add_cq_test( ORDQZ              functest "ORDQZ.*" )
+add_cq_test( GPLHR              functest "GPLHR.*" )
 
 if( CQ_ENABLE_MPI )
-
-  add_test( NAME GPLHR_MPI COMMAND ${MPIEXEC} -np 2 "./functest" "--report_level=detailed" "--run_test=GPLHR_TESTS" )
-
+  add_cq_mpi_test( GPLHR_MPI 2 functest "GPLHR.*" )
 endif()
+
+

@@ -41,28 +41,6 @@
 
 using namespace ChronusQ;
 
-#ifdef _CQ_GENERATE_TESTS
-
-   /**
-    *  \brief Global Boost.Test fixture for Contraction
-    *  tests in the case of test generation.
-    *
-    *  Creates / overwrites the reference file for the contraction
-    *  data.
-    *
-    */ 
-  struct ContractConfig {
-
-    ContractConfig() { 
-      SafeFile refFile(FUNC_REFERENCE "contract.hdf5"); 
-      refFile.createFile();
-    }
-
-  };
-
-  BOOST_GLOBAL_FIXTURE( ContractConfig );
-
-#endif
 
 
 
@@ -192,7 +170,7 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   for(auto i = 0; i < NB*NB; i++) 
     maxDiff = std::max(maxDiff,std::abs(SX[i] - SX2[i]));
   
-  BOOST_CHECK(maxDiff < 1e-10);
+  EXPECT_TRUE(maxDiff < 1e-10);
 
 #endif
 
@@ -205,37 +183,31 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
 
 
 
-// Direct contract test suite
-BOOST_AUTO_TEST_SUITE( DIRECT_CONTRACTION )
 
-
-
-// Real contraction test suite
-BOOST_AUTO_TEST_SUITE( REAL_DIRECT_CONTRACTION )
 
 // Real Hermetian "J" contraction test
-BOOST_FIXTURE_TEST_CASE( HER_J_CONTRACT, SerialJob ) {
+TEST( DIRECT_CONTRACTION_REAL, HER_J_CONTRACT ) {
 
   CONTRACT_TEST<double,HERMETIAN>(COULOMB,"CONTRACTION/HER/REAL/J");
 
 }
 
 // Real Non-Hermetian "J" contraction test
-BOOST_FIXTURE_TEST_CASE( NONHER_J_CONTRACT, SerialJob ) {
+TEST( DIRECT_CONTRACTION_REAL, NONHER_J_CONTRACT ) {
 
   CONTRACT_TEST<double,NONHERMETIAN>(COULOMB,"CONTRACTION/NONHER/REAL/J");
 
 }
 
 // Real Hermetian "K" contraction test
-BOOST_FIXTURE_TEST_CASE( HER_K_CONTRACT, SerialJob ) {
+TEST( DIRECT_CONTRACTION_REAL, HER_K_CONTRACT ) {
 
   CONTRACT_TEST<double,HERMETIAN>(EXCHANGE,"CONTRACTION/HER/REAL/K");
 
 }
 
 // Real Non-Hermetian "K" contraction test
-BOOST_FIXTURE_TEST_CASE( NONHER_K_CONTRACT, SerialJob ) {
+TEST( DIRECT_CONTRACTION_REAL, NONHER_K_CONTRACT ) {
 
   CONTRACT_TEST<double,NONHERMETIAN>(COULOMB,"CONTRACTION/NONHER/REAL/K");
 
@@ -245,28 +217,28 @@ BOOST_FIXTURE_TEST_CASE( NONHER_K_CONTRACT, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // Parallel Real Hermetian "J" contraction test
-BOOST_FIXTURE_TEST_CASE( PAR_HER_J_CONTRACT, ParallelJob ) {
+TEST( DIRECT_CONTRACTION_REAL, PAR_HER_J_CONTRACT ) {
 
   CONTRACT_TEST<double,HERMETIAN>(COULOMB,"CONTRACTION/HER/REAL/J");
 
 }
 
 // Parallel Real Non-Hermetian "J" contraction test
-BOOST_FIXTURE_TEST_CASE( PAR_NONHER_J_CONTRACT, ParallelJob ) {
+TEST( DIRECT_CONTRACTION_REAL, PAR_NONHER_J_CONTRACT ) {
 
   CONTRACT_TEST<double,NONHERMETIAN>(COULOMB,"CONTRACTION/NONHER/REAL/J");
 
 }
 
 // Parallel Real Hermetian "K" contraction test
-BOOST_FIXTURE_TEST_CASE( PAR_HER_K_CONTRACT, ParallelJob ) {
+TEST( DIRECT_CONTRACTION_REAL, PAR_HER_K_CONTRACT ) {
 
   CONTRACT_TEST<double,HERMETIAN>(EXCHANGE,"CONTRACTION/HER/REAL/K");
 
 }
 
 // Parallel Real Non-Hermetian "K" contraction test
-BOOST_FIXTURE_TEST_CASE( PAR_NONHER_K_CONTRACT, ParallelJob ) {
+TEST( DIRECT_CONTRACTION_REAL, PAR_NONHER_K_CONTRACT ) {
 
   CONTRACT_TEST<double,NONHERMETIAN>(COULOMB,"CONTRACTION/NONHER/REAL/K");
 
@@ -275,22 +247,16 @@ BOOST_FIXTURE_TEST_CASE( PAR_NONHER_K_CONTRACT, ParallelJob ) {
 
 #endif
 
-// End real contraction test suite
-BOOST_AUTO_TEST_SUITE_END()
-
-
-// Complex contraction test suite
-BOOST_AUTO_TEST_SUITE( COMPLEX_DIRECT_CONTRACTION )
 
 // Complex Hermetian "J" contraction test
-BOOST_FIXTURE_TEST_CASE( HER_J_CONTRACT, SerialJob ) {
+TEST( DIRECT_CONTRACTION_COMPLEX, HER_J_CONTRACT ) {
 
   CONTRACT_TEST<dcomplex,HERMETIAN>(COULOMB,"CONTRACTION/HER/COMPLEX/J");
 
 }
 
 // Complex Non-Hermetian "J" contraction test
-BOOST_FIXTURE_TEST_CASE( NONHER_J_CONTRACT, SerialJob ) {
+TEST( DIRECT_CONTRACTION_COMPLEX, NONHER_J_CONTRACT ) {
 
   CONTRACT_TEST<dcomplex,NONHERMETIAN>(COULOMB,"CONTRACTION/NONHER/COMPLEX/J");
 
@@ -298,14 +264,14 @@ BOOST_FIXTURE_TEST_CASE( NONHER_J_CONTRACT, SerialJob ) {
 
 
 // Complex Hermetian "K" contraction test
-BOOST_FIXTURE_TEST_CASE( HER_K_CONTRACT, SerialJob ) {
+TEST( DIRECT_CONTRACTION_COMPLEX, HER_K_CONTRACT ) {
 
   CONTRACT_TEST<dcomplex,HERMETIAN>(EXCHANGE,"CONTRACTION/HER/COMPLEX/K");
 
 }
 
 // Complex Non-Hermetian "K" contraction test
-BOOST_FIXTURE_TEST_CASE( NONHER_K_CONTRACT, SerialJob ) {
+TEST( DIRECT_CONTRACTION_COMPLEX, NONHER_K_CONTRACT ) {
 
   CONTRACT_TEST<dcomplex,HERMETIAN>(EXCHANGE,"CONTRACTION/NONHER/COMPLEX/K");
 
@@ -317,14 +283,14 @@ BOOST_FIXTURE_TEST_CASE( NONHER_K_CONTRACT, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS 
 
 // Parallel Complex Hermetian "J" contraction test
-BOOST_FIXTURE_TEST_CASE( PAR_HER_J_CONTRACT, ParallelJob ) {
+TEST( DIRECT_CONTRACTION_COMPLEX, PAR_HER_J_CONTRACT ) {
 
   CONTRACT_TEST<dcomplex,HERMETIAN>(COULOMB,"CONTRACTION/HER/COMPLEX/J");
 
 }
 
 // Parallel Complex Non-Hermetian "J" contraction test
-BOOST_FIXTURE_TEST_CASE( PAR_NONHER_J_CONTRACT, ParallelJob ) {
+TEST( DIRECT_CONTRACTION_COMPLEX, PAR_NONHER_J_CONTRACT ) {
 
   CONTRACT_TEST<dcomplex,NONHERMETIAN>(COULOMB,"CONTRACTION/NONHER/COMPLEX/J");
 
@@ -332,14 +298,14 @@ BOOST_FIXTURE_TEST_CASE( PAR_NONHER_J_CONTRACT, ParallelJob ) {
 
 
 // Parallel Complex Hermetian "K" contraction test
-BOOST_FIXTURE_TEST_CASE( PAR_HER_K_CONTRACT, ParallelJob ) {
+TEST( DIRECT_CONTRACTION_COMPLEX, PAR_HER_K_CONTRACT ) {
 
   CONTRACT_TEST<dcomplex,HERMETIAN>(EXCHANGE,"CONTRACTION/HER/COMPLEX/K");
 
 }
 
 // Parallel Complex Non-Hermetian "K" contraction test
-BOOST_FIXTURE_TEST_CASE( PAR_NONHER_K_CONTRACT, ParallelJob ) {
+TEST( DIRECT_CONTRACTION_COMPLEX, PAR_NONHER_K_CONTRACT ) {
 
   CONTRACT_TEST<dcomplex,HERMETIAN>(EXCHANGE,"CONTRACTION/NONHER/COMPLEX/K");
 
@@ -347,9 +313,3 @@ BOOST_FIXTURE_TEST_CASE( PAR_NONHER_K_CONTRACT, ParallelJob ) {
 
 #endif
 
-
-// End complex contraction suite
-BOOST_AUTO_TEST_SUITE_END()
-
-// End direct contraction suite
-BOOST_AUTO_TEST_SUITE_END()

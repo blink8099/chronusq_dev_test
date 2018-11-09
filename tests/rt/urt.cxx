@@ -25,11 +25,9 @@
 #include "rt.hpp"
 
 
-BOOST_AUTO_TEST_SUITE( UHF_RT )
-
 
 // Oxygen 6-31G(d) Delta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( O2_631Gd_Delta_Y, SerialJob ) {
+TEST( UHF_RT, O2_631Gd_Delta_Y ) {
 
   CQRTTEST( rt/serial/urt/oxygen_6-31Gd_uhf_delta_y,
     oxygen_6-31Gd_uhf_delta_y.bin.ref );
@@ -39,7 +37,7 @@ BOOST_FIXTURE_TEST_CASE( O2_631Gd_Delta_Y, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Oxygen 6-31G(d) Delta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( PAR_O2_631Gd_Delta_Y, ParallelJob ) {
+TEST( UHF_RT, PAR_O2_631Gd_Delta_Y ) {
 
   CQRTTEST( rt/parallel/urt/oxygen_6-31Gd_uhf_delta_y,
     oxygen_6-31Gd_uhf_delta_y.bin.ref );
@@ -49,20 +47,15 @@ BOOST_FIXTURE_TEST_CASE( PAR_O2_631Gd_Delta_Y, ParallelJob ) {
 #endif
 
 
-// End UHF_RT suite
-BOOST_AUTO_TEST_SUITE_END()
 
 
 
 
 
-
-
-BOOST_AUTO_TEST_SUITE( UKS_RT )
 
 
 // Oxygen 6-31G(d) B3LYP Delta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( O2_631Gd_B3LYP_Delta_Y, SerialJob ) {
+TEST( UKS_RT, O2_631Gd_B3LYP_Delta_Y ) {
 
   CQRTTEST( rt/serial/urt/oxygen_6-31Gd_ub3lyp_delta_y,
     oxygen_6-31Gd_ub3lyp_delta_y.bin.ref );
@@ -72,7 +65,7 @@ BOOST_FIXTURE_TEST_CASE( O2_631Gd_B3LYP_Delta_Y, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Oxygen 6-31G(d) B3LYP Delta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( PAR_O2_631Gd_B3LYP_Delta_Y, ParallelJob ) {
+TEST( UKS_RT, PAR_O2_631Gd_B3LYP_Delta_Y ) {
 
   CQRTTEST( rt/parallel/urt/oxygen_6-31Gd_ub3lyp_delta_y,
     oxygen_6-31Gd_ub3lyp_delta_y.bin.ref );
@@ -80,7 +73,3 @@ BOOST_FIXTURE_TEST_CASE( PAR_O2_631Gd_B3LYP_Delta_Y, ParallelJob ) {
 }
 
 #endif
-
-// End UKS_RT suite
-BOOST_AUTO_TEST_SUITE_END()
-

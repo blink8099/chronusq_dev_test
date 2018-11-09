@@ -24,57 +24,40 @@
 
 #include "resp.hpp"
 
-#define CQRESTEST_IMPL(TNAME, JTYPE, IN, REF) \
-BOOST_FIXTURE_TEST_CASE( TNAME, JTYPE ) { CQRESTEST( false, IN, REF ); }
-
-
-BOOST_AUTO_TEST_SUITE( UHF_RESP )
-
-
-BOOST_AUTO_TEST_SUITE( UHF_PP_RESIDUE )
-
-
+#define CQRESTEST_IMPL(TNAME, IN, REF) \
+TEST( UHF_PP_RESIDUE, TNAME ) { CQRESTEST( false, IN, REF ); }
 
 
 // Li cc-pVDZ PP-RPA-HF (AA) (RESIDUE)
-CQRESTEST_IMPL( Li_ccpVDZ_ppRPA_AA_RESIDUE, SerialJob, 
+CQRESTEST_IMPL( Li_ccpVDZ_ppRPA_AA_RESIDUE,  
     "resp/serial/upp/Li_ccpVDZ_AA_ppRPA",
     "Li_ccpVDZ_AA_ppRPA.bin.ref" )
 
 // Li cc-pVDZ PP-RPA-HF (AB) (RESIDUE)
-CQRESTEST_IMPL( Li_ccpVDZ_ppRPA_AB_RESIDUE, SerialJob, 
+CQRESTEST_IMPL( Li_ccpVDZ_ppRPA_AB_RESIDUE,  
     "resp/serial/upp/Li_ccpVDZ_AB_ppRPA",
     "Li_ccpVDZ_AB_ppRPA.bin.ref" )
 
 // Li cc-pVDZ PP-RPA-HF (BB) (RESIDUE)
-CQRESTEST_IMPL( Li_ccpVDZ_ppRPA_BB_RESIDUE, SerialJob, 
+CQRESTEST_IMPL( Li_ccpVDZ_ppRPA_BB_RESIDUE,  
     "resp/serial/upp/Li_ccpVDZ_BB_ppRPA",
     "Li_ccpVDZ_BB_ppRPA.bin.ref" )
 
 #ifdef _CQ_DO_PARTESTS
 
   // SMP Li cc-pVDZ PP-RPA-HF (AA) (RESIDUE)
-  CQRESTEST_IMPL( PAR_Li_ccpVDZ_ppRPA_AA_RESIDUE, ParallelJob, 
+  CQRESTEST_IMPL( PAR_Li_ccpVDZ_ppRPA_AA_RESIDUE,  
       "resp/parallel/upp/Li_ccpVDZ_AA_ppRPA",
       "Li_ccpVDZ_AA_ppRPA.bin.ref" )
   
   // SMP Li cc-pVDZ PP-RPA-HF (AB) (RESIDUE)
-  CQRESTEST_IMPL( PAR_Li_ccpVDZ_ppRPA_AB_RESIDUE, ParallelJob, 
+  CQRESTEST_IMPL( PAR_Li_ccpVDZ_ppRPA_AB_RESIDUE,  
       "resp/parallel/upp/Li_ccpVDZ_AB_ppRPA",
       "Li_ccpVDZ_AB_ppRPA.bin.ref" )
 
   // SMP Li cc-pVDZ PP-RPA-HF (BB) (RESIDUE)
-  CQRESTEST_IMPL( PAR_Li_ccpVDZ_ppRPA_BB_RESIDUE, ParallelJob, 
+  CQRESTEST_IMPL( PAR_Li_ccpVDZ_ppRPA_BB_RESIDUE,  
       "resp/parallel/upp/Li_ccpVDZ_BB_ppRPA",
       "Li_ccpVDZ_BB_ppRPA.bin.ref" )
 
 #endif
-
-
-
-
-// End UHF_PP_RESIDUE suite
-BOOST_AUTO_TEST_SUITE_END()
-
-// End UHF_RESP suite
-BOOST_AUTO_TEST_SUITE_END()

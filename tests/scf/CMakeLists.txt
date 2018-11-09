@@ -28,15 +28,16 @@ set(SCF_TEST_BINARY_ROOT "${TEST_BINARY_ROOT}/scf" )
 
 # Set up compilation of SCF test exe
 add_executable(scftest ../ut.cxx 
-	rhf.cxx uhf.cxx x2chf.cxx ks.cxx 
-	rks.cxx uks.cxx x2cks.cxx misc.cxx
-        rhfnr.cxx
-	rhf_giao.cxx uhf_giao.cxx ghf_giao.cxx)
+	rhf.cxx uhf.cxx x2chf.cxx rhfnr.cxx
+        rhf_giao.cxx uhf_giao.cxx ghf_giao.cxx
+	rks.cxx uks.cxx x2cks.cxx ks.cxx
+        misc.cxx
+)
 
-target_compile_definitions(scftest PUBLIC BOOST_TEST_MODULE=SCF)
 target_include_directories(scftest PUBLIC ${SCF_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
 target_link_libraries(scftest PUBLIC ${CQEX_LINK})
+target_link_libraries(scftest PUBLIC ChronusQ::gtest)
 
 if(CQEX_DEP)
   add_dependencies(scftest ${CQEX_DEP})
@@ -61,31 +62,36 @@ file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/rhf_giao)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/uhf_giao)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/ghf_giao)
 
-# Add the Test
-add_test( RHF_SCF   scftest --report_level=detailed --run_test=RHF   )
-add_test( UHF_SCF   scftest --report_level=detailed --run_test=UHF   )
-add_test( X2CHF_SCF scftest --report_level=detailed --run_test=X2CHF )
-add_test( RKS_SCF   scftest --report_level=detailed --run_test=RKS   )
-add_test( UKS_SCF   scftest --report_level=detailed --run_test=UKS   )
-add_test( X2CKS_SCF scftest --report_level=detailed --run_test=X2CKS )
-add_test( MISC_SCF scftest --report_level=detailed --run_test=MISC_SCF)
 
-add_test( RHF_NR_SCF   scftest --report_level=detailed --run_test=RHF_NR   )
-       
-add_test( RHF_GIAO_SCF   scftest --report_level=detailed --run_test=RHF_GIAO   )
-add_test( UHF_GIAO_SCF   scftest --report_level=detailed --run_test=UHF_GIAO   )
-add_test( GHF_GIAO_SCF   scftest --report_level=detailed --run_test=GHF_GIAO   )
+include( CQTestGeneration )
 
-add_test( KS_KEYWORD scftest --report_level=detailed --run_test=KS_KEYWORD )
-add_test( KS_FUNC scftest --report_level=detailed --run_test=KS_FUNC )
+# Add tests
+add_cq_test( RHF_SCF      scftest "RHF.*"      )
+add_cq_test( UHF_SCF      scftest "UHF.*"      )
+add_cq_test( X2CHF_SCF    scftest "X2CHF.*"    )
+add_cq_test( RHF_NR_SCF   scftest "RHF_NR.*"   )
+add_cq_test( RHF_GIAO_SCF scftest "RHF_GIAO.*" )
+add_cq_test( UHF_GIAO_SCF scftest "UHF_GIAO.*" )
+add_cq_test( GHF_GIAO_SCF scftest "GHF_GIAO.*" )
+
+add_cq_test( RKS_SCF      scftest "RKS.*"        )
+add_cq_test( UKS_SCF      scftest "UKS.*"        )
+add_cq_test( X2CKS_SCF    scftest "X2CKS.*"      )
+add_cq_test( KS_KEYWORD   scftest "KS_KEYWORD.*" )
+add_cq_test( KS_FUNC      scftest "KS_FUNC.*"    )
+
+add_cq_test( MISC_SCF     scftest "MISC_SCF.*" )
 
 
 if( CQ_ENABLE_MPI )
-  add_test( NAME RHF_SCF_MPI   COMMAND  ${MPIEXEC} -np 2 "./scftest" "--report_level=detailed" "--run_test=RHF"     )
-  add_test( NAME UHF_SCF_MPI   COMMAND  ${MPIEXEC} -np 2 "./scftest" "--report_level=detailed" "--run_test=UHF"     )
-  add_test( NAME X2CHF_SCF_MPI COMMAND  ${MPIEXEC} -np 2 "./scftest" "--report_level=detailed" "--run_test=X2CHF"   )
-  #  Seems to be a bug in KS + MPI, need to revisit
-  add_test( NAME RKS_SCF_MPI   COMMAND  ${MPIEXEC} -np 2 "./scftest" "--report_level=detailed" "--run_test=RKS"     )
-  add_test( NAME UKS_SCF_MPI   COMMAND  ${MPIEXEC} -np 2 "./scftest" "--report_level=detailed" "--run_test=UKS"     )
-  add_test( NAME X2CKS_SCF_MPI COMMAND  ${MPIEXEC} -np 2 "./scftest" "--report_level=detailed" "--run_test=X2CKS"   )
+  add_cq_mpi_test( RHF_SCF_MPI 2   scftest "RHF.*"   )
+  add_cq_mpi_test( UHF_SCF_MPI 2   scftest "UHF.*"   )
+  add_cq_mpi_test( X2CHF_SCF_MPI 2 scftest "X2CHF.*" )
+
+  add_cq_mpi_test( RKS_SCF_MPI 2   scftest "RKS.*"   )
+  add_cq_mpi_test( UKS_SCF_MPI 2   scftest "UKS.*"   )
+  #add_cq_mpi_test( X2CKS_SCF_MPI 2 scftest "X2CKS.*" )
 endif()
+
+
+

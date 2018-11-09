@@ -23,44 +23,49 @@
  */
 
 
-
-
-/**
- *
- *  This file acts as a generic template for ChronusQ UTs through
- *  the Boost.Test framework. When compiling, one must add a definition
- *  of BOOST_TEST_MODULE in the compiler invocation
- *
- *  CXX -DBOOST_TEST_MODULE=ModName 
- *
- */
-
-
-
-
 #include <cxxapi/boilerplate.hpp>
 
-#include <boost/test/impl/unit_test_main.ipp>
-#include <boost/test/impl/framework.ipp>
-#include <boost/test/unit_test.hpp>
-using namespace boost::unit_test;
+// GTest header
+#include <gtest/gtest.h>
 
 
-/**
- *  \brief A global fixture for ChronusQ UTs through the
- *  Boost.Test framework.
- *
- *  Ensures that ChronusQ::initialize and ChronusQ::finalize
- *  only get called once throughout the test module
- */
-struct CQConfig {
-
-  CQConfig() { ChronusQ::initialize(); }
-  ~CQConfig() { ChronusQ::finalize(); }
-
-};
-
-BOOST_GLOBAL_FIXTURE( CQConfig );
+// UT Headers
+#ifdef CQ_FUNC_TEST
+  #include <func.hpp>
+#endif
 
 
 
+
+int main(int argc, char **argv) {
+
+  // Call CQ::initialize only once
+  ChronusQ::initialize();
+
+#if defined(_CQ_GENERATE_TESTS) && defined(CQ_FUNC_TEST)
+  // Register contraction environment
+  ::testing::Environment * const contr_env = 
+     ::testing::AddGlobalTestEnvironment(new ContractEnvironment);
+#endif
+
+#ifdef CQ_ENABLE_MPI
+  // Only get print from root
+  ::testing::TestEventListeners& listeners =
+      ::testing::UnitTest::GetInstance()->listeners();
+  if(ChronusQ::MPIRank(MPI_COMM_WORLD) != 0) {
+      delete listeners.Release(listeners.default_result_printer());
+  }
+#endif
+
+
+
+  // Init GT and run tests
+  ::testing::InitGoogleTest(&argc, argv);
+  auto gt_return = RUN_ALL_TESTS();
+
+  // Call CQ::finalize only once
+  ChronusQ::finalize();
+
+  return gt_return; // return GT result
+
+}

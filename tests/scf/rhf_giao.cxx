@@ -24,10 +24,8 @@
 
 #include "scf.hpp"
 
-BOOST_AUTO_TEST_SUITE( RHF_GIAO )
-
 // BH GIAO STO-3G test  B = 0, 0, 0.02
-BOOST_FIXTURE_TEST_CASE( BH_GIAO_STO3G, SerialJob ) {
+TEST( RHF_GIAO, BH_GIAO_STO3G ) {
 
   CQSCFTEST( "scf/serial/rhf_giao/BH_giao_sto3g", "BH_giao_sto3g.bin.ref", 1e-6 );
  
@@ -36,12 +34,10 @@ BOOST_FIXTURE_TEST_CASE( BH_GIAO_STO3G, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP BH GIAO STO-3G test  B = 0, 0, 0.02
-BOOST_FIXTURE_TEST_CASE( Par_BH_GIAO_STO3G, ParallelJob ) {
+TEST( RHF_GIAO, Par_BH_GIAO_STO3G ) {
 
   CQSCFTEST( "scf/parallel/rhf_giao/BH_giao_sto3g", "BH_giao_sto3g.bin.ref", 1e-6 );
  
 };
 
 #endif
-
-BOOST_AUTO_TEST_SUITE_END()

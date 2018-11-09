@@ -25,11 +25,9 @@
 #include "rt.hpp"
 
 
-BOOST_AUTO_TEST_SUITE( RHF_RT )
-
 
 // Water 6-31G(d) Delta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( Water_631Gd_Delta_Y, SerialJob ) {
+TEST( RHF_RT, Water_631Gd_Delta_Y ) {
 
   CQRTTEST( rt/serial/rrt/water_6-31Gd_rhf_delta_y,
     water_6-31Gd_rhf_delta_y.bin.ref );
@@ -39,7 +37,7 @@ BOOST_FIXTURE_TEST_CASE( Water_631Gd_Delta_Y, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-31G(d) Delta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( PAR_Water_631Gd_Delta_Y, ParallelJob ) {
+TEST( RHF_RT, PAR_Water_631Gd_Delta_Y ) {
 
   CQRTTEST( rt/parallel/rrt/water_6-31Gd_rhf_delta_y,
     water_6-31Gd_rhf_delta_y.bin.ref );
@@ -48,8 +46,6 @@ BOOST_FIXTURE_TEST_CASE( PAR_Water_631Gd_Delta_Y, ParallelJob ) {
 
 #endif
 
-// End RHF_RT suite
-BOOST_AUTO_TEST_SUITE_END()
 
 
 
@@ -61,11 +57,10 @@ BOOST_AUTO_TEST_SUITE_END()
 
 
 
-BOOST_AUTO_TEST_SUITE( RKS_RT )
 
 
 // Water 6-31G(d) B3LYP Delta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( Water_631Gd_B3LYP_Delta_Y, SerialJob ) {
+TEST( RKS_RT, Water_631Gd_B3LYP_Delta_Y ) {
 
   CQRTTEST( rt/serial/rrt/water_6-31Gd_rb3lyp_delta_y,
     water_6-31Gd_rb3lyp_delta_y.bin.ref );
@@ -75,7 +70,7 @@ BOOST_FIXTURE_TEST_CASE( Water_631Gd_B3LYP_Delta_Y, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-31G(d) B3LYP Delta Spike (along Y)
-BOOST_FIXTURE_TEST_CASE( PAR_Water_631Gd_B3LYP_Delta_Y, ParallelJob ) {
+TEST( RKS_RT, PAR_Water_631Gd_B3LYP_Delta_Y ) {
 
   CQRTTEST( rt/parallel/rrt/water_6-31Gd_rb3lyp_delta_y,
     water_6-31Gd_rb3lyp_delta_y.bin.ref );
@@ -83,6 +78,3 @@ BOOST_FIXTURE_TEST_CASE( PAR_Water_631Gd_B3LYP_Delta_Y, ParallelJob ) {
 }
 
 #endif
-
-// End RKS_RT suite
-BOOST_AUTO_TEST_SUITE_END()

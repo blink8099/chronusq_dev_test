@@ -24,10 +24,8 @@
 
 #include "scf.hpp"
 
-BOOST_AUTO_TEST_SUITE( X2CKS )
-
 // X2C Water 6-311+G(d,p) B3LYP (Spherical) test
-BOOST_FIXTURE_TEST_CASE( Water_6311pGdp_x2c_b3lyp_sph, SerialJob ) {
+TEST( X2CKS, Water_6311pGdp_x2c_b3lyp_sph ) {
 
   CQSCFTEST( "scf/serial/x2c/water_6-311+Gdp_b3lyp_sph", 
     "water_6-311+Gdp_sph_x2c_b3lyp.bin.ref",1e-6 );
@@ -35,7 +33,7 @@ BOOST_FIXTURE_TEST_CASE( Water_6311pGdp_x2c_b3lyp_sph, SerialJob ) {
 };
 
 // Water 6-311+G(d,p) B3LYP (Cartesian) test
-BOOST_FIXTURE_TEST_CASE( Water_6311pGdp_x2c_b3lyp_cart, SerialJob ) {
+TEST( X2CKS, Water_6311pGdp_x2c_b3lyp_cart ) {
 
   CQSCFTEST( "scf/serial/x2c/water_6-311+Gdp_b3lyp_cart", 
     "water_6-311+Gdp_cart_x2c_b3lyp.bin.ref",1e-6 );
@@ -45,7 +43,7 @@ BOOST_FIXTURE_TEST_CASE( Water_6311pGdp_x2c_b3lyp_cart, SerialJob ) {
 
 
 // Hg SAPPORO DZP DKH_2012 SP SLATER
-BOOST_FIXTURE_TEST_CASE( Hg_SAP_DZP_DKH3_2012_SP_SLATER , SerialJob ) {
+TEST( X2CKS, Hg_SAP_DZP_DKH3_2012_SP_SLATER  ) {
 
   CQSCFTEST( "scf/serial/x2c/hg_sap_dz_dkh3_2012_sp_slater", 
     "hg_sap_dz_dkh3_2012_sp_slater.bin.ref",1e-6 );
@@ -53,7 +51,7 @@ BOOST_FIXTURE_TEST_CASE( Hg_SAP_DZP_DKH3_2012_SP_SLATER , SerialJob ) {
 };
 
 // Zn SAPPORO DZP DKH_2012 SP SLATER
-BOOST_FIXTURE_TEST_CASE( Zn_SAP_DZP_DKH3_2012_SP_SLATER , SerialJob ) {
+TEST( X2CKS, Zn_SAP_DZP_DKH3_2012_SP_SLATER  ) {
 
   CQSCFTEST( "scf/serial/x2c/zn_sap_dz_dkh3_2012_sp_slater", 
     "zn_sap_dz_dkh3_2012_sp_slater.bin.ref",1e-6 );
@@ -61,7 +59,7 @@ BOOST_FIXTURE_TEST_CASE( Zn_SAP_DZP_DKH3_2012_SP_SLATER , SerialJob ) {
 };
 
 // Cd SAPPORO DZP DKH_2012 SP SLATER
-BOOST_FIXTURE_TEST_CASE( Cd_SAP_DZP_DKH3_2012_SP_SLATER , SerialJob ) {
+TEST( X2CKS, Cd_SAP_DZP_DKH3_2012_SP_SLATER  ) {
 
   CQSCFTEST( "scf/serial/x2c/cd_sap_dz_dkh3_2012_sp_slater", 
     "cd_sap_dz_dkh3_2012_sp_slater.bin.ref",1e-6 );
@@ -71,7 +69,7 @@ BOOST_FIXTURE_TEST_CASE( Cd_SAP_DZP_DKH3_2012_SP_SLATER , SerialJob ) {
 
 
 // Hg SAPPORO DZP DKH_2012 SP B3LYP
-BOOST_FIXTURE_TEST_CASE( Hg_SAP_DZP_DKH3_2012_SP_B3LYP , SerialJob ) {
+TEST( X2CKS, Hg_SAP_DZP_DKH3_2012_SP_B3LYP  ) {
 
   CQSCFTEST( "scf/serial/x2c/hg_sap_dz_dkh3_2012_sp_b3lyp", 
     "hg_sap_dz_dkh3_2012_sp_b3lyp.bin.ref",1e-6 );
@@ -79,7 +77,7 @@ BOOST_FIXTURE_TEST_CASE( Hg_SAP_DZP_DKH3_2012_SP_B3LYP , SerialJob ) {
 };
 
 // Zn SAPPORO DZP DKH_2012 SP B3LYP
-BOOST_FIXTURE_TEST_CASE( Zn_SAP_DZP_DKH3_2012_SP_B3LYP , SerialJob ) {
+TEST( X2CKS, Zn_SAP_DZP_DKH3_2012_SP_B3LYP  ) {
 
   CQSCFTEST( "scf/serial/x2c/zn_sap_dz_dkh3_2012_sp_b3lyp", 
     "zn_sap_dz_dkh3_2012_sp_b3lyp.bin.ref",1e-6 );
@@ -87,7 +85,7 @@ BOOST_FIXTURE_TEST_CASE( Zn_SAP_DZP_DKH3_2012_SP_B3LYP , SerialJob ) {
 };
 
 // Cd SAPPORO DZP DKH_2012 SP B3LYP
-BOOST_FIXTURE_TEST_CASE( Cd_SAP_DZP_DKH3_2012_SP_B3LYP , SerialJob ) {
+TEST( X2CKS, Cd_SAP_DZP_DKH3_2012_SP_B3LYP  ) {
 
   CQSCFTEST( "scf/serial/x2c/cd_sap_dz_dkh3_2012_sp_b3lyp", 
     "cd_sap_dz_dkh3_2012_sp_b3lyp.bin.ref",1e-6 );
@@ -97,7 +95,7 @@ BOOST_FIXTURE_TEST_CASE( Cd_SAP_DZP_DKH3_2012_SP_B3LYP , SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP X2C Water 6-311+G(d,p) B3LYP (Spherical) test
-BOOST_FIXTURE_TEST_CASE( PAR_Water_6311pGdp_x2c_b3lyp_sph, ParallelJob ) {
+TEST( X2CKS, PAR_Water_6311pGdp_x2c_b3lyp_sph ) {
 
   CQSCFTEST( "scf/parallel/x2c/water_6-311+Gdp_b3lyp_sph", 
     "water_6-311+Gdp_sph_x2c_b3lyp.bin.ref",1e-6 );
@@ -107,7 +105,7 @@ BOOST_FIXTURE_TEST_CASE( PAR_Water_6311pGdp_x2c_b3lyp_sph, ParallelJob ) {
 
 /*
 // SMP Hg SAPPORO DZP DKH_2012 SP SLATER
-BOOST_FIXTURE_TEST_CASE( PAR_Hg_SAP_DZP_DKH3_2012_SP_SLATER , ParallelJob ) {
+TEST( X2CKS, PAR_Hg_SAP_DZP_DKH3_2012_SP_SLATER  ) {
 
   CQSCFTEST( scf/parallel/x2c/hg_sap_dz_dkh3_2012_sp_slater, 
     hg_sap_dz_dkh3_2012_sp_slater.bin.ref );
@@ -115,7 +113,7 @@ BOOST_FIXTURE_TEST_CASE( PAR_Hg_SAP_DZP_DKH3_2012_SP_SLATER , ParallelJob ) {
 };
 
 // SMP Hg SAPPORO DZP DKH_2012 SP B3LYP
-BOOST_FIXTURE_TEST_CASE( PAR_Hg_SAP_DZP_DKH3_2012_SP_B3LYP , ParallelJob ) {
+TEST( X2CKS, PAR_Hg_SAP_DZP_DKH3_2012_SP_B3LYP  ) {
 
   CQSCFTEST( scf/parallel/x2c/hg_sap_dz_dkh3_2012_sp_b3lyp, 
     hg_sap_dz_dkh3_2012_sp_b3lyp.bin.ref );
@@ -124,8 +122,6 @@ BOOST_FIXTURE_TEST_CASE( PAR_Hg_SAP_DZP_DKH3_2012_SP_B3LYP , ParallelJob ) {
 */
 
 #endif
-
-BOOST_AUTO_TEST_SUITE_END()
 
 
 

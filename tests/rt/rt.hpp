@@ -61,33 +61,33 @@ using namespace ChronusQ;
   \
   auto energyDim1 = resFile.getDims("/RT/ENERGY");\
   auto energyDim2 = refFile.getDims("/RT/ENERGY");\
-  std::cerr << energyDim1[0] << ", " << energyDim2[0] << std::endl;\
-  if( energyDim1.size() != 1 or energyDim2.size() != 1 or \
-      energyDim1[0] != energyDim2[0] ) \
-    BOOST_FAIL("Something went wrong in the file generation for energies");\
+  ASSERT_EQ( energyDim1.size(), 1 );\
+  ASSERT_EQ( energyDim2.size(), 1 );\
+  ASSERT_EQ( energyDim1[0], energyDim2[0] );\
   \
   auto dipoleDim1 = resFile.getDims("/RT/LEN_ELEC_DIPOLE");\
   auto dipoleDim2 = refFile.getDims("/RT/LEN_ELEC_DIPOLE");\
-  if( dipoleDim1.size() != 2 or dipoleDim2.size() != 2 or \
-      dipoleDim1[0] != dipoleDim2[0] or dipoleDim1[1] != 3 or \
-      dipoleDim2[1] != 3) \
-    BOOST_FAIL("Something went wrong in the file generation for dipoles");\
+  ASSERT_EQ( dipoleDim1.size(), 2 );\
+  ASSERT_EQ( dipoleDim2.size(), 2 );\
+  ASSERT_EQ( dipoleDim1[0], dipoleDim2[0] );\
+  ASSERT_EQ( dipoleDim1[1], 3 );\
+  ASSERT_EQ( dipoleDim2[1], 3 );\
   \
   xDummy.resize(energyDim1[0]); yDummy.resize(energyDim1[0]);\
   resFile.readData("/RT/ENERGY",&xDummy[0]);\
   refFile.readData("/RT/ENERGY",&yDummy[0]);\
   \
   for(auto i = 0; i < energyDim1[0]; i++) \
-    BOOST_CHECK_MESSAGE(std::abs(xDummy[i] - yDummy[i]) < 1e-8, std::abs(xDummy[i] - yDummy[i]));\
+    EXPECT_NEAR(xDummy[i], yDummy[i], 1e-8);\
   \
   xDummy3.resize(dipoleDim1[0]); yDummy3.resize(dipoleDim1[0]);\
   resFile.readData("/RT/LEN_ELEC_DIPOLE",&xDummy3[0][0]);\
   refFile.readData("/RT/LEN_ELEC_DIPOLE",&yDummy3[0][0]);\
   \
   for(auto i = 0; i < energyDim1[0]; i++) {\
-    BOOST_CHECK_MESSAGE(std::abs(xDummy3[i][0] - yDummy3[i][0]) < 1e-8, std::abs(xDummy3[i][0] - yDummy3[i][0]));\
-    BOOST_CHECK_MESSAGE(std::abs(xDummy3[i][1] - yDummy3[i][1]) < 1e-8, std::abs(xDummy3[i][1] - yDummy3[i][1]));\
-    BOOST_CHECK_MESSAGE(std::abs(xDummy3[i][2] - yDummy3[i][2]) < 1e-8, std::abs(xDummy3[i][2] - yDummy3[i][2]));\
+    EXPECT_NEAR(xDummy3[i][0], yDummy3[i][0], 1e-8);\
+    EXPECT_NEAR(xDummy3[i][1], yDummy3[i][1], 1e-8);\
+    EXPECT_NEAR(xDummy3[i][2], yDummy3[i][2], 1e-8);\
   }
 
 #endif

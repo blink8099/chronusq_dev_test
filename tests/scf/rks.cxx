@@ -25,25 +25,22 @@
 #include "scf.hpp"
 
 
-BOOST_AUTO_TEST_SUITE( RKS )
-
-
 // B3LYP / cc-pVTZ
-BOOST_FIXTURE_TEST_CASE( Water_ccpVTZ_B3LYP, SerialJob ) {
+TEST( RKS, Water_ccpVTZ_B3LYP ) {
 
   CQSCFTEST( "scf/serial/rks/water_cc-pVTZ_B3LYP", "water_cc-pVTZ_B3LYP.bin.ref" );
 
 }
 
 // BLYP / cc-pVTZ
-BOOST_FIXTURE_TEST_CASE( Water_ccpVTZ_BLYP, SerialJob ) {
+TEST( RKS, Water_ccpVTZ_BLYP ) {
 
   CQSCFTEST( "scf/serial/rks/water_cc-pVTZ_BLYP", "water_cc-pVTZ_BLYP.bin.ref" );
 
 }
 
 // LSDA / cc-pVTZ
-BOOST_FIXTURE_TEST_CASE( Water_ccpVTZ_LSDA, SerialJob ) {
+TEST( RKS, Water_ccpVTZ_LSDA ) {
 
   CQSCFTEST( "scf/serial/rks/water_cc-pVTZ_LSDA", "water_cc-pVTZ_LSDA.bin.ref" );
 
@@ -52,21 +49,21 @@ BOOST_FIXTURE_TEST_CASE( Water_ccpVTZ_LSDA, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP B3LYP / cc-pVTZ
-BOOST_FIXTURE_TEST_CASE( PAR_Water_ccpVTZ_B3LYP, ParallelJob ) {
+TEST( RKS, PAR_Water_ccpVTZ_B3LYP ) {
 
   CQSCFTEST( "scf/parallel/rks/water_cc-pVTZ_B3LYP", "water_cc-pVTZ_B3LYP.bin.ref" );
 
 }
 
 // SMP BLYP / cc-pVTZ
-BOOST_FIXTURE_TEST_CASE( PAR_Water_ccpVTZ_BLYP, ParallelJob ) {
+TEST( RKS, PAR_Water_ccpVTZ_BLYP ) {
 
   CQSCFTEST( "scf/parallel/rks/water_cc-pVTZ_BLYP", "water_cc-pVTZ_BLYP.bin.ref" );
 
 }
 
 // SMP LSDA / cc-pVTZ
-BOOST_FIXTURE_TEST_CASE( PAR_Water_ccpVTZ_LSDA, ParallelJob ) {
+TEST( RKS, PAR_Water_ccpVTZ_LSDA ) {
 
   CQSCFTEST( "scf/parallel/rks/water_cc-pVTZ_LSDA", "water_cc-pVTZ_LSDA.bin.ref" );
 
@@ -74,8 +71,5 @@ BOOST_FIXTURE_TEST_CASE( PAR_Water_ccpVTZ_LSDA, ParallelJob ) {
 
 #endif
 
-
-// End RKS suite
-BOOST_AUTO_TEST_SUITE_END()
 
 

@@ -21,20 +21,32 @@
 #   E-Mail: xsli@uw.edu
 #
 
-# Define global test variables
-set( TEST_ROOT ${PROJECT_SOURCE_DIR}/tests )
-set( TEST_BINARY_ROOT ${PROJECT_BINARY_DIR}/tests )
+# CQ GTest TARGET
+add_library( ChronusQ::gtest INTERFACE IMPORTED )
 
-# Common UT configuration header
-configure_file(
-  "${TEST_ROOT}/ut.hpp.in"
-  "${TEST_BINARY_ROOT}/ut.hpp"
-)
+# Try to find GTest
+find_package( GTest QUIET )
 
-#find_package( GTest REQUIRED )
-include( HandleGTest )
+if( GTEST_FOUND )
+  
+  message(STATUS "Found GTest!" )
+  target_link_libraries( ChronusQ::gtest INTERFACE GTest::GTest )
 
-add_subdirectory(scf)
-add_subdirectory(rt)
-add_subdirectory(resp)
-add_subdirectory(func)
+else()
+
+  # Pull GTest
+  message(STATUS "Could not find GTest! Building..." )
+
+  include( DownloadProject ) 
+  download_project(
+    PROJ                googletest
+    GIT_REPOSITORY      https://github.com/google/googletest.git
+    GIT_TAG             master
+    UPDATE_DISCONNECTED 1
+  )
+
+  add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
+
+  target_link_libraries( ChronusQ::gtest INTERFACE gtest )
+
+endif()

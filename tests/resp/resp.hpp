@@ -115,11 +115,8 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
 
   for(auto i = 0; i < evDim[0]; i++)
-    BOOST_CHECK_MESSAGE(
-      std::abs(xDummy[i] - yDummy[i + eigOff]) < tol,
-      "EIGENVALUE TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(xDummy[i] - yDummy[i + eigOff]) 
-    );
+    EXPECT_NEAR( xDummy[i], yDummy[i + eigOff], tol ) <<
+      "EIGENVALUE TEST FAILED IO = " << i;
 
   if( not checkProp ) return;
 
@@ -136,11 +133,8 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
   refFile.readData("/RESP/RESIDUE/OSC_STRENGTH",&yDummy[0]);
 
   for(auto i = 0; i < oscDim[0]; i++)
-    BOOST_CHECK_MESSAGE(
-      std::abs(xDummy[i] - yDummy[i + eigOff]) < tol,
-      "OSC STRENGTH TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(xDummy[i] - yDummy[i + eigOff]) 
-    );
+    EXPECT_NEAR( xDummy[i], yDummy[i + eigOff], tol ) <<
+      "OSC STRENGTH TEST FAILED IO = " << i;
 
 
   // Check TDipole (Length)
@@ -148,7 +142,7 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   auto tDipoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_LENGTH");
   auto tDipoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_LENGTH");
-  BOOST_CHECK(tDipoleDim.size() == 2);
+  ASSERT_EQ(tDipoleDim.size(),2);
 
   xDummy.clear(); yDummy.clear();
   xDummy.resize(tDipoleDim[0]*tDipoleDim[1]); 
@@ -159,23 +153,14 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   for(auto i = 0; i < tDipoleDim[0]; i++) {
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[3*i]) - std::abs(yDummy[3*(i + eigOff)])) < tol,
-      "TDIPOLE (LENGTH,X) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[3*i]) - std::abs(yDummy[3*(i + eigOff)]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[3*i]), std::abs(yDummy[3*(i + eigOff)]), tol ) <<
+      "TDIPOLE (LENGTH,X) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[3*i+1]) - std::abs(yDummy[3*(i + eigOff)+1])) < tol,
-      "TDIPOLE (LENGTH,Y) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[3*i+1]) - std::abs(yDummy[3*(i + eigOff)+1]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[3*i+1]), std::abs(yDummy[3*(i + eigOff)+1]), tol ) <<
+      "TDIPOLE (LENGTH,Y) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[3*i+2]) - std::abs(yDummy[3*(i + eigOff)+2])) < tol,
-      "TDIPOLE (LENGTH,Z) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[3*i+2]) - std::abs(yDummy[3*(i + eigOff)+2]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[3*i+2]), std::abs(yDummy[3*(i + eigOff)+2]), tol ) <<
+      "TDIPOLE (LENGTH,Z) TEST FAILED IO = " << i;
 
   }
 
@@ -184,7 +169,7 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   tDipoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_VELOCITY");
   tDipoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_VELOCITY");
-  BOOST_CHECK(tDipoleDim.size() == 2);
+  ASSERT_EQ(tDipoleDim.size(), 2);
 
   xDummy.clear(); yDummy.clear();
   xDummy.resize(tDipoleDim[0]*tDipoleDim[1]); 
@@ -195,23 +180,14 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   for(auto i = 0; i < tDipoleDim[0]; i++) {
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[3*i]) - std::abs(yDummy[3*(i + eigOff)])) < tol,
-      "TDIPOLE (VELOCITY,X) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[3*i]) - std::abs(yDummy[3*(i + eigOff)]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[3*i]), std::abs(yDummy[3*(i + eigOff)]), tol ) <<
+      "TDIPOLE (VELOCITY,X) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[3*i+1]) - std::abs(yDummy[3*(i + eigOff)+1])) < tol,
-      "TDIPOLE (VELOCITY,Y) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[3*i+1]) - std::abs(yDummy[3*(i + eigOff)+1]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[3*i+1]), std::abs(yDummy[3*(i + eigOff)+1]), tol ) <<
+      "TDIPOLE (VELOCITY,Y) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[3*i+2]) - std::abs(yDummy[3*(i + eigOff)+2])) < tol,
-      "TDIPOLE (VELOCITY,Z) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[3*i+2]) - std::abs(yDummy[3*(i + eigOff)+2]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[3*i+2]), std::abs(yDummy[3*(i + eigOff)+2]), tol ) <<
+      "TDIPOLE (VELOCITY,Z) TEST FAILED IO = " << i;
 
   }
 
@@ -220,7 +196,7 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   auto tQuadrupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_LENGTH");
   auto tQuadrupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_LENGTH");
-  BOOST_CHECK(tQuadrupoleDim.size() == 2);
+  ASSERT_EQ(tQuadrupoleDim.size(), 2);
 
   xDummy.clear(); yDummy.clear();
   xDummy.resize(tQuadrupoleDim[0]*tQuadrupoleDim[1]); 
@@ -231,41 +207,23 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   for(auto i = 0; i < tQuadrupoleDim[0]; i++) {
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i]) - std::abs(yDummy[6*(i + eigOff)])) < tol,
-      "TQUADRUPOLE (LENGTH,XX) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i]) - std::abs(yDummy[6*(i + eigOff)]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i]), std::abs(yDummy[6*(i + eigOff)]), tol ) <<
+      "TQUADRUPOLE (LENGTH,XX) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+1]) - std::abs(yDummy[6*(i + eigOff)+1])) < tol,
-      "TQUADRUPOLE (LENGTH,XY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+1]) - std::abs(yDummy[6*(i + eigOff)+1]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+1]), std::abs(yDummy[6*(i + eigOff)+1]), tol ) <<
+      "TQUADRUPOLE (LENGTH,XY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+2]) - std::abs(yDummy[6*(i + eigOff)+2])) < tol,
-      "TQUADRUPOLE (LENGTH,XZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+2]) - std::abs(yDummy[6*(i + eigOff)+2]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+2]), std::abs(yDummy[6*(i + eigOff)+2]), tol ) <<
+      "TQUADRUPOLE (LENGTH,XZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+3]) - std::abs(yDummy[6*(i + eigOff)+3])) < tol,
-      "TQUADRUPOLE (LENGTH,YY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+3]) - std::abs(yDummy[6*(i + eigOff)+3]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+3]), std::abs(yDummy[6*(i + eigOff)+3]), tol ) <<
+      "TQUADRUPOLE (LENGTH,YY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+4]) - std::abs(yDummy[6*(i + eigOff)+4])) < tol,
-      "TQUADRUPOLE (LENGTH,YZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+4]) - std::abs(yDummy[6*(i + eigOff)+4]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+4]), std::abs(yDummy[6*(i + eigOff)+4]), tol ) <<
+      "TQUADRUPOLE (LENGTH,YZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+5]) - std::abs(yDummy[6*(i + eigOff)+5])) < tol,
-      "TQUADRUPOLE (LENGTH,ZZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+5]) - std::abs(yDummy[6*(i + eigOff)+5]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+5]), std::abs(yDummy[6*(i + eigOff)+5]), tol ) <<
+      "TQUADRUPOLE (LENGTH,ZZ) TEST FAILED IO = " << i;
 
   }
 
@@ -275,7 +233,7 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   tQuadrupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_VELOCITY");
   tQuadrupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_VELOCITY");
-  BOOST_CHECK(tQuadrupoleDim.size() == 2);
+  ASSERT_EQ(tQuadrupoleDim.size(), 2);
 
   xDummy.clear(); yDummy.clear();
   xDummy.resize(tQuadrupoleDim[0]*tQuadrupoleDim[1]); 
@@ -286,41 +244,23 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   for(auto i = 0; i < tQuadrupoleDim[0]; i++) {
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i]) - std::abs(yDummy[6*(i + eigOff)])) < tol,
-      "TQUADRUPOLE (VELOCITY,XX) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i]) - std::abs(yDummy[6*(i + eigOff)]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i]), std::abs(yDummy[6*(i + eigOff)]), tol ) <<
+      "TQUADRUPOLE (VELOCITY,XX) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+1]) - std::abs(yDummy[6*(i + eigOff)+1])) < tol,
-      "TQUADRUPOLE (VELOCITY,XY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+1]) - std::abs(yDummy[6*(i + eigOff)+1]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+1]), std::abs(yDummy[6*(i + eigOff)+1]), tol ) <<
+      "TQUADRUPOLE (VELOCITY,XY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+2]) - std::abs(yDummy[6*(i + eigOff)+2])) < tol,
-      "TQUADRUPOLE (VELOCITY,XZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+2]) - std::abs(yDummy[6*(i + eigOff)+2]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+2]), std::abs(yDummy[6*(i + eigOff)+2]), tol ) <<
+      "TQUADRUPOLE (VELOCITY,XZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+3]) - std::abs(yDummy[6*(i + eigOff)+3])) < tol,
-      "TQUADRUPOLE (VELOCITY,YY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+3]) - std::abs(yDummy[6*(i + eigOff)+3]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+3]), std::abs(yDummy[6*(i + eigOff)+3]), tol ) <<
+      "TQUADRUPOLE (VELOCITY,YY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+4]) - std::abs(yDummy[6*(i + eigOff)+4])) < tol,
-      "TQUADRUPOLE (VELOCITY,YZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+4]) - std::abs(yDummy[6*(i + eigOff)+4]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+4]), std::abs(yDummy[6*(i + eigOff)+4]), tol ) <<
+      "TQUADRUPOLE (VELOCITY,YZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+5]) - std::abs(yDummy[6*(i + eigOff)+5])) < tol,
-      "TQUADRUPOLE (VELOCITY,ZZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+5]) - std::abs(yDummy[6*(i + eigOff)+5]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+5]), std::abs(yDummy[6*(i + eigOff)+5]), tol ) <<
+      "TQUADRUPOLE (VELOCITY,ZZ) TEST FAILED IO = " << i;
 
   }
 
@@ -332,7 +272,7 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   auto tOctupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_LENGTH");
   auto tOctupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_LENGTH");
-  BOOST_CHECK(tOctupoleDim.size() == 2);
+  ASSERT_EQ(tOctupoleDim.size(), 2);
 
   xDummy.clear(); yDummy.clear();
   xDummy.resize(tOctupoleDim[0]*tOctupoleDim[1]); 
@@ -343,66 +283,35 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   for(auto i = 0; i < tOctupoleDim[0]; i++) {
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i]) - std::abs(yDummy[10*(i + eigOff)])) < tol,
-      "TOCTUPOLE (LENGTH,XXX) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i]) - std::abs(yDummy[10*(i + eigOff)]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i]), std::abs(yDummy[10*(i + eigOff)]), tol ) <<
+      "TOCTUPOLE (LENGTH,XXX) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+1]) - std::abs(yDummy[10*(i + eigOff)+1])) < tol,
-      "TOCTUPOLE (LENGTH,XXY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+1]) - std::abs(yDummy[10*(i + eigOff)+1]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+1]), std::abs(yDummy[10*(i + eigOff)+1]), tol ) <<
+      "TOCTUPOLE (LENGTH,XXY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+2]) - std::abs(yDummy[10*(i + eigOff)+2])) < tol,
-      "TOCTUPOLE (LENGTH,XXZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+2]) - std::abs(yDummy[10*(i + eigOff)+2]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+2]), std::abs(yDummy[10*(i + eigOff)+2]), tol ) <<
+      "TOCTUPOLE (LENGTH,XXZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+3]) - std::abs(yDummy[10*(i + eigOff)+3])) < tol,
-      "TOCTUPOLE (LENGTH,XYY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+3]) - std::abs(yDummy[10*(i + eigOff)+3]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+3]), std::abs(yDummy[10*(i + eigOff)+3]), tol ) <<
+      "TOCTUPOLE (LENGTH,XYY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+4]) - std::abs(yDummy[10*(i + eigOff)+4])) < tol,
-      "TOCTUPOLE (LENGTH,XYZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+4]) - std::abs(yDummy[10*(i + eigOff)+4]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+4]), std::abs(yDummy[10*(i + eigOff)+4]), tol ) <<
+      "TOCTUPOLE (LENGTH,XYZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+5]) - std::abs(yDummy[10*(i + eigOff)+5])) < tol,
-      "TOCTUPOLE (LENGTH,XZZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+5]) - std::abs(yDummy[10*(i + eigOff)+5]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+5]), std::abs(yDummy[10*(i + eigOff)+5]), tol ) <<
+      "TOCTUPOLE (LENGTH,XZZ) TEST FAILED IO = " << i;
 
+    EXPECT_NEAR( std::abs(xDummy[10*i+6]), std::abs(yDummy[10*(i + eigOff)+6]), tol ) <<
+      "TOCTUPOLE (LENGTH,YYY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+6]) - std::abs(yDummy[10*(i + eigOff)+6])) < tol,
-      "TOCTUPOLE (LENGTH,YYY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+6]) - std::abs(yDummy[10*(i + eigOff)+6]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+7]), std::abs(yDummy[10*(i + eigOff)+7]), tol ) <<
+      "TOCTUPOLE (LENGTH,YYZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+7]) - std::abs(yDummy[10*(i + eigOff)+7])) < tol,
-      "TOCTUPOLE (LENGTH,YYZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+7]) - std::abs(yDummy[10*(i + eigOff)+7]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+8]), std::abs(yDummy[10*(i + eigOff)+8]), tol ) <<
+      "TOCTUPOLE (LENGTH,YZZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+8]) - std::abs(yDummy[10*(i + eigOff)+8])) < tol,
-      "TOCTUPOLE (LENGTH,YZZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+8]) - std::abs(yDummy[10*(i + eigOff)+8]))
-    );
-
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+9]) - std::abs(yDummy[10*(i + eigOff)+9])) < tol,
-      "TOCTUPOLE (LENGTH,ZZZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+9]) - std::abs(yDummy[10*(i + eigOff)+9]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+9]), std::abs(yDummy[10*(i + eigOff)+9]), tol ) <<
+      "TOCTUPOLE (LENGTH,ZZZ) TEST FAILED IO = " << i;
 
   }
 
@@ -413,7 +322,7 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   tOctupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_VELOCITY");
   tOctupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_VELOCITY");
-  BOOST_CHECK(tOctupoleDim.size() == 2);
+  ASSERT_EQ(tOctupoleDim.size(), 2);
 
   xDummy.clear(); yDummy.clear();
   xDummy.resize(tOctupoleDim[0]*tOctupoleDim[1]); 
@@ -424,66 +333,35 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   for(auto i = 0; i < tOctupoleDim[0]; i++) {
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i]) - std::abs(yDummy[10*(i + eigOff)])) < tol,
-      "TOCTUPOLE (VELOCITY,XXX) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i]) - std::abs(yDummy[10*(i + eigOff)]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i]), std::abs(yDummy[10*(i + eigOff)]), tol ) <<
+      "TOCTUPOLE (VELOCITY,XXX) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+1]) - std::abs(yDummy[10*(i + eigOff)+1])) < tol,
-      "TOCTUPOLE (VELOCITY,XXY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+1]) - std::abs(yDummy[10*(i + eigOff)+1]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+1]), std::abs(yDummy[10*(i + eigOff)+1]), tol ) <<
+      "TOCTUPOLE (VELOCITY,XXY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+2]) - std::abs(yDummy[10*(i + eigOff)+2])) < tol,
-      "TOCTUPOLE (VELOCITY,XXZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+2]) - std::abs(yDummy[10*(i + eigOff)+2]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+2]), std::abs(yDummy[10*(i + eigOff)+2]), tol ) <<
+      "TOCTUPOLE (VELOCITY,XXZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+3]) - std::abs(yDummy[10*(i + eigOff)+3])) < tol,
-      "TOCTUPOLE (VELOCITY,XYY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+3]) - std::abs(yDummy[10*(i + eigOff)+3]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+3]), std::abs(yDummy[10*(i + eigOff)+3]), tol ) <<
+      "TOCTUPOLE (VELOCITY,XYY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+4]) - std::abs(yDummy[10*(i + eigOff)+4])) < tol,
-      "TOCTUPOLE (VELOCITY,XYZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+4]) - std::abs(yDummy[10*(i + eigOff)+4]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+4]), std::abs(yDummy[10*(i + eigOff)+4]), tol ) <<
+      "TOCTUPOLE (VELOCITY,XYZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+5]) - std::abs(yDummy[10*(i + eigOff)+5])) < tol,
-      "TOCTUPOLE (VELOCITY,XZZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+5]) - std::abs(yDummy[10*(i + eigOff)+5]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+5]), std::abs(yDummy[10*(i + eigOff)+5]), tol ) <<
+      "TOCTUPOLE (VELOCITY,XZZ) TEST FAILED IO = " << i;
 
+    EXPECT_NEAR( std::abs(xDummy[10*i+6]), std::abs(yDummy[10*(i + eigOff)+6]), tol ) <<
+      "TOCTUPOLE (VELOCITY,YYY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+6]) - std::abs(yDummy[10*(i + eigOff)+6])) < tol,
-      "TOCTUPOLE (VELOCITY,YYY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+6]) - std::abs(yDummy[10*(i + eigOff)+6]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+7]), std::abs(yDummy[10*(i + eigOff)+7]), tol ) <<
+      "TOCTUPOLE (VELOCITY,YYZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+7]) - std::abs(yDummy[10*(i + eigOff)+7])) < tol,
-      "TOCTUPOLE (VELOCITY,YYZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+7]) - std::abs(yDummy[10*(i + eigOff)+7]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+8]), std::abs(yDummy[10*(i + eigOff)+8]), tol ) <<
+      "TOCTUPOLE (VELOCITY,YZZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+8]) - std::abs(yDummy[10*(i + eigOff)+8])) < tol,
-      "TOCTUPOLE (VELOCITY,YZZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+8]) - std::abs(yDummy[10*(i + eigOff)+8]))
-    );
-
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[10*i+9]) - std::abs(yDummy[10*(i + eigOff)+9])) < tol,
-      "TOCTUPOLE (VELOCITY,ZZZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[10*i+9]) - std::abs(yDummy[10*(i + eigOff)+9]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[10*i+9]), std::abs(yDummy[10*(i + eigOff)+9]), tol ) <<
+      "TOCTUPOLE (VELOCITY,ZZZ) TEST FAILED IO = " << i;
 
   }
 
@@ -497,7 +375,7 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   auto tMagDipoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_MAGNETIC_DIPOLE");
   auto tMagDipoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_MAGNETIC_DIPOLE");
-  BOOST_CHECK(tMagDipoleDim.size() == 2);
+  ASSERT_EQ(tMagDipoleDim.size(), 2);
 
   xDummy.clear(); yDummy.clear();
   xDummy.resize(tMagDipoleDim[0]*tMagDipoleDim[1]); 
@@ -508,23 +386,14 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   for(auto i = 0; i < tMagDipoleDim[0]; i++) {
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[3*i]) - std::abs(yDummy[3*(i + eigOff)])) < tol,
-      "T-MAGDIPOLE (X) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[3*i]) - std::abs(yDummy[3*(i + eigOff)]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[3*i]), std::abs(yDummy[3*(i + eigOff)]), tol ) <<
+      "TMAGDIPOLE (X) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[3*i+1]) - std::abs(yDummy[3*(i + eigOff)+1])) < tol,
-      "T-MAGDIPOLE (Y) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[3*i+1]) - std::abs(yDummy[3*(i + eigOff)+1]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[3*i+1]), std::abs(yDummy[3*(i + eigOff)+1]), tol ) <<
+      "TMAGDIPOLE (Y) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[3*i+2]) - std::abs(yDummy[3*(i + eigOff)+2])) < tol,
-      "T-MAGDIPOLE (Z) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[3*i+2]) - std::abs(yDummy[3*(i + eigOff)+2]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[3*i+2]), std::abs(yDummy[3*(i + eigOff)+2]), tol ) <<
+      "TMAGDIPOLE (Z) TEST FAILED IO = " << i;
 
   }
 
@@ -534,7 +403,7 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   auto tMagQuadrupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_MAGNETIC_QUADRUPOLE");
   auto tMagQuadrupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_MAGNETIC_QUADRUPOLE");
-  BOOST_CHECK(tMagQuadrupoleDim.size() == 2);
+  ASSERT_EQ(tMagQuadrupoleDim.size(), 2);
 
   xDummy.clear(); yDummy.clear();
   xDummy.resize(tMagQuadrupoleDim[0]*tMagQuadrupoleDim[1]); 
@@ -545,41 +414,23 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
   for(auto i = 0; i < tMagQuadrupoleDim[0]; i++) {
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i]) - std::abs(yDummy[6*(i + eigOff)])) < tol,
-      "T-MAGQUADRUPOLE (XX) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i]) - std::abs(yDummy[6*(i + eigOff)]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i]), std::abs(yDummy[6*(i + eigOff)]), tol ) <<
+      "TMAGQUADRUPOLE (XX) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+1]) - std::abs(yDummy[6*(i + eigOff)+1])) < tol,
-      "T-MAGQUADRUPOLE (XY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+1]) - std::abs(yDummy[6*(i + eigOff)+1]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+1]), std::abs(yDummy[6*(i + eigOff)+1]), tol ) <<
+      "TMAGQUADRUPOLE (XY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+2]) - std::abs(yDummy[6*(i + eigOff)+2])) < tol,
-      "T-MAGQUADRUPOLE (XZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+2]) - std::abs(yDummy[6*(i + eigOff)+2]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+2]), std::abs(yDummy[6*(i + eigOff)+2]), tol ) <<
+      "TMAGQUADRUPOLE (XZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+3]) - std::abs(yDummy[6*(i + eigOff)+3])) < tol,
-      "T-MAGQUADRUPOLE (YY) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+3]) - std::abs(yDummy[6*(i + eigOff)+3]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+3]), std::abs(yDummy[6*(i + eigOff)+3]), tol ) <<
+      "TMAGQUADRUPOLE (YY) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+4]) - std::abs(yDummy[6*(i + eigOff)+4])) < tol,
-      "T-MAGQUADRUPOLE (YZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+4]) - std::abs(yDummy[6*(i + eigOff)+4]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+4]), std::abs(yDummy[6*(i + eigOff)+4]), tol ) <<
+      "TMAGQUADRUPOLE (YZ) TEST FAILED IO = " << i;
 
-    BOOST_CHECK_MESSAGE(
-      std::abs(std::abs(xDummy[6*i+5]) - std::abs(yDummy[6*(i + eigOff)+5])) < tol,
-      "T-MAGQUADRUPOLE (ZZ) TEST FAILED IO = " << i << " DIFF = " <<
-      std::abs(std::abs(xDummy[6*i+5]) - std::abs(yDummy[6*(i + eigOff)+5]))
-    );
+    EXPECT_NEAR( std::abs(xDummy[6*i+5]), std::abs(yDummy[6*(i + eigOff)+5]), tol ) <<
+      "TMAGQUADRUPOLE (ZZ) TEST FAILED IO = " << i;
 
   }
 #endif
@@ -623,11 +474,8 @@ static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
       refFile.readData("/RESP/FDR/OPA_CROSS_SECTION_EDA",&yDummy[0]);
 
       for(auto i = 0; i < opaDim[0]; i++)
-        BOOST_CHECK_MESSAGE(
-          std::abs(xDummy[i] - yDummy[i]) < tol,
-          "OPA CROSS SECTION TEST FAILED IO = " << i << " DIFF = " <<
-          std::abs(xDummy[i] - yDummy[i]) 
-        );
+        EXPECT_NEAR(xDummy[i], yDummy[i],  tol) << 
+          "OPA CROSS SECTION TEST FAILED IO = " << i; 
     }
 
 
@@ -636,7 +484,7 @@ static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
     std::cerr << "PERFORMING ED-ED POLARIZABILITY (LENGTH) TEST\n";
 
     auto ededPolarDim = resFile.getDims("/RESP/FDR/ED_ED_POLARIZABILITY_LENGTH");
-    BOOST_CHECK(ededPolarDim.size() == 3);
+    ASSERT_EQ(ededPolarDim.size(), 3);
 
     txDummy.clear(); tyDummy.clear();
     txDummy.resize(ededPolarDim[0]*ededPolarDim[1]*ededPolarDim[1]); 
@@ -647,59 +495,32 @@ static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
 
     for(auto i = 0; i < ededPolarDim[0]; i++) {
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i]) - std::abs(tyDummy[9*i])) < tol,
-        "ED ED POLAR (LENGTH,X;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i]) - std::abs(tyDummy[9*i]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i]), std::abs(tyDummy[9*i]), tol ) <<
+        "ED ED POLAR (LENGTH,X;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+1]) - std::abs(tyDummy[9*i+1])) < tol,
-        "ED ED POLAR (LENGTH,X;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+1]) - std::abs(tyDummy[9*i+1]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+1]), std::abs(tyDummy[9*i+1]), tol ) <<
+        "ED ED POLAR (LENGTH,Y;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+2]) - std::abs(tyDummy[9*i+2])) < tol,
-        "ED ED POLAR (LENGTH,X;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+2]) - std::abs(tyDummy[9*i+2]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+2]), std::abs(tyDummy[9*i+2]), tol ) <<
+        "ED ED POLAR (LENGTH,Z;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+3]) - std::abs(tyDummy[9*i+3])) < tol,
-        "ED ED POLAR (LENGTH,Y;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+3]) - std::abs(tyDummy[9*i+3]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+3]), std::abs(tyDummy[9*i+3]), tol ) <<
+        "ED ED POLAR (LENGTH,X;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+4]) - std::abs(tyDummy[9*i+4])) < tol,
-        "ED ED POLAR (LENGTH,Y;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+4]) - std::abs(tyDummy[9*i+4]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+4]), std::abs(tyDummy[9*i+4]), tol ) <<
+        "ED ED POLAR (LENGTH,Y;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+5]) - std::abs(tyDummy[9*i+5])) < tol,
-        "ED ED POLAR (LENGTH,Y;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+5]) - std::abs(tyDummy[9*i+5]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+5]), std::abs(tyDummy[9*i+5]), tol ) <<
+        "ED ED POLAR (LENGTH,Z;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+6]) - std::abs(tyDummy[9*i+6])) < tol,
-        "ED ED POLAR (LENGTH,Z;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+6]) - std::abs(tyDummy[9*i+6]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+6]), std::abs(tyDummy[9*i+6]), tol ) <<
+        "ED ED POLAR (LENGTH,X;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+7]) - std::abs(tyDummy[9*i+7])) < tol,
-        "ED ED POLAR (LENGTH,Z;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+7]) - std::abs(tyDummy[9*i+7]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+7]), std::abs(tyDummy[9*i+7]), tol ) <<
+        "ED ED POLAR (LENGTH,Y;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+8]) - std::abs(tyDummy[9*i+8])) < tol,
-        "ED ED POLAR (LENGTH,Z;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+8]) - std::abs(tyDummy[9*i+8]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+8]), std::abs(tyDummy[9*i+8]), tol ) <<
+        "ED ED POLAR (LENGTH,Z;Z) TEST FAILED IO = " << i; 
 
     }
 
@@ -709,7 +530,7 @@ static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
     std::cerr << "PERFORMING EQ-ED POLARIZABILITY (LENGTH) TEST\n";
 
     auto eqedPolarDim = resFile.getDims("/RESP/FDR/EQ_ED_POLARIZABILITY_LENGTH");
-    BOOST_CHECK(eqedPolarDim.size() == 3);
+    ASSERT_EQ(eqedPolarDim.size(),3);
 
     txDummy.clear(); tyDummy.clear();
     txDummy.resize(eqedPolarDim[0]*eqedPolarDim[1]*eqedPolarDim[2]); 
@@ -720,113 +541,59 @@ static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
 
     for(auto i = 0; i < eqedPolarDim[0]; i++) {
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i]) - std::abs(tyDummy[18*i])) < tol,
-        "EQ ED POLAR (LENGTH,XX;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i]) - std::abs(tyDummy[18*i]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i]), std::abs(tyDummy[18*i]), tol ) <<
+        "EQ ED POLAR (LENGTH,XX;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+1]) - std::abs(tyDummy[18*i+1])) < tol,
-        "EQ ED POLAR (LENGTH,XY;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+1]) - std::abs(tyDummy[18*i+1]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+1]), std::abs(tyDummy[18*i+1]), tol ) <<
+        "EQ ED POLAR (LENGTH,XY;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+2]) - std::abs(tyDummy[18*i+2])) < tol,
-        "EQ ED POLAR (LENGTH,XZ;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+2]) - std::abs(tyDummy[18*i+2]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+2]), std::abs(tyDummy[18*i+2]), tol ) <<
+        "EQ ED POLAR (LENGTH,XZ;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+3]) - std::abs(tyDummy[18*i+3])) < tol,
-        "EQ ED POLAR (LENGTH,YY;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+3]) - std::abs(tyDummy[18*i+3]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+3]), std::abs(tyDummy[18*i+3]), tol ) <<
+        "EQ ED POLAR (LENGTH,YY;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+4]) - std::abs(tyDummy[18*i+4])) < tol,
-        "EQ ED POLAR (LENGTH,YZ;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+4]) - std::abs(tyDummy[18*i+4]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+4]), std::abs(tyDummy[18*i+4]), tol ) <<
+        "EQ ED POLAR (LENGTH,YZ;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+5]) - std::abs(tyDummy[18*i+5])) < tol,
-        "EQ ED POLAR (LENGTH,ZZ;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+5]) - std::abs(tyDummy[18*i+5]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+5]), std::abs(tyDummy[18*i+5]), tol ) <<
+        "EQ ED POLAR (LENGTH,ZZ;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+6]) - std::abs(tyDummy[18*i+6])) < tol,
-        "EQ ED POLAR (LENGTH,XX;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+6]) - std::abs(tyDummy[18*i+6]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+6]), std::abs(tyDummy[18*i+6]), tol ) <<
+        "EQ ED POLAR (LENGTH,XX;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+7]) - std::abs(tyDummy[18*i+7])) < tol,
-        "EQ ED POLAR (LENGTH,XY;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+7]) - std::abs(tyDummy[18*i+7]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+7]), std::abs(tyDummy[18*i+7]), tol ) <<
+        "EQ ED POLAR (LENGTH,XY;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+8]) - std::abs(tyDummy[18*i+8])) < tol,
-        "EQ ED POLAR (LENGTH,XZ;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+8]) - std::abs(tyDummy[18*i+8]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+8]), std::abs(tyDummy[18*i+8]), tol ) <<
+        "EQ ED POLAR (LENGTH,XZ;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+9]) - std::abs(tyDummy[18*i+9])) < tol,
-        "EQ ED POLAR (LENGTH,YY;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+9]) - std::abs(tyDummy[18*i+9]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+9]), std::abs(tyDummy[18*i+9]), tol ) <<
+        "EQ ED POLAR (LENGTH,YY;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+10]) - std::abs(tyDummy[18*i+10])) < tol,
-        "EQ ED POLAR (LENGTH,YZ;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+10]) - std::abs(tyDummy[18*i+10]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+10]), std::abs(tyDummy[18*i+10]), tol ) <<
+        "EQ ED POLAR (LENGTH,YZ;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+11]) - std::abs(tyDummy[18*i+11])) < tol,
-        "EQ ED POLAR (LENGTH,ZZ;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+11]) - std::abs(tyDummy[18*i+11]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+11]), std::abs(tyDummy[18*i+11]), tol ) <<
+        "EQ ED POLAR (LENGTH,ZZ;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+12]) - std::abs(tyDummy[18*i+12])) < tol,
-        "EQ ED POLAR (LENGTH,XX;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+12]) - std::abs(tyDummy[18*i+12]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+12]), std::abs(tyDummy[18*i+12]), tol ) <<
+        "EQ ED POLAR (LENGTH,XX;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+13]) - std::abs(tyDummy[18*i+13])) < tol,
-        "EQ ED POLAR (LENGTH,XY;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+13]) - std::abs(tyDummy[18*i+13]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+13]), std::abs(tyDummy[18*i+13]), tol ) <<
+        "EQ ED POLAR (LENGTH,XY;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+14]) - std::abs(tyDummy[18*i+14])) < tol,
-        "EQ ED POLAR (LENGTH,XZ;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+14]) - std::abs(tyDummy[18*i+14]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+14]), std::abs(tyDummy[18*i+14]), tol ) <<
+        "EQ ED POLAR (LENGTH,XZ;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+15]) - std::abs(tyDummy[18*i+15])) < tol,
-        "EQ ED POLAR (LENGTH,YY;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+15]) - std::abs(tyDummy[18*i+15]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+15]), std::abs(tyDummy[18*i+15]), tol ) <<
+        "EQ ED POLAR (LENGTH,YY;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+16]) - std::abs(tyDummy[18*i+16])) < tol,
-        "EQ ED POLAR (LENGTH,YZ;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+16]) - std::abs(tyDummy[18*i+16]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+16]), std::abs(tyDummy[18*i+16]), tol ) <<
+        "EQ ED POLAR (LENGTH,YZ;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[18*i+17]) - std::abs(tyDummy[18*i+17])) < tol,
-        "EQ ED POLAR (LENGTH,ZZ;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[18*i+17]) - std::abs(tyDummy[18*i+17]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[18*i+17]), std::abs(tyDummy[18*i+17]), tol ) <<
+        "EQ ED POLAR (LENGTH,ZZ;Z) TEST FAILED IO = " << i; 
 
     }
   }
@@ -839,7 +606,7 @@ static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
     std::cerr << "PERFORMING MD-ED POLARIZABILITY (LENGTH) TEST\n";
 
     auto mdedPolarDim = resFile.getDims("/RESP/FDR/MD_ED_POLARIZABILITY_LENGTH");
-    BOOST_CHECK(mdedPolarDim.size() == 3);
+    ASSERT_EQ(mdedPolarDim.size(), 3);
 
     txDummy.clear(); tyDummy.clear();
     txDummy.resize(mdedPolarDim[0]*mdedPolarDim[1]*mdedPolarDim[1]); 
@@ -850,59 +617,32 @@ static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
 
     for(auto i = 0; i < mdedPolarDim[0]; i++) {
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i]) - std::abs(tyDummy[9*i])) < tol,
-        "MD ED POLAR (X;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i]) - std::abs(tyDummy[9*i]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i]), std::abs(tyDummy[9*i]), tol ) <<
+        "MD ED POLAR (LENGTH,X;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+1]) - std::abs(tyDummy[9*i+1])) < tol,
-        "MD ED POLAR (X;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+1]) - std::abs(tyDummy[9*i+1]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+1]), std::abs(tyDummy[9*i+1]), tol ) <<
+        "MD ED POLAR (LENGTH,Y;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+2]) - std::abs(tyDummy[9*i+2])) < tol,
-        "MD ED POLAR (X;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+2]) - std::abs(tyDummy[9*i+2]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+2]), std::abs(tyDummy[9*i+2]), tol ) <<
+        "MD ED POLAR (LENGTH,Z;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+3]) - std::abs(tyDummy[9*i+3])) < tol,
-        "MD ED POLAR (Y;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+3]) - std::abs(tyDummy[9*i+3]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+3]), std::abs(tyDummy[9*i+3]), tol ) <<
+        "MD ED POLAR (LENGTH,X;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+4]) - std::abs(tyDummy[9*i+4])) < tol,
-        "MD ED POLAR (Y;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+4]) - std::abs(tyDummy[9*i+4]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+4]), std::abs(tyDummy[9*i+4]), tol ) <<
+        "MD ED POLAR (LENGTH,Y;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+5]) - std::abs(tyDummy[9*i+5])) < tol,
-        "MD ED POLAR (Y;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+5]) - std::abs(tyDummy[9*i+5]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+5]), std::abs(tyDummy[9*i+5]), tol ) <<
+        "MD ED POLAR (LENGTH,Z;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+6]) - std::abs(tyDummy[9*i+6])) < tol,
-        "MD ED POLAR (Z;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+6]) - std::abs(tyDummy[9*i+6]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+6]), std::abs(tyDummy[9*i+6]), tol ) <<
+        "MD ED POLAR (LENGTH,X;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+7]) - std::abs(tyDummy[9*i+7])) < tol,
-        "MD ED POLAR (Z;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+7]) - std::abs(tyDummy[9*i+7]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+7]), std::abs(tyDummy[9*i+7]), tol ) <<
+        "MD ED POLAR (LENGTH,Y;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+8]) - std::abs(tyDummy[9*i+8])) < tol,
-        "MD ED POLAR (Z;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+8]) - std::abs(tyDummy[9*i+8]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+8]), std::abs(tyDummy[9*i+8]), tol ) <<
+        "MD ED POLAR (LENGTH,Z;Z) TEST FAILED IO = " << i; 
 
     }
 
@@ -911,7 +651,7 @@ static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
     std::cerr << "PERFORMING MD-MD POLARIZABILITY TEST\n";
 
     auto mdmdPolarDim = resFile.getDims("/RESP/FDR/MD_MD_POLARIZABILITY");
-    BOOST_CHECK(mdmdPolarDim.size() == 3);
+    ASSERT_EQ(mdmdPolarDim.size(), 3);
 
     txDummy.clear(); tyDummy.clear();
     txDummy.resize(mdmdPolarDim[0]*mdmdPolarDim[1]*mdmdPolarDim[1]); 
@@ -922,59 +662,32 @@ static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
 
     for(auto i = 0; i < mdmdPolarDim[0]; i++) {
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i]) - std::abs(tyDummy[9*i])) < tol,
-        "MD MD POLAR (X;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i]) - std::abs(tyDummy[9*i]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i]), std::abs(tyDummy[9*i]), tol ) <<
+        "MD MD POLAR (LENGTH,X;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+1]) - std::abs(tyDummy[9*i+1])) < tol,
-        "MD MD POLAR (X;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+1]) - std::abs(tyDummy[9*i+1]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+1]), std::abs(tyDummy[9*i+1]), tol ) <<
+        "MD MD POLAR (LENGTH,Y;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+2]) - std::abs(tyDummy[9*i+2])) < tol,
-        "MD MD POLAR (X;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+2]) - std::abs(tyDummy[9*i+2]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+2]), std::abs(tyDummy[9*i+2]), tol ) <<
+        "MD MD POLAR (LENGTH,Z;X) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+3]) - std::abs(tyDummy[9*i+3])) < tol,
-        "MD MD POLAR (Y;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+3]) - std::abs(tyDummy[9*i+3]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+3]), std::abs(tyDummy[9*i+3]), tol ) <<
+        "MD MD POLAR (LENGTH,X;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+4]) - std::abs(tyDummy[9*i+4])) < tol,
-        "MD MD POLAR (Y;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+4]) - std::abs(tyDummy[9*i+4]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+4]), std::abs(tyDummy[9*i+4]), tol ) <<
+        "MD MD POLAR (LENGTH,Y;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+5]) - std::abs(tyDummy[9*i+5])) < tol,
-        "MD MD POLAR (Y;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+5]) - std::abs(tyDummy[9*i+5]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+5]), std::abs(tyDummy[9*i+5]), tol ) <<
+        "MD MD POLAR (LENGTH,Z;Y) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+6]) - std::abs(tyDummy[9*i+6])) < tol,
-        "MD MD POLAR (Z;X) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+6]) - std::abs(tyDummy[9*i+6]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+6]), std::abs(tyDummy[9*i+6]), tol ) <<
+        "MD MD POLAR (LENGTH,X;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+7]) - std::abs(tyDummy[9*i+7])) < tol,
-        "MD MD POLAR (Z;Y) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+7]) - std::abs(tyDummy[9*i+7]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+7]), std::abs(tyDummy[9*i+7]), tol ) <<
+        "MD MD POLAR (LENGTH,Y;Z) TEST FAILED IO = " << i; 
 
-      BOOST_CHECK_MESSAGE(
-        std::abs(std::abs(txDummy[9*i+8]) - std::abs(tyDummy[9*i+8])) < tol,
-        "MD MD POLAR (Z;Z) TEST FAILED IO = " << i << " DIFF = " <<
-        std::abs(std::abs(txDummy[9*i+8]) - std::abs(tyDummy[9*i+8]))
-      );
+      EXPECT_NEAR( std::abs(txDummy[9*i+8]), std::abs(tyDummy[9*i+8]), tol ) <<
+        "MD MD POLAR (LENGTH,Z;Z) TEST FAILED IO = " << i; 
 
     }
   }

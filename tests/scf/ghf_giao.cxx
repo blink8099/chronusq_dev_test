@@ -24,10 +24,8 @@
 
 #include "scf.hpp"
 
-BOOST_AUTO_TEST_SUITE( GHF_GIAO )
-
 // H2 TRIPLET GIAO 6-31G test  B = 0, 0, -0.001
-BOOST_FIXTURE_TEST_CASE( H2_TRIPLET_GHF_GIAO_631G, SerialJob ) {
+TEST( GHF_GIAO, H2_TRIPLET_GHF_GIAO_631G ) {
 
   CQSCFTEST( 
       "scf/serial/ghf_giao/h2_triplet_ghf_giao_631G", 
@@ -39,7 +37,7 @@ BOOST_FIXTURE_TEST_CASE( H2_TRIPLET_GHF_GIAO_631G, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP H2 TRIPLET GIAO 6-31G test  B = 0, 0, -0.001
-//BOOST_FIXTURE_TEST_CASE( Par_H2_TRIPLET_GHF_GIAO_631G, ParallelJob ) {
+//TEST( GHF_GIAO, Par_H2_TRIPLET_GHF_GIAO_631G ) {
 //
 //  CQSCFTEST( 
 //      "scf/parallel/ghf_giao/h2_triplet_ghf_giao_631G", 
@@ -49,5 +47,3 @@ BOOST_FIXTURE_TEST_CASE( H2_TRIPLET_GHF_GIAO_631G, SerialJob ) {
 //};
 
 #endif
-
-BOOST_AUTO_TEST_SUITE_END()

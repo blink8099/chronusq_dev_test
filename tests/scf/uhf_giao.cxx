@@ -24,10 +24,8 @@
 
 #include "scf.hpp"
 
-BOOST_AUTO_TEST_SUITE( UHF_GIAO )
-
 // H2 TRIPLET GIAO 6-31G test  B = 0, 0, -0.001
-BOOST_FIXTURE_TEST_CASE( H2_TRIPLET_UHF_GIAO_631G, SerialJob ) {
+TEST( UHF_GIAO, H2_TRIPLET_UHF_GIAO_631G ) {
 
   CQSCFTEST( "scf/serial/uhf_giao/h2_triplet_uhf_giao_631G", "h2_triplet_uhf_giao_631G.bin.ref", 1e-6 );
  
@@ -36,12 +34,10 @@ BOOST_FIXTURE_TEST_CASE( H2_TRIPLET_UHF_GIAO_631G, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP H2 TRIPLET GIAO 6-31G test  B = 0, 0, -0.001
-BOOST_FIXTURE_TEST_CASE( Par_H2_TRIPLET_UHF_GIAO_631G, ParallelJob ) {
+TEST( UHF_GIAO, Par_H2_TRIPLET_UHF_GIAO_631G ) {
 
   CQSCFTEST( "scf/parallel/uhf_giao/h2_triplet_uhf_giao_631G", "h2_triplet_uhf_giao_631G.bin.ref", 1e-6 );
  
 };
 
 #endif
-
-BOOST_AUTO_TEST_SUITE_END()

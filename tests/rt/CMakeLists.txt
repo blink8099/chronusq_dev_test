@@ -29,10 +29,10 @@ set(RT_TEST_BINARY_ROOT "${TEST_BINARY_ROOT}/rt" )
 # Set up compilation of RT test exe
 add_executable(rttest ../ut.cxx rrt.cxx urt.cxx grt.cxx)
 
-target_compile_definitions(rttest PUBLIC BOOST_TEST_MODULE=RT)
 target_include_directories(rttest PUBLIC ${RT_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
 target_link_libraries(rttest PUBLIC ${CQEX_LINK})
+target_link_libraries(rttest PUBLIC ChronusQ::gtest)
 
 if(CQEX_DEP)
   add_dependencies(rttest ${CQEX_DEP})
@@ -47,9 +47,14 @@ file(MAKE_DIRECTORY ${RT_TEST_BINARY_ROOT}/parallel/rrt)
 file(MAKE_DIRECTORY ${RT_TEST_BINARY_ROOT}/parallel/urt)
 file(MAKE_DIRECTORY ${RT_TEST_BINARY_ROOT}/parallel/grt)
 
-# Add the Test
-add_test( RHF_RT   rttest --report_level=detailed --run_test=RHF_RT   )
-add_test( UHF_RT   rttest --report_level=detailed --run_test=UHF_RT   )
-add_test( RKS_RT   rttest --report_level=detailed --run_test=RKS_RT   )
-add_test( UKS_RT   rttest --report_level=detailed --run_test=UKS_RT   )
-add_test( X2CHF_RT rttest --report_level=detailed --run_test=X2CHF_RT )
+
+include( CQTestGeneration )
+
+add_cq_test( RHF_RT   rttest "RHF_RT.*"   )
+add_cq_test( UHF_RT   rttest "UHF_RT.*"   )
+add_cq_test( X2CHF_RT rttest "X2CHF_RT.*" )
+
+add_cq_test( RKS_RT   rttest "RKS_RT.*"   )
+add_cq_test( UKS_RT   rttest "UKS_RT.*"   )
+
+

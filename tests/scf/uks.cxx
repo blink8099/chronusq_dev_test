@@ -25,25 +25,22 @@
 #include "scf.hpp"
 
 
-BOOST_AUTO_TEST_SUITE( UKS )
-
-
 // B3LYP / 6-311pG**
-BOOST_FIXTURE_TEST_CASE( Oxygen_6311pGss_B3LYP, SerialJob ) {
+TEST( UKS, Oxygen_6311pGss_B3LYP ) {
 
   CQSCFTEST( "scf/serial/uks/oxygen_6-311pG**_B3LYP", "oxygen_6-311pG**_B3LYP.bin.ref" );
 
 }
 
 // BLYP / 6-311pG**
-BOOST_FIXTURE_TEST_CASE( Oxygen_6311pGss_BLYP, SerialJob ) {
+TEST( UKS, Oxygen_6311pGss_BLYP ) {
 
   CQSCFTEST( "scf/serial/uks/oxygen_6-311pG**_BLYP", "oxygen_6-311pG**_BLYP.bin.ref" );
 
 }
 
 // LSDA / 6-311pG**
-BOOST_FIXTURE_TEST_CASE( Oxygen_6311pGss_LSDA, SerialJob ) {
+TEST( UKS, Oxygen_6311pGss_LSDA ) {
 
   CQSCFTEST( "scf/serial/uks/oxygen_6-311pG**_LSDA", "oxygen_6-311pG**_LSDA.bin.ref" );
 
@@ -52,30 +49,26 @@ BOOST_FIXTURE_TEST_CASE( Oxygen_6311pGss_LSDA, SerialJob ) {
 #ifdef _CQ_DO_PARTESTS
 
 // SMP B3LYP / 6-311pG**
-BOOST_FIXTURE_TEST_CASE( PAR_Oxygen_6311pGss_B3LYP, ParallelJob ) {
+TEST( UKS, PAR_Oxygen_6311pGss_B3LYP ) {
 
   CQSCFTEST( "scf/parallel/uks/oxygen_6-311pG**_B3LYP", "oxygen_6-311pG**_B3LYP.bin.ref" );
 
 }
 
 // SMP BLYP / 6-311pG**
-BOOST_FIXTURE_TEST_CASE( PAR_Oxygen_6311pGss_BLYP, ParallelJob ) {
+TEST( UKS, PAR_Oxygen_6311pGss_BLYP ) {
 
   CQSCFTEST( "scf/parallel/uks/oxygen_6-311pG**_BLYP", "oxygen_6-311pG**_BLYP.bin.ref" );
 
 }
 
 // SMP LSDA / 6-311pG**
-BOOST_FIXTURE_TEST_CASE( PAR_Oxygen_6311pGss_LSDA, ParallelJob ) {
+TEST( UKS, PAR_Oxygen_6311pGss_LSDA ) {
 
   CQSCFTEST( "scf/parallel/uks/oxygen_6-311pG**_LSDA", "oxygen_6-311pG**_LSDA.bin.ref" );
 
 }
 
 #endif
-
-
-// End UKS suite
-BOOST_AUTO_TEST_SUITE_END()
 
 

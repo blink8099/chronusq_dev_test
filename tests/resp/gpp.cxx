@@ -24,20 +24,12 @@
 
 #include "resp.hpp"
 
-#define CQRESTEST_IMPL(TNAME, JTYPE, IN, REF) \
-BOOST_FIXTURE_TEST_CASE( TNAME, JTYPE ) { CQRESTEST( false, IN, REF ); }
-
-
-BOOST_AUTO_TEST_SUITE( GHF_RESP )
-
-
-BOOST_AUTO_TEST_SUITE( GHF_PP_RESIDUE )
-
-
+#define CQRESTEST_IMPL(TNAME, IN, REF) \
+TEST( GHF_PP_RESIDUE, TNAME ) { CQRESTEST( false, IN, REF ); }
 
 
 // Li cc-pVDZ PP-RPA-HF (GHF) (RESIDUE)
-CQRESTEST_IMPL( Li_ccpVDZ_ppRPA_GHF_RESIDUE, SerialJob, 
+CQRESTEST_IMPL( Li_ccpVDZ_ppRPA_GHF_RESIDUE,
     "resp/serial/gpp/Li_ccpVDZ_GHF_ppRPA",
     "Li_ccpVDZ_GHF_ppRPA.bin.ref" )
 
@@ -45,17 +37,8 @@ CQRESTEST_IMPL( Li_ccpVDZ_ppRPA_GHF_RESIDUE, SerialJob,
 #ifdef _CQ_DO_PARTESTS
 
   // SMP Li cc-pVDZ PP-RPA-HF (GHF) (RESIDUE)
-  CQRESTEST_IMPL( PAR_Li_ccpVDZ_ppRPA_GHF_RESIDUE, ParallelJob, 
+  CQRESTEST_IMPL( PAR_Li_ccpVDZ_ppRPA_GHF_RESIDUE, 
       "resp/parallel/gpp/Li_ccpVDZ_GHF_ppRPA",
       "Li_ccpVDZ_GHF_ppRPA.bin.ref" )
 
 #endif
-
-
-
-
-// End GHF_PP_RESIDUE suite
-BOOST_AUTO_TEST_SUITE_END()
-
-// End GHF_RESP suite
-BOOST_AUTO_TEST_SUITE_END()

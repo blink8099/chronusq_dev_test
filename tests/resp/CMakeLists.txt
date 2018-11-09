@@ -31,10 +31,10 @@ add_executable(resptest ../ut.cxx rres.cxx rfdr.cxx rmor.cxx
   rres_lda.cxx rres_gga.cxx rres_hgga.cxx rpp.cxx upp.cxx gpp.cxx
   misc.cxx)
 
-target_compile_definitions(resptest PUBLIC BOOST_TEST_MODULE=RESPONSE)
 target_include_directories(resptest PUBLIC ${RESP_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
 target_link_libraries(resptest PUBLIC ${CQEX_LINK})
+target_link_libraries(resptest PUBLIC ChronusQ::gtest)
 
 if(CQEX_DEP)
   add_dependencies(resptest ${CQEX_DEP})
@@ -67,93 +67,70 @@ file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/misc)
 
 # Add the Tests
 
+include( CQTestGeneration )
 
-add_test( RHF_RESIDUE   resptest --report_level=detailed --run_test=RHF_RESP/RHF_RESIDUE   )
-#add_test( UHF_RESIDUE   resptest --report_level=detailed --run_test=UHF_RESP/UHF_RESIDUE   )
-#add_test( GHF_RESIDUE   resptest --report_level=detailed --run_test=GHF_RESP/GHF_RESIDUE   )
-#add_test( X2CHF_RESIDUE   resptest --report_level=detailed --run_test=X2CHF_RESP/X2CHF_RESIDUE   )
-add_test( RKS_RESIDUE   resptest --report_level=detailed --run_test=RKS_RESP/RKS_RESIDUE   )
-#add_test( UKS_RESIDUE   resptest --report_level=detailed --run_test=UKS_RESP/UKS_RESIDUE   )
-#add_test( GKS_RESIDUE   resptest --report_level=detailed --run_test=GKS_RESP/GKS_RESIDUE   )
-#add_test( X2CKS_RESIDUE   resptest --report_level=detailed --run_test=X2CKS_RESP/X2CKS_RESIDUE   )
+add_cq_test( RHF_RESIDUE    resptest "RHF_RESIDUE.*"    )
+add_cq_test( RKS_RESIDUE    resptest "RKS_RESIDUE.*"    )
+add_cq_test( RHF_PP_RESIDUE resptest "RHF_PP_RESIDUE.*" )
+add_cq_test( UHF_PP_RESIDUE resptest "UHF_PP_RESIDUE.*" )
 
+add_cq_test( RHF_FDR    resptest "RHF_FDR.*"    )
 
-add_test( RHF_PP_RESIDUE   resptest --report_level=detailed --run_test=RHF_RESP/RHF_PP_RESIDUE   )
-add_test( UHF_PP_RESIDUE   resptest --report_level=detailed --run_test=UHF_RESP/UHF_PP_RESIDUE   )
-#add_test( GHF_PP_RESIDUE   resptest --report_level=detailed --run_test=GHF_RESP/GHF_PP_RESIDUE   )
-#add_test( X2CHF_PP_RESIDUE   resptest --report_level=detailed --run_test=X2CHF_RESP/X2CHF_PP_RESIDUE   )
-#add_test( RKS_PP_RESIDUE   resptest --report_level=detailed --run_test=RKS_RESP/RKS_PP_RESIDUE   )
-#add_test( UKS_PP_RESIDUE   resptest --report_level=detailed --run_test=UKS_RESP/UKS_PP_RESIDUE   )
-#add_test( GKS_PP_RESIDUE   resptest --report_level=detailed --run_test=GKS_RESP/GKS_PP_RESIDUE   )
-#add_test( X2CKS_PP_RESIDUE   resptest --report_level=detailed --run_test=X2CKS_RESP/X2CKS_PP_RESIDUE   )
+add_cq_test( RHF_DFDR   resptest "RHF_DFDR.*"   )
 
+add_cq_test( RHF_MOR    resptest "RHF_MOR.*"    )
 
-add_test( RHF_FDR   resptest --report_level=detailed --run_test=RHF_RESP/RHF_FDR   )
-#add_test( UHF_FDR   resptest --report_level=detailed --run_test=UHF_RESP/UHF_FDR   )
-#add_test( GHF_FDR   resptest --report_level=detailed --run_test=GHF_RESP/GHF_FDR   )
-#add_test( X2CHF_FDR   resptest --report_level=detailed --run_test=X2CHF_RESP/X2CHF_FDR   )
-#add_test( RKS_FDR   resptest --report_level=detailed --run_test=RKS_RESP/RKS_FDR   )
-#add_test( UKS_FDR   resptest --report_level=detailed --run_test=UKS_RESP/UKS_FDR   )
-#add_test( GKS_FDR   resptest --report_level=detailed --run_test=GKS_RESP/GKS_FDR   )
-#add_test( X2CKS_FDR   resptest --report_level=detailed --run_test=X2CKS_RESP/X2CKS_FDR   )
+add_cq_test( MISC_RESP  resptest "MISC_RESP.*"  )
 
-
-add_test( RHF_DFDR   resptest --report_level=detailed --run_test=RHF_RESP/RHF_DFDR   )
-#add_test( UHF_DFDR   resptest --report_level=detailed --run_test=UHF_RESP/UHF_DFDR   )
-#add_test( GHF_DFDR   resptest --report_level=detailed --run_test=GHF_RESP/GHF_DFDR   )
-#add_test( X2CHF_DFDR   resptest --report_level=detailed --run_test=X2CHF_RESP/X2CHF_DFDR   )
-#add_test( RKS_DFDR   resptest --report_level=detailed --run_test=RKS_RESP/RKS_DFDR   )
-#add_test( UKS_DFDR   resptest --report_level=detailed --run_test=UKS_RESP/UKS_DFDR   )
-#add_test( GKS_DFDR   resptest --report_level=detailed --run_test=GKS_RESP/GKS_DFDR   )
-#add_test( X2CKS_DFDR   resptest --report_level=detailed --run_test=X2CKS_RESP/X2CKS_DFDR   )
-
-add_test( RHF_MOR   resptest --report_level=detailed --run_test=RHF_MOR   )
-#add_test( UHF_MOR   resptest --report_level=detailed --run_test=UHF_MOR   )
-#add_test( GHF_MOR   resptest --report_level=detailed --run_test=GHF_MOR   )
-#add_test( X2CHF_MOR   resptest --report_level=detailed --run_test=X2CHF_MOR   )
-#add_test( RKS_MOR   resptest --report_level=detailed --run_test=RKS_MOR   )
-#add_test( UKS_MOR   resptest --report_level=detailed --run_test=UKS_MOR   )
-#add_test( GKS_MOR   resptest --report_level=detailed --run_test=GKS_MOR   )
-#add_test( X2CKS_MOR   resptest --report_level=detailed --run_test=X2CKS_MOR   )
-
-add_test ( MISC_RESP resptest --report_level=detailed --run_test=MISC_RESP )
 
 
 if( CQ_ENABLE_MPI )
 
-  add_test( NAME RHF_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RHF_RESP/RHF_RESIDUE" )
- #add_test( NAME UHF_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UHF_RESP/UHF_RESIDUE" )
- #add_test( NAME GHF_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GHF_RESP/GHF_RESIDUE" )
- #add_test( NAME X2CHF_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CHF_RESP/X2CHF_RESIDUE" )
-  add_test( NAME RKS_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RKS_RESP/RKS_RESIDUE" )
- #add_test( NAME UKS_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UKS_RESP/UKS_RESIDUE" )
- #add_test( NAME GKS_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GKS_RESP/GKS_RESIDUE" )
- #add_test( NAME X2CKS_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CKS_RESP/X2CKS_RESIDUE" )
+  add_cq_mpi_test( RHF_RESIDUE_MPI  2  resptest "RHF_RESIDUE.*" )
+  add_cq_mpi_test( RKS_RESIDUE_MPI  2  resptest "RKS_RESIDUE.*" )
 
-
-  add_test( NAME RHF_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RHF_RESP/RHF_FDR" )
- #add_test( NAME UHF_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UHF_RESP/UHF_FDR" )
- #add_test( NAME GHF_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GHF_RESP/GHF_FDR" )
- #add_test( NAME X2CHF_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CHF_RESP/X2CHF_FDR" )
- #add_test( NAME RKS_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RKS_RESP/RKS_FDR" )
- #add_test( NAME UKS_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UKS_RESP/UKS_FDR" )
- #add_test( NAME GKS_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GKS_RESP/GKS_FDR" )
- #add_test( NAME X2CKS_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CKS_RESP/X2CKS_FDR" )
-
-  add_test( NAME RHF_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RHF_RESP/RHF_DFDR" )
- #add_test( NAME UHF_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UHF_RESP/UHF_DFDR" )
- #add_test( NAME GHF_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GHF_RESP/GHF_DFDR" )
- #add_test( NAME X2CHF_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CHF_RESP/X2CHF_DFDR" )
- #add_test( NAME RKS_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RKS_RESP/RKS_DFDR" )
- #add_test( NAME UKS_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UKS_RESP/UKS_DFDR" )
- #add_test( NAME GKS_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GKS_RESP/GKS_DFDR" )
- #add_test( NAME X2CKS_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CKS_RESP/X2CKS_DFDR" )
-
-
-
-  add_test( NAME RHF_MOR_MPI      COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RHF_MOR"  )
- #add_test( NAME UHF_MOR_MPI      COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UHF_MOR"  )
- #add_test( NAME GHF_MOR_MPI      COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GHF_MOR"  )
- #add_test( NAME X2CHF_MOR_MPI      COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CHF_MOR"  )
+  add_cq_mpi_test( RHF_FDR_MPI  2  resptest "RHF_FDR.*"  )
+  add_cq_mpi_test( RHF_DFDR_MPI 2  resptest "RHF_DFDR.*" )
+  add_cq_mpi_test( RHF_MOR_MPI  2  resptest "RHF_MOR.*"  )
 
 endif()
+
+
+#if( CQ_ENABLE_MPI )
+#
+#  add_test( NAME RHF_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RHF_RESP/RHF_RESIDUE" )
+# #add_test( NAME UHF_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UHF_RESP/UHF_RESIDUE" )
+# #add_test( NAME GHF_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GHF_RESP/GHF_RESIDUE" )
+# #add_test( NAME X2CHF_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CHF_RESP/X2CHF_RESIDUE" )
+#  add_test( NAME RKS_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RKS_RESP/RKS_RESIDUE" )
+# #add_test( NAME UKS_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UKS_RESP/UKS_RESIDUE" )
+# #add_test( NAME GKS_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GKS_RESP/GKS_RESIDUE" )
+# #add_test( NAME X2CKS_RESIDUE_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CKS_RESP/X2CKS_RESIDUE" )
+#
+#
+#  add_test( NAME RHF_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RHF_RESP/RHF_FDR" )
+# #add_test( NAME UHF_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UHF_RESP/UHF_FDR" )
+# #add_test( NAME GHF_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GHF_RESP/GHF_FDR" )
+# #add_test( NAME X2CHF_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CHF_RESP/X2CHF_FDR" )
+# #add_test( NAME RKS_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RKS_RESP/RKS_FDR" )
+# #add_test( NAME UKS_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UKS_RESP/UKS_FDR" )
+# #add_test( NAME GKS_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GKS_RESP/GKS_FDR" )
+# #add_test( NAME X2CKS_FDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CKS_RESP/X2CKS_FDR" )
+#
+#  add_test( NAME RHF_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RHF_RESP/RHF_DFDR" )
+# #add_test( NAME UHF_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UHF_RESP/UHF_DFDR" )
+# #add_test( NAME GHF_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GHF_RESP/GHF_DFDR" )
+# #add_test( NAME X2CHF_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CHF_RESP/X2CHF_DFDR" )
+# #add_test( NAME RKS_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RKS_RESP/RKS_DFDR" )
+# #add_test( NAME UKS_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UKS_RESP/UKS_DFDR" )
+# #add_test( NAME GKS_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GKS_RESP/GKS_DFDR" )
+# #add_test( NAME X2CKS_DFDR_MPI COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CKS_RESP/X2CKS_DFDR" )
+#
+#
+#
+#  add_test( NAME RHF_MOR_MPI      COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=RHF_MOR"  )
+# #add_test( NAME UHF_MOR_MPI      COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=UHF_MOR"  )
+# #add_test( NAME GHF_MOR_MPI      COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=GHF_MOR"  )
+# #add_test( NAME X2CHF_MOR_MPI      COMMAND ${MPIEXEC} -np 2 "./resptest" "--report_level=detailed" "--run_test=X2CHF_MOR"  )
+#
+#endif()

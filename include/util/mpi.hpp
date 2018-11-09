@@ -109,7 +109,7 @@ namespace ChronusQ {
   static inline void MPICommFree(MPI_Comm &comm) {
 
 #ifdef CQ_ENABLE_MPI
-    MPI_Comm_free(&comm);
+    if( comm != MPI_COMM_NULL) MPI_Comm_free(&comm);
 #endif
 
   }

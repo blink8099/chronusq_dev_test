@@ -26,8 +26,30 @@
 #define __INCLUDED_TESTS_FUNC_HPP__
 
 #include <ut.hpp>
+#include <util/files.hpp>
 
 #define FUNC_INPUT     TEST_ROOT "/func/input/"
 #define FUNC_REFERENCE TEST_ROOT "/func/reference/"
+
+namespace ChronusQ {
+   /**
+    *  \brief Global Boost.Test fixture for Contraction
+    *  tests in the case of test generation.
+    *
+    *  Creates / overwrites the reference file for the contraction
+    *  data.
+    *
+    */ 
+  class ContractEnvironment : public ::testing::Environment {
+  protected:
+
+    virtual void SetUp() { 
+      SafeFile refFile(FUNC_REFERENCE "contract.hdf5"); 
+      refFile.createFile();
+    }
+
+  };
+
+}
 
 #endif

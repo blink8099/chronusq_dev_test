@@ -25,33 +25,29 @@
 #include "resp.hpp"
 
 
-#define CQFDRTEST_IMPL(TNAME, JTYPE, HER, AHER, IN, REF) \
-BOOST_FIXTURE_TEST_CASE( TNAME, JTYPE ){ CQFDRTEST<double>(HER,AHER,IN,REF); }
+#define CQFDRTEST_IMPL(TNAME, HER, AHER, IN, REF) \
+TEST( RHF_FDR, TNAME ){ CQFDRTEST<double>(HER,AHER,IN,REF); }
 
-#define CQDFDRTEST_IMPL(TNAME, JTYPE, HER, AHER, IN, REF) \
-BOOST_FIXTURE_TEST_CASE( TNAME, JTYPE ){ CQFDRTEST<dcomplex>(HER,AHER,IN,REF); }
+#define CQDFDRTEST_IMPL(TNAME, HER, AHER, IN, REF) \
+TEST( RHF_DFDR, TNAME ){ CQFDRTEST<dcomplex>(HER,AHER,IN,REF); }
 
-BOOST_AUTO_TEST_SUITE( RHF_RESP )
-
-
-BOOST_AUTO_TEST_SUITE( RHF_FDR )
 
 // FULL DIMENSIONAL TESTS
   
 // Water 6-31G(d) FDR
-CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true, 
+CQFDRTEST_IMPL( Water_631Gd_FDR,  true, true, 
     "resp/serial/rresp/water_6-31Gd_rhf_fdr",
     "water_6-31Gd_rhf_fdr.bin.ref" )
 
 #ifndef _CQ_GENERATE_TESTS
 
   // Water 6-31G(d) FDR (GMRES)
-  CQFDRTEST_IMPL( Water_631Gd_FDR_GMRES, SerialJob, true, true, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_GMRES,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_gmres",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // Water 6-31G(d) FDR (GMRES + DIRECT)
-  CQFDRTEST_IMPL( Water_631Gd_FDR_GMRES_DIRECT, SerialJob, true, true, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_GMRES_DIRECT,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_gmres_direct",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
@@ -60,17 +56,17 @@ CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true,
 #ifdef _CQ_DO_PARTESTS
 
   // SMP Water 6-31G(d) FDR
-  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR, ParallelJob, true, true, 
+  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR,  true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR (GMRES)
-  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_GMRES, ParallelJob, true, true, 
+  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_GMRES,  true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_gmres",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR (GMRES + DIRECT)
-  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_GMRES_DIRECT, ParallelJob, true, true, 
+  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_GMRES_DIRECT,  true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_gmres_direct",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
@@ -82,26 +78,26 @@ CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true,
   // A+B / A-B TESTS
   
   // Water 6-31G(d) FDR A+B / A-B
-  CQFDRTEST_IMPL( Water_631Gd_FDR_APB_AMB, SerialJob, true, true, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_APB_AMB,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_apb_amb",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
 
   // Water 6-31G(d) FDR A+B / A-B (GMRES)
-  CQFDRTEST_IMPL( Water_631Gd_FDR_APB_AMB_GMRES, SerialJob, true, true, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_APB_AMB_GMRES,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_apb_amb_gmres",
       "water_6-31Gd_rhf_fdr.bin.ref" )
   
   #ifdef _CQ_DO_PARTESTS
   
     // SMP Water 6-31G(d) FDR A+B / A-B
-    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_APB_AMB, ParallelJob, true, true, 
+    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_APB_AMB,  true, true, 
         "resp/parallel/rresp/water_6-31Gd_rhf_fdr_apb_amb",
         "water_6-31Gd_rhf_fdr.bin.ref" )
 
 
     // SMP Water 6-31G(d) FDR A+B / A-B (GMRES)
-    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_APB_AMB_GMRES, ParallelJob, true, true, 
+    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_APB_AMB_GMRES,  true, true, 
         "resp/parallel/rresp/water_6-31Gd_rhf_fdr_apb_amb_gmres",
         "water_6-31Gd_rhf_fdr.bin.ref" )
   
@@ -112,25 +108,25 @@ CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true,
   // REDUCED HERMETIAN TESTS
   
   // Water 6-31G(d) FDR REDUCED HERMETIAN
-  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_HER, SerialJob, true, false, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_HER,  true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_reduced_her",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
 
   // Water 6-31G(d) FDR REDUCED HERMETIAN (GMRES)
-  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_HER_GMRES, SerialJob, true, false, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_HER_GMRES,  true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_reduced_her_gmres",
       "water_6-31Gd_rhf_fdr.bin.ref" )
   
   #ifdef _CQ_DO_PARTESTS
   
     // SMP Water 6-31G(d) FDR REDUCED HERMETIAN
-    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_HER, ParallelJob, true, false, 
+    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_HER,  true, false, 
         "resp/parallel/rresp/water_6-31Gd_rhf_fdr_reduced_her",
         "water_6-31Gd_rhf_fdr.bin.ref" )
 
     // SMP Water 6-31G(d) FDR REDUCED HERMETIAN (GMRES)
-    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_HER_GMRES, ParallelJob, 
+    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_HER_GMRES,  
         true, false, 
         "resp/parallel/rresp/water_6-31Gd_rhf_fdr_reduced_her_gmres",
         "water_6-31Gd_rhf_fdr.bin.ref" )
@@ -143,24 +139,24 @@ CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true,
   // REDUCED ANTI-HERMETIAN TESTS
   
   // Water 6-31G(d) FDR REDUCED ANTI-HERMETIAN
-  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_ANTIHER, SerialJob, false, true, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_ANTIHER,  false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_reduced_antiher",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // Water 6-31G(d) FDR REDUCED ANTI-HERMETIAN (GMRES)
-  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_ANTIHER_GMRES, SerialJob, false, true, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_ANTIHER_GMRES,  false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_reduced_antiher_gmres",
       "water_6-31Gd_rhf_fdr.bin.ref" )
   
   #ifdef _CQ_DO_PARTESTS
   
     // SMP Water 6-31G(d) FDR REDUCED ANTI-HERMETIAN
-    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_ANTIHER, ParallelJob, false, true, 
+    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_ANTIHER,  false, true, 
         "resp/parallel/rresp/water_6-31Gd_rhf_fdr_reduced_antiher",
         "water_6-31Gd_rhf_fdr.bin.ref" )
 
     // SMP Water 6-31G(d) FDR REDUCED ANTI-HERMETIAN (GMRES)
-    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_ANTIHER_GMRES, ParallelJob, 
+    CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_ANTIHER_GMRES,  
         false, true, 
         "resp/parallel/rresp/water_6-31Gd_rhf_fdr_reduced_antiher_gmres",
         "water_6-31Gd_rhf_fdr.bin.ref" )
@@ -175,22 +171,22 @@ CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true,
   // Distributed Full Dimensional Tests
 
   // Water 6-31G(d) FDR
-  CQFDRTEST_IMPL( Water_631Gd_FDR_DISTMATFROMROOT, SerialJob, true, true, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_DISTMATFROMROOT,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR
-  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_DISTMATFROMROOT, ParallelJob, true, true, 
+  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_DISTMATFROMROOT,  true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // Water 6-31G(d) FDR (GMRES)
-  CQFDRTEST_IMPL( Water_631Gd_FDR_GMRES_DISTMATFROMROOT, SerialJob, true, true, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_GMRES_DISTMATFROMROOT,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_gmres_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR (GMRES)
-  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_GMRES_DISTMATFROMROOT, ParallelJob, 
+  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_GMRES_DISTMATFROMROOT,  
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_gmres_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
@@ -201,26 +197,25 @@ CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true,
   // Distributed A+B / A-B Dimensional Tests
     
   // Water 6-31G(d) FDR A+B / A-B
-  CQFDRTEST_IMPL( Water_631Gd_FDR_APB_AMB_DISTMATFROMROOT, SerialJob, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_APB_AMB_DISTMATFROMROOT,  
       true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_apb_amb_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR A+B / A-B
-  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_APB_AMB_DISTMATFROMROOT, ParallelJob, 
+  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_APB_AMB_DISTMATFROMROOT,  
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_apb_amb_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // Water 6-31G(d) FDR A+B / A-B (GMRES)
-  CQFDRTEST_IMPL( Water_631Gd_FDR_APB_AMB_GMRES_DISTMATFROMROOT, SerialJob, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_APB_AMB_GMRES_DISTMATFROMROOT,  
       true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_apb_amb_gmres_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR A+B / A-B (GMRES)
   CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_APB_AMB_GMRES_DISTMATFROMROOT, 
-      ParallelJob, 
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_apb_amb_gmres_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
@@ -230,26 +225,25 @@ CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true,
   // Distributed Reduced Hermetian Tests
 
   // Water 6-31G(d) FDR REDUCED HERMETIAN
-  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_HER_DISTMATFROMROOT, SerialJob, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_HER_DISTMATFROMROOT,  
       true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_reduced_her_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR REDUCED HERMETIAN
-  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_HER_DISTMATFROMROOT, ParallelJob, 
+  CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_HER_DISTMATFROMROOT,  
       true, false, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_reduced_her_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // Water 6-31G(d) FDR REDUCED HERMETIAN (GMRES)
-  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_HER_GMRES_DISTMATFROMROOT, SerialJob, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_HER_GMRES_DISTMATFROMROOT,  
       true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_reduced_her_gmres_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR REDUCED HERMETIAN (GMRES)
   CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_HER_GMRES_DISTMATFROMROOT, 
-      ParallelJob, 
       true, false, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_reduced_her_gmres_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
@@ -259,26 +253,26 @@ CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true,
   // Distributed Reduced Anti-Hermetian Tests
 
   // Water 6-31G(d) FDR REDUCED ANTIHERMETIAN
-  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_ANTIHER_DISTMATFROMROOT, SerialJob, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_ANTIHER_DISTMATFROMROOT,  
       false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_reduced_antiher_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR REDUCED ANTIHERMETIAN
   CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_ANTIHER_DISTMATFROMROOT, 
-      ParallelJob, false, true, 
+       false, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_reduced_antiher_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // Water 6-31G(d) FDR REDUCED ANTIHERMETIAN (GMRES)
-  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_ANTIHER_GMRES_DISTMATFROMROOT, SerialJob, 
+  CQFDRTEST_IMPL( Water_631Gd_FDR_RED_ANTIHER_GMRES_DISTMATFROMROOT,  
       false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_fdr_reduced_antiher_gmres_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
   // SMP Water 6-31G(d) FDR REDUCED ANTIHERMETIAN (GMRES)
   CQFDRTEST_IMPL( PAR_Water_631Gd_FDR_RED_ANTIHER_GMRES_DISTMATFROMROOT, 
-      ParallelJob, false, true, 
+       false, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_fdr_reduced_antiher_gmres_distfromroot",
       "water_6-31Gd_rhf_fdr.bin.ref" )
 
@@ -286,8 +280,6 @@ CQFDRTEST_IMPL( Water_631Gd_FDR, SerialJob, true, true,
 
 
 
-// End RHF_FDR suite
-BOOST_AUTO_TEST_SUITE_END()
 
 
 
@@ -311,27 +303,24 @@ BOOST_AUTO_TEST_SUITE_END()
 
 
 
-
-
-BOOST_AUTO_TEST_SUITE( RHF_DFDR )
 
 
 // Full Dimensional Tests
 
 // Water 6-31G(d) DFDR
-CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true, 
+CQDFDRTEST_IMPL( Water_631Gd_DFDR,  true, true, 
     "resp/serial/rresp/water_6-31Gd_rhf_dfdr",
     "water_6-31Gd_rhf_dfdr.bin.ref" )
 
 #ifndef _CQ_GENERATE_TESTS
 
   // Water 6-31G(d) DFDR (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_GMRES, SerialJob, true, true, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_GMRES,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_gmres",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR (GMRES + DIRECT)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_GMRES_DIRECT, SerialJob, true, true, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_GMRES_DIRECT,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_gmres_direct",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
@@ -340,17 +329,17 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
 #ifdef _CQ_DO_PARTESTS
 
   // SMP Water 6-31G(d) DFDR
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR, ParallelJob, true, true, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR,  true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR (GMRES)
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_GMRES, ParallelJob, true, true, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_GMRES,  true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_gmres",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR (GMRES + DIRECT)
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_GMRES_DIRECT, ParallelJob, true, true, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_GMRES_DIRECT,  true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_gmres_direct",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
@@ -364,24 +353,24 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // A+B / A-B TESTS
      
   // Water 6-31G(d) DFDR A+B / A-B
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB, SerialJob, true, true, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_apb_amb",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR A+B / A-B (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_GMRES, SerialJob, true, true, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_GMRES,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_apb_amb_gmres",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
   
   #ifdef _CQ_DO_PARTESTS
   
     // SMP Water 6-31G(d) DFDR A+B /A-B
-    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB, ParallelJob, true, true, 
+    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB,  true, true, 
         "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_apb_amb",
         "water_6-31Gd_rhf_dfdr.bin.ref" )
 
     // SMP Water 6-31G(d) DFDR A+B /A-B (GMRES)
-    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB_GMRES, ParallelJob, 
+    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB_GMRES,  
         true, true, 
         "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_apb_amb_gmres",
         "water_6-31Gd_rhf_dfdr.bin.ref" )
@@ -392,24 +381,24 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // REDUCED HERMETIAN TESTS 
      
   // Water 6-31G(d) DFDR REDUCED HERMETIAN 
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER, SerialJob, true, false, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER,  true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_her",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR REDUCED HERMETIAN (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_GMRES, SerialJob, true, false, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_GMRES,  true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_her_gmres",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
   
   #ifdef _CQ_DO_PARTESTS
   
     // SMP Water 6-31G(d) DFDR REDUCED HERMETIAN
-    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER, ParallelJob, true, false, 
+    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER,  true, false, 
         "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_her",
         "water_6-31Gd_rhf_dfdr.bin.ref" )
 
     // SMP Water 6-31G(d) DFDR REDUCED HERMETIAN (GMRES)
-    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER_GMRES, ParallelJob, 
+    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER_GMRES,  
         true, false, 
         "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_her_gmres",
         "water_6-31Gd_rhf_dfdr.bin.ref" )
@@ -421,25 +410,25 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // REDUCED ANTI-HERMETIAN TESTS 
      
   // Water 6-31G(d) DFDR REDUCED ANTI-HERMETIAN 
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER, SerialJob, false, true, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER,  false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR REDUCED ANTI-HERMETIAN (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER_GMRES, SerialJob, false, true, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER_GMRES,  false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_gmres",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
   
   #ifdef _CQ_DO_PARTESTS
   
     // SMP Water 6-31G(d) DFDR REDUCED ANTI-HERMETIAN
-    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_ANTIHER, ParallelJob, 
+    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_ANTIHER,  
         false, true, 
         "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher",
         "water_6-31Gd_rhf_dfdr.bin.ref" )
 
     // SMP Water 6-31G(d) DFDR REDUCED ANTI-HERMETIAN (GMRES)
-    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_ANTIHER_GMRES, ParallelJob, 
+    CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_ANTIHER_GMRES,  
         false, true, 
         "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_gmres",
         "water_6-31Gd_rhf_dfdr.bin.ref" )
@@ -456,24 +445,24 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // Distributed-From-Root Full Dimensional Tests
 
   // Water 6-31G(d) DFDR
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_DISTMATFROMROOT, SerialJob, true, true, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_DISTMATFROMROOT,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_DISTMATFROMROOT, ParallelJob, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_DISTMATFROMROOT,  
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_GMRES_DISTMATFROMROOT, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_GMRES_DISTMATFROMROOT,  
       true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_gmres_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR (GMRES)
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_GMRES_DISTMATFROMROOT, ParallelJob, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_GMRES_DISTMATFROMROOT,  
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_gmres_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
@@ -484,26 +473,25 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // Distributed-From-Root A+B / A-B Dimensional Tests
     
   // Water 6-31G(d) DFDR A+B / A-B
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_DISTMATFROMROOT, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_DISTMATFROMROOT,  
       true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_apb_amb_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR A+B / A-B
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB_DISTMATFROMROOT, ParallelJob, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB_DISTMATFROMROOT,  
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_apb_amb_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR A+B / A-B (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_GMRES_DISTMATFROMROOT, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_GMRES_DISTMATFROMROOT,  
       true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_apb_amb_gmres_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR A+B / A-B (GMRES)
   CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB_GMRES_DISTMATFROMROOT, 
-      ParallelJob, 
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_apb_amb_gmres_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
@@ -513,26 +501,25 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // Distributed-From-Root Reduced Hermetian Tests
 
   // Water 6-31G(d) DFDR REDUCED HERMETIAN
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_DISTMATFROMROOT, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_DISTMATFROMROOT,  
       true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_her_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR REDUCED HERMETIAN
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER_DISTMATFROMROOT, ParallelJob, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER_DISTMATFROMROOT,  
       true, false, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_her_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR REDUCED HERMETIAN (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_GMRES_DISTMATFROMROOT, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_GMRES_DISTMATFROMROOT,  
       true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_her_gmres_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR REDUCED HERMETIAN (GMRES)
   CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER_GMRES_DISTMATFROMROOT, 
-      ParallelJob, 
       true, false, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_her_gmres_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
@@ -542,27 +529,26 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // Distributed-From-Root Reduced Anti-Hermetian Tests
 
   // Water 6-31G(d) DFDR REDUCED ANTIHERMETIAN
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER_DISTMATFROMROOT, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER_DISTMATFROMROOT,  
       false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR REDUCED ANTIHERMETIAN
   CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_ANTIHER_DISTMATFROMROOT, 
-      ParallelJob, false, true, 
+       false, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR REDUCED ANTIHERMETIAN (GMRES)
   CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER_GMRES_DISTMATFROMROOT, 
-      SerialJob, 
       false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_gmres_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR REDUCED ANTIHERMETIAN (GMRES)
   CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_ANTIHER_GMRES_DISTMATFROMROOT, 
-      ParallelJob, false, true, 
+       false, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_gmres_distfromroot",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
@@ -580,24 +566,24 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // Build-Distributed Full Dimensional Tests
 
   // Water 6-31G(d) DFDR
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_BUILDDIST, SerialJob, true, true, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_BUILDDIST,  true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_BUILDDIST, ParallelJob, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_BUILDDIST,  
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_GMRES_BUILDDIST, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_GMRES_BUILDDIST,  
       true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_gmres_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR (GMRES)
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_GMRES_BUILDDIST, ParallelJob, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_GMRES_BUILDDIST,  
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_gmres_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
@@ -608,26 +594,25 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // Build-Distributed A+B / A-B Dimensional Tests
     
   // Water 6-31G(d) DFDR A+B / A-B
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_BUILDDIST, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_BUILDDIST,  
       true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_apb_amb_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR A+B / A-B
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB_BUILDDIST, ParallelJob, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB_BUILDDIST,  
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_apb_amb_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR A+B / A-B (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_GMRES_BUILDDIST, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_APB_AMB_GMRES_BUILDDIST,  
       true, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_apb_amb_gmres_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR A+B / A-B (GMRES)
   CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_APB_AMB_GMRES_BUILDDIST, 
-      ParallelJob, 
       true, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_apb_amb_gmres_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
@@ -637,26 +622,25 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // Build-Distributed Reduced Hermetian Tests
 
   // Water 6-31G(d) DFDR REDUCED HERMETIAN
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_BUILDDIST, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_BUILDDIST,  
       true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_her_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR REDUCED HERMETIAN
-  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER_BUILDDIST, ParallelJob, 
+  CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER_BUILDDIST,  
       true, false, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_her_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR REDUCED HERMETIAN (GMRES)
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_GMRES_BUILDDIST, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_HER_GMRES_BUILDDIST,  
       true, false, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_her_gmres_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR REDUCED HERMETIAN (GMRES)
   CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_HER_GMRES_BUILDDIST, 
-      ParallelJob, 
       true, false, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_her_gmres_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
@@ -666,37 +650,28 @@ CQDFDRTEST_IMPL( Water_631Gd_DFDR, SerialJob, true, true,
   // Build-Distributed Reduced Anti-Hermetian Tests
 
   // Water 6-31G(d) DFDR REDUCED ANTIHERMETIAN
-  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER_BUILDDIST, SerialJob, 
+  CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER_BUILDDIST,  
       false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR REDUCED ANTIHERMETIAN
   CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_ANTIHER_BUILDDIST, 
-      ParallelJob, false, true, 
+       false, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // Water 6-31G(d) DFDR REDUCED ANTIHERMETIAN (GMRES)
   CQDFDRTEST_IMPL( Water_631Gd_DFDR_RED_ANTIHER_GMRES_BUILDDIST, 
-      SerialJob, 
       false, true, 
       "resp/serial/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_gmres_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
   // SMP Water 6-31G(d) DFDR REDUCED ANTIHERMETIAN (GMRES)
   CQDFDRTEST_IMPL( PAR_Water_631Gd_DFDR_RED_ANTIHER_GMRES_BUILDDIST, 
-      ParallelJob, false, true, 
+       false, true, 
       "resp/parallel/rresp/water_6-31Gd_rhf_dfdr_reduced_antiher_gmres_builddist",
       "water_6-31Gd_rhf_dfdr.bin.ref" )
 
 #endif
 
-// End RHF_DFDR suite
-BOOST_AUTO_TEST_SUITE_END()
-
-
-
-
-// End RHF_RESP suite
-BOOST_AUTO_TEST_SUITE_END()

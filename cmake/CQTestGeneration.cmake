@@ -21,20 +21,19 @@
 #   E-Mail: xsli@uw.edu
 #
 
-# Define global test variables
-set( TEST_ROOT ${PROJECT_SOURCE_DIR}/tests )
-set( TEST_BINARY_ROOT ${PROJECT_BINARY_DIR}/tests )
 
-# Common UT configuration header
-configure_file(
-  "${TEST_ROOT}/ut.hpp.in"
-  "${TEST_BINARY_ROOT}/ut.hpp"
-)
+# Add a regular test
+function( add_cq_test _test_name _test_exe _filter )
 
-#find_package( GTest REQUIRED )
-include( HandleGTest )
+  add_test( NAME ${_test_name} COMMAND ${_test_exe} --gtest_filter=${_filter} )
 
-add_subdirectory(scf)
-add_subdirectory(rt)
-add_subdirectory(resp)
-add_subdirectory(func)
+endfunction()
+
+
+# Add an MPI test
+function( add_cq_mpi_test _test_name _np _test_exe _filter )
+
+  add_test( NAME ${_test_name} COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${_np}
+    ${MPIEXEC_PREFLAGS} "./${_test_exe}" ${MPIEXEC_POSTFLAGS} "--gtest_filter=${_filter}" )
+
+endfunction()

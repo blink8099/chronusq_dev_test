@@ -29,7 +29,7 @@ endif()
 
 set(Boost_USE_MULTITHREADED  ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost REQUIRED unit_test_framework system filesystem)
+find_package(Boost REQUIRED system filesystem)
 
 include_directories(${Boost_INCLUDE_DIRS})
 list(APPEND CQ_EXT_LINK ${Boost_LIBRARIES})

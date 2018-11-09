@@ -36,7 +36,6 @@
 
 using namespace ChronusQ;
 
-BOOST_AUTO_TEST_SUITE( GPLHR_TESTS )
 
 
 template <typename ReadT, typename EigT>
@@ -62,8 +61,8 @@ void GPLHR_TEST(size_t nRoots, size_t m, dcomplex sigma,
   auto dims = matFile.getDims("/matrix");
 
   // Dummy checks on
-  BOOST_CHECK( dims.size() == 2   );
-  BOOST_CHECK( dims[0] == dims[1] );
+  EXPECT_TRUE( dims.size() == 2   );
+  EXPECT_TRUE( dims[0] == dims[1] );
 
   size_t N = dims[0];
 
@@ -204,9 +203,8 @@ void GPLHR_TEST(size_t nRoots, size_t m, dcomplex sigma,
   for(auto k = 0ul; k < nRoots; k++) {
     double diff1 = std::abs((W[k] - refW[k])/refW[k]);
     double diff2 = std::abs((W[k] - std::conj(refW[k]))/refW[k]);
-    BOOST_CHECK_MESSAGE( 
-      diff1 < etol or diff2 < etol,
-      "DIFF1 = " << diff1 << ", DIFF2 = " << diff2);
+    EXPECT_TRUE( diff1 < etol or diff2 < etol) <<
+      "DIFF1 = " << diff1 << ", DIFF2 = " << diff2;
   }
 
 
@@ -231,13 +229,13 @@ void GPLHR_TEST(size_t nRoots, size_t m, dcomplex sigma,
 
 
 /*
-BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_COMPLEXEIG_NOPRE_3R_1M_10S, SerialJob ) {
+TEST( GPLHR, GPLHR_REALMAT_COMPLEXEIG_NOPRE_3R_1M_10S ) {
 
   GPLHR_REALMAT_COMPLEXEIG_NOPRE(3,1,10.);
 
 }
 
-BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_COMPLEXEIG_NOPRE_10R_1M_10S, SerialJob ) {
+TEST( GPLHR, GPLHR_REALMAT_COMPLEXEIG_NOPRE_10R_1M_10S ) {
 
   GPLHR_REALMAT_COMPLEXEIG_NOPRE(10,1,10.);
 
@@ -248,34 +246,34 @@ BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_COMPLEXEIG_NOPRE_10R_1M_10S, SerialJob ) 
 // 
 // Real Matrix , Complex eigenvalues
 //
-BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_COMPLEXEIG_NOPRE_3R_3M_10S, SerialJob ) {
+TEST( GPLHR, GPLHR_REALMAT_COMPLEXEIG_NOPRE_3R_3M_10S ) {
 
   GPLHR_TEST<double,dcomplex>(3,3,10.,"pde2961.hdf5");
 
 }
 
-BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_COMPLEXEIG_NOPRE_10R_3M_10S, SerialJob ) {
+TEST( GPLHR, GPLHR_REALMAT_COMPLEXEIG_NOPRE_10R_3M_10S ) {
 
   GPLHR_TEST<double,dcomplex>(10,3,10.,"pde2961.hdf5");
 
 }
 
 
-BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_COMPLEXEIG_NOPRE_3R_7M_10S, SerialJob ) {
+TEST( GPLHR, GPLHR_REALMAT_COMPLEXEIG_NOPRE_3R_7M_10S ) {
 
   GPLHR_TEST<double,dcomplex>(3,7,10.,"pde2961.hdf5");
 
 }
 
 
-BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_COMPLEXEIG_NOPRE_3R_7M_0S, SerialJob ) {
+TEST( GPLHR, GPLHR_REALMAT_COMPLEXEIG_NOPRE_3R_7M_0S ) {
 
   GPLHR_TEST<double,dcomplex>(3,7,0.,"pde2961.hdf5");
 
 }
 
 
-BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_COMPLEXEIG_PRE_3R_7M_0S, SerialJob ) {
+TEST( GPLHR, GPLHR_REALMAT_COMPLEXEIG_PRE_3R_7M_0S ) {
 
   GPLHR_TEST<double,dcomplex>(3,7,0.,"pde2961.hdf5",true);
 
@@ -287,8 +285,7 @@ BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_COMPLEXEIG_PRE_3R_7M_0S, SerialJob ) {
 // Complex Unsymmetric Matrix, Complex eigenvalues
 //
 
-BOOST_FIXTURE_TEST_CASE( GPLHR_COMPLEXMAT_COMPLEXEIG_NOPRE_2R_10M_m1E07S, 
-    SerialJob ) {
+TEST( GPLHR, GPLHR_COMPLEXMAT_COMPLEXEIG_NOPRE_2R_10M_m1E07S ) {
 
   GPLHR_TEST<dcomplex,dcomplex>(2,10,-1.e+07,"dwg961ba.hdf5",false,8e-8);
 
@@ -299,14 +296,14 @@ BOOST_FIXTURE_TEST_CASE( GPLHR_COMPLEXMAT_COMPLEXEIG_NOPRE_2R_10M_m1E07S,
 //
 // Real Matrix, Real Eigenvalues
 //
-BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_REALEIG_NOPRE_6R_5M_1E07S, SerialJob ) {
+TEST( GPLHR, GPLHR_REALMAT_REALEIG_NOPRE_6R_5M_1E07S ) {
 
   //GPLHR_REALMAT_REALEIG_NOPRE(6,5,1.e+07);
   GPLHR_TEST<double,double>(6,5,1.e7,"bcsstkm05.hdf5",false,1e-8);
 
 }
 
-BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_REALEIG_NOPRE_10R_4M_2E07S, SerialJob ) {
+TEST( GPLHR, GPLHR_REALMAT_REALEIG_NOPRE_10R_4M_2E07S ) {
 
   //GPLHR_REALMAT_REALEIG_NOPRE(10,4,2.e+07);
   GPLHR_TEST<double,double>(10,4,2.e7,"bcsstkm05.hdf5",false,1e-8);
@@ -314,8 +311,6 @@ BOOST_FIXTURE_TEST_CASE( GPLHR_REALMAT_REALEIG_NOPRE_10R_4M_2E07S, SerialJob ) {
 }
 
 
-
-BOOST_AUTO_TEST_SUITE_END()
 
 
 

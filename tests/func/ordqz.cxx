@@ -61,7 +61,6 @@ inline dcomplex RAND_NUMBER(std::default_random_engine &e,
 
 // OrdQZ test suite
 
-BOOST_AUTO_TEST_SUITE( ORDQZ )
 
   template <typename T>
   void ordqz_test(size_t N, double SIGMA) {
@@ -122,7 +121,7 @@ BOOST_AUTO_TEST_SUITE( ORDQZ )
 
     // Check that the sort didn't do anything
     for(auto j = 0; j < N; j++) 
-      BOOST_CHECK(indx[j] == indx_c[j]);
+      EXPECT_EQ(indx[j],indx_c[j]);
 
 
     T* SCR = mem.template malloc<T>(N*N);
@@ -147,26 +146,24 @@ BOOST_AUTO_TEST_SUITE( ORDQZ )
     double maxB = std::abs(*std::max_element(BC,BC+N*N,abs_comp));
 
 
-    BOOST_CHECK_MESSAGE(maxA < 1e-10, maxA);
-    BOOST_CHECK_MESSAGE(maxB < 1e-10, maxB);
+    EXPECT_TRUE(maxA < 1e-10) <<  maxA;
+    EXPECT_TRUE(maxB < 1e-10) <<  maxB;
 
   };
 
 
-  BOOST_FIXTURE_TEST_CASE( REAL_ORDQZ, SerialJob ) {
+  TEST( ORDQZ, REAL_ORDQZ ) {
   
     ordqz_test<double>(50,-2);
   
   }
   
-  BOOST_FIXTURE_TEST_CASE( COMPLEX_ORDQZ, SerialJob ) {
+  TEST( ORDQZ, COMPLEX_ORDQZ ) {
   
     ordqz_test<dcomplex>(50,-2);
   
   }
 
-
-BOOST_AUTO_TEST_SUITE_END()
 
 
 #endif

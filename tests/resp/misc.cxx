@@ -24,20 +24,12 @@
 
 #include "resp.hpp"
 
-#define CQRESTEST_IMPL(TNAME, JTYPE, IN, REF) \
-BOOST_FIXTURE_TEST_CASE( TNAME, JTYPE ) { CQRESTEST( true, IN, REF ); }
-
-
-BOOST_AUTO_TEST_SUITE( MISC_RESP )
-
+#define CQRESTEST_IMPL(TNAME, IN, REF) \
+TEST( MISC_RESP, TNAME ) { CQRESTEST( true, IN, REF ); }
 
 
 // Water 6-31G(d) TDHF (RESIDUE, GPLHR + DIRECT) Oxygen K-Edge (540 eV)
-CQRESTEST_IMPL( Water_631Gd_RESIDUE_XRAY_540eV, SerialJob, 
+CQRESTEST_IMPL( Water_631Gd_RESIDUE_XRAY_540eV,  
     "resp/serial/misc/water_6-31Gd_rhf_residue_xray_540eV",
     "water_6-31Gd_rhf_residue.bin.ref" )
-
-
-// End MISC_RESP suite
-BOOST_AUTO_TEST_SUITE_END()
 

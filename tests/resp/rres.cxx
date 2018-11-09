@@ -24,33 +24,28 @@
 
 #include "resp.hpp"
 
-#define CQRESTEST_IMPL(TNAME, JTYPE, IN, REF) \
-BOOST_FIXTURE_TEST_CASE( TNAME, JTYPE ) { CQRESTEST( true, IN, REF ); }
+#define CQRESTEST_IMPL(TNAME, IN, REF) \
+TEST( RHF_RESIDUE, TNAME ) { CQRESTEST( true, IN, REF ); }
 
-
-BOOST_AUTO_TEST_SUITE( RHF_RESP )
-
-
-BOOST_AUTO_TEST_SUITE( RHF_RESIDUE )
 
 
 
 // FULL DIMENSIONAL TESTS
 
 // Water 6-31G(d) TDHF (RESIDUE)
-CQRESTEST_IMPL( Water_631Gd_RESIDUE, SerialJob, 
+CQRESTEST_IMPL( Water_631Gd_RESIDUE,  
     "resp/serial/rresp/water_6-31Gd_rhf_residue",
     "water_6-31Gd_rhf_residue.bin.ref" )
 
 #ifndef _CQ_GENERATE_TESTS
 
   // Water 6-31G(d) TDHF (RESIDUE, GPLHR)
-  CQRESTEST_IMPL( Water_631Gd_RESIDUE_GPLHR, SerialJob, 
+  CQRESTEST_IMPL( Water_631Gd_RESIDUE_GPLHR,  
       "resp/serial/rresp/water_6-31Gd_rhf_residue_gplhr",
       "water_6-31Gd_rhf_residue.bin.ref" )
   
   // Water 6-31G(d) TDHF (RESIDUE, GPLHR + DIRECT)
-  CQRESTEST_IMPL( Water_631Gd_RESIDUE_GPLHR_DIRECT, SerialJob, 
+  CQRESTEST_IMPL( Water_631Gd_RESIDUE_GPLHR_DIRECT,  
       "resp/serial/rresp/water_6-31Gd_rhf_residue_gplhr_direct",
       "water_6-31Gd_rhf_residue.bin.ref" )
 
@@ -60,17 +55,17 @@ CQRESTEST_IMPL( Water_631Gd_RESIDUE, SerialJob,
 #ifdef _CQ_DO_PARTESTS
 
   // SMP Water 6-31G(d) TDHF (RESIDUE)
-  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE, ParallelJob, 
+  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE,  
       "resp/parallel/rresp/water_6-31Gd_rhf_residue",
       "water_6-31Gd_rhf_residue.bin.ref") 
 
   // SMP Water 6-31G(d) TDHF (RESIDUE, GPLHR)
-  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_GPLHR, ParallelJob, 
+  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_GPLHR,  
       "resp/parallel/rresp/water_6-31Gd_rhf_residue_gplhr",
       "water_6-31Gd_rhf_residue.bin.ref" )
   
   // SMP Water 6-31G(d) TDHF (RESIDUE, GPLHR + DIRECT)
-  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_GPLHR_DIRECT, ParallelJob, 
+  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_GPLHR_DIRECT,  
       "resp/parallel/rresp/water_6-31Gd_rhf_residue_gplhr_direct",
       "water_6-31Gd_rhf_residue.bin.ref" )
 
@@ -82,7 +77,7 @@ CQRESTEST_IMPL( Water_631Gd_RESIDUE, SerialJob,
   // A+B / A-B TESTS
     
   // Water 6-31G(d) TDHF (RESIDUE) A+B / A-B
-  CQRESTEST_IMPL( Water_631Gd_RESIDUE_APB_AMB, SerialJob, 
+  CQRESTEST_IMPL( Water_631Gd_RESIDUE_APB_AMB,  
       "resp/serial/rresp/water_6-31Gd_rhf_residue_apb_amb",
       "water_6-31Gd_rhf_residue.bin.ref") 
   
@@ -90,7 +85,7 @@ CQRESTEST_IMPL( Water_631Gd_RESIDUE, SerialJob,
   #ifdef _CQ_DO_PARTESTS
   
     // SMP Water 6-31G(d) TDHF (RESIDUE) A+B / A-B
-    CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_APB_AMB, ParallelJob, 
+    CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_APB_AMB,  
         "resp/parallel/rresp/water_6-31Gd_rhf_residue_apb_amb",
         "water_6-31Gd_rhf_residue.bin.ref") 
   
@@ -101,14 +96,14 @@ CQRESTEST_IMPL( Water_631Gd_RESIDUE, SerialJob,
   // REDUCED TESTS
     
   // Water 6-31G(d) TDHF (RESIDUE) REDUCED
-  CQRESTEST_IMPL( Water_631Gd_RESIDUE_RED, SerialJob, 
+  CQRESTEST_IMPL( Water_631Gd_RESIDUE_RED,  
       "resp/serial/rresp/water_6-31Gd_rhf_residue_reduced",
       "water_6-31Gd_rhf_residue.bin.ref") 
   
   #ifdef _CQ_DO_PARTESTS
   
     // SMP Water 6-31G(d) TDHF (RESIDUE) REDUCED
-    CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_RED, ParallelJob, 
+    CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_RED,  
         "resp/parallel/rresp/water_6-31Gd_rhf_residue_reduced",
         "water_6-31Gd_rhf_residue.bin.ref") 
   
@@ -123,12 +118,12 @@ CQRESTEST_IMPL( Water_631Gd_RESIDUE, SerialJob,
   // Distributed-From-Root Full Dimensional Tests
 
   // Water 6-31G(d) TDHF (RESIDUE, GPLHR)
-  CQRESTEST_IMPL( Water_631Gd_RESIDUE_GPLHR_DISTMATFROMROOT, SerialJob, 
+  CQRESTEST_IMPL( Water_631Gd_RESIDUE_GPLHR_DISTMATFROMROOT,  
       "resp/serial/rresp/water_6-31Gd_rhf_residue_gplhr_distmatfromroot",
       "water_6-31Gd_rhf_residue.bin.ref" )
   
   // SMP Water 6-31G(d) TDHF (RESIDUE, GPLHR)
-  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_GPLHR_DISTMATFROMROOT, ParallelJob, 
+  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_GPLHR_DISTMATFROMROOT,  
       "resp/parallel/rresp/water_6-31Gd_rhf_residue_gplhr_distmatfromroot",
       "water_6-31Gd_rhf_residue.bin.ref" )
 
@@ -139,21 +134,13 @@ CQRESTEST_IMPL( Water_631Gd_RESIDUE, SerialJob,
   // Build-Distributed Full Dimensional Tests
 
   // Water 6-31G(d) TDHF (RESIDUE, GPLHR)
-  CQRESTEST_IMPL( Water_631Gd_RESIDUE_GPLHR_BUILDDIST, SerialJob, 
+  CQRESTEST_IMPL( Water_631Gd_RESIDUE_GPLHR_BUILDDIST,  
       "resp/serial/rresp/water_6-31Gd_rhf_residue_gplhr_builddist",
       "water_6-31Gd_rhf_residue.bin.ref" )
   
   // SMP Water 6-31G(d) TDHF (RESIDUE, GPLHR)
-  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_GPLHR_BUILDDIST, ParallelJob, 
+  CQRESTEST_IMPL( PAR_Water_631Gd_RESIDUE_GPLHR_BUILDDIST,  
       "resp/parallel/rresp/water_6-31Gd_rhf_residue_gplhr_builddist",
       "water_6-31Gd_rhf_residue.bin.ref" )
 
 #endif
-
-// End RHF_RESIDUE suite
-BOOST_AUTO_TEST_SUITE_END()
-
-// End RHF_RESP suite
-BOOST_AUTO_TEST_SUITE_END()
-
-

@@ -60,6 +60,7 @@ inline void CQSCFTEST( std::string in, std::string ref,
 
   MPI_Barrier(MPI_COMM_WORLD);
 
+
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
     TEST_OUT + in + ".bin",
     TEST_OUT + in + ".scr");
@@ -82,8 +83,8 @@ inline void CQSCFTEST( std::string in, std::string ref,
 
     refFile.readData("SCF/TOTAL_ENERGY",&xDummy);
     resFile.readData("SCF/TOTAL_ENERGY",&yDummy);
-    BOOST_CHECK_MESSAGE(std::abs(yDummy - xDummy) < tol, 
-      "ENERGY TEST FAILED " << std::abs(yDummy - xDummy) );
+
+    EXPECT_NEAR( xDummy, yDummy, tol ) << "ENERGY TEST FAILED ";
 
   }
   
@@ -96,9 +97,8 @@ inline void CQSCFTEST( std::string in, std::string ref,
     refFile.readData("SCF/LEN_ELECTRIC_DIPOLE",&xDummy3[0]);
     resFile.readData("SCF/LEN_ELECTRIC_DIPOLE",&yDummy3[0]);
     for(auto i = 0; i < 3; i++)
-      BOOST_CHECK_MESSAGE(std::abs(yDummy3[i] - xDummy3[i]) < tol, 
-        "DIPOLE TEST FAILED IXYZ = " << i 
-          << " " << std::abs(yDummy3[i] - xDummy3[i])  );
+      EXPECT_NEAR(yDummy3[i], xDummy3[i], tol ) << 
+        "DIPOLE TEST FAILED IXYZ = " << i; 
 
 
   }
@@ -112,10 +112,9 @@ inline void CQSCFTEST( std::string in, std::string ref,
     resFile.readData("SCF/LEN_ELECTRIC_QUADRUPOLE",&yDummy33[0][0]);
     for(auto i = 0; i < 3; i++)
     for(auto j = 0; j < 3; j++)
-      BOOST_CHECK_MESSAGE(std::abs(yDummy33[i][j] - xDummy33[i][j]) < tol, 
+      EXPECT_NEAR(yDummy33[i][j], xDummy33[i][j],  tol) << 
         "QUADRUPOLE TEST FAILED IXYZ = " << i 
-                           << " JXYZ = " << j 
-                  << " " << std::abs(yDummy33[i][j] - xDummy33[i][j]) );
+                           << " JXYZ = " << j; 
 
   }
   
@@ -128,11 +127,11 @@ inline void CQSCFTEST( std::string in, std::string ref,
     for(auto i = 0; i < 3; i++)
     for(auto j = 0; j < 3; j++)
     for(auto k = 0; k < 3; k++)
-      BOOST_CHECK_MESSAGE(std::abs(yDummy333[i][j][k] - xDummy333[i][j][k]) < tol, 
+      EXPECT_NEAR(yDummy333[i][j][k],  xDummy333[i][j][k],  tol) <<
         "OCTUPOLE TEST FAILED IXYZ = " << i 
                                        << " JXYZ = " << j 
-                                       << " KXYZ = " << k 
-          << " " << std::abs(yDummy333[i][j][k] - xDummy333[i][j][k]) );
+                                       << " KXYZ = " << k; 
+
   }
   
   /* Check Spin */
@@ -144,9 +143,8 @@ inline void CQSCFTEST( std::string in, std::string ref,
     refFile.readData("SCF/S_EXPECT",&xDummy3[0]);
     resFile.readData("SCF/S_EXPECT",&yDummy3[0]);
     for(auto i = 0; i < 3; i++)
-      BOOST_CHECK_MESSAGE(std::abs(yDummy3[i] - xDummy3[i]) < tol, 
-        "<S> TEST FAILED IXYZ = " << i << " " 
-        << std::abs(yDummy3[i] - xDummy3[i]) );
+      EXPECT_NEAR(yDummy3[i], xDummy3[i], tol ) << 
+        "<S> TEST FAILED IXYZ = " << i; 
 
   }
   
@@ -156,8 +154,7 @@ inline void CQSCFTEST( std::string in, std::string ref,
 
     refFile.readData("SCF/S_SQUARED",&xDummy);
     resFile.readData("SCF/S_SQUARED",&yDummy);
-    BOOST_CHECK_MESSAGE(std::abs(yDummy - xDummy) < tol, 
-      "<S^2> TEST FAILED " << std::abs(yDummy - xDummy) );
+    EXPECT_NEAR(yDummy,  xDummy, tol) << "<S^2> TEST FAILED " ;
 
   }
 
