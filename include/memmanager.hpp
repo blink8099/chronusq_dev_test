@@ -25,13 +25,24 @@
 #define __INCLUDED_MEMMANAGER_HPP__
 
 #include <chronusq_sys.hpp>
-#include <boost/pool/simple_segregated_storage.hpp>
 
 //#define MEM_PRINT
+#define CHRONUSQ_CUSTOM_BACKEND
+
+#ifdef CHRONUSQ_CUSTOM_BACKEND
+#include <custom_storage.hpp>
+#else
+#include <boost/pool/simple_segregated_storage.hpp>
+#endif
+
 
 namespace ChronusQ {
 
+#ifdef CHRONUSQ_CUSTOM_BACKEND
+  typedef CustomMemManager mem_backend;
+#else
   typedef boost::simple_segregated_storage<size_t> mem_backend;
+#endif
 
   class CQMemManager : public mem_backend {
 

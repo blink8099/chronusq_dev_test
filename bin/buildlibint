@@ -9,7 +9,7 @@ else
   echo "Unpacking Libint"
   tar xf "$LIBINT2_DIR".tgz
   cd $LIBINT2_DIR
-  ./configure  --prefix=$PWD/.. --with-cxx=$CXX CXXFLAGS='-w -O3 -std=c++17'
+  ./configure  --prefix=$PWD/.. --with-cxx=$CXX CXXFLAGS='-w -O3'
 fi
 echo "Compiling Libint"
 make install -j$1
