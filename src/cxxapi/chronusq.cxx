@@ -26,7 +26,7 @@
 #include <cxxapi/procedural.hpp>
 #include <cxxapi/boilerplate.hpp>
 
-#include <boost/filesystem.hpp>
+#include <fstream>
 
 #include <cerr.hpp>
 
@@ -96,25 +96,30 @@ int main(int argc, char *argv[]) {
 
   if( not oldRstFileName.empty() ) {
 
-    if(!boost::filesystem::exists(oldRstFileName)){
+    std::ifstream oldRstFile( oldRstFileName.c_str(), std::ios::binary );
+
+    if( !oldRstFile ){
       CErr("Cannot find old rstFile!");
     }
 
     // Remove destination file if it exists
-    if( boost::filesystem::exists( rstFileName ) and rank == 0 )
-      boost::filesystem::remove( rstFileName );
+    if( std::ifstream( rstFileName.c_str(), std::ios::binary ) and rank == 0 )
+      std::remove( rstFileName.c_str() );
+
+    std::ofstream rstFile( rstFileName.c_str(),    std::ios::binary );
 
     // Copy over "old" rst file into new rst file
     if( rank == 0 ) {
 
-      boost::filesystem::copy_file( oldRstFileName, rstFileName);
-        
       std::cout << "  * Copying " << oldRstFileName << "  -->  "
         << rstFileName << std::endl;
+
+      rstFile << oldRstFile.rdbuf();
 
     }
 
   }
+
 
   RunChronusQ(inFileName,outFileName,rstFileName,scrFileName);
 

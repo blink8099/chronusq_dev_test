@@ -109,7 +109,6 @@ message( "ChronusQ Dependencies" )
 
 include(FindLibint)
 include(FindLibXC)
-include(Boost)
 
 set(CQEX_LINK ${CQ_EXT_LINK} )
 

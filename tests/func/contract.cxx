@@ -170,7 +170,7 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   for(auto i = 0; i < NB*NB; i++) 
     maxDiff = std::max(maxDiff,std::abs(SX[i] - SX2[i]));
   
-  EXPECT_TRUE(maxDiff < 1e-10);
+  EXPECT_TRUE(maxDiff < 1e-9) << maxDiff;
 
 #endif
 
