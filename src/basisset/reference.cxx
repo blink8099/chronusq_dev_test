@@ -164,6 +164,10 @@ namespace ChronusQ {
           std::vector<double> contPrimary;
           std::vector<double> contSecondary;
   
+          libint2::svector< double > exp_libint, 
+                                     contPrimary_libint,
+                                     contSecondary_libint;
+
           // Determine the contraction depth of the shell set
           contDepth = std::stoi(tokens[1]);
   
@@ -191,20 +195,34 @@ namespace ChronusQ {
               contSecondary.push_back(std::stod(tokens2[2]));
           }
   
+
+          exp_libint.resize( exp.size() );
+          contPrimary_libint.resize( contPrimary.size() );
+          contSecondary_libint.resize( contSecondary.size() );
+
+          std::copy(exp.begin(), exp.end(), exp_libint.begin() );
+          std::copy(contPrimary.begin(), contPrimary.end(), contPrimary_libint.begin() );
+          std::copy(contSecondary.begin(), contSecondary.end(), contSecondary_libint.begin() );
+
           // Create the libint2::Shell object
           if(!shSymb.compare("SP")) {
   
             // Create 2 shell sets for "SP" shells
               
+            libint2::svector< libint2::Shell::Contraction > s, p;
+            
+            s.emplace_back(libint2::Shell::Contraction{0,false,contPrimary_libint});
+            p.emplace_back(libint2::Shell::Contraction{1,false,contSecondary_libint});
+
             // "S" function
             tmpShell.push_back(
-              libint2::Shell{ exp, {{0,false,contPrimary}}, {{0,0,0}} }
+              libint2::Shell{ exp_libint, s, {{0,0,0}} }
             );
             tmpCons.push_back(contPrimary);
   
             // "P" function
             tmpShell.push_back(
-              libint2::Shell{ exp, {{1,false,contSecondary}}, {{0,0,0}} }
+              libint2::Shell{ exp_libint, p, {{0,0,0}} }
             );
   
             tmpCons.push_back(contSecondary);
@@ -220,9 +238,12 @@ namespace ChronusQ {
             // If we're forcing cartesian, force cartesian...
             if(forceCart_) doSph = false;
   
+            libint2::svector< libint2::Shell::Contraction > cnt;
+            cnt.emplace_back(libint2::Shell::Contraction{L,doSph,contPrimary_libint});
+
             // Append temporary shell set
             tmpShell.push_back(
-              libint2::Shell{ exp, {{L,doSph,contPrimary}}, {{0,0,0}} }
+              libint2::Shell{ exp_libint, cnt, {{0,0,0}} }
             );
             tmpCons.push_back(contPrimary);
           } // end append temp record

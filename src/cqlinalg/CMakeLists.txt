@@ -27,3 +27,6 @@ add_library(cqlinalg STATIC ${CQLAPACK_SRC} ${CQBLAS_SRC})
 list(APPEND CQEX_LINK cqlinalg)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
+if( TARGET openblas )
+  add_dependencies( cqlinalg openblas ) 
+endif()
