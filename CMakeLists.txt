@@ -114,8 +114,13 @@ set(CQEX_LINK ${CQ_EXT_LINK} )
 
 # HDF5
 find_package(HDF5 REQUIRED CXX)
-include_directories("${HDF5_INCLUDE_DIRS}")
-list(APPEND CQEX_LINK ${HDF5_CXX_LIBRARIES} )
+add_library( ChronusQ::HDF5 INTERFACE IMPORTED )
+set_target_properties( ChronusQ::HDF5 PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${HDF5_INCLUDE_DIRS}"
+  INTERFACE_LINK_LIBRARIES      "${HDF5_CXX_LIBRARIES}"
+)
+list(APPEND CQEX_LINK ChronusQ::HDF5 )
+
 
 message( "\n\n" )
 

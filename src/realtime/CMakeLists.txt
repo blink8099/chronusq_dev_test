@@ -21,6 +21,7 @@
 #   E-Mail: xsli@uw.edu
 #
 add_library(realtime STATIC fields.cxx impl.cxx)
+target_link_libraries( realtime PUBLIC ChronusQ::HDF5 )
 
 # Append aointegrals to executable link
 list(APPEND CQEX_LINK realtime)

@@ -28,6 +28,8 @@ aointegrals_twoe_drivers.cxx
 aointegrals_twoe_real_gto.cxx 
 aointegrals_twoe_complex_giao.cxx)
 
+target_link_libraries( aointegrals PUBLIC ChronusQ::HDF5 )
+
 if(TARGET libint)
   add_dependencies(aointegrals libint)
 endif()
