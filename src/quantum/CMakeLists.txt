@@ -26,3 +26,6 @@ add_library(quantum STATIC impl.cxx)
 list(APPEND CQEX_LINK quantum)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
+if( TARGET openblas )
+  add_dependencies( quantum openblas ) 
+endif()
