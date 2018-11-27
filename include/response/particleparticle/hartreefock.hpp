@@ -181,11 +181,11 @@ namespace ChronusQ {
 
               }
 
-              for(auto i = 0ul, ij = this->aDim_; i < NO_t;    i++      )
-              for(auto j = 0ul          ; j < jmax(i); j++, ij++){
+              for(size_t i = 0ul, ij = this->aDim_; i < NO_t;    i++      )
+              for(size_t j = 0ul          ; j < jmax(i); j++, ij++){
 
-                for(auto k = 0ul, kl = this->aDim_; k < NO_t;    k++      )
-                for(auto l = 0ul          ; l < jmax(k); l++, kl++){
+                for(size_t k = 0ul, kl = this->aDim_; k < NO_t;    k++      )
+                for(size_t l = 0ul          ; l < jmax(k); l++, kl++){
 
                   if(i == k) HV_cc[ij] += V_cc[kl] * MMat[j + l*NB];
                   if(j == l) HV_cc[ij] += V_cc[kl] * MMat[i + k*NB];
