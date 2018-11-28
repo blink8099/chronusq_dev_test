@@ -31,12 +31,33 @@ TEST( RHF_GIAO, BH_GIAO_STO3G ) {
  
 };
 
+#ifndef _CQ_GENERATE_TESTS
+
+// BH GIAO STO-3G test  B = 0, 0, 0.02 (DIRECT)
+TEST( RHF_GIAO, BH_GIAO_STO3G_DIRECT ) {
+
+  CQSCFTEST( "scf/serial/rhf_giao/BH_giao_sto3g_direct", "BH_giao_sto3g.bin.ref", 1e-6 );
+ 
+};
+
+#endif
+
+
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP BH GIAO STO-3G test  B = 0, 0, 0.02
 TEST( RHF_GIAO, Par_BH_GIAO_STO3G ) {
 
   CQSCFTEST( "scf/parallel/rhf_giao/BH_giao_sto3g", "BH_giao_sto3g.bin.ref", 1e-6 );
+ 
+};
+
+
+// SMP BH GIAO STO-3G test  B = 0, 0, 0.02 (DIRECT)
+TEST( RHF_GIAO, Par_BH_GIAO_STO3G_DIRECT ) {
+
+  CQSCFTEST( "scf/parallel/rhf_giao/BH_giao_sto3g_direct", "BH_giao_sto3g.bin.ref", 1e-6 );
  
 };
 

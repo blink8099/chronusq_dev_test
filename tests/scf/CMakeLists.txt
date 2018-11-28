@@ -84,9 +84,11 @@ add_cq_test( MISC_SCF     scftest "MISC_SCF.*" )
 
 
 if( CQ_ENABLE_MPI )
-  add_cq_mpi_test( RHF_SCF_MPI 2   scftest "RHF.*"   )
-  add_cq_mpi_test( UHF_SCF_MPI 2   scftest "UHF.*"   )
-  add_cq_mpi_test( X2CHF_SCF_MPI 2 scftest "X2CHF.*" )
+  add_cq_mpi_test( RHF_SCF_MPI      2   scftest "RHF.*"   )
+  add_cq_mpi_test( UHF_SCF_MPI      2   scftest "UHF.*"   )
+  add_cq_mpi_test( X2CHF_SCF_MPI    2   scftest "X2CHF.*" )
+  add_cq_mpi_test( RHF_GIAO_SCF_MPI 2   scftest "RHF_GIAO.*"   )
+  #add_cq_mpi_test( UHF_GIAO_SCF_MPI 2   scftest "UHF_GIAO.*"   )
 
   add_cq_mpi_test( RKS_SCF_MPI 2   scftest "RKS.*"   )
   add_cq_mpi_test( UKS_SCF_MPI 2   scftest "UKS.*"   )

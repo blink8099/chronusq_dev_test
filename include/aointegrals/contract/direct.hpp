@@ -926,7 +926,10 @@ namespace ChronusQ {
     std::vector<TwoBodyContraction<dcomplex>> &list, EMPerturbation &pert) {
      
 
-    if( MPISize(comm) > 1 ) CErr("GIAO Direct + MPI NYI",std::cout);
+    size_t nthreads  = GetNumThreads();
+    size_t LAThreads = GetLAThreads();
+    size_t mpiRank   = MPIRank(comm);
+    size_t mpiSize   = MPISize(comm);
 
     const size_t NB   = basisSet_.nBasis;
     const size_t NMat = list.size();
@@ -942,16 +945,64 @@ namespace ChronusQ {
         })->size();
 
     size_t lenIntBuffer = 
-      maxShellSize * maxShellSize * nSQ_; 
+      maxShellSize * maxShellSize * maxShellSize * maxShellSize; 
 
     size_t nBuffer = 2;
+
     dcomplex * intBuffer = 
-      memManager_.malloc<dcomplex>(nBuffer*lenIntBuffer);
+      memManager_.malloc<dcomplex>(nBuffer*lenIntBuffer*nthreads);
    
     // double *intBuffer2 = intBuffer + nthreads*lenIntBuffer;
 
     dcomplex * alterintBuffer = 
-      memManager_.malloc<dcomplex>(nBuffer*lenIntBuffer);
+      memManager_.malloc<dcomplex>(nBuffer*lenIntBuffer*nthreads);
+
+    // Allocate thread local storage to store integral contractions
+    // XXX: Don't allocate anything if serial
+    std::vector<std::vector<dcomplex*>> AXthreads;
+    dcomplex *AXRaw = nullptr;
+    if(nthreads != 1) {
+      AXRaw = memManager_.malloc<dcomplex>(nthreads*NMat*NB*NB);    
+      memset(AXRaw,0,nthreads*NMat*NB*NB*sizeof(dcomplex));
+    }
+
+    for(auto ithread = 0, iMat = 0; ithread < nthreads; ithread++) {
+      AXthreads.emplace_back();
+      for(auto jMat = 0; jMat < NMat; jMat++, iMat++) {
+        if(nthreads == 1) {
+          AXthreads.back().push_back(list[jMat].AX);
+        } else {
+          AXthreads.back().push_back(AXRaw + iMat*NB*NB);
+        }
+      }
+    }
+
+
+    // MPI info
+    size_t mpiChunks = (NS * (NS + 1) / 2) / mpiSize;
+    size_t mpiS12St  = mpiRank * mpiChunks;
+    size_t mpiS12End = (mpiRank + 1) * mpiChunks;
+    if( mpiRank == (mpiSize - 1) ) mpiS12End = (NS * (NS + 1) / 2);
+
+
+
+
+
+
+    // start parallel
+    #pragma omp parallel
+    {
+
+    // Set up thread local storage
+
+    // SMP info
+    size_t thread_id = GetThreadID();
+
+    auto &AX_loc = AXthreads[thread_id];
+
+
+    dcomplex * intBuffer_loc  = intBuffer  + thread_id*lenIntBuffer;
+    dcomplex * alterintBuffer_loc  = alterintBuffer  + thread_id*lenIntBuffer;
 
 
     size_t n1,n2;
@@ -960,36 +1011,22 @@ namespace ChronusQ {
     for(size_t s1(0ul), bf1_s(0ul), s12(0ul); s1 < NS; bf1_s+=n1, s1++) { 
       n1 = basisSet_.shells[s1].size(); // Size of Shell 1
 
-#if 0
-    auto sigPair12_it = basisSet_.shellData.shData.at(s1).begin();
-    for( const size_t& s2 : basisSet_.shellData.sigShellPair[s1] ) {
-#endif 
-
     for ( int s2 = 0 ; s2 <= s1 ; s2++ ) {
       size_t bf2_s = basisSet_.mapSh2Bf[s2];
       n2 = basisSet_.shells[s2].size(); // Size of Shell 2
 
-#if 0
-      const auto * sigPair12 = sigPair12_it->get();
-      sigPair12_it++;
-#endif 
+#ifdef CQ_ENABLE_MPI
+      // MPI partition s12 blocks
+      if( (s12 < mpiS12St) or (s12 >= mpiS12End) ) { s12++; continue; }
+#endif
+
+      // Round-Robbin work distribution
+      if( (s12++) % nthreads != thread_id ) continue;
 
 #ifdef _FULL_DIRECT
       // Deneneracy factor for s1,s2 pair
       double s12_deg = (s1 == s2) ? 1.0 : 2.0;
 #endif
-
-/*
-#ifdef _BATCH_DIRECT 
-
-
-      // Zero out the integral buffer (hot spot)
-      memset(intBuffer,0,lenIntBuffer);
-
-      double *intBuffCur = intBuffer;
-
-#endif
-*/
 
 
       //SS Start generate shellpair1 
@@ -1094,17 +1131,18 @@ namespace ChronusQ {
         // Scale the buffer by the degeneracy factor and store
         // in infBuffer
 
-        std::transform(buff,buff + n1*n2*n3*n4 , intBuffer,
+        std::transform(buff,buff + n1*n2*n3*n4 , intBuffer_loc,
           std::bind1st(std::multiplies<dcomplex>(),0.5*s1234_deg));
 
-        std::transform(buffswitch,buffswitch+n1*n2*n3*n4 ,alterintBuffer,
+        std::transform(buffswitch,buffswitch+n1*n2*n3*n4 ,alterintBuffer_loc,
           std::bind1st(std::multiplies<dcomplex>(),0.5*s1234_deg));
 
         size_t b1,b2,b3,b4;
 //        double *Xp1, *Xp2;   // what is this used for? 
         dcomplex X1,X2;
 
-        for(auto &C : list ) {
+        for(auto iMat = 0; iMat < NMat; iMat++) {
+          auto& C = list[iMat];
           
           // Hermetian contraction
           if( C.HER ) { 
@@ -1129,14 +1167,14 @@ namespace ChronusQ {
 
 
               // J(1,2) += 1/2[I(1,2|3,4) * X(4,3) + I(1,2|4,3) * X(3,4)]
-              C.AX[b1] += 0.5 * (C.X[bf4+bf3*NB] * intBuffer[ijkl]
-                            + C.X[bf3+bf4*NB] * std::conj(alterintBuffer[jikl]));     
+              AX_loc[iMat][b1] += 0.5 * (C.X[bf4+bf3*NB] * intBuffer_loc[ijkl]
+                            + C.X[bf3+bf4*NB] * std::conj(alterintBuffer_loc[jikl]));     
 
               // J(4,3) += 1/2[I(4,3|2,1) * X(1,2)+I(4,3|1,2) * X(2,1)
               //         = 1/2[I(1,2|3,4)* *X(1,2)+I(1,2|4,3) * X(2,1)
-              C.AX[bf4+bf3*NB] +=  0.5 *( C.X[b1] 
-                                * std::conj(intBuffer[ijkl])
-                            + C.X[bf2+bf1*NB] * std::conj(alterintBuffer[jikl]));
+              AX_loc[iMat][bf4+bf3*NB] +=  0.5 *( C.X[b1] 
+                                * std::conj(intBuffer_loc[ijkl])
+                            + C.X[bf2+bf1*NB] * std::conj(alterintBuffer_loc[jikl]));
                                                                              
               // J(2,1) and J(3,4) are handled on symmetrization after
               // contraction
@@ -1163,16 +1201,16 @@ namespace ChronusQ {
               // Indicies are swapped here to loop over contiguous memory
                 
               // K(1,3) += 0.5 * I(1,2|4,3) * X(2,4) = 0.5 * I * CONJ(X(4,2)) (**HER**)
-              C.AX[b1]           += 0.5 * SmartConj(C.X[bf4+NB*bf2]) * std::conj(alterintBuffer[jikl]);
+              AX_loc[iMat][b1]           += 0.5 * SmartConj(C.X[bf4+NB*bf2]) * std::conj(alterintBuffer_loc[jikl]);
 
               // K(4,2) += 0.5 * I(4,3|1,2) * X(3,1) = 0.5 * I * CONJ(X(1,3)) (**HER**)
-              C.AX[bf4 + bf2*NB] += T1 * std::conj(alterintBuffer[jikl]);
+              AX_loc[iMat][bf4 + bf2*NB] += T1 * std::conj(alterintBuffer_loc[jikl]);
 
               // K(4,1) += 0.5 * I(4,3|2,1) * X(3,2) = 0.5 * I * CONJ(X(2,3)) (**HER**)
-              C.AX[bf4 + bf1*NB] += T2 * std::conj( intBuffer[ijkl] );
+              AX_loc[iMat][bf4 + bf1*NB] += T2 * std::conj( intBuffer_loc[ijkl] );
 
               // K(2,3) += 0.5 * I(2,1|4,3) * X(1,4) = 0.5 * I * CONJ(X(4,1)) (**HER**)
-              C.AX[b2]           += 0.5 * SmartConj(C.X[bf4+NB*bf1]) * std::conj( intBuffer[ijkl] );
+              AX_loc[iMat][b2]           += 0.5 * SmartConj(C.X[bf4+NB*bf1]) * std::conj( intBuffer_loc[ijkl] );
 
             } // l loop
             } // ijk
@@ -1198,22 +1236,22 @@ namespace ChronusQ {
               jikl = j*n1*n3*n4 + i*n3*n4 + k*n4 + l;  
 
               // J(1,2) += 1/2*(I(1,2|3,4) * X(4,3) + I(1,2|4,3) * X(3,4) 
-              C.AX[b1] += 0.5*( C.X[bf4 + bf3*NB]*intBuffer[ijkl] 
-                          + C.X[bf3 + bf4*NB]) * std::conj(alterintBuffer[jikl]);
+              AX_loc[iMat][b1] += 0.5*( C.X[bf4 + bf3*NB]*intBuffer_loc[ijkl] 
+                          + C.X[bf3 + bf4*NB]) * std::conj(alterintBuffer_loc[jikl]);
 
               // J(4,3) += 1/2[I(4,3|2,1) * X(1,2)+I(4,3|1,2) * X(2,1)
               //         = 1/2[I(1,2|3,4)* *X(1,2)+I(1,2|4,3) * X(2,1)
-              C.AX[bf4+bf3*NB] +=  0.5 * (C.X[b1] 
-                                * std::conj(intBuffer[ijkl])
-                            + C.X[bf2+bf1*NB] * std::conj(alterintBuffer[jikl]));
+              AX_loc[iMat][bf4+bf3*NB] +=  0.5 * (C.X[b1] 
+                                * std::conj(intBuffer_loc[ijkl])
+                            + C.X[bf2+bf1*NB] * std::conj(alterintBuffer_loc[jikl]));
 
               // J(2,1) += 1/2(I(2,1|3,4) * X(4,3) + I(2,1|4,3)* X(3,4))
-              C.AX[bf2+bf1*NB] += 0.5*( C.X[bf4 + bf3*NB] * alterintBuffer[jikl] 
-                                + C.X[bf3 + bf4*NB] * std::conj(intBuffer[ijkl]));
+              AX_loc[iMat][bf2+bf1*NB] += 0.5*( C.X[bf4 + bf3*NB] * alterintBuffer_loc[jikl] 
+                                + C.X[bf3 + bf4*NB] * std::conj(intBuffer_loc[ijkl]));
 
               // J(3,4) += 1/2(I(3,4|1,2) * X(2,1) + I(3,4|2,1) * X(1,2))
-              C.AX[bf3 + bf4*NB] += 0.5*( C.X[bf2 + bf1*NB] * intBuffer[ijkl]
-                                    +C.X[b1] * alterintBuffer[jikl]) ;
+              AX_loc[iMat][bf3 + bf4*NB] += 0.5*( C.X[bf2 + bf1*NB] * intBuffer_loc[ijkl]
+                                    +C.X[b1] * alterintBuffer_loc[jikl]) ;
 
             } // kl loop
             } // ij loop
@@ -1241,28 +1279,28 @@ namespace ChronusQ {
               jikl = j*n1*n3*n4 + i*n3*n4 + k*n4 + l;  
 
               // K(3,1) += 0.5 * I(3,4|2,1) * X(4,2)
-              C.AX[b3]           += 0.5 * C.X[bf4+NB*bf2] * alterintBuffer[jikl];
+              AX_loc[iMat][b3]           += 0.5 * C.X[bf4+NB*bf2] * alterintBuffer_loc[jikl];
 
               // K(4,2) += 0.5 * I(4,3|1,2) * X(3,1)
-              C.AX[bf4 + bf2*NB] += 0.5 * C.X[b3] * std::conj(alterintBuffer[jikl]);
+              AX_loc[iMat][bf4 + bf2*NB] += 0.5 * C.X[b3] * std::conj(alterintBuffer_loc[jikl]);
  
               // K(4,1) += 0.5 * I(4,3|2,1) * X(3,2)
-              C.AX[bf4 + bf1*NB] += 0.5 * C.X[b4] * std::conj(intBuffer[ijkl]);
+              AX_loc[iMat][bf4 + bf1*NB] += 0.5 * C.X[b4] * std::conj(intBuffer_loc[ijkl]);
 
               // K(3,2) += 0.5 * I(3,4|1,2) * X(4,1)
-              C.AX[b4]           += 0.5 * C.X[bf4+NB*bf1] * intBuffer[ijkl];
+              AX_loc[iMat][b4]           += 0.5 * C.X[bf4+NB*bf1] * intBuffer_loc[ijkl];
 
               // K(1,3) += 0.5 * I(1,2|4,3) * X(2,4)
-              C.AX[b1]           += 0.5 * C.X[bf2+NB*bf4] * std::conj(alterintBuffer[jikl]);
+              AX_loc[iMat][b1]           += 0.5 * C.X[bf2+NB*bf4] * std::conj(alterintBuffer_loc[jikl]);
 
               // K(2,4) += 0.5 * I(2,1|3,4) * X(1,3)
-              C.AX[bf2 + bf4*NB] += 0.5 * C.X[b1] * alterintBuffer[jikl];
+              AX_loc[iMat][bf2 + bf4*NB] += 0.5 * C.X[b1] * alterintBuffer_loc[jikl];
  
               // K(1,4) += 0.5 * I(1,2|3,4) * X(2,3)
-              C.AX[bf1 + bf4*NB] += 0.5 * C.X[b2] * intBuffer[ijkl];
+              AX_loc[iMat][bf1 + bf4*NB] += 0.5 * C.X[b2] * intBuffer_loc[ijkl];
 
               // K(2,3) += 0.5 * I(2,1|4,3) * X(1,4)
-              C.AX[b2]           += 0.5 * C.X[bf1+NB*bf4] * std::conj(intBuffer[ijkl]);
+              AX_loc[iMat][b2]           += 0.5 * C.X[bf1+NB*bf4] * std::conj(intBuffer_loc[ijkl]);
 
             } // l loop
             } // ijk
@@ -1287,46 +1325,69 @@ namespace ChronusQ {
     }; // s2
     }; // s1
 
+    } // end parallel
 
 #ifdef _FULL_DIRECT
 
-    for( auto &C : list ) {   
+    dcomplex* SCR = this->memManager_.template malloc<dcomplex>(nSQ_);
+    for( auto iMat = 0; iMat < NMat;  iMat++ ) 
+    for( auto iTh  = 0; iTh < nthreads; iTh++) {
   
     //prettyPrintSmart(std::cerr,"AX " + std::to_string(iMat) + " " + std::to_string(iTh),
     //  AXthreads[iTh][iMat],NB,NB,NB);
 
-      if( C.HER ) {
+      if( list[iMat].HER ) {
 
-        MatAdd('N','C',NB,NB,dcomplex(0.5),C.AX,NB,dcomplex(0.5),
-          C.AX,NB,intBuffer,NB);
+        MatAdd('N','C',NB,NB,dcomplex(0.5),AXthreads[iTh][iMat],NB,dcomplex(0.5),
+          AXthreads[iTh][iMat],NB,SCR,NB);
 
-/*
         if( nthreads != 1 )
-          MatAdd('N','N',NB,NB,G(1.),reinterpret_cast<G*>(intBuffer),NB,
-            G(1.), list[iMat].AX,NB,list[iMat].AX,NB);
+          MatAdd('N','N',NB,NB,dcomplex(1.),SCR,NB,dcomplex(1.), list[iMat].AX,NB,list[iMat].AX,NB);
         else
-*/
-          SetMat('N',NB,NB,dcomplex(1.),intBuffer,NB,
-            C.AX,NB);
+          SetMat('N',NB,NB,dcomplex(1.),SCR,NB,list[iMat].AX,NB);
 
       } else {
-/*
+
         if( nthreads != 1 )
-          MatAdd('N','N',NB,NB,G(0.5),AXthreads[iTh][iMat],NB,
-            G(1.), list[iMat].AX,NB,list[iMat].AX,NB);
+          MatAdd('N','N',NB,NB,dcomplex(0.5),AXthreads[iTh][iMat],NB,
+            dcomplex(1.), list[iMat].AX,NB,list[iMat].AX,NB);
         else 
-*/
-          Scale(NB*NB,dcomplex(0.5),C.AX,1);
+          Scale(NB*NB,dcomplex(0.5),list[iMat].AX,1);
 
 
-      //std::transform(AXthreads[iTh][iMat], AXthreads[iTh][iMat] + NB*NB, 
-      //  list[iMat].AX, []( G x ) -> G { return x / 4.; } );
-      }  
-    } // for( auto &C : list )
+      }
+
+    };
+    this->memManager_.free(SCR);
     
 
 #endif
 
+#ifdef CQ_ENABLE_MPI
+    // Combine all G[X] contributions onto Root process
+    if( mpiSize > 1 ) {
+
+      // FIXME: This should be able to be done with MPI_IN_PLACE for
+      // the root process
+        
+      dcomplex* mpiScr;
+      if( mpiRank == 0 ) mpiScr = memManager_.malloc<dcomplex>(NB*NB);
+
+      for( auto &C : list ) {
+//      prettyPrintSmart(std::cerr,"AX in Direct",C.AX,NB,NB,NB);
+
+        mxx::reduce( C.AX, NB*NB, mpiScr, 0, std::plus<dcomplex>(), comm );
+
+        // Copy over the output buffer on root
+        if( mpiRank == 0 ) std::copy_n(mpiScr,NB*NB,C.AX);
+
+      }
+
+      if( mpiRank == 0 ) memManager_.free(mpiScr);
+
+    }
+
+#endif
 
 
     // Free scratch space
