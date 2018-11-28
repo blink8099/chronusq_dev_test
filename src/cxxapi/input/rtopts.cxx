@@ -67,7 +67,8 @@ namespace ChronusQ {
    *
    */ 
   std::shared_ptr<RealTimeBase> CQRealTimeOptions(std::ostream &out, 
-    CQInputFile &input, std::shared_ptr<SingleSlaterBase> &ss) {
+    CQInputFile &input, std::shared_ptr<SingleSlaterBase> &ss,
+    EMPerturbation& scfPert ) {
 
     if( not input.containsSection("RT") )
       CErr("RT Section must be specified for RT job",out);
@@ -98,7 +99,7 @@ namespace ChronusQ {
 
     CONSTRUCT_RT( HartreeFock, double, double     );
     CONSTRUCT_RT( HartreeFock, dcomplex, double   );
-  //CONSTRUCT_RT( HartreeFock, dcomplex, dcomplex );
+    CONSTRUCT_RT( HartreeFock, dcomplex, dcomplex );
 
     CONSTRUCT_RT( KohnSham, double, double     );
     CONSTRUCT_RT( KohnSham, dcomplex, double   );
@@ -118,6 +119,11 @@ namespace ChronusQ {
     } catch(...) {
       CErr("Must specify RT.DELTAT for integration time step");
     }
+
+
+    // Set SCF perturbation
+    rt->setSCFPerturbation( scfPert );
+
     
     // MMUT Restart
     OPTOPT(

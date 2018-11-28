@@ -188,7 +188,7 @@ namespace ChronusQ {
 
       if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
 
-      auto rt = CQRealTimeOptions(output,input,ss);
+      auto rt = CQRealTimeOptions(output,input,ss,emPert);
       rt->savFile = rstFile;
       rt->doPropagation();
 

@@ -63,7 +63,8 @@ namespace ChronusQ {
 
   // Parse RT options
   std::shared_ptr<RealTimeBase> CQRealTimeOptions(
-    std::ostream &, CQInputFile &, std::shared_ptr<SingleSlaterBase> &
+    std::ostream &, CQInputFile &, std::shared_ptr<SingleSlaterBase> &,
+    EMPerturbation &
   );
 
   void CQRT_VALID(std::ostream&, CQInputFile &);

@@ -92,6 +92,7 @@ namespace ChronusQ {
 
     IntegrationScheme intScheme;   ///< Integration scheme (MMUT, etc)
     TDEMPerturbation  pert;        ///< TD field perturbation
+    EMPerturbation    scfPert;     ///< SCF Perturbation
 
     IntegrationProgress curState;  ///< Current state of the time propagation
     IntegrationData     data;      ///< Data collection
@@ -122,6 +123,11 @@ namespace ChronusQ {
      */ 
     template <typename... Args>
     inline void addField(Args... args){ pert.addField(args...); }
+
+
+    inline void setSCFPerturbation( EMPerturbation& scfp ) {
+      scfPert = scfp;
+    }
 
   protected:
 
