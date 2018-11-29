@@ -36,7 +36,7 @@ if( NOT EXISTS "${LIBINT2_PREFIX}/include/libint2.hpp" )
 
   ExternalProject_Add(libint
     PREFIX ${LIBINT2_PREFIX}
-    URL "${LIBINT2_PREFIX}/libint-2.4.2.tgz"
+    URL "${LIBINT2_PREFIX}/libint-2.5.0-beta.2.tgz"
     CONFIGURE_COMMAND ./configure 
       --prefix=${LIBINT2_PREFIX} 
       CXX=${CMAKE_CXX_COMPILER} 

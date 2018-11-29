@@ -305,6 +305,7 @@ namespace ChronusQ {
   std::vector<double*>
   AOIntegrals<double>::OneEDriverLocalGIAO(const F &obFunc, shell_set& shells) {
     CErr("GIAO + Real is an invalid option",std::cout);
+    return std::vector<double*>();
   };
 
   template <>

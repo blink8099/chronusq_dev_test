@@ -24,17 +24,13 @@ cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
 project(ChronusQ CXX C Fortran)
 set(ChronusQ_VERSION_MAJOR 0)
 set(ChronusQ_VERSION_MINOR 2)
-set(ChronusQ_VERSION_PATCH 0)
+set(ChronusQ_VERSION_PATCH 1)
 
 
 # Options
 option(CQ_ENABLE_MPI       "Enable MPI parallelism"          OFF)
-#option(CQ_ENABLE_SCALAPACK "Enable ScaLAPACK"                OFF)
-#option(CQ_ENABLE_CXXBLACS  "Enable CXXBLACS"                 OFF)
 option(ENABLE_COVERAGE     "Enable coverage and profiling"   OFF)
-option(FORCE_SHARED_BOOST  "Force link to shared Boost Libs" OFF)
 option(CQ_LINALG_USESYSTEM "Use System defaults for LA libs" OFF)
-option(FORCE_SHARED_BOOST  "Force link to shared Boost Libs" OFF)
 
 
 # Add specified paths to CMAKE_PREFIX_PATH

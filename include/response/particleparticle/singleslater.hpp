@@ -868,6 +868,7 @@ namespace ChronusQ {
 
     CErr("FDR Not Implemented for ParticleParticlePropagator: no formPropGrad!");
 
+    return std::pair<size_t,MatsT*>(); 
   };
 
   template <typename MatsT, typename IntsT>

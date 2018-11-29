@@ -1795,6 +1795,8 @@ namespace ChronusQ {
         tmpVal +=  lB[mu]*hRRSab( pair,shell1,shell2,LA,lA,LB-1,lBm1 );
         return tmpVal;  
       }
+
+      return 0.0;
   }
   
   //--------------------------------------------------------------------//
