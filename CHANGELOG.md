@@ -9,6 +9,21 @@
 
   FORMAT: YYYY-MM-DD
 
+  - 2018-11-28 0.2.1 (BETA)
+    - Removed Boost depedency
+      - Switched Boost::Test -> GTest for UT system
+      - Created in house segregated storage engine to remove boost::simple_segregated_storage
+      - Removed Boost::Filesystem for file search / copy
+    - Fixed HDF5 link in the presense of static libraries
+      - This allows CQ to be compiled statically
+    - Fixed dependency tree to allow for parallel make in openblas builds    
+    - Misc GCC 6 comptibility fixes
+    - Parallel (SMP + MPI) GIAO Fock builds
+    - Direct GIAO Fock builds in RT module
+    - Bump Libint -> 2.5.0-beta
+    - Bump CMake  -> 3.11
+
+
   - 2018-07-13 0.2.0 (BETA)
     - Full integration of GIAO basis set into SCF and RT modules
     - Added RESPONSE module
