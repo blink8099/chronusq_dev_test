@@ -20,7 +20,7 @@
 # Contact the Developers:
 #   E-Mail: xsli@uw.edu
 #
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
 project(ChronusQ CXX C Fortran)
 set(ChronusQ_VERSION_MAJOR 0)
 set(ChronusQ_VERSION_MINOR 2)
