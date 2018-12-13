@@ -36,7 +36,7 @@ namespace ChronusQ {
     ResponseType jobType = RESIDUE;
 
     // Convergence
-    double convCrit = 1e-10;
+    double convCrit = 1e-6;
     int64_t maxIter = 500;
 
 

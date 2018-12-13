@@ -432,7 +432,21 @@ namespace ChronusQ {
         not input.containsData("RESPONSE.DEMIN") )
       resp->resSettings.deMin = resp->resSettings.gplhr_sigma;
 
+    // Forces full diag if the number of roots requested gives a
+    // subspace greater than or equal to half of the full problem dimension.
+    if( input.containsData("RESPONSE.NROOTS") and 
+        input.containsData("RESPONSE.DOFULL") ) {
 
+      if( ((3 + resp->resSettings.gplhr_m) * resp->resSettings.nRoots) >= resp->getNSingleDim() / 2 ) {
+
+        resp->genSettings.doFull = true;
+
+        std::cout << " " << std::endl;
+        std::cout << "  ** REQUESTED ITERATIVE SUBSPACE IS >= 1/2 OF THE FULL PROBLEM DIMENSION: " << std::endl;
+        std::cout << "    * DEFAULTING TO FULL DIAGONALIZATION " << std::endl;
+        std::cout << " " << std::endl;
+      }
+    }
 
 
 

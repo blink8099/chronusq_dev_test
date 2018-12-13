@@ -566,7 +566,6 @@ namespace ChronusQ {
 
       // No MPI for GMRES
       ROOT_ONLY(this->comm_);
-
       size_t nBatch = this->rhsBS * this->shiftBS;
       size_t MSSnBatch = this->mSS_ * nBatch;
 

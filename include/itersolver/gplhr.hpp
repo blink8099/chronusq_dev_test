@@ -66,7 +66,6 @@ namespace ChronusQ {
     const size_t M_NR = this->m * nR;
 
 
-
     // FIXME Reassign sigma (TEMP)
     if( std::imag(sigma) > 1e-10 )
       CErr("GPLHR Only Supports Real Sigma for the Time Being",std::cout);
@@ -258,8 +257,7 @@ namespace ChronusQ {
 
 
       // Get Residual Norms
-      nrmA =  MatNorm<double>('F',nR,N,AV,N);
-      nrmA = 0.;
+      nrmA =  MatNorm<double>('F',N,nR,AV,N);
       getResidualNorms(N,nR,W,RelRes,this->eigVal_,nrmA);
 
 
