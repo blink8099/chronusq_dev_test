@@ -2239,7 +2239,7 @@ namespace ChronusQ {
 
     //for(auto k = 0; k < nGuess; k++)
     //  std::cerr << delta[k] << ", " << conv_indx(indx[k]) << std::endl;
-    
+
     */
   }
 

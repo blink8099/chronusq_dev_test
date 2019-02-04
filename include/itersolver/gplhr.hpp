@@ -154,7 +154,7 @@ namespace ChronusQ {
         std::fill_n(V, NNR, 0.);
         for(auto i = 0ul; i < nR; i++) V[i * (N+1)] = 1.0;
       }
-    
+
 
       // V <- QR(V)
       QR(N,nR,V,N,this->memManager_);
@@ -912,7 +912,7 @@ namespace ChronusQ {
 
 
   /**
-   *  \brief Forms a new S matrix the Krylov-Arnoldi space
+   *  \brief Forms a new S matrix in the Krylov-Arnoldi space
    *
    *  S = (I - V * V**H) * T * (I - U * U**H ) * S
    *
@@ -926,7 +926,7 @@ namespace ChronusQ {
     ROOT_ONLY(this->comm_);
 
     halfProj(N,nR,V,LDV,S,LDS,SCR,LDSCR);
-    this->preCondNoShift_(nR,S,S);
+    this->preCondWShift_(nR,sigma,S,S);
     halfProj(N,nR,Q,LDQ,S,LDS,SCR,LDSCR);
 
   }
