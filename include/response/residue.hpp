@@ -129,18 +129,19 @@ namespace ChronusQ {
     };
 
 
-    typename GPLHR<T>::LinearTrans_t pc = 
-      bool(nSPC_) ? nSPC_ :
-      [&](size_t nVec, T *V, T *AV) {
+
+    typename GPLHR<T>::Shift_t pc =
+      bool(PC_) ? PC_ :
+      [&](size_t nVec, T shift, T *V, T *AV) {
 
       //if( not this->fullMatrix_ ) CErr();
 
       for(auto iVec = 0ul; iVec < nVec;            iVec++) 
-      for(auto k    = 0ul; k < this->nSingleDim_;  k++) 
+      for(auto k    = 0ul; k < this->nSingleDim_;  k++)
         AV[ k + iVec*this->nSingleDim_ ] = 
           V[ k + iVec*this->nSingleDim_]; 
-
     };
+
 
     MPI_Comm gplhrComm = (isDist or not genSettings.formFullMat) 
       ? comm_ : rcomm_;
@@ -154,9 +155,9 @@ namespace ChronusQ {
     gplhr.hardLim = resSettings.deMin;
 
     if( hasResGuess_ )
-    gplhr.setGuess(resSettings.nRoots,
-        [&](size_t nG, T* G, size_t LDG){ resGuess(nG,G,LDG); }
-    );
+      gplhr.setGuess(resSettings.nRoots,
+          [&](size_t nG, T* G, size_t LDG){ resGuess(nG,G,LDG); });
+
 
 
     gplhr.run();
