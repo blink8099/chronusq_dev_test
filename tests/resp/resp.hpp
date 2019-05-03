@@ -441,7 +441,7 @@ static void CQRESTEST( bool checkProp, std::string in, std::string ref,
 
 template <typename T>
 static void CQFDRTEST( bool checkLHerOps, bool checkLAntiHerOps,
-    std::string in, std::string ref, double tol = 1e-08) {
+    std::string in, std::string ref, double tol = 1e-05) {
 
   CQRESPTEST(in,ref);
   if( MPIRank() != 0 ) return;

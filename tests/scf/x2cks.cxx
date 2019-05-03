@@ -69,11 +69,13 @@ TEST( X2CKS, Cd_SAP_DZP_DKH3_2012_SP_SLATER  ) {
 
 
 // Hg SAPPORO DZP DKH_2012 SP B3LYP
+// (Turned off Quad and Oct check)
 TEST( X2CKS, Hg_SAP_DZP_DKH3_2012_SP_B3LYP  ) {
 
   CQSCFTEST( "scf/serial/x2c/hg_sap_dz_dkh3_2012_sp_b3lyp", 
-    "hg_sap_dz_dkh3_2012_sp_b3lyp.bin.ref",1e-6 );
- 
+    "hg_sap_dz_dkh3_2012_sp_b3lyp.bin.ref",1e-6,true,true,
+               false,false,true,true);
+
 };
 
 // Zn SAPPORO DZP DKH_2012 SP B3LYP
