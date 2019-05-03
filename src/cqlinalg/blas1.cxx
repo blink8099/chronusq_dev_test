@@ -158,8 +158,9 @@ namespace ChronusQ {
       zdotc(&res,&N,X,&INCX,Y,&INCY);
       return res;
 #else
-      return zdotc_(&N,reinterpret_cast<double*>(X),&INCX,
-        reinterpret_cast<double*>(Y),&INCY);
+      auto res = zdotc_(&N,reinterpret_cast<double*>(X),&INCX,
+                           reinterpret_cast<double*>(Y),&INCY);
+      return *reinterpret_cast<dcomplex*>(&res);
 #endif
   }; // InnerProd complex = (complex,complex)
 

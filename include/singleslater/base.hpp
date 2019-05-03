@@ -98,9 +98,9 @@ namespace ChronusQ {
 
     // Static Damping settings
     bool   doDamp         = true;           ///< Flag for turning on damping
-    double dampStartParam = 0.1;            ///< Starting damping parameter
+    double dampStartParam = 0.7;            ///< Starting damping parameter
     double dampParam      = dampStartParam; ///< Current Damp parameter 
-    double dampError      = 1e-7; ///< Energy oscillation to turn off damp
+    double dampError      = 1e-3; ///< Energy oscillation to turn off damp
 
     // Incremental Fock build settings
     bool   doIncFock = true; ///< Whether to perform an incremental fock build

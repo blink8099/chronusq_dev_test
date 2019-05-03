@@ -48,6 +48,7 @@
 #include <random>
 #include <chrono>
 #include <typeindex>
+#include <system_error>
 
 #include <chronusq_config.hpp> // Configuration header
 

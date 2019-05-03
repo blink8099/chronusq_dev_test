@@ -38,9 +38,9 @@ if( NOT EXISTS "${LIBXC_PREFIX}/include/xc.h" )
     URL "${LIBXC_PREFIX}/libxc-4.0.4.tar.gz"
     CONFIGURE_COMMAND ./configure 
       --prefix=${LIBXC_PREFIX} 
-      CC=gcc
+      #CC=gcc
       #CFLAGS=${CMAKE_C_FLAGS} 
-      FC=gfortran
+      #FC=gfortran
     BUILD_COMMAND make
     BUILD_IN_SOURCE 1
     INSTALL_COMMAND make install
