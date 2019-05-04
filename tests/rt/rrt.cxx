@@ -34,6 +34,22 @@ TEST( RHF_RT, Water_631Gd_Delta_Y ) {
 
 }
 
+// Magnus 2 delta electric field
+TEST( RHF_RT, Water_631Gd_Magnus2 ) {
+
+  CQRTTEST( rt/serial/rrt/water_6-31Gd_rhf_magnus2,
+    water_6-31Gd_rhf_magnus2.bin.ref );
+
+}
+
+// MMUT w/ Magnus 2 restart non-delta electric field
+TEST( RHF_RT, Water_631Gd_MMUT_Magnus2 ) {
+
+  CQRTTEST( rt/serial/rrt/water_6-31Gd_rhf_mmut_magnus2,
+    water_6-31Gd_rhf_mmut_magnus2.bin.ref );
+
+}
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-31G(d) Delta Spike (along Y)
@@ -66,6 +82,16 @@ TEST( RKS_RT, Water_631Gd_B3LYP_Delta_Y ) {
     water_6-31Gd_rb3lyp_delta_y.bin.ref );
 
 }
+
+
+// MMUT w/ Magnus 2 restart non-delta electric field
+TEST( RKS_RT, Water_631Gd_MMUT_Magnus2 ) {
+
+  CQRTTEST( rt/serial/rrt/water_6-31Gd_rb3lyp_mmut_magnus2,
+    water_6-31Gd_rb3lyp_mmut_magnus2.bin.ref );
+
+}
+
 
 #ifdef _CQ_DO_PARTESTS
 

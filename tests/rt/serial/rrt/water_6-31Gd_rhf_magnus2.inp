@@ -15,17 +15,15 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = RHF
 job = RT
-
-[BASIS]
-basis = 6-311+g(d,p)
-
 
 [RT]
 TMAX   = 1.
 DELTAT = 0.05
-RESTARTSTEP = ForwardEuler 
+INTALG = Magnus2 
 FIELD:
-  StepField(0.,0.0001) Electric 0. 0.001 0.
+ StepField(0.,0.0001) Electric 0. 0.001 0.
 
+[BASIS]
+basis = 6-31G(D)

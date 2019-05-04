@@ -1,5 +1,6 @@
 #
-#  test0.05 - Water RHF/STO-3G : RT
+#  test0.05 - Water RHF/6-31G(D) : RT
+#  Magnus 2 restart
 #  SERIAL
 #
 #  Molecule Specification 
@@ -15,17 +16,16 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = RHF
 job = RT
-
-[BASIS]
-basis = 6-311+g(d,p)
-
 
 [RT]
 TMAX   = 1.
 DELTAT = 0.05
-RESTARTSTEP = ForwardEuler 
 FIELD:
-  StepField(0.,0.0001) Electric 0. 0.001 0.
+ StepField(0.,0.15) Electric 0. 0.001 0.
+
+
+[BASIS]
+basis = 6-31G(D)
 

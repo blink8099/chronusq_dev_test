@@ -21,6 +21,7 @@ job = RT
 [RT]
 TMAX   = 1.
 DELTAT = 0.05
+RESTARTSTEP = ForwardEuler
 FIELD:
  StepField(0.,0.0001) Electric 0. 0.001 0.
 

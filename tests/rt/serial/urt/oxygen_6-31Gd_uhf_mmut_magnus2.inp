@@ -14,7 +14,7 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = Real UB3LYP
+reference = Real UHF
 job = RT
 
 [BASIS]
@@ -23,9 +23,7 @@ basis = 6-31G(D)
 [RT]
 TMAX   = 1.
 DELTAT = 0.05
-RESTARTSTEP = ForwardEuler 
 FIELD:
-  StepField(0.,0.0001) Electric 0. 0.001 0.
+  StepField(0.,0.15) Electric 0. 0.001 0.
 
-[MISC]
-nsmp = 2
+

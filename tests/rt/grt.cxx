@@ -34,6 +34,14 @@ TEST( X2CHF_RT, Water_6311pGdp_X2C_Delta_Y ) {
 
 }
 
+// Water 6-311+G(d,p) X2CDelta Spike (along Y) w/magnus2 restart
+TEST( X2CHF_RT, Water_6311pGdp_X2C_MMUT_Magnus2 ) {
+
+  CQRTTEST( rt/serial/grt/water_6-311pGdp_x2c_mmut_magnus2,
+    water_6-311pGdp_x2c_mmut_magnus2.bin.ref );
+
+}
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-311+G(d,p) X2CDelta Spike (along Y)

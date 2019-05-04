@@ -38,7 +38,9 @@ namespace ChronusQ {
       "TMAX",
       "DELTAT",
       "IRSTRT",
-      "FIELD"
+      "FIELD",
+      "INTALG",
+      "RESTARTSTEP",
     };
 
     // Specified keywords
@@ -119,6 +121,44 @@ namespace ChronusQ {
     } catch(...) {
       CErr("Must specify RT.DELTAT for integration time step");
     }
+
+    // Determine Integration Algorithm
+    try {
+      auto intAlg = input.getData<std::string>("RT.INTALG");
+
+      if ( not intAlg.compare("MAGNUS2") ) { 
+        rt->intScheme.intAlg = ExpMagnus2;
+      }
+      else if ( not intAlg.compare("MMUT") ) {
+      }
+      else {
+          std::cout << "Could not understand RT.INTALG. Defaulting to MMUT.";
+          std::cout << std::endl;
+      }
+    }
+    catch(...) {
+      std::cout << "Defaulting to MMUT integration algorithm" << std::endl;
+    };
+
+    // Get restart step if explicit leapfrog method
+    if ( rt->intScheme.intAlg == MMUT ) {
+      try {
+        auto intRstrt = input.getData<std::string>("RT.RESTARTSTEP");
+        if ( not intRstrt.compare("FORWARDEULER") ) {
+          rt->intScheme.rstStep = ForwardEuler;
+        }
+        else if ( not intRstrt.compare("MAGNUS2") ) {
+        }
+        else {
+          std::cout << "Could not understand RT.RESTARTSTEP. Defaulting to Magnus 2.";
+          std::cout << std::endl;
+        }
+      }
+      catch(...) {
+        std::cout << "Defaulting to Magnus 2 restart for MMUT" << std::endl;
+      }
+    }
+
 
 
     // Set SCF perturbation

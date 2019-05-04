@@ -249,6 +249,18 @@ namespace ChronusQ {
     }
 
 
+    bool isFieldDiscontinuous(double curT, double deltaT) {
+
+      bool discont = false;
+      for ( auto &field : fields ) {
+        discont |= (curT >= field->envelope->tOn  and curT - deltaT < field->envelope->tOn);
+        discont |= (curT >= field->envelope->tOff and curT - deltaT < field->envelope->tOff);
+      }
+      return discont;
+
+    }
+
+
   }; // struct TDEMPerturbation
 };
 
