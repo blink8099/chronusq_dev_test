@@ -34,6 +34,23 @@ TEST( UHF_RT, O2_631Gd_Delta_Y ) {
 
 }
 
+// Magnus 2 delta electric field
+TEST( UHF_RT, O2_631Gd_Magnus2 ) {
+
+  CQRTTEST( rt/serial/urt/oxygen_6-31Gd_uhf_magnus2,
+    oxygen_6-31Gd_uhf_magnus2.bin.ref );
+
+}
+
+// MMUT w/ Magnus 2 restart non-delta electric field
+TEST( UHF_RT, O2_631Gd_MMUT_Magnus2 ) {
+
+  CQRTTEST( rt/serial/urt/oxygen_6-31Gd_uhf_mmut_magnus2,
+    oxygen_6-31Gd_uhf_mmut_magnus2.bin.ref );
+
+}
+
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Oxygen 6-31G(d) Delta Spike (along Y)
@@ -59,6 +76,14 @@ TEST( UKS_RT, O2_631Gd_B3LYP_Delta_Y ) {
 
   CQRTTEST( rt/serial/urt/oxygen_6-31Gd_ub3lyp_delta_y,
     oxygen_6-31Gd_ub3lyp_delta_y.bin.ref );
+
+}
+
+// MMUT w/ Magnus 2 restart non-delta electric field
+TEST( UKS_RT, O2_631Gd_MMUT_Magnus2 ) {
+
+  CQRTTEST( rt/serial/urt/oxygen_6-31Gd_ub3lyp_mmut_magnus2,
+    oxygen_6-31Gd_ub3lyp_mmut_magnus2.bin.ref );
 
 }
 

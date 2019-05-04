@@ -45,7 +45,7 @@ namespace ChronusQ {
   struct IntegrationScheme {
 
     IntegrationAlgorithm intAlg  = MMUT;         ///< Integration Algorithm
-    PropagationStep      rstStep = ForwardEuler; ///< Restart Step
+    PropagationStep      rstStep = ExplicitMagnus2; ///< Restart Step
     PropagatorAlgorithm  prpAlg  = Diagonalization; ///< exp(-iF) Algorithm
 
     double tMax    = 0.1;  ///< Max simulation time in AU

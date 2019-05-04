@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 #if defined(_CQ_GENERATE_TESTS) && defined(CQ_FUNC_TEST)
   // Register contraction environment
   ::testing::Environment * const contr_env = 
-     ::testing::AddGlobalTestEnvironment(new ContractEnvironment);
+     ::testing::AddGlobalTestEnvironment(new ChronusQ::ContractEnvironment);
 #endif
 
 #ifdef CQ_ENABLE_MPI

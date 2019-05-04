@@ -83,7 +83,7 @@ namespace ChronusQ {
         FinMM = ( curState.iStep == (intScheme.tMax / intScheme.deltaT) );
 
         // TODO: "Finish" the MMUT if the field turns on or off
-        FinMM = FinMM or curState.iStep < 2;
+        FinMM = FinMM or pert.isFieldDiscontinuous(curState.xTime, intScheme.deltaT);
           
         // "Finish" the MMUT if the next step will be a restart step
         if( intScheme.iRstrt > 0 ) 
@@ -160,6 +160,21 @@ namespace ChronusQ {
       if( pert_t.fields.size() > 0 )
       data.ElecDipoleField.push_back( pert_t.getDipoleAmp(Electric) );
 
+      // Save D(k) if doing Magnus 2
+      std::vector<dcomplex*> den_k;
+      std::vector<dcomplex*> denOrtho_k;
+      if ( curState.curStep == ExplicitMagnus2 ) {
+        size_t NB = propagator_.aoints.basisSet().nBasis;
+        for ( auto i = 0; i < propagator_.fockMatrix.size(); i++ ) {
+          den_k.push_back(memManager_.template malloc<dcomplex>(NB*NB));
+          SetMat('N', NB, NB, dcomplex(1.), propagator_.onePDM[i], NB,
+            den_k[i], NB);
+          denOrtho_k.push_back(memManager_.template malloc<dcomplex>(NB*NB));
+          SetMat('N', NB, NB, dcomplex(1.), propagator_.onePDMOrtho[i], NB,
+            denOrtho_k[i], NB);
+        }
+      }
+
 
       // Print progress line in the output file
       printRTStep();
@@ -189,6 +204,46 @@ namespace ChronusQ {
       // AO density ( delD = D(k+1) - D(k) ) 
       // ***
       propagateWFN();
+
+      //
+      // Second order magnus
+      //
+      if ( curState.curStep == ExplicitMagnus2 ) {
+
+        // F(k)
+        std::vector<dcomplex*> fock_k;
+        size_t NB = propagator_.aoints.basisSet().nBasis;
+        for ( auto i = 0; i < propagator_.fockMatrix.size(); i++ ) {
+          fock_k.push_back(memManager_.template malloc<dcomplex>(NB*NB));
+          SetMat('N', NB, NB, dcomplex(1.), propagator_.fockMatrix[i], NB,
+            fock_k[i], NB);
+        }
+        
+        // F(k + 1)
+        formFock(false, curState.xTime + intScheme.deltaT);
+
+        // Store 0.5 * ( F(k) + F(k+1) ) in propagator_.fockMatrix
+        for ( auto i = 0; i < propagator_.fockMatrix.size(); i++ ) {
+          MatAdd('N', 'N', NB, NB, dcomplex(0.5), fock_k[i], NB, dcomplex(0.5),
+            propagator_.fockMatrix[i], NB, propagator_.fockMatrix[i], NB);
+        }
+
+
+        // Restore old densities
+        for ( auto i = 0; i < propagator_.onePDMOrtho.size(); i++) {
+          SetMat('N', NB, NB, dcomplex(1.), den_k[i], NB, propagator_.onePDM[i], NB);
+          SetMat('N', NB, NB, dcomplex(1.), denOrtho_k[i], NB, propagator_.onePDMOrtho[i], NB);
+        }
+
+        // Repeat formation of propagator and propagation
+        propagator_.ao2orthoFock();
+        formPropagator();
+        propagateWFN();
+
+        for ( auto i = 0; i < propagator_.fockMatrix.size(); i++ ) {
+          memManager_.free(fock_k[i], den_k[i], denOrtho_k[i]);
+        }
+      }  // End 2nd order magnus
 
     } // Time loop
 
