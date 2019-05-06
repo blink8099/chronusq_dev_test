@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2018 Li Research Group (University of Washington)
+# Copyright (C) 2014-2019 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
 project(ChronusQ CXX C Fortran)
 set(ChronusQ_VERSION_MAJOR 0)
-set(ChronusQ_VERSION_MINOR 2)
-set(ChronusQ_VERSION_PATCH 1)
+set(ChronusQ_VERSION_MINOR 3)
+set(ChronusQ_VERSION_PATCH 0)
 
 
 # Options

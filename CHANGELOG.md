@@ -4,10 +4,16 @@
   This file simply provides a brief overview of the release history of the
   ChronusQ program as released by the Li Research Group at the University
   of Washington. For the most up-to-date record of functionality, etc,
-  please refer to the [ChronusQ Wiki](https://github.com/liresearchgroup/chronusq_public/wiki).
+  please refer to the [ChronusQ Wiki](https://urania.chem.washington.edu/chronusq/chronusq_public/wikis/home).
 
 
   FORMAT: YYYY-MM-DD
+
+  - 2019-05-06 0.3.0 (BETA)
+    - Implementation of Explicit Magnus 2nd order step in RT module
+    - Default parameter changes in GPLHR and SCF
+    - CI through GitLab
+    - Clang 9+ compatible
 
   - 2018-11-28 0.2.1 (BETA)
     - Removed Boost depedency

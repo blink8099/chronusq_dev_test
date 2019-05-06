@@ -8,5 +8,5 @@ software package, please use the following BibTeX entry
     and Feizhi Ding and Patrick Lestrange and Hongbin Liu},
   title = {{C}hronus {Q}uantum, Beta Version},
   note = {\url{http://www.chronusquantum.org}},
-  year = {2018}
+  year = {2019}
 }
