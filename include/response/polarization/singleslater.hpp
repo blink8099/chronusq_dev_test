@@ -920,12 +920,12 @@ namespace ChronusQ {
       size_t aoSize = NB*NB*(nForm + nStore)*sizeof(double);
       size_t parSize = nForm*NB*NB*sizeof(double)*(GetNumThreads()-1);
       std::cout << "    * TOTAL VECTOR STORAGE REQUIREMENT             "
-        << double(vcSize) / 1e9 << " MB\n";
+        << double(vcSize) / 1e9 << " GB\n";
       std::cout << "    * TOTAL AO SCRATCH STORAGE REQUIREMENT         "
-        << double(aoSize) / 1e9 << " MB\n";
+        << double(aoSize) / 1e9 << " GB\n";
       if( GetNumThreads() - 1 )
         std::cout << "    * TOTAL PARALLEL SCRATCH STORAGE REQUIREMENT "
-          << double(parSize) / 1e9 << " MB\n";
+          << double(parSize) / 1e9 << " GB\n";
       std::cout << "\n" << std::flush;
 
     }
