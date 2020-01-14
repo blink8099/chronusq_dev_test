@@ -63,6 +63,7 @@ namespace ChronusQ {
     // See src/basisset/reference.cxx for documentation
     void findBasisFile(bool doPrint = true);
     void parseBasisFile();
+    double str2doub(std::string);
   
   public:
   

@@ -55,6 +55,29 @@ namespace ChronusQ {
     { "Z" , 21 } 
   };
   
+
+
+  /**
+   *  \brief Handles G94 format engineering notation
+   *
+   *  Custom string to double converter that handles
+   *  both D and E exponential number notation.
+   */
+  double ReferenceBasisSet::str2doub(std::string inp) {
+
+    // Convert to upper case then check for 'D'
+    // character and replace with 'E'
+
+    unsigned char newchar = 'E';
+    std::transform(inp.begin(),inp.end(),inp.begin(),
+                   [ &newchar ]( unsigned char c ){ 
+                       if( std::toupper(c) == 'D')
+                         c = newchar;
+                       return std::toupper(c); });
+
+    // Return string converted to double
+    return std::stod(inp);
+  }
   
   
   
@@ -186,13 +209,13 @@ namespace ChronusQ {
             );
   
             // Temporarily  store shell set data
-            exp.push_back(std::stod(tokens2[0]));
-            contPrimary.push_back(std::stod(tokens2[1]));
+            exp.push_back(str2doub(tokens2[0]));
+            contPrimary.push_back(str2doub(tokens2[1]));
   
             // Append an extra record for SP shells for the "P" orbital
             // set.
             if(!shSymb.compare("SP"))
-              contSecondary.push_back(std::stod(tokens2[2]));
+              contSecondary.push_back(str2doub(tokens2[2]));
           }
   
 
