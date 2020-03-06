@@ -57,4 +57,6 @@ add_cq_test( X2CHF_RT rttest "X2CHF_RT.*" )
 add_cq_test( RKS_RT   rttest "RKS_RT.*"   )
 add_cq_test( UKS_RT   rttest "UKS_RT.*"   )
 
+add_cq_test( RESTART_RT rttest "RESTART_RT.*" )
+
 

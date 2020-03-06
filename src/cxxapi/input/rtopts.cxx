@@ -41,6 +41,8 @@ namespace ChronusQ {
       "FIELD",
       "INTALG",
       "RESTARTSTEP",
+      "SAVESTEP",
+      "RESTART"
     };
 
     // Specified keywords
@@ -265,6 +267,16 @@ namespace ChronusQ {
       out << "  *** Defaulting to Trivial Propagation from SCF Density ***\n";
 
     }
+
+    // Save frequency
+    OPTOPT(
+      rt->intScheme.iSave = input.getData<size_t>("RT.SAVESTEP")
+    )
+
+    // Whether we are restarting an RT calculation
+    OPTOPT(
+      rt->restart = input.getData<bool>("RT.RESTART");
+    )
 
     return rt;
 

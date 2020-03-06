@@ -50,12 +50,19 @@ namespace ChronusQ {
 
     printRTHeader();
 
+    size_t NB = propagator_.aoints.basisSet().nBasis;
+
+    if ( savFile.exists() )
+      if ( restart )
+        restoreState();
+      else
+        createRTDataSets();
+
     bool Start(false); // Start the MMUT iterations
     bool FinMM(false); // Wrap up the MMUT iterations
 
-    size_t NB = propagator_.aoints.basisSet().nBasis;
-
-    for( curState.xTime = 0., curState.iStep = 0; 
+    for( curState.xTime = intScheme.restoreStep * intScheme.deltaT,
+         curState.iStep = intScheme.restoreStep; 
          curState.xTime <= (intScheme.tMax + intScheme.deltaT/4); 
          curState.xTime += intScheme.deltaT, curState.iStep++ ) {
 
@@ -72,7 +79,7 @@ namespace ChronusQ {
 
         // "Start" the MMUT if this is the first step or we just
         // "Finished" the MMUT segment
-        Start = ( curState.iStep == 0 ) or FinMM;
+        Start = ( curState.iStep == intScheme.restoreStep ) or FinMM;
 
         // "Start" the MMUT if the current step index is a restart
         // step
@@ -154,11 +161,8 @@ namespace ChronusQ {
       // Compute properties for D(k) 
       propagator_.computeProperties(pert_t);
 
-      data.Time.push_back(curState.xTime);
-      data.Energy.push_back(propagator_.totalEnergy);
-      data.ElecDipole.push_back(propagator_.elecDipole);
-      if( pert_t.fields.size() > 0 )
-      data.ElecDipoleField.push_back( pert_t.getDipoleAmp(Electric) );
+      // Save data
+      saveState(pert_t);
 
       // Save D(k) if doing Magnus 2
       std::vector<dcomplex*> den_k;
@@ -249,17 +253,6 @@ namespace ChronusQ {
 
   //mathematicaPrint(std::cerr,"Dipole-X",&data.ElecDipole[0][0],
   //  curState.iStep,1,curState.iStep,3);
-
-    if( savFile.exists() ) {
-      savFile.safeWriteData("RT/TIME",&data.Time[0],{data.Time.size()});
-      savFile.safeWriteData("RT/ENERGY",&data.Energy[0],{data.Time.size()});
-      savFile.safeWriteData("RT/LEN_ELEC_DIPOLE",&data.ElecDipole[0][0],
-        {data.Time.size(),3});
-
-      if( data.ElecDipoleField.size() > 0 )
-      savFile.safeWriteData("RT/LEN_ELEC_DIPOLE_FIELD",&data.ElecDipoleField[0][0],
-        {data.Time.size(),3});
-    }
 
   }; // RealTime::doPropagation
 
@@ -459,6 +452,115 @@ namespace ChronusQ {
   }; // RealTime::propagatorWFN
 
 
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::createRTDataSets() {
+
+    hsize_t maxPoints = intScheme.tMax / intScheme.deltaT + 1;
+    
+    savFile.createGroup("RT");
+
+    savFile.createDataSet<double>("RT/TIME",
+        {maxPoints});
+    savFile.createDataSet<double>("RT/ENERGY",
+        {maxPoints});
+    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE",
+        {maxPoints,3});
+    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE_FIELD",
+        {maxPoints,3});
+  }; // RealTime::createRTDataSets
+
+
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::restoreState() {
+
+    hsize_t maxPoints = intScheme.tMax / intScheme.deltaT + 1;
+
+    if ( savFile.getDims("RT/TIME")[0] != maxPoints )
+      CErr("Mismatched requested and saved propagation length!");
+
+    // Restore time dependent density
+    std::vector<std::string> spinLabel{"SCALAR", "MZ", "MY", "MX"};
+    try {
+      for ( auto i = 0; i < propagator_.onePDM.size(); i++ ) {
+        savFile.readData("RT/TD_1PDM_" + spinLabel[i], propagator_.onePDM[i]);
+        savFile.readData("RT/TD_1PDM_ORTHO_" + spinLabel[i],
+          propagator_.onePDMOrtho[i]);
+      }
+    } catch(...) { }
+
+    // Find last time step that was checkpointed
+    double* timeData = memManager_.template malloc<double>(maxPoints);
+    savFile.readData("RT/TIME", timeData);
+    int offset = *timeData < 1e-10 ? -1 : 0;
+    size_t restoreStep = offset + std::distance( timeData, 
+      std::find_if( timeData+1, timeData+maxPoints,
+        [](double x){ return x < 1e-10; }
+      )
+    );
+    memManager_.free(timeData);
+
+    std::cout << "  *** Restoring from step " << restoreStep << " (";
+    std::cout << std::setprecision(4) << restoreStep * intScheme.deltaT;
+    std::cout << " AU) ***" << std::endl;
+
+    intScheme.restoreStep = restoreStep;
+
+  }; // RealTime::restoreState
+
+
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::saveState(EMPerturbation& pert_t) {
+
+    size_t NB = propagator_.aoints.basisSet().nBasis;
+
+    data.Time.push_back(curState.xTime);
+    data.Energy.push_back(propagator_.totalEnergy);
+    data.ElecDipole.push_back(propagator_.elecDipole);
+    if( pert_t.fields.size() > 0 )
+      data.ElecDipoleField.push_back( pert_t.getDipoleAmp(Electric) );
+
+    // Write to file
+    if( savFile.exists() ) {
+
+      hsize_t nSteps = 0;
+
+      if (curState.iStep % intScheme.iSave == 0 
+          and curState.iStep != intScheme.restoreStep)
+        nSteps = intScheme.iSave + 1;
+      else if ( curState.iStep == intScheme.tMax / intScheme.deltaT )
+        nSteps = curState.iStep % intScheme.iSave + 1;
+
+      hsize_t lastPos = curState.iStep - nSteps + 1;
+      hsize_t memLastPos = lastPos - intScheme.restoreStep;
+
+      if (nSteps != 0) {
+        std::cout << "  *** Saving data to binary file ***" << std::endl;
+        savFile.partialWriteData("RT/TIME", &data.Time[0], {lastPos},
+            {nSteps}, {memLastPos}, {data.Time.size()});
+        savFile.partialWriteData("RT/ENERGY", &data.Energy[0], {lastPos},
+            {nSteps}, {memLastPos}, {data.Time.size()});
+        savFile.partialWriteData("RT/LEN_ELEC_DIPOLE", &data.ElecDipole[0][0],
+          {lastPos, 0}, {nSteps, 3}, {memLastPos, 0}, {data.Time.size(), 3});
+
+        if( data.ElecDipoleField.size() > 0 )
+          savFile.partialWriteData("RT/LEN_ELEC_DIPOLE_FIELD",
+            &data.ElecDipoleField[0][0], {lastPos,0}, {nSteps,3},
+            {memLastPos, 0}, {data.Time.size(), 3});
+
+        std::vector<std::string> spinLabel{"SCALAR", "MZ", "MY", "MX"};
+        for ( auto i = 0; i < propagator_.onePDM.size(); i++ ) {
+          savFile.safeWriteData("RT/TD_1PDM_" + spinLabel[i],
+              propagator_.onePDM[i], {NB, NB});
+          if ( curState.curStep == ModifiedMidpoint )
+            savFile.safeWriteData("RT/TD_1PDM_ORTHO_" + spinLabel[i],
+              DOSav[i], {NB, NB});
+          else
+            savFile.safeWriteData("RT/TD_1PDM_ORTHO_" + spinLabel[i],
+              propagator_.onePDMOrtho[i], {NB, NB});
+        }
+      }
+    }
+  }; // RealTime::saveState
 
 
 }; // namespace ChronusQ
