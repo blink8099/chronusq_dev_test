@@ -62,11 +62,39 @@ namespace ChronusQ {
   }
 
 
+  void HandlePostSCFRestarts(std::ostream &out, CQInputFile &input,
+    SingleSlaterBase &ss) {
+
+    bool restart = false;
+    
+    if ( input.containsSection("RT") )
+      OPTOPT( restart |= input.getData<bool>("RT.RESTART"); )
+    // Add additional checks like the one below for restarting other post SCF
+    // RESP restart is NYI, so this is a commented out placeholder example
+    //
+    // else if ( input.containsSection("RESP") )
+    //   OPTOPT( restart |= input.getData<bool>("RESP.RESTART"); )
+
+    if ( restart ) {
+      out << "  *** RESTART requested -- SCF.GUESS set to READMO ***";
+      out << std::endl;
+      ss.scfControls.guess = READMO;
+      ss.scfControls.resetMOCoeffs = true;
+    }
+
+  }
+
   void CQSCFOptions(std::ostream &out, CQInputFile &input,
     SingleSlaterBase &ss, EMPerturbation &pert) {
 
     // SCF section not required
-    if( not input.containsSection("SCF") ) return;
+    if( not input.containsSection("SCF") ) {
+     
+      // Restart jobs
+      HandlePostSCFRestarts(out, input, ss);
+
+      return;
+    }
 
     // Optionally parse guess
 
@@ -121,6 +149,10 @@ namespace ChronusQ {
           ss.scfControls.scfAlg = _NEWTON_RAPHSON_SCF;
 
     )
+
+
+    // Restart jobs
+    HandlePostSCFRestarts(out, input, ss);
 
 
     // Toggle extrapolation in its entireity

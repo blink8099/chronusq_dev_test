@@ -56,3 +56,12 @@ TEST( X2CHF_RT, PAR_Water_6311pGdp_X2C_Delta_Y ) {
 
 
 
+TEST( RESTART_RT, Restart_Water_6311pGdp_X2C_Delta_Y ) {
+
+  CQRTRESTARTTEST( rt/serial/grt/water_6-311pGdp_x2c_delta_y_restart_mid,
+    water_6-311pGdp_x2c_delta_y_restart_mid.bin,
+    rt/serial/grt/water_6-311pGdp_x2c_delta_y_restart,
+    water_6-311pGdp_x2c_delta_y_restart.bin.ref );
+
+}
+

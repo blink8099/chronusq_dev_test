@@ -168,6 +168,25 @@ namespace ChronusQ {
         obj.write(data,H5PredType<T>());
       };
 
+      template <typename T>
+      void partialWriteData(const std::string &dataSet, T* data,
+          const std::vector<hsize_t> &start, const std::vector<hsize_t> &dims,
+          const std::vector<hsize_t> &memStart = {},
+          const std::vector<hsize_t> &memDims = {} ) {
+        OpenDataSet(file,obj,dataSet);
+        H5::DataSpace space = obj.getSpace();
+        space.selectHyperslab( H5S_SELECT_SET, &dims[0], &start[0] );
+ 
+        if ( memStart.empty() )
+          obj.write(data, H5PredType<T>(), space, space);
+
+        else {
+          H5::DataSpace mspace(memDims.size(), &memDims[0]);
+          mspace.selectHyperslab( H5S_SELECT_SET, &dims[0], &memStart[0]);
+          obj.write(data, H5PredType<T>(), mspace, space);
+        }
+      };
+
 
       template <typename T>
       void safeWriteData(const std::string &dataSet, T* data,

@@ -98,3 +98,14 @@ TEST( UKS_RT, PAR_O2_631Gd_B3LYP_Delta_Y ) {
 }
 
 #endif
+
+
+TEST( RESTART_RT, Restart_O2_631Gd_B3LYP_Delta_Y ) {
+
+  CQRTRESTARTTEST( rt/serial/urt/oxygen_6-31Gd_ub3lyp_delta_y_restart_mid,
+    oxygen_6-31Gd_ub3lyp_delta_y_restart_mid.bin,
+    rt/serial/urt/oxygen_6-31Gd_ub3lyp_delta_y_restart,
+    oxygen_6-31Gd_ub3lyp_delta_y_restart.bin.ref );
+
+}
+

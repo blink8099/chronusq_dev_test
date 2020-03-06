@@ -104,3 +104,30 @@ TEST( RKS_RT, PAR_Water_631Gd_B3LYP_Delta_Y ) {
 }
 
 #endif
+
+
+//
+// Restart testing
+//
+
+TEST( RESTART_RT, Restart_Water_631Gd_B3LYP_Delta_Y ) {
+
+  CQRTRESTARTTEST( rt/serial/rrt/water_6-31Gd_rb3lyp_delta_y_restart_mid,
+    water_6-31Gd_rb3lyp_delta_y_restart_mid.bin,
+    rt/serial/rrt/water_6-31Gd_rb3lyp_delta_y_restart,
+    water_6-31Gd_rb3lyp_delta_y_restart.bin.ref );
+
+}
+
+#ifdef _CQ_DO_PARTESTS
+
+TEST( RESTART_RT, PAR_Restart_Water_631Gd_B3LYP_Delta_Y ) {
+
+  CQRTRESTARTTEST( rt/parallel/rrt/water_6-31Gd_rb3lyp_delta_y_restart_mid,
+    water_6-31Gd_rb3lyp_delta_y_restart_mid.bin,
+    rt/parallel/rrt/water_6-31Gd_rb3lyp_delta_y_restart,
+    water_6-31Gd_rb3lyp_delta_y_restart.bin.ref );
+
+}
+
+#endif

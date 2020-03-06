@@ -113,6 +113,7 @@ namespace ChronusQ {
 
     // Printing
     bool printMOCoeffs = false;
+    bool resetMOCoeffs = false;
 
   }; // SCFControls struct
 

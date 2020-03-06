@@ -51,7 +51,10 @@ namespace ChronusQ {
     double tMax    = 0.1;  ///< Max simulation time in AU
     double deltaT  = 0.01; ///< Time-step in AU
 
-    size_t iRstrt  = 50; ///< Restart every N steps
+    size_t iRstrt  = 50; ///< Restart MMUT every N steps
+
+    size_t iSave    = 50; ///< Save progress every N steps
+    size_t restoreStep = 0;  ///< Restore propagation from this step
 
   }; // struct IntegrationScheme
 
@@ -96,6 +99,8 @@ namespace ChronusQ {
 
     IntegrationProgress curState;  ///< Current state of the time propagation
     IntegrationData     data;      ///< Data collection
+    
+    bool restart   = false; ///< Restarting calc from bin file
 
     RealTimeBase()                     = delete;
     RealTimeBase(const RealTimeBase &) = delete;
@@ -183,6 +188,9 @@ namespace ChronusQ {
     void formPropagator();
     void formFock(bool,double t);
     void propagateWFN();
+    void saveState(EMPerturbation&);
+    void restoreState(); 
+    void createRTDataSets();
 
     // Progress functions
     void printRTHeader();
