@@ -26,3 +26,6 @@ add_library(molecule STATIC molecule.cxx)
 list(APPEND CQEX_LINK molecule)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
+if ( TARGET mxx )
+  add_dependencies( molecule mxx )
+endif()

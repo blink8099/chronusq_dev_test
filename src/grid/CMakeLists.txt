@@ -26,3 +26,6 @@ add_library(grid STATIC gausscheb.cxx gausslegendre.cxx eulermac.cxx lebedev.cxx
 list(APPEND CQEX_LINK grid)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
+if ( TARGET mxx )
+  add_dependencies( grid mxx )
+endif()

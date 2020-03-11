@@ -147,7 +147,7 @@ if( CQ_ENABLE_MPI )
   message( STATUS "---> Creating CMake Target for CXXBLACS" )
 
   set( CXXBLACS_PREFIX     ${PROJECT_SOURCE_DIR}/external/cxxblacs )
-  set( CXXBLACS_INCLUDEDIR ${CXXBLACS_PREFIX}/src/cxxblacs )
+  set( CXXBLACS_INCLUDEDIR ${CXXBLACS_PREFIX}/src/cxxblacs/include )
   
   ExternalProject_Add(cxxblacs
     PREFIX ${CXXBLACS_PREFIX}
