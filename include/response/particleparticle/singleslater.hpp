@@ -551,7 +551,7 @@ namespace ChronusQ {
       // Create a temorary grid to form the matrix in
       // columns
       formGrid = std::make_shared<CXXBLACS::BlacsGrid>(
-          this->comm_,N,nForm / MPISize(this->comm_), "linear");
+          this->comm_,N,nForm / MPISize(this->comm_), 0, 0, "linear");
       std::tie(N,nForm) = formGrid->getLocalDims(N,nForm);
       nStore = nForm;
 
