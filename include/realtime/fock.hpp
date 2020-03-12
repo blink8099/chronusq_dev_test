@@ -53,8 +53,9 @@ namespace ChronusQ {
     EMPerturbation pert_t = pert.getPert(curState.xTime);
 
     // Add on the SCF Perturbation
-    for( auto& field : scfPert.fields )
-      pert_t.addField( field );
+    if ( intScheme.includeSCFField )
+      for( auto& field : scfPert.fields )
+        pert_t.addField( field );
 
     propagator_.formFock(pert_t,increment);
 

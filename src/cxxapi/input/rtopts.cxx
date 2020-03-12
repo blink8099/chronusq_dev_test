@@ -42,7 +42,8 @@ namespace ChronusQ {
       "INTALG",
       "RESTARTSTEP",
       "SAVESTEP",
-      "RESTART"
+      "RESTART",
+      "SCFFIELD"
     };
 
     // Specified keywords
@@ -165,6 +166,10 @@ namespace ChronusQ {
 
     // Set SCF perturbation
     rt->setSCFPerturbation( scfPert );
+    // Inclusion of SCF perturbation
+    OPTOPT(
+      rt->intScheme.includeSCFField = input.getData<bool>("RT.SCFFIELD");
+    )
 
     
     // MMUT Restart
