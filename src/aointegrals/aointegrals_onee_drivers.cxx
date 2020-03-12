@@ -506,10 +506,6 @@ namespace ChronusQ {
                   pair,sh1,sh2,molecule_);
               }, basisSet_.shells);
 
-
-      // del -> p
-      for(auto &SL : _SL) Scale(NB*NB,IntsT(-1.),SL,1);
-
       PVdotP    = reinterpret_cast<IntsT*>(_PVdP[0]);
       PVcrossP  = {reinterpret_cast<IntsT*>(_SL[0]),
                    reinterpret_cast<IntsT*>(_SL[1]),

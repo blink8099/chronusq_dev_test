@@ -954,7 +954,10 @@ namespace ChronusQ {
   
           Sl[mu] += SlC; 
         } // for primitive shell pairs
+
+        // Negation takes delV x del -> pV x p
         SL_shellpair[mu].push_back(-Sl[mu]);
+
       } // for mu
   
     } // for j
@@ -1026,6 +1029,8 @@ namespace ChronusQ {
         } // atoms
         pVp += pVpC;  
       } // primpairs
+
+      // Negation takes delV.del -> pV.p
       pVdotp_shellpair.push_back(-pVp);
   
     } // for j
