@@ -9,6 +9,14 @@
 
   FORMAT: YYYY-MM-DD
 
+  - 2020-03-12 0.3.1 (BETA)
+    - Add ability to restart interrupted RT jobs
+    - Add ability to turn the SCF field off in RT jobs
+    - Fix sign bug in X2C calculations
+    - Fix CXXBLACS linking error for MPI builds
+    - Add MPI build into continuous integration
+    - Fix bug in reading basis sets using Fortran float notation
+
   - 2019-05-06 0.3.0 (BETA)
     - Implementation of Explicit Magnus 2nd order step in RT module
     - Default parameter changes in GPLHR and SCF
