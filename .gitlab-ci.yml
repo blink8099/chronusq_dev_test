@@ -15,7 +15,7 @@ build_intel:
         - mkdir build
         - cd build
         - cmake -DCMAKE_CXX_FLAGS='-O3' -DCMAKE_C_FLAGS='-O3' -DCMAKE_Fortran_FLAGS='-O3' ..
-        - make -j8
+        - make -j5
         - ctest
 
 build_gcc:
@@ -32,7 +32,7 @@ build_gcc:
         - mkdir build
         - cd build
         - cmake -DCMAKE_CXX_FLAGS='-O3' -DCMAKE_C_FLAGS='-O3' -DCMAKE_Fortran_FLAGS='-O3' ..
-        - make -j8
+        - make -j5
         - ctest
 
 build_mpi_gcc:
@@ -49,5 +49,5 @@ build_mpi_gcc:
         - mkdir build
         - cd build
         - cmake -DCMAKE_CXX_FLAGS='-O3' -DCMAKE_C_FLAGS='-O3' -DCMAKE_Fortran_FLAGS='-O3' -DCQ_ENABLE_MPI=ON -DCQ_SCALAPACK_LIBRARIES="$SCALAPACK_LIBRARY_DIR/libscalapack.a" -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_BUILD_TYPE=Release ..
-        - make -j8
+        - make -j6
         - make test
