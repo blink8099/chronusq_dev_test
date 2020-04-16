@@ -91,7 +91,7 @@ namespace ChronusQ {
     OPTOPT(blkSize = input.getData<size_t>("MISC.MEMBLK");)
 
     std::string postfixes = " KMGT";
-    size_t indx = std::floor(std::log10(mem))/4;
+    size_t indx = std::floor(std::log10(mem))/3;
     char postfix = postfixes.c_str()[indx];
 
     size_t memPrint = (postfix == 'K') ? (mem / 1e3) : 
