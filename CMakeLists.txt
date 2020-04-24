@@ -31,6 +31,7 @@ set(ChronusQ_VERSION_PATCH 1)
 option(CQ_ENABLE_MPI       "Enable MPI parallelism"          OFF)
 option(ENABLE_COVERAGE     "Enable coverage and profiling"   OFF)
 option(CQ_LINALG_USESYSTEM "Use System defaults for LA libs" OFF)
+option(CQ_EXTERNAL_OPENMP  "Force linking to an external OpenMP library" OFF)
 
 
 # Add specified paths to CMAKE_PREFIX_PATH
@@ -60,8 +61,16 @@ message( "ChronusQ Parallelism Settings" )
 
 # OpenMP
 message( "" )
-find_package(OpenMP)
+if( CQ_EXTERNAL_OPENMP )
+  message ("  Forcing linking to external OpenMP library!")
+  message ("  Using user specified OpenMP flags: ${OpenMP_CXX_FLAGS}")
+  set(CQ_EXT_LINK "omp;${CQ_EXT_LINK}")
+else()
+  find_package(OpenMP REQUIRED)
+  message ("  Using automatic OpenMP flags: ${OpenMP_CXX_FLAGS}")
+endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+
 
 if( MPI_PREFIX )
   # MPI_PREFIX paths to CMAKE_PREFIX_PATH

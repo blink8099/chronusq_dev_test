@@ -69,7 +69,7 @@ namespace ChronusQ {
         FmTTable[i][0] = 0.5 * sqrt( M_PI/ T);
         twoT = 2.0 * T;
         Tn = 1.0;
-        for(int m = 1; m <= MaxTotalL; m++) {
+        for(int m = 1; m < MaxTotalL; m++) {
           Tn *= twoT;
           FmTTable[i][m] = FmTTable[i][m-1] * (2*m-1) / twoT ;
         }

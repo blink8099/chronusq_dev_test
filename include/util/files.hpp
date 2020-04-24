@@ -41,6 +41,10 @@ inline H5::CompType H5PredType() {
     return H5::CompType(
       H5::DataType(H5::PredType::NATIVE_UINT64).getId()
     );
+  else if( std::is_same<unsigned long,T>::value )
+    return H5::CompType(
+      H5::DataType(H5::PredType::NATIVE_ULONG).getId()
+    );
   else if( std::is_same<int32_t,T>::value ) 
     return H5::CompType(
       H5::DataType(H5::PredType::NATIVE_INT32).getId()
