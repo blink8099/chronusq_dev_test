@@ -132,6 +132,7 @@ namespace ChronusQ {
       "BLYP",
       "PBEXPBEC",
       "B3LYP",
+      "B3PW91",
       "PBE0",
       "BHANDHLYP",
       "BHANDH",
@@ -271,6 +272,13 @@ namespace ChronusQ {
         funcList.push_back(
           std::dynamic_pointer_cast<DFTFunctional>(
             std::make_shared<B3LYP>()
+          )
+        );
+
+      if( not funcName.compare("B3PW91") ) 
+        funcList.push_back(
+          std::dynamic_pointer_cast<DFTFunctional>(
+            std::make_shared<B3PW91>()
           )
         );
 

@@ -230,6 +230,14 @@ namespace ChronusQ {
 
   }; // class B3LYP hybrid
 
+  class B3PW91 : public GGA {
+
+  public:
+  
+    B3PW91() : GGA(XC_HYB_GGA_XC_B3PW91) { }
+
+  }; // class B3LYP hybrid
+
   class PBE0 : public GGA {
 
   public:
