@@ -172,12 +172,12 @@ namespace ChronusQ {
    */ 
   template<>
   double InnerProd(int N, dcomplex *X, int INCX, dcomplex *Y, int INCY) {
-    return
 #ifdef _CQ_MKL
-      std::real(InnerProd<dcomplex>(N,X,INCX,Y,INCY));
+      return std::real(InnerProd<dcomplex>(N,X,INCX,Y,INCY));
 #else
-      __real__ zdotc_(&N,reinterpret_cast<double*>(X),&INCX,
+      auto res = zdotc_(&N,reinterpret_cast<double*>(X),&INCX,
         reinterpret_cast<double*>(Y),&INCY);
+      return std::real(*reinterpret_cast<dcomplex*>(&res));
 #endif
   }; // InnerProd real = (complex,complex)
 
