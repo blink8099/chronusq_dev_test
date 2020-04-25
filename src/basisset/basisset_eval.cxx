@@ -197,9 +197,9 @@ namespace ChronusQ {
 
         if (typ == GRADIENT) {
         // Derivatives
-          if(lx> 0) {tmpdx = -expFactor * lx;}
-          if(ly> 0) {tmpdy = -expFactor * ly;}
-          if(lz> 0) {tmpdz = -expFactor * lz;}
+          if(lx> 0) {tmpdx = expFactor * lx;}
+          if(ly> 0) {tmpdy = expFactor * ly;}
+          if(lz> 0) {tmpdz = expFactor * lz;}
            
           dx_car[I] = tmpxyz*tmpdx;
           dy_car[I] = tmpxyz*tmpdy;
@@ -210,9 +210,9 @@ namespace ChronusQ {
           if(ly> 0) {f_car[I]  *= xyz[1]; dx_car[I] *=xyz[1];dz_car[I] *=xyz[1];}
           if(lz> 0) {f_car[I]  *= xyz[2]; dx_car[I] *=xyz[2];dy_car[I] *=xyz[2];}
     
-          dx_car[I] += f_car[I] * xyz[0] * alpha;
-          dy_car[I] += f_car[I] * xyz[1] * alpha;
-          dz_car[I] += f_car[I] * xyz[2] * alpha;
+          dx_car[I] -= f_car[I] * xyz[0] * alpha;
+          dy_car[I] -= f_car[I] * xyz[1] * alpha;
+          dz_car[I] -= f_car[I] * xyz[2] * alpha;
           f_car[I]  *= expFactor;
     
         } else{

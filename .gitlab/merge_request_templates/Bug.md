@@ -6,6 +6,10 @@
 
 <!-- What does this change? How does that change the behavior of ChronusQ? -->
 
+## Tests
+
+<!-- How do you know your code works and does what it is supposed to? -->
+
 ## Best Practices
 
 <!-- Check all that apply, and make sure that you have followed up on them -->
