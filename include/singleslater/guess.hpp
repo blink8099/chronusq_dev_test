@@ -271,8 +271,9 @@ namespace ChronusQ {
                   << multipName << std::endl;
 
       Molecule atom(0,defaultMultip,{ uniqueElements[iUn] });
-      BasisSet basis(this->aoints.basisSet().basisName, atom, 
-                 REAL_GTO,this->aoints.basisSet().forceCart, false);
+      BasisSet basis(this->aoints.basisSet().basisName,
+        this->aoints.basisSet().basisDef, this->aoints.basisSet().inputDef,
+        atom, REAL_GTO,this->aoints.basisSet().forceCart, false);
      
       AOIntegrals<IntsT> aointsAtom(this->memManager,atom,basis);
       

@@ -55,6 +55,7 @@ namespace ChronusQ {
   class ReferenceBasisSet {
   
     std::string    basisPath_; ///< Path to basis file
+    std::string    basisDef_;  ///< Optional basis definition
     std::ifstream  basisFile_; ///< File object for basis file
   
     bool forceCart_;  ///< Whether or not to force cartesian basis functions
@@ -62,7 +63,7 @@ namespace ChronusQ {
     // Functions to digest the basis set file
     // See src/basisset/reference.cxx for documentation
     void findBasisFile(bool doPrint = true);
-    void parseBasisFile();
+    void parseBasisFile(std::istream& input);
     double str2doub(std::string);
   
   public:
@@ -89,11 +90,18 @@ namespace ChronusQ {
      *  \param [in] path      Full path to basis file
      *  \param [in] forceCart Whether or not to force cartesian GTOs
      */ 
-    ReferenceBasisSet(const std::string &path, bool forceCart = false,
-      bool doPrint = true) : basisPath_(path), forceCart_(forceCart){
+    ReferenceBasisSet(const std::string &path, const std::string &def,
+      bool doDef, bool forceCart = false, bool doPrint = true) :
+      basisPath_(path), basisDef_(def), forceCart_(forceCart) {
   
-      findBasisFile(doPrint);
-      parseBasisFile();
+      if ( not doDef ) {
+        findBasisFile(doPrint);
+        parseBasisFile(basisFile_);
+      }
+      else {
+        std::istringstream input(basisDef_);
+        parseBasisFile(input);
+      }
     }
   
     

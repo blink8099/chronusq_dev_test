@@ -22,6 +22,8 @@
  *  
  */
 
+#include <unordered_set>
+
 #include <cxxapi/input.hpp>
 #include <cerr.hpp>
 
@@ -45,6 +47,13 @@ namespace ChronusQ {
   
     std::string sectionHeader;
     std::string dataHeader;
+
+    // Keywords that are case sensitive (do *not* transform data to UPPER)
+    std::unordered_map<std::string, std::unordered_set<std::string> > caseSens;
+
+    // Add case sensitive data keywords here
+    caseSens["BASIS"] = {"BASIS"};
+        
   
     // Loop over all lines of the file
     while( not inFile_->eof() ) {
@@ -77,9 +86,10 @@ namespace ChronusQ {
       trim_right(line);
   
   
-      // Convert to UPPER
-      std::transform(line.begin(),line.end(),line.begin(),
-        [](unsigned char c){ return std::toupper(c);} );
+      auto strToUpper = [](std::string& s){
+        std::transform(s.begin(), s.end(), s.begin(),
+        [](unsigned char c){ return std::toupper(c);});
+      };
   
   
   
@@ -109,6 +119,9 @@ namespace ChronusQ {
   
         // Obtain the section header name
         sectionHeader = line.substr(1,line.length()-2);
+        
+        // Convert to UPPER
+        strToUpper(sectionHeader);
   
         // Create a dictionary entry for the section header
         dict_[sectionHeader] = 
@@ -134,8 +147,16 @@ namespace ChronusQ {
         split(tokens,line,"=:");
         for(auto &X : tokens) { trim(X); }
   
-          dataHeader = tokens[0];
-  
+        dataHeader = tokens[0];
+        strToUpper(dataHeader);
+
+        // Capitalize data if not case sensitive
+        if ( not (
+          caseSens.find(sectionHeader) != caseSens.end() &&
+          caseSens[sectionHeader].find(dataHeader) != caseSens[sectionHeader].end()) &&
+          tokens.size() > 1)
+          strToUpper(tokens[1]);
+
         // Create a dictionary entry for the data field in the current
         // section header
         if(tokens.size() > 1) 
@@ -148,6 +169,12 @@ namespace ChronusQ {
   
       // Multiline data
       if(parseSection and multiLine) {
+        // Capitalize data if not case sensitive
+        if ( not (
+          caseSens.find(sectionHeader) != caseSens.end() &&
+          caseSens[sectionHeader].find(dataHeader) != caseSens[sectionHeader].end()))
+          strToUpper(line);
+ 
         line = 
           line.substr(firstNonSpace,line.length()-firstNonSpace);
         dict_[sectionHeader][dataHeader] += "\n" + line;

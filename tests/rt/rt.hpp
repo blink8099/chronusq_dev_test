@@ -170,7 +170,7 @@ using namespace ChronusQ;
 
 
 #define CQRTRESTARTTEST( midi, midr, in, ref ) \
-  std::remove( TEST_OUT #in ".bin" );\
+  remove( TEST_OUT #in ".bin" );\
   std::ifstream oldFile( RT_TEST_REF #midr, std::ios::binary );\
   std::ofstream newFile( TEST_OUT #in ".bin" );\
   newFile << oldFile.rdbuf();\

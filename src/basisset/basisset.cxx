@@ -45,12 +45,16 @@ namespace ChronusQ {
    *                        file
    *  \param [in] mol       Molecule for which to construct the BasisSet
    */
-  BasisSet::BasisSet(std::string _basisName, const Molecule &mol,
-    BASIS_FUNCTION_TYPE _basisType, bool _forceCart, bool doPrint) {
+  BasisSet::BasisSet(std::string _basisName, std::string _basisDef,
+    bool doDef, const Molecule &mol, BASIS_FUNCTION_TYPE _basisType, bool
+    _forceCart, bool doPrint) {
 
     basisType = _basisType;
     forceCart = _forceCart;
     basisName = _basisName;
+    basisDef  = _basisDef;
+    inputDef  = doDef;
+
 
     std::string uppercase(basisName);
 
@@ -59,11 +63,12 @@ namespace ChronusQ {
       [](unsigned char c){ return std::toupper(c); });  
 
     // Possibly find appropriate basis file for keyword
-    if( basisKeyword.find(uppercase) != basisKeyword.end() )
-      basisName = basisKeyword[basisName];
+    if( basisKeyword.find(uppercase) != basisKeyword.end() ) {
+      basisName = basisKeyword[uppercase];
+    }
 
     // Generate the reference basis set of that keyword
-    ReferenceBasisSet ref(basisName, _forceCart, doPrint);
+    ReferenceBasisSet ref(basisName, basisDef, inputDef, _forceCart, doPrint);
 
     // Update appropriate shell set and coefficients for the Molecule
     // object

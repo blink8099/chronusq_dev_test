@@ -96,11 +96,18 @@ namespace ChronusQ {
   
     // Create a file object for the basis set file
     basisFile_ = std::ifstream(fullBasisPath);
+
+    // If the basis set doesn't exist in the default location, check if they
+    //   specified a path
+    if ( basisFile_.fail() ) {
+      basisFile_ = std::ifstream(basisPath_);
+      fullBasisPath = basisPath_;
+    }
   
     // Check if file exists
     if(basisFile_.fail()){
       if( doPrint )
-      std::cout << "Cannot find basis set " + basisPath_ << std::endl;
+      std::cout << "Cannot open basis set " + basisPath_ << std::endl;
       exit(EXIT_FAILURE);
     } else if (doPrint)
       std::cout << "  *** Reading Basis Set from " + fullBasisPath << " ***" << std::endl;
@@ -116,7 +123,7 @@ namespace ChronusQ {
    *  Reads a basis set file in the G94 basis format specified by 
    *  the basisPath
    */
-  void ReferenceBasisSet::parseBasisFile() {
+  void ReferenceBasisSet::parseBasisFile(std::istream& input) {
     std::string readString;
     std::string nameOfAtom;
     std::string shSymb;
@@ -133,17 +140,17 @@ namespace ChronusQ {
     int nRec   = 0;
   
     // Loop over lines in the file
-    while(!basisFile_.eof()){
+    while(!input.eof()){
   
       // Obtain file line
-      std::getline(basisFile_,readString);
+      std::getline(input,readString);
   
   
       if(readString.size() == 0)    nEmpty++; // line empty
       else if(readString[0] == '!') nComm++;  // comment line
       else if(!readString.compare("****")){   // start or end of a shellset
         
-        std::getline(basisFile_,readString);
+        std::getline(input,readString);
   
         // end of the record
         if(readString.size() == 0) { nEmpty++; readRec = false; continue;}
@@ -199,7 +206,7 @@ namespace ChronusQ {
   
           // Loop over primitives
           for(auto i = 0; i < contDepth; i++) {
-            std::getline(basisFile_,readString);
+            std::getline(input,readString);
   
             // Split line on white space
             std::istringstream iss2(readString);

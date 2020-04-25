@@ -38,7 +38,9 @@ namespace ChronusQ {
     std::vector<std::string> allowedKeywords = {
       "FORCECART",
       "BASIS",
-      "BASISTYPE"
+      "BASISTYPE",
+      "BASISDEF",
+      "DEFINEBASIS"
     };
 
     // Specified keywords
@@ -69,24 +71,20 @@ namespace ChronusQ {
     bool forceCart(false);
     OPTOPT( forceCart = input.getData<bool>("BASIS.FORCECART"); );
 
-    // Find the Basis File
+    // Determine if we're parsing the basis from a basis file or the input file
+    bool inputBasis(false);
+    OPTOPT( inputBasis = input.getData<bool>("BASIS.DEFINEBASIS") )
+
+    // Find the Basis Definition
     std::string basisName;
-    try {
-      basisName = input.getData<std::string>("BASIS.BASIS");
+    OPTOPT( basisName = input.getData<std::string>("BASIS.BASIS"); )
+    std::string basisDef;
+    if ( inputBasis )
+      OPTOPT( basisDef = input.getData<std::string>("BASIS.BASISDEF"); )
 
-      if( std::find_if( basisKeyword.begin(), basisKeyword.end(),
-            [&]( std::pair<std::string, std::string> x ) -> bool{
-              return not x.first.compare(basisName); 
-            } ) == basisKeyword.end() ) {
-
-
-        CErr(basisName + " is not a supported Basis Set");
-
-      }
-
-    } catch(...) {
-      CErr("BasisSet not specified!",out);
-    }
+    // Check for consistency
+    if ( basisName.empty() and basisDef.empty() )
+      CErr("Basis file or specification not found!");
 
     BASIS_FUNCTION_TYPE bType = REAL_GTO;
     try{
@@ -97,7 +95,8 @@ namespace ChronusQ {
     } catch(...) {;}
 
     // Construct the BasisSet object
-    BasisSet basis(basisName,mol,bType,forceCart,MPIRank() == 0);
+    BasisSet basis(basisName,basisDef,inputBasis,mol,bType,forceCart,
+      MPIRank() == 0);
 
     // Ouput BasisSet information
     out << basis << std::endl;
