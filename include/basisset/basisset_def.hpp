@@ -78,7 +78,9 @@ namespace ChronusQ {
   struct BasisSet {
 
     std::string basisName;
+    std::string basisDef;
 
+    bool inputDef;
     bool forceCart;
 
     size_t nBasis;      ///< Number of CGTO basis functions
@@ -107,7 +109,8 @@ namespace ChronusQ {
 
     // Path / Molecule constructor.
     // See src/basisset/basisset.cxx for documentation
-    BasisSet(std::string _basisName, const Molecule &mol, 
+    BasisSet(std::string _basisName, std::string _basisDef,
+      bool stringDef, const Molecule &mol, 
       BASIS_FUNCTION_TYPE _basisType, 
       bool _forceCart = false, bool doPrint = true);
        

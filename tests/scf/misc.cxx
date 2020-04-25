@@ -24,6 +24,8 @@
 
 #include "scf.hpp"
 
+#include <cstdio>
+
 // Water 6-31G(d) {0., 0.01, 0.} Electric Field test
 TEST( MISC_SCF, Water_631Gd_ed_0_0pt01_0 ) {
 
@@ -54,3 +56,32 @@ TEST( MISC_SCF, O2_STO3G ) {
   CQSCFTEST( "scf/serial/uhf/oxygen_sto-3g", "oxygen_sto-3g.bin.ref" );
 
 };
+
+#ifndef _CQ_GENERATE_TESTS
+
+// Water 6-31G(d) read basis 
+TEST( RHF, Water_631Gd_FindBasis ) {
+
+  std::string newFileName = TEST_OUT "scf/serial/rhf/basisFile.gbs";
+
+  remove( newFileName.c_str() );
+
+  std::ifstream oldFile( TEST_ROOT "scf/serial/rhf/basisFile.gbs" );
+  std::ofstream newFile( newFileName ); 
+
+  newFile << oldFile.rdbuf();
+  newFile.flush();
+
+  CQSCFTEST( "scf/serial/rhf/water_6-31Gd_findBasis", "water_6-31Gd.bin.ref" );
+ 
+};
+
+
+// Water 6-31G(d) input basis 
+TEST( RHF, Water_631Gd_InputBasis ) {
+
+  CQSCFTEST( "scf/serial/rhf/water_6-31Gd_inBasis", "water_6-31Gd.bin.ref" );
+ 
+};
+
+#endif
