@@ -9,6 +9,14 @@
 
   FORMAT: YYYY-MM-DD
 
+  - 2020-04-25 0.3.2 (BETA)
+    - Add ability to read user specified basis from input file or path to file
+    - Add B3PW91 functional
+    - Add CMake flag to enable linking to an external OpenMP
+    - Make compatible with compilation on Mac with the default compilers
+    - Fix sign error in DFT gradient evaluation
+    - Add templates for issue and merge requests
+
   - 2020-03-12 0.3.1 (BETA)
     - Add ability to restart interrupted RT jobs
     - Add ability to turn the SCF field off in RT jobs
