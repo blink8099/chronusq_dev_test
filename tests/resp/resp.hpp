@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_TESTS_RESP_HPP__
-#define __INCLUDED_TESTS_RESP_HPP__
+#pragma once
 
 #include <ut.hpp>
 
@@ -705,4 +704,3 @@ static void CQMORTEST( bool checkLHerOps, bool checkLAntiHerOps,
 
 
 
-#endif

@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_SINGLESLATER_BASE_HPP__
-#define __INCLUDED_SINGLESLATER_BASE_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <wavefunction/base.hpp>
@@ -255,4 +254,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

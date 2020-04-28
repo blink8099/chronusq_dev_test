@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_AOINTEGRALS_INHOUSEAOINTEGRAL_HPP__
-#define __INCLUDED_AOINTEGRALS_INHOUSEAOINTEGRAL_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <molecule.hpp>
@@ -386,4 +385,3 @@ namespace ChronusQ {
   };
 }
 
-#endif

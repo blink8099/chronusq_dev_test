@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_SINGLESLATER_FOCK_HPP__
-#define __INCLUDED_SINGLESLATER_FOCK_HPP__
+#pragma once
 
 #include <singleslater.hpp>
 
@@ -485,4 +484,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

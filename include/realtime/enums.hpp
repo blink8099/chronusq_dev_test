@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_REALTIME_ENUMS_HPP__
-#define __INCLUDED_REALTIME_ENUMS_HPP__
+#pragma once
 
 namespace ChronusQ {
 
@@ -53,4 +52,3 @@ namespace ChronusQ {
 
 };
 
-#endif

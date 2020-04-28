@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_BASISSET_REFERENCE_HPP__
-#define __INCLUDED_BASISSET_REFERENCE_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <molecule.hpp>
@@ -106,4 +105,3 @@ namespace ChronusQ {
 
 
 }; // namespace ChronusQ
-#endif

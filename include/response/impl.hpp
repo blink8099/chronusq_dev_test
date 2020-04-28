@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_RESPONSE_IMPL_HPP__
-#define __INCLUDED_RESPONSE_IMPL_HPP__
+#pragma once
 
 #include <response/memory.hpp>
 #include <response/print.hpp>
@@ -40,4 +39,3 @@
 #include <response/particleparticle/hartreefock.hpp>
 #include <response/particleparticle/kohnsham.hpp>
 
-#endif

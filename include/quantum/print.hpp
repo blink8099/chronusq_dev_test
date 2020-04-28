@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_QUANTUM_PRINT_HPP__
-#define __INCLUDED_QUANTUM_PRINT_HPP__
+#pragma once
 
 #include <quantum.hpp>
 #include <util/matout.hpp>
@@ -266,5 +265,4 @@ namespace ChronusQ {
   }; // QuantumBase::printSpin
 };
 
-#endif
 

@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_SINGLESLATER_IMPL_HPP__
-#define __INCLUDED_SINGLESLATER_IMPL_HPP__
+#pragma once
 
 #include <singleslater.hpp>
 #include <util/preprocessor.hpp>
@@ -183,4 +182,3 @@ namespace ChronusQ {
 #include <singleslater/kohnsham/scf.hpp>  
 
 
-#endif

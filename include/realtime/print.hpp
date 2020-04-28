@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_REALTIME_PRINT_HPP__
-#define __INCLUDED_REALTIME_PRINT_HPP__
+#pragma once
 
 #include <realtime.hpp>
 #include <cxxapi/output.hpp>
@@ -195,6 +194,4 @@ namespace ChronusQ {
   }; 
 
 }; // namespace ChronusQ
-
-#endif
 

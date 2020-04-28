@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_WAVEFUNCTION_IMPL_HPP__
-#define __INCLUDED_WAVEFUNCTION_IMPL_HPP__
+#pragma once
 
 #include <wavefunction.hpp>
 #include <util/preprocessor.hpp>
@@ -153,4 +152,3 @@ namespace ChronusQ {
 #include <wavefunction/print.hpp> // Print header
 
 
-#endif

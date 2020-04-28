@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_UTIL_THREADS_HPP__
-#define __INCLUDED_UTIL_THREADS_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <cqlinalg/cqlinalg_config.hpp>
@@ -75,4 +74,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_BOILERPLATE_HPP__
-#define __INCLUDED_BOILERPLATE_HPP__
+#pragma once
 
 
 #include <chronusq_sys.hpp>
@@ -94,4 +93,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

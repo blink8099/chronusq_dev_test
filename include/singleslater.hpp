@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_SINGLESLATER_HPP__
-#define __INCLUDED_SINGLESLATER_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <wavefunction.hpp>
@@ -292,4 +291,3 @@ namespace ChronusQ {
 #include <singleslater/hartreefock.hpp> // HF specialization
 #include <singleslater/kohnsham.hpp>    // KS specialization
 
-#endif

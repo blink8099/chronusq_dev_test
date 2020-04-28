@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_GMRES_HPP__
-#define __INCLUDED_GMRES_HPP__
+#pragma once
 
 #include <itersolver.hpp>
 
@@ -435,4 +434,3 @@ namespace ChronusQ {
 
 };
 
-#endif

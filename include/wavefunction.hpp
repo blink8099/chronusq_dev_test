@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_WAVEFUNCTION_HPP__
-#define __INCLUDED_WAVEFUNCTION_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <quantum.hpp>
@@ -136,4 +135,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

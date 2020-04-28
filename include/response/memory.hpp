@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_RESPONSE_MEMORY_HPP__
-#define __INCLUDED_RESPONSE_MEMORY_HPP__
+#pragma once
 
 #include <response/tbase.hpp>
 
@@ -89,5 +88,4 @@ namespace ChronusQ {
   };
 };
 
-#endif
 

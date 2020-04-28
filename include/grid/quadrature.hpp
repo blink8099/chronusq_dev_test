@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_GRID_QUADRATURE_HPP__
-#define __INCLUDED_GRID_QUADRATURE_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 
@@ -120,4 +119,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

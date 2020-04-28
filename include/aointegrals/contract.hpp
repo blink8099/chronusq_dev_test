@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_AOINTEGRALS_CONTRACT_HPP__
-#define __INCLUDED_AOINTEGRALS_CONTRACT_HPP__
+#pragma once
 
 //#define _REPORT_INTEGRAL_TIMINGS
 
@@ -30,4 +29,3 @@
 #include <aointegrals/contract/incore.hpp>
 #include <aointegrals/contract/direct.hpp>
 
-#endif

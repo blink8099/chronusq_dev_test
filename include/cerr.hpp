@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_CERR_HPP__
-#define __INCLUDED_CERR_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <libint2/cxxapi.h>
@@ -79,4 +78,3 @@ namespace ChronusQ {
 
 };
 
-#endif

@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_UTIL_MATOUT_HPP__
-#define __INCLUDED_UTIL_MATOUT_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <cxxapi/output.hpp>
@@ -200,4 +199,3 @@ void mathematicaPrint(std::ostream& out, std::string str, T* A,
 
 }; // namespace ChronusQ
 
-#endif

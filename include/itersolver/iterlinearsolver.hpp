@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_ITERLINEARSOLVER_HPP__
-#define __INCLUDED_ITERLINEARSOLVER_HPP__
+#pragma once
 
 #include <itersolver.hpp>
 
@@ -258,4 +257,3 @@ namespace ChronusQ {
 };
 
 
-#endif

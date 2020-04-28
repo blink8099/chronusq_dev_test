@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_ITERDIAGONALIZER_HPP__
-#define __INCLUDED_ITERDIAGONALIZER_HPP__
+#pragma once
 
 #include <itersolver.hpp>
 
@@ -80,4 +79,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

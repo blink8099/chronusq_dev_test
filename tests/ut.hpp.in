@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_TESTS_UT_HPP__
-#define __INCLUDED_TESTS_UT_HPP__
+#pragma once
 
 // GTest header
 #include <gtest/gtest.h>
@@ -74,4 +73,3 @@ struct ParallelJob {
 
 
 
-#endif

@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_QUANTUM_IMPL_HPP__
-#define __INCLUDED_QUANTUM_IMPL_HPP__
+#pragma once
 
 #include <quantum.hpp>
 #include <util/preprocessor.hpp>
@@ -133,4 +132,3 @@ namespace ChronusQ {
 // Other headers
 #include <quantum/print.hpp>
 
-#endif

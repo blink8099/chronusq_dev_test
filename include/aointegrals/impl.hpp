@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_AOINTEGRALS_IMPL_HPP__
-#define __INCLUDED_AOINTEGRALS_IMPL_HPP__
+#pragma once
 
 #include <aointegrals.hpp>
 #include <util/preprocessor.hpp>
@@ -102,4 +101,3 @@ namespace ChronusQ {
 //#include <aointegrals/print.hpp>
 
 
-#endif

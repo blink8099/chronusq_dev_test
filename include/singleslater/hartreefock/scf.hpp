@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_SINGLESLATER_HARTREEFOCK_SCF_HPP__
-#define __INCLUDED_SINGLESLATER_HARTREEFOCK_SCF_HPP__
+#pragma once
 
 #include <singleslater/hartreefock.hpp>
 #include <cqlinalg/blas3.hpp>
@@ -102,4 +101,3 @@ namespace ChronusQ {
 
 };
 
-#endif

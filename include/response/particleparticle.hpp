@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_RESPONSE_PARTICLEPARTICLE_HPP__
-#define __INCLUDED_RESPONSE_PARTICLEPARTICLE_HPP__
+#pragma once
 
 #include <singleslater.hpp>
 #include <singleslater/hartreefock.hpp>
@@ -497,4 +496,3 @@ namespace ChronusQ {
 
 
 
-#endif

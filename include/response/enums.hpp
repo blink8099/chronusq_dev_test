@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_RESPONSE_ENUMS_HPP__
-#define __INCLUDED_RESPONSE_ENUMS_HPP__
+#pragma once
 
 namespace ChronusQ {
 
@@ -123,4 +122,3 @@ namespace ChronusQ {
 
 } // namespace ChronusQ
 
-#endif

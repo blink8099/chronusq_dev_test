@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_SINGLESLATER_KOHNSHAM_IMPL_HPP__
-#define __INCLUDED_SINGLESLATER_KOHNSHAM_IMPL_HPP__
+#pragma once
 
 #include <singleslater/kohnsham.hpp>
 #include <util/preprocessor.hpp>
@@ -71,4 +70,3 @@ namespace ChronusQ {
 
 #include <singleslater/kohnsham/vxc.hpp> // VXC build
 
-#endif
