@@ -1,5 +1,4 @@
-#ifndef __INCLUDED_REALTIME_FIELDS_ENVELOPE_HPP__
-#define __INCLUDED_REALTIME_FIELDS_ENVELOPE_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <fields.hpp>
@@ -95,4 +94,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

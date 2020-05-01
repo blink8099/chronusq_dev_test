@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_GPLHR_HPP__
-#define __INCLUDED_GPLHR_HPP__
+#pragma once
 
 #include <itersolver.hpp>
 #include <util/time.hpp>
@@ -938,4 +937,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

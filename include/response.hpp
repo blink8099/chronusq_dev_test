@@ -21,12 +21,10 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_RESPONSE_HPP__
-#define __INCLUDED_RESPONSE_HPP__
+#pragma once
 
 #include <response/polarization.hpp>
 #include <response/particleparticle.hpp>
 
 
 
-#endif

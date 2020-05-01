@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_PARTICLEPARTICLE_SINGLESLATER_HELPER_HPP__
-#define __INCLUDED_PARTICLEPARTICLE_SINGLESLATER_HELPER_HPP__
+#pragma once
 
 #include <response/particleparticle.hpp>
 
@@ -56,4 +55,3 @@ namespace ChronusQ {
 
 };
 
-#endif

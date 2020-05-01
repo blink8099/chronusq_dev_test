@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_CHRONUSQ_SYS_HPP__
-#define __INCLUDED_CHRONUSQ_SYS_HPP__
+#pragma once
 
 // System Headers (standard C++)
 #include <string>        
@@ -64,4 +63,3 @@
 // Standard typedefs
 typedef std::complex<double> dcomplex;
 
-#endif

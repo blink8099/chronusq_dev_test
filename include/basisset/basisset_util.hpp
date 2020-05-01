@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_BASISSET_UTIL_HPP__
-#define __INCLUDED_BASISSET_UTIL_HPP__
+#pragma once
 
 #include <libint2/shell.h>
 #include <memmanager.hpp>
@@ -103,4 +102,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_BASISSET_HPP__
-#define __INCLUDED_BASISSET_HPP__
+#pragma once
 
 // Top level include file for the BasisSet class.
 // Includes definition and (eventually) utilities.
@@ -31,4 +30,3 @@
 #include <basisset/basisset_def.hpp>
 #include <basisset/basisset_util.hpp>
 
-#endif

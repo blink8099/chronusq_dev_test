@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_TESTS_SCF_HPP__
-#define __INCLUDED_TESTS_SCF_HPP__
+#pragma once
 
 #include <ut.hpp>
 
@@ -167,4 +166,3 @@ inline void CQSCFTEST( std::string in, std::string ref,
 
 
 
-#endif

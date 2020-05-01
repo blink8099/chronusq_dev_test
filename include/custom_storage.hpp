@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_CUSTOM_STORAGE_HPP__
-#define __INCLUDED_CUSTOM_STORAGE_HPP__
+#pragma once
 
 #include <new>
 #include <utility>
@@ -380,4 +379,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

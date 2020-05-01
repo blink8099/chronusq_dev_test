@@ -21,12 +21,10 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_REALTIME_IMPL_HPP__
-#define __INCLUDED_REALTIME_IMPL_HPP__
+#pragma once
 
 #include <realtime/print.hpp>
 #include <realtime/memory.hpp>
 #include <realtime/propagation.hpp>
 #include <realtime/fock.hpp>
 
-#endif

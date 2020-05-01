@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_SINGLESLATER_SCF_HPP__
-#define __INCLUDED_SINGLESLATER_SCF_HPP__
+#pragma once
 
 #include <singleslater.hpp>
 #include <util/matout.hpp>
@@ -798,4 +797,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

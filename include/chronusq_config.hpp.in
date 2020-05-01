@@ -23,8 +23,7 @@
  */
 
 
-#ifndef __INCLUDED_CHRONUSQ_CONFIG_HPP__
-#define __INCLUDED_CHRONUSQ_CONFIG_HPP__
+// #pragma once
 // The Configured Options and Settings for ChronusQ 
     
 
@@ -58,4 +57,3 @@
 */
 
 
-#endif

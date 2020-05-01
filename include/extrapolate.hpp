@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_EXTRAPOLATE_HPP__
-#define __INCLUDED_EXTRAPOLATE_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 #include <cqlinalg/solve.hpp>
@@ -135,4 +134,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

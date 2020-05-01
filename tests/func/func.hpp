@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_TESTS_FUNC_HPP__
-#define __INCLUDED_TESTS_FUNC_HPP__
+#pragma once
 
 #include <ut.hpp>
 #include <util/files.hpp>
@@ -52,4 +51,3 @@ namespace ChronusQ {
 
 }
 
-#endif

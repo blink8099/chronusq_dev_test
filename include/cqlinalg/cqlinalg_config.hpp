@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_CQLINALG_CONFIG_HPP__
-#define __INCLUDED_CQLINALG_CONFIG_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 
@@ -79,4 +78,3 @@
 #include <memmanager.hpp>
 #include <Eigen/Core>
 
-#endif

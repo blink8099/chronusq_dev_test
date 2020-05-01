@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_POLARIZATION_KOHNSHAM_HPP__
-#define __INCLUDED_POLARIZATION_KOHNSHAM_HPP__
+#pragma once
 
 #include <response/polarization.hpp>
 
@@ -136,4 +135,3 @@ namespace ChronusQ {
 
 } // namespace ChronusQ
 
-#endif

@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_RESPONSE_SETTINGS_HPP__
-#define __INCLUDED_RESPONSE_SETTINGS_HPP__
+#pragma once
 
 #include <cqlinalg/cqlinalg_config.hpp>
 
@@ -101,4 +100,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

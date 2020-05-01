@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_PARTICLEPARTICLE_SINGLESLATER_HPP__
-#define __INCLUDED_PARTICLEPARTICLE_SINGLESLATER_HPP__
+#pragma once
 
 #include <response/particleparticle.hpp>
 
@@ -1159,7 +1158,7 @@ namespace ChronusQ {
         SetMat('N',NB,NB,U(1.),MOT + NB        ,NBC,AOba,NB);
         SetMat('N',NB,NB,U(1.),MOT + NB*(NBC+1),NBC,AObb,NB);
 
-      }
+	}
 
       first += nMatPVec * NB2;
 
@@ -1319,5 +1318,4 @@ namespace ChronusQ {
 
 } // namespace ChronusQ
 
-#endif
 

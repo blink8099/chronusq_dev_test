@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_CQLINALG_HPP__
-#define __INCLUDED_CQLINALG_HPP__
+#pragma once
 
 #include <cqlinalg/cqlinalg_config.hpp>
 #include <cqlinalg/util.hpp>
@@ -39,4 +38,3 @@
 #include <cqlinalg/factorization.hpp>
 #include <cqlinalg/solve.hpp>
 
-#endif

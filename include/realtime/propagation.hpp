@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_REALTIME_PROPAGATION_HPP__
-#define __INCLUDED_REALTIME_PROPAGATION_HPP__
+#pragma once
 
 #include <realtime.hpp>
 #include <cqlinalg/blas1.hpp>
@@ -565,4 +564,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

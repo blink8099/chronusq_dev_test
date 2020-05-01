@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_ITERSOLVER_IMPL_HPP__
-#define __INCLUDED_ITERSOLVER_IMPL_HPP__
+#pragma once
 
 #include <itersolver.hpp>
 #include <itersolver/iterlinearsolver.hpp>
@@ -30,5 +29,4 @@
 #include <itersolver/gmres.hpp>
 #include <itersolver/gplhr.hpp>
 
-#endif
 

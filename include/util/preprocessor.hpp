@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_UTIL_PREPROCESSOR__
-#define __INCLUDED_UTIL_PREPROCESSOR__
+#pragma once
 
 // Dummy macros
 #define DUMMY(X)
@@ -81,4 +80,3 @@
   } \
   other.VEC_PTR.clear();
 
-#endif

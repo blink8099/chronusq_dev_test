@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_QUANTUM_PREPROCESSOR_HPP__
-#define __INCLUDED_QUANTUM_PREPROCESSOR_HPP__
+#pragma once
 
 #define SPIN_OPERATOR_ALLOC(NB,X) \
   /* Always allocate Scalar matricies */ \
@@ -39,4 +38,3 @@
   }
 
 
-#endif

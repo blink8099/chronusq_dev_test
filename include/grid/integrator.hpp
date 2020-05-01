@@ -22,8 +22,7 @@
  *  
  */
 
-#ifndef __INCLUDED_GRID_INTEGRATOR_HPP__
-#define __INCLUDED_GRID_INTEGRATOR_HPP__
+#pragma once
 
 // TODO: Increment docs on quadrature / integrators
 
@@ -904,4 +903,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

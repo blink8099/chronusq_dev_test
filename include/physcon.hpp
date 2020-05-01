@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDE_PHYSCON_HPP
-#define __INCLUDE_PHYSCON_HPP
+#pragma once
 
 #include <cmath>
 
@@ -63,4 +62,3 @@ namespace ChronusQ {
         AngPerBohr * JPerHartree * 1e5 );
 };
 
-#endif

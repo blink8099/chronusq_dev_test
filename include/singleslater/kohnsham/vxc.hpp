@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_SINGLESLATER_KOHNSHAM_VXC_HPP__
-#define __INCLUDED_SINGLESLATER_KOHNSHAM_VXC_HPP__
+#pragma once
 
 #include <singleslater/kohnsham.hpp>
 
@@ -1159,7 +1158,7 @@ namespace ChronusQ {
 #endif
 
         // Get DFT Energy derivatives wrt U variables
-        loadVXCder(NPts, U_n_loc, U_gamma_loc, epsEval_loc, dVU_n_loc, 
+        loadVXCder(NPts, U_n_loc, U_gamma_loc, epsEval_loc, dVU_n_loc,
           dVU_gamma_loc, epsSCR_loc, dVU_n_SCR_loc, dVU_gamma_SCR_loc); 
   
 #if VXC_DEBUG_LEVEL >= 1
@@ -1593,4 +1592,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

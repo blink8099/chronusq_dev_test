@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_SINGLESLATER_EXTRAP_HPP__
-#define __INCLUDED_SINGLESLATER_EXTRAP_HPP__
+#pragma once
 
 #include <extrapolate.hpp>
 #include <singleslater.hpp>
@@ -308,4 +307,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_UTIL_TYPEDEFS_HPP__
-#define __INCLUDED_UTIL_TYPEDEFS_HPP__
+#pragma once
 
 #include <chronusq_sys.hpp>
 
@@ -40,4 +39,3 @@ namespace ChronusQ {
 
 };
 
-#endif

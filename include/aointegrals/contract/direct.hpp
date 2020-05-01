@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_AOINTEGRALS_CONTRACT_DIRECT_HPP__
-#define __INCLUDED_AOINTEGRALS_CONTRACT_DIRECT_HPP__
+#pragma once
 
 
 #include <aointegrals.hpp>
@@ -1421,4 +1420,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif

@@ -21,8 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#ifndef __INCLUDED_WAVEFUNCTION_PRINT_HPP__
-#define __INCLUDED_WAVEFUNCTION_PRINT_HPP__
+#pragma once
 
 #include <wavefunction.hpp>
 #include <util/matout.hpp>
@@ -54,4 +53,3 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
-#endif
