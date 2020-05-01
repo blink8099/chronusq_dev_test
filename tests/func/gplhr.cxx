@@ -58,14 +58,21 @@ void GPLHR_TEST(size_t nRoots, size_t m, dcomplex sigma,
 
   CQMemManager mem(2e9,256);
 
-  auto dims = matFile.getDims("/matrix");
+  size_t N = 0;
 
-  // Dummy checks on
-  EXPECT_TRUE( dims.size() == 2   );
-  EXPECT_TRUE( dims[0] == dims[1] );
+  if( isRoot ) {
 
-  size_t N = dims[0];
+    auto dims = matFile.getDims("/matrix");
 
+    // Dummy checks on
+    EXPECT_TRUE( dims.size() == 2   );
+    EXPECT_TRUE( dims[0] == dims[1] );
+
+    N = dims[0];
+
+  }
+
+  MPIBCast(N, 0, MPI_COMM_WORLD);
 
   CB_INT MLoc = N, NLoc = N;
 
