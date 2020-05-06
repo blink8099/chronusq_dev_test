@@ -1,32 +1,33 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
-# 
+#
 # Copyright (C) 2014-2020 Li Research Group (University of Washington)
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-# 
+#
 # Contact the Developers:
 #   E-Mail: xsli@uw.edu
 #
-add_library(singleslater STATIC impl.cxx)
-target_link_libraries( singleslater PUBLIC ChronusQ::HDF5 )
+add_library(x2c STATIC impl.cxx x2c.cxx)
 
-# Append aointegrals to executable link
-list(APPEND CQEX_LINK singleslater)
+target_link_libraries( x2c PUBLIC ChronusQ::HDF5 )
+
+# Append x2c to executable link
+list(APPEND CQEX_LINK x2c)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
 if(CQEX_DEP)
-  add_dependencies(singleslater ${CQEX_DEP})
+  add_dependencies(x2c ${CQEX_DEP})
 endif()

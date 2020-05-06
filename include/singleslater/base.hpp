@@ -26,7 +26,6 @@
 #include <chronusq_sys.hpp>
 #include <wavefunction/base.hpp>
 #include <aointegrals.hpp>
-
 #include <fields.hpp>
 #include <util/files.hpp>
 
@@ -163,10 +162,7 @@ namespace ChronusQ {
     double GDDur;
               
     // Integral variables
-    CORE_HAMILTONIAN_TYPE coreType   = NON_RELATIVISTIC;  ///< Core Hamiltonian type
     ORTHO_TYPE            orthoType  = LOWDIN; ///< Orthogonalization scheme
-
-    OneETerms oneETerms; ///< One electron terms to be computed
 
     // SCF Variables
     SCFControls    scfControls; ///< Controls for the SCF procedure
@@ -181,20 +177,6 @@ namespace ChronusQ {
     SingleSlaterBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS) : 
       WaveFunctionBase(c, mem,_nC,iCS), QuantumBase(c, mem,_nC,iCS),
       printLevel((MPIRank(c) == 0) ? 1 : 0) { };
-
-    
-    // Setters
-    inline void setCoreH(CORE_HAMILTONIAN_TYPE cType) {
-
-      coreType = cType;
-
-      if(coreType == NON_RELATIVISTIC) 
-        oneETerms={false,true,false};
-
-      else if(coreType == RELATIVISTIC_X2C_1E) 
-        oneETerms={true,true,true};
-
-    }
       
 
 

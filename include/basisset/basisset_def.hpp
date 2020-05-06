@@ -155,7 +155,7 @@ namespace ChronusQ {
     void makeMapPrim2Cont(double*, double*, CQMemManager&);
 
 
-    std::shared_ptr<BasisSet> uncontractBasis();
+    BasisSet uncontractBasis();
 
 
     // Update BasisSet object member data (nBasis, etc).

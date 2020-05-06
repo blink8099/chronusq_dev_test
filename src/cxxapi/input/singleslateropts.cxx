@@ -24,6 +24,9 @@
 #include <cxxapi/options.hpp>
 #include <cxxapi/output.hpp>
 #include <cerr.hpp>
+#include <corehbuilder.hpp>
+#include <corehbuilder/nonrel.hpp>
+#include <corehbuilder/x2c.hpp>
 
 namespace ChronusQ {
 
@@ -37,7 +40,8 @@ namespace ChronusQ {
     // Allowed keywords
     std::vector<std::string> allowedKeywords = {
       "REFERENCE",
-      "JOB"
+      "JOB",
+      "X2CTYPE"
     };
 
     // Specified keywords
@@ -473,9 +477,47 @@ namespace ChronusQ {
 
 
 
-    if( isX2CRef ) ss->setCoreH(RELATIVISTIC_X2C_1E);
-    else           ss->setCoreH(NON_RELATIVISTIC);
+    if( isX2CRef ) {
+      std::string x2c_str = "FULL";
+      X2C_TYPE x2ctype = {false,false,false};
+      OPTOPT( x2c_str = input.getData<std::string>("QM.X2CTYPE")  );
+      trim(x2c_str);
 
+      if( not x2c_str.compare("FULL") )
+        x2ctype = {false,false,false};
+      else if( not x2c_str.compare("ALU") )
+        x2ctype = {true,true,false};
+      else if( not x2c_str.compare("DLU") )
+        x2ctype = {true,false,false};
+      else if( not x2c_str.compare("AMLH") )
+        x2ctype = {true,true,true};
+      else if( not x2c_str.compare("DLH") )
+        x2ctype = {true,false,true};
+      else
+        CErr(x2c_str + " not a valid QM.X2CTYPE",out);
+
+      if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
+        p->coreHBuilder = std::make_shared<X2C<dcomplex,double>>(
+          *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+      } else if (std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
+        CErr("X2C + Complex Ints NYI",std::cout);
+      } else {
+        CErr("X2C + Real WFN is not a valid option",std::cout);
+      }
+    } else {
+      if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
+        p->coreHBuilder = std::make_shared<NRCoreH<double,double>>(
+          *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+      } else if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
+        p->coreHBuilder = std::make_shared<NRCoreH<dcomplex,double>>(
+          *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+      } else if (auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
+        p->coreHBuilder = std::make_shared<NRCoreH<dcomplex,dcomplex>>(
+          *std::dynamic_pointer_cast<AOIntegrals<dcomplex>>(aoints));
+      } else {
+        CErr("Complex INT + Real WFN is not a valid option",std::cout);
+      }
+    }
 
 
 

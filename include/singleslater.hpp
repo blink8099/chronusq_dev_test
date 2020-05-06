@@ -35,6 +35,11 @@
 
 namespace ChronusQ {
 
+  // Declaration of CoreH and Fock builders.
+  template <typename MatsT, typename IntsT>
+  class CoreHBuilder;
+  template <typename MatsT, typename IntsT>
+  class FockBuilder;
 
   /**
    *  \brief The SingleSlater class. The typed abstract interface for all
@@ -107,6 +112,10 @@ namespace ChronusQ {
     oper_t_coll coreH;          ///< Core Hamiltonian (scalar and magnetization)
     oper_t_coll coreHPerturbed; ///< Perturbed Core Hamiltonian (scalar and magnetization)
 
+    // CoreH and Fock builders
+    std::shared_ptr<CoreHBuilder<MatsT,IntsT>> coreHBuilder = nullptr; ///< Builder for CoreH
+    std::shared_ptr<FockBuilder<MatsT,IntsT>> fockBuilder = nullptr; ///< Builder for Fock
+
     // Method specific propery storage
     std::vector<double> mullikenCharges;
     std::vector<double> lowdinCharges;
@@ -124,13 +133,14 @@ namespace ChronusQ {
      *                   for details. 
      */ 
     template <typename... Args>
-    SingleSlater(MPI_Comm c, AOIntegrals<IntsT> &aoi, Args... args) : 
+    SingleSlater(MPI_Comm c, AOIntegrals<IntsT> &aoi, Args... args) :
       SingleSlaterBase(c,aoi.memManager(),args...), WaveFunctionBase(c,aoi.memManager(),args...),
-      QuantumBase(c,aoi.memManager(),args...), WaveFunction<MatsT,IntsT>(c,aoi,args...)
-      //, coreType(NON_RELATIVISTIC), orthoType(LOWDIN) 
-    { 
+      QuantumBase(c,aoi.memManager(),args...), WaveFunction<MatsT,IntsT>(c,aoi,args...),
+      fockBuilder(std::make_shared<FockBuilder<MatsT,IntsT>>())
+      //, coreType(NON_RELATIVISTIC), orthoType(LOWDIN)
+    {
       // Allocate SingleSlater Object
-      alloc(); 
+      alloc();
 
       // Determine Real/Complex part of method string
       if(std::is_same<MatsT,double>::value) {
@@ -141,9 +151,6 @@ namespace ChronusQ {
         refShortName_ = "C-";
       
       }
-
-      // Default to NRH
-      setCoreH(coreType);
 
     }; // SingleSlater constructor
 
@@ -171,7 +178,7 @@ namespace ChronusQ {
 
     // Public Member functions
       
-      
+
       
 
     // Deallocation (see include/singleslater/impl.hpp for docs)
@@ -187,15 +194,9 @@ namespace ChronusQ {
     void computeSpin();
 
     // Compute various core Hamitlonian
-    void formCoreH(EMPerturbation&,CORE_HAMILTONIAN_TYPE); // Compute the CH
-    inline void formCoreH(EMPerturbation &emPert) { formCoreH(emPert,coreType); }
+    void formCoreH(EMPerturbation&); // Compute the CH
 //  void updateCoreH(EMPerturbation &);
-    void computeNRCH(EMPerturbation&,oper_t_coll&); // Non-relativistic CH
-    void computeX2CCH(EMPerturbation&,oper_t_coll&); // X2C CH (aointegrals_rel.cxx)
-    void compute4CCH(std::vector<libint2::Shell>&, dcomplex*); // 4C CH
     void computeOrtho();  // Evaluate orthonormalization transformations
-
-    void addMagPert(EMPerturbation&, oper_t_coll&);
 
     // Method specific properties
     void populationAnalysis();
@@ -209,7 +210,6 @@ namespace ChronusQ {
 
     // Form a fock matrix (see include/singleslater/fock.hpp for docs)
     virtual void formFock(EMPerturbation &, bool increment = false, double xHFX = 1.);
-    void formGD(EMPerturbation &, bool increment = false, double xHFX = 1.);
 
     // Form initial guess orbitals
     // see include/singleslater/guess.hpp for docs)
@@ -286,6 +286,9 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
+// Include declaration of CoreHBuilder and FockBuilder
+#include <corehbuilder.hpp>
+#include <fockbuilder.hpp>
 
 // Include headers for specializations of SingleSlater
 #include <singleslater/hartreefock.hpp> // HF specialization

@@ -22,6 +22,7 @@
  *  
  */
 #include <singleslater/impl.hpp>
+#include <corehbuilder/impl.hpp>
 
 namespace ChronusQ {
 

@@ -26,6 +26,7 @@
 #include <singleslater.hpp>
 #include <cqlinalg.hpp>
 #include <util/matout.hpp>
+#include <corehbuilder/nonrel.hpp>
 
 namespace ChronusQ {
 
@@ -291,7 +292,7 @@ namespace ChronusQ {
       ss->scfControls.doIncFock = false;        
       ss->scfControls.dampError = 1e-4;
       ss->scfControls.nKeep     = 8;
-      ss->setCoreH(NON_RELATIVISTIC);
+      ss->coreHBuilder = std::make_shared<NRCoreH<MatsT,IntsT>>(ss->aoints);
 
       ss->formCoreH(pert);
       aointsAtom.computeERIGTO();

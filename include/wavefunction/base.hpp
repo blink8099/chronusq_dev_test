@@ -24,6 +24,7 @@
 #pragma once
 
 #include <chronusq_sys.hpp>
+#include <quantum/base.hpp>
 #include <aointegrals.hpp>
 
 namespace ChronusQ {
