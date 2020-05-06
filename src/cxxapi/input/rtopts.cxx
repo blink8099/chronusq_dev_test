@@ -97,6 +97,7 @@ namespace ChronusQ {
             dynamic_cast< _REF<_MT,_IT>& >(*ss)    \
           )                                        \
         );                                         \
+      found = true;                                \
     } catch(...) { }
 
 

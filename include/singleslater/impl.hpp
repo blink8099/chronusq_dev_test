@@ -26,6 +26,9 @@
 #include <singleslater.hpp>
 #include <util/preprocessor.hpp>
 #include <quantum/preprocessor.hpp>
+#include <corehbuilder/nonrel.hpp>
+#include <corehbuilder/fourcomp.hpp>
+#include <corehbuilder/x2c.hpp>
 
 // Template for a collective operation on the members of a 
 // SingleSlater object
@@ -65,7 +68,9 @@ namespace ChronusQ {
     QuantumBase(dynamic_cast<const QuantumBase&>(other)),
     WaveFunctionBase(dynamic_cast<const WaveFunctionBase&>(other)),
     SingleSlaterBase(dynamic_cast<const SingleSlaterBase&>(other)),
-    WaveFunction<MatsT,IntsT>(dynamic_cast<const WaveFunction<MatsU,IntsT>&>(other)) {
+    WaveFunction<MatsT,IntsT>(dynamic_cast<const WaveFunction<MatsU,IntsT>&>(other)),
+    coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
+    fockBuilder(std::make_shared<FockBuilder<MatsT,IntsT>>(*other.fockBuilder)) {
 
 #ifdef _SingleSlaterDebug
     std::cout << "SingleSlater<MatsT>::SingleSlater(const SingleSlater<U>&) "
@@ -96,7 +101,9 @@ namespace ChronusQ {
     QuantumBase(dynamic_cast<QuantumBase&&>(std::move(other))),
     WaveFunctionBase(dynamic_cast<WaveFunctionBase&&>(std::move(other))),
     SingleSlaterBase(dynamic_cast<SingleSlaterBase&&>(std::move(other))),
-    WaveFunction<MatsT,IntsT>(dynamic_cast<WaveFunction<MatsU,IntsT>&&>(std::move(other))) {
+    WaveFunction<MatsT,IntsT>(dynamic_cast<WaveFunction<MatsU,IntsT>&&>(std::move(other))),
+    coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
+    fockBuilder(std::make_shared<FockBuilder<MatsT,IntsT>>(*other.fockBuilder)) {
 
 #ifdef _SingleSlaterDebug
     std::cout << "SingleSlater<MatsT>::SingleSlater(SingleSlater<U>&&) "

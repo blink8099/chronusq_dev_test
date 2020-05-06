@@ -24,6 +24,8 @@
 #pragma once
 
 #include <singleslater.hpp>
+#include <corehbuilder.hpp>
+#include <fockbuilder.hpp>
 
 #include <util/time.hpp>
 #include <cqlinalg/blasext.hpp>
@@ -31,12 +33,12 @@
 #include <cqlinalg.hpp>
 #include <cqlinalg/svd.hpp>
 #include <cqlinalg/blasutil.hpp>
-#include <physcon.hpp>
 #include <util/matout.hpp>
 #include <util/threads.hpp>
 #include <Eigen/Sparse>
 #include <Eigen/Dense>
 #include <Eigen/Core>
+
 
 //#define _DEBUGORTHO
 
@@ -55,113 +57,9 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::formFock(
     EMPerturbation &pert, bool increment, double xHFX) {
 
-    size_t NB = this->aoints.basisSet().nBasis;
-    size_t NB2 = NB*NB;
-
-    auto GDStart = tick(); // Start time for G[D]
-
-    // Form G[D]
-    formGD(pert,increment,xHFX);
-
-    GDDur = tock(GDStart); // G[D] Duraction
-
-    ROOT_ONLY(comm); 
-
-
-    // Zero out the Fock
-    for(auto &F : fockMatrix) std::fill_n(F,NB2,MatsT(0.));
-
-    // Copy over the Core Hamiltonian
-    for(auto i = 0; i < coreH.size(); i++)
-      SetMat('N',NB,NB,MatsT(1.),coreH[i],NB,fockMatrix[i],NB);
-
-    // Add in the two electron term
-    for(auto i = 0ul; i < fockMatrix.size(); i++)
-      MatAdd('N','N', NB, NB, MatsT(1.), fockMatrix[i], NB, MatsT(1.), twoeH[i], NB, fockMatrix[i], NB);
-
-
-
-
-    // Add in the electric field contributions
-    // FIXME: the magnetic field contribution should go here as well to allow for RT
-    // manipulation
-
-    if( pert_has_type(pert,Electric) ) {
-
-      auto dipAmp = pert.getDipoleAmp(Electric);
-
-      // Because IntsT and MatsT need not be the same: MatAdd not possible
-      for(auto i = 0;    i < 3;     i++)
-      for(auto k = 0ul;  k < NB*NB; k++)
-        fockMatrix[SCALAR][k] -= 
-          2. * dipAmp[i] * this->aoints.lenElecDipole[i][k];
-
-    }
-  
-#if 0
-    printFock(std::cout);
-#endif
+    fockBuilder->formFock(*this, pert, increment, xHFX);
 
   }; // SingleSlater::fockFock
-
-
-  /**
-   *  \brief Forms the Hartree-Fock perturbation tensor
-   *
-   *  Populates / overwrites GD storage (and JScalar and K storage)
-   */ 
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::formGD(EMPerturbation &pert, bool increment, double xHFX) {
-
-    // Decide list of onePDMs to use
-    oper_t_coll &contract1PDM  = increment ? deltaOnePDM : this->onePDM;
-
-    size_t NB = this->aoints.basisSet().nBasis;
-    size_t NB2 = NB*NB;
-
-    size_t mpiRank   = MPIRank(comm);
-    bool   isNotRoot = mpiRank != 0;
-
-
-    // Zero out J
-    if(not increment) memset(coulombMatrix,0.,NB2*sizeof(MatsT));
-
-    std::vector<TwoBodyContraction<MatsT>> contract =
-      { {true, contract1PDM[SCALAR], coulombMatrix, true, COULOMB} };
-
-    // Determine how many (if any) exchange terms to calculate
-    if( std::abs(xHFX) > 1e-12 )
-    for(auto i = 0; i < exchangeMatrix.size(); i++) {
-      contract.push_back(
-          {true, contract1PDM[i], exchangeMatrix[i], true, EXCHANGE}
-      );
-
-      // Zero out K[i]
-      if(not increment) memset(exchangeMatrix[i],0,NB2*sizeof(MatsT));
-    }
-
-    this->aoints.twoBodyContract(comm, contract, pert);
-
-    ROOT_ONLY(comm); // Return if not root (J/K only valid on root process)
-
-
-    // Form GD: G[D] = 2.0*J[D] - K[D]
-    if( std::abs(xHFX) > 1e-12 ) {
-      for(auto i = 0; i < exchangeMatrix.size(); i++)
-        MatAdd('N','N', NB, NB, MatsT(0.), twoeH[i], NB, MatsT(-xHFX), exchangeMatrix[i], NB, twoeH[i], NB);
-    } else {
-      for(auto i = 0; i < fockMatrix.size(); i++) memset(twoeH[i],0,NB2*sizeof(MatsT));
-    }
-    // G[D] += 2*J[D]
-    MatAdd('N','N', NB, NB, MatsT(1.), twoeH[SCALAR], NB, MatsT(2.), coulombMatrix, NB, twoeH[SCALAR], NB);
-      
-#if 0
-  //printJ(std::cout);
-    printK(std::cout);
-  //printGD(std::cout);
-#endif
-
-  }; // SingleSlater::formGD
 
 
   /**
@@ -170,7 +68,7 @@ namespace ChronusQ {
    *  \param [in] typ Which Hamiltonian to build
    */ 
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert, CORE_HAMILTONIAN_TYPE typ) {
+  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert) {
 
     ROOT_ONLY(comm);
 
@@ -189,14 +87,9 @@ namespace ChronusQ {
       coreH.emplace_back(memManager.malloc<MatsT>(nSQ));
     }
 
-    this->aoints.computeAOOneE(emPert,oneETerms); // compute the necessary 1e ints
 
-    if(typ == NON_RELATIVISTIC) computeNRCH(emPert,coreH);
-    if(std::is_same<MatsT,dcomplex>::value && typ == RELATIVISTIC_X2C_1E) 
-      computeX2CCH(emPert,coreH);
-
-
-
+    // Compute core Hamiltonian
+    coreHBuilder->computeCoreH(emPert,coreH);
 
 
     // Compute Orthonormalization trasformations

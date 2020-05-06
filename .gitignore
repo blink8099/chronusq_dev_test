@@ -1,4 +1,6 @@
 *build*
+!*corehbuild*
+!*fockbuild*
 external/mxx
 external/cxxblacs
 external/libint2/include

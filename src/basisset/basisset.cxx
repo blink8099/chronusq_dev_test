@@ -262,14 +262,14 @@ namespace ChronusQ {
   }; // BasisSet::uncontractShells
 
 
-  std::shared_ptr<BasisSet> BasisSet::uncontractBasis() {
+  BasisSet BasisSet::uncontractBasis() {
 
 
     // Copy basis
-    std::shared_ptr<BasisSet> newBasis = std::make_shared<BasisSet>(*this);
+    BasisSet newBasis(*this);
 
-    newBasis->shells = this->uncontractShells();
-    newBasis->update();
+    newBasis.shells = this->uncontractShells();
+    newBasis.update();
 
     return newBasis;
 
