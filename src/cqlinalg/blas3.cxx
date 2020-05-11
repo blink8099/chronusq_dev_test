@@ -76,21 +76,21 @@ namespace ChronusQ {
     if(TRANSB == 'N') {
       if(TRANSA == 'N')
         CMap.block(0,0,M,N).noalias() = 
-          AMap.block(0,0,M,K).cast<dcomplex>() *
-          BMap.block(0,0,K,N);
+          ALPHA * AMap.block(0,0,M,K).cast<dcomplex>() *
+          BMap.block(0,0,K,N) + BETA * CMap.block(0,0,M,N);
       else
         CMap.block(0,0,M,N).noalias() = 
-          AMap.block(0,0,K,M).cast<dcomplex>().adjoint() *
-          BMap.block(0,0,K,N);
+          ALPHA * AMap.block(0,0,K,M).cast<dcomplex>().adjoint() *
+          BMap.block(0,0,K,N) + BETA * CMap.block(0,0,M,N);
     } else {
       if(TRANSA == 'N')
         CMap.block(0,0,M,N).noalias() = 
-          AMap.block(0,0,M,K).cast<dcomplex>() *
-          BMap.block(0,0,N,K).adjoint();
+          ALPHA * AMap.block(0,0,M,K).cast<dcomplex>() *
+          BMap.block(0,0,N,K).adjoint() + BETA * CMap.block(0,0,M,N);
       else
         CMap.block(0,0,M,N).noalias() = 
-          AMap.block(0,0,K,M).cast<dcomplex>().adjoint() *
-          BMap.block(0,0,N,K).adjoint();
+          ALPHA * AMap.block(0,0,K,M).cast<dcomplex>().adjoint() *
+          BMap.block(0,0,N,K).adjoint() + BETA * CMap.block(0,0,M,N);
     }
 #endif
 
