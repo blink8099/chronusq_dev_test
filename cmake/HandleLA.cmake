@@ -105,12 +105,13 @@ if( CQ_NEED_OPENBLAS )
 
     ExternalProject_Add(openblas
       PREFIX ${OPENBLAS_PREFIX}
-      URL "${OPENBLAS_PREFIX}/v0.2.19.tar.gz"
+      GIT_REPOSITORY "https://github.com/xianyi/OpenBLAS.git"
+      GIT_TAG "v0.3.9"
       CONFIGURE_COMMAND echo 'No OpenBLAS Configure Command'
       BUILD_COMMAND ${OPENBLAS_BUILD_COMMAND}
       BUILD_IN_SOURCE 1
       INSTALL_COMMAND make install PREFIX=${OPENBLAS_PREFIX} &&
-        cd ${OPENBLAS_INCLUDEDIR} && patch < ../patch/lapacke.patch &&
+        cd ${OPENBLAS_INCLUDEDIR} && patch < ../patch/lapack.patch &&
         patch < ../patch/f77blas.patch 
     )
 
