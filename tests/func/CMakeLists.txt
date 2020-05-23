@@ -27,7 +27,7 @@ set(FUNC_TEST_BINARY_ROOT "${TEST_BINARY_ROOT}/func" )
 
 
 # Set up compilation of Functionality test exe
-add_executable(functest ../ut.cxx contract.cxx ordqz.cxx gplhr.cxx)
+add_executable(functest ../ut.cxx contract.cxx ordqz.cxx gplhr.cxx davidson.cxx)
 
 target_compile_definitions(functest PUBLIC CQ_FUNC_TEST)
 target_include_directories(functest PUBLIC ${FUNC_TEST_SOURCE_ROOT} 
@@ -49,6 +49,7 @@ include( CQTestGeneration )
 add_cq_test( DIRECT_CONTRACTION functest "DIRECT_CONTRACTION*" )
 add_cq_test( ORDQZ              functest "ORDQZ.*" )
 add_cq_test( GPLHR              functest "GPLHR.*" )
+add_cq_test( DAVIDSON           functest "DAVIDSON.*" )
 
 if( CQ_ENABLE_MPI )
   add_cq_mpi_test( GPLHR_MPI 2 functest "GPLHR.*" )

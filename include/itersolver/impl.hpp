@@ -28,5 +28,6 @@
 #include <itersolver/iterdiagonalizer.hpp>
 #include <itersolver/gmres.hpp>
 #include <itersolver/gplhr.hpp>
+#include <itersolver/davidson.hpp>
 
 
