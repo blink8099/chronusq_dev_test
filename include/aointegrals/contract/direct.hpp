@@ -793,7 +793,7 @@ namespace ChronusQ {
 
 //  std::chrono::duration<double> durDirect = botDirect - topDirect;
     //std::cerr << "Direct Contraction took " << durDirect.count() << " s\n"; 
-    std::cerr << "Direct Contraction took " <<  dureDirect << " s\n"; 
+    std::cerr << "Direct Contraction took " <<  durDirect << " s\n"; 
 
 #ifdef _SUB_TIMINGS
     std::cerr << "  " << durInner.count() << " (" << durInner.count() / durDirect.count() * 100 
