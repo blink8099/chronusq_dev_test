@@ -44,6 +44,7 @@ namespace ChronusQ {
 
     bool parseSection(false);
     bool prevLineData(false);
+    size_t prevIndent(0);
   
     std::string sectionHeader;
     std::string dataHeader;
@@ -109,7 +110,7 @@ namespace ChronusQ {
         colPos != std::string::npos;
   
       // Determine if this is a line continuation of a previous data field
-      bool multiLine   = prevLineData and line[0] == ' ';
+      bool multiLine   = prevLineData and firstNonSpace > prevIndent;
   
       // Section line
       if(sectionLine) {
@@ -165,10 +166,11 @@ namespace ChronusQ {
           dict_[sectionHeader][dataHeader] = " ";
   
         prevLineData = true;
+        prevIndent = firstNonSpace;
       }
   
       // Multiline data
-      if(parseSection and multiLine) {
+      else if(parseSection and multiLine) {
         // Capitalize data if not case sensitive
         if ( not (
           caseSens.find(sectionHeader) != caseSens.end() &&
