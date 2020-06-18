@@ -142,8 +142,8 @@ namespace ChronusQ {
     Molecule mol(std::move(CQMoleculeOptions(output,input)));
     BasisSet basis(std::move(CQBasisSetOptions(output,input,mol)));
 
-
     auto aoints = CQIntsOptions(output,input,*memManager,mol,basis);
+
     auto ss = CQSingleSlaterOptions(output,input,aoints);
 
     // EM Perturbation for SCF

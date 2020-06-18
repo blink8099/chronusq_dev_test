@@ -77,10 +77,10 @@ namespace ChronusQ {
    *    for details
    */ 
   template <typename IntsT>
-  template <typename TT>
+  template <typename MatsT>
   void AOIntegrals<IntsT>::twoBodyContractDirect(
     MPI_Comm c, const bool screen,
-    std::vector<TwoBodyContraction<TT>> &list, EMPerturbation &pert) {
+    std::vector<TwoBodyContraction<MatsT>> &list, EMPerturbation &pert) {
 
     // Only use GIAOs if GIAOs are selected and if
     // a Magnetic field is in the EMPerturbation
@@ -88,14 +88,18 @@ namespace ChronusQ {
       (basisSet_.basisType == COMPLEX_GIAO) and 
       pert_has_type(pert,Magnetic);
 
-    if( not useGIAO ) directScaffold(c, screen, list);
-    else              directScaffold(c, screen, list, pert);
+    if( not useGIAO ) {
+      directScaffoldNew(c, screen, list);
+//      directScaffold(c, screen, list);
+    } else {
+      directScaffold(c, screen, list, pert);
+    }
     
   }; // AOIntegrals::twoBodyContractDirect
 
 
-  template <typename T>
-  void ShellBlockNorm(std::vector<libint2::Shell> &shSet, T *MAT, 
+  template <typename MatsT>
+  void ShellBlockNorm(std::vector<libint2::Shell> &shSet, MatsT *MAT, 
     size_t LDM, double *ShBlk) {
 
     size_t nShell = shSet.size();
@@ -106,7 +110,7 @@ namespace ChronusQ {
     for(auto s2(0ul), bf2(0ul); s2 < nShell; s2++, bf2 += n2) {
       n2 = shSet[s2].size();
 
-      T *block = MAT + bf1 + bf2*LDM;
+      MatsT *block = MAT + bf1 + bf2*LDM;
       ShBlk[s1 + s2*nShell] = MatNorm<double>('I',n1,n2,block,LDM);
 
     }
@@ -1137,8 +1141,6 @@ namespace ChronusQ {
           std::bind1st(std::multiplies<dcomplex>(),0.5*s1234_deg));
 
         size_t b1,b2,b3,b4;
-//        double *Xp1, *Xp2;   // what is this used for? 
-        dcomplex X1,X2;
 
         for(auto iMat = 0; iMat < NMat; iMat++) {
           auto& C = list[iMat];
@@ -1231,26 +1233,28 @@ namespace ChronusQ {
             for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++) 
             for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) { 
 
+
               int jikl;
               jikl = j*n1*n3*n4 + i*n3*n4 + k*n4 + l;  
 
+
               // J(1,2) += 1/2*(I(1,2|3,4) * X(4,3) + I(1,2|4,3) * X(3,4) 
               AX_loc[iMat][b1] += 0.5*( C.X[bf4 + bf3*NB]*intBuffer_loc[ijkl] 
-                          + C.X[bf3 + bf4*NB]) * std::conj(alterintBuffer_loc[jikl]);
+                         +C.X[bf3 + bf4*NB] * std::conj(alterintBuffer_loc[jikl]));
+
+              // J(3,4) += 1/2(I(3,4|1,2) * X(2,1) + I(3,4|2,1) * X(1,2))
+              AX_loc[iMat][bf3 + bf4*NB] += 0.5*( C.X[b2] * intBuffer_loc[ijkl]
+                                    +C.X[b1] * alterintBuffer_loc[jikl]) ;
+
+              // J(2,1) += 1/2(I(2,1|3,4) * X(4,3) + I(2,1|4,3)* X(3,4))
+              AX_loc[iMat][b2] += 0.5*( C.X[bf4 + bf3*NB] * alterintBuffer_loc[jikl] 
+                                + C.X[bf3 + bf4*NB] * std::conj(intBuffer_loc[ijkl]));
 
               // J(4,3) += 1/2[I(4,3|2,1) * X(1,2)+I(4,3|1,2) * X(2,1)
               //         = 1/2[I(1,2|3,4)* *X(1,2)+I(1,2|4,3) * X(2,1)
               AX_loc[iMat][bf4+bf3*NB] +=  0.5 * (C.X[b1] 
                                 * std::conj(intBuffer_loc[ijkl])
                             + C.X[bf2+bf1*NB] * std::conj(alterintBuffer_loc[jikl]));
-
-              // J(2,1) += 1/2(I(2,1|3,4) * X(4,3) + I(2,1|4,3)* X(3,4))
-              AX_loc[iMat][bf2+bf1*NB] += 0.5*( C.X[bf4 + bf3*NB] * alterintBuffer_loc[jikl] 
-                                + C.X[bf3 + bf4*NB] * std::conj(intBuffer_loc[ijkl]));
-
-              // J(3,4) += 1/2(I(3,4|1,2) * X(2,1) + I(3,4|2,1) * X(1,2))
-              AX_loc[iMat][bf3 + bf4*NB] += 0.5*( C.X[bf2 + bf1*NB] * intBuffer_loc[ijkl]
-                                    +C.X[b1] * alterintBuffer_loc[jikl]) ;
 
             } // kl loop
             } // ij loop
@@ -1391,8 +1395,9 @@ namespace ChronusQ {
 
     // Free scratch space
     memManager_.free(intBuffer);
+    memManager_.free(alterintBuffer);
 
-    // if(AXRaw != nullptr) memManager_.free(AXRaw);
+    if(AXRaw != nullptr) memManager_.free(AXRaw);
 
 
 
@@ -1417,6 +1422,599 @@ namespace ChronusQ {
   }
 
 
+  // New Direct Code
+  template <typename IntsT>
+  template <typename MatsT>
+  void AOIntegrals<IntsT>::directScaffoldNew(
+    MPI_Comm comm, const bool screen,
+    std::vector<TwoBodyContraction<MatsT>> &matList) {
+
+    size_t nThreads  = GetNumThreads();
+    size_t LAThreads = GetLAThreads();
+    size_t mpiRank   = MPIRank(comm);
+    size_t mpiSize   = MPISize(comm);
+
+    SetLAThreads(1); // Turn off parallelism in LA functions
+
+    const size_t nBasis   = basisSet_.nBasis;
+    const size_t nMat     = matList.size();
+    const size_t nShell   = basisSet_.nShell;
+
+
+    // Check whether any of the contractions are non-hermetian
+    // XSLI: needs to check how this is being used
+    const bool NonHermitian = std::any_of(matList.begin(),matList.end(),
+      []( TwoBodyContraction<MatsT> & x ) -> bool { return not x.HER; });
+
+#ifdef _SHZ_SCREEN
+    // Compute schwartz bounds if we haven't already
+    // XSLI: why compute schwartz so early?
+    if(schwartz == nullptr) computeSchwartz();
+#endif
+
+    // Create thread-safe libint2::Engines
+    std::vector<libint2::Engine> engines(nThreads);
+
+    // Construct engine for master thread
+    engines[0] = libint2::Engine(libint2::Operator::coulomb,
+      basisSet_.maxPrim, basisSet_.maxL, 0);
+
+
+    // Allocate scratch for raw integral batches
+    size_t maxShellSize = 
+      std::max_element(basisSet_.shells.begin(),basisSet_.shells.end(),
+        [](libint2::Shell &sh1, libint2::Shell &sh2) {
+          return sh1.size() < sh2.size();
+        })->size();
+
+    // lenIntBuffer is allocated to be able to store ERI's of the 
+    // shell with the highest angular momentum
+    size_t lenIntBuffer = 
+      maxShellSize * maxShellSize * maxShellSize * maxShellSize; 
+
+    lenIntBuffer *= sizeof(MatsT) / sizeof(double);
+
+    size_t nBuffer = 2;
+
+    // This is the total storage needed
+//    size_t nAlloc = nBuffer*lenIntBuffer*nThreads*sizeof(double) + 
+//      nThreads*nMat*nBasis*nBasis*sizeof(MatsT) +
+//      nMat*nShell*nShell*sizeof(double);
+
+    double * intBuffer = 
+      memManager_.malloc<double>(nBuffer*lenIntBuffer*nThreads);
+   
+    double *intBuffer2 = intBuffer + nThreads*lenIntBuffer;
+
+
+    // Allocate thread local storage to store integral contractions
+    std::vector<std::vector<MatsT*>> AXthreads;
+    MatsT *AXRaw = nullptr;
+    if(nThreads != 1) {
+      AXRaw = memManager_.malloc<MatsT>(nThreads*nMat*nBasis*nBasis);    
+      memset(AXRaw,0,nThreads*nMat*nBasis*nBasis*sizeof(MatsT));
+    }
+
+    if(nThreads == 1) {
+      AXthreads.emplace_back();
+      for(auto iMat = 0; iMat < nMat; iMat++)
+        AXthreads.back().push_back(matList[iMat].AX);
+    } else {
+      for(auto iThread = 0; iThread < nThreads; iThread++) {
+        AXthreads.emplace_back();
+        for(auto iMat = 0; iMat < nMat; iMat++) 
+          AXthreads.back().push_back(AXRaw + iThread*nMat*nBasis*nBasis + iMat*nBasis*nBasis);
+      }
+    }
+
+#ifdef _SHZ_SCREEN
+    // Compute shell block norms (∞-norm) of matList.X
+    double *ShBlkNorms_raw = memManager_.malloc<double>(nMat*nShell*nShell);
+    std::vector<double*> ShBlkNorms;
+    for(auto iMat = 0, iOff = 0; iMat < nMat; iMat++, iOff += nShell*nShell ) {
+      ShellBlockNorm(basisSet_.shells,matList[iMat].X,nBasis,ShBlkNorms_raw + iOff);
+      ShBlkNorms.emplace_back(ShBlkNorms_raw + iOff);
+    }
+
+    // Find the max value of shell block ∞-norms of all matList.X
+    double maxShBlkNorm = 0.;
+    for(auto iMat = 0; iMat < nMat; iMat++)
+      maxShBlkNorm = std::max(maxShBlkNorm,
+        *std::max_element(ShBlkNorms[iMat],ShBlkNorms[iMat] + nShell*nShell) ); 
+
+    size_t maxnPrim4 = 
+      basisSet_.maxPrim * basisSet_.maxPrim * basisSet_.maxPrim * 
+      basisSet_.maxPrim;
+
+    // Set Libint precision
+#if 0
+    engines[0].set_precision(
+      std::min(
+        std::numeric_limits<double>::epsilon(),
+        threshSchwartz/maxShBlkNorm
+      )/maxnPrim4
+    );
+#else
+    engines[0].set_precision(
+      std::max(
+        std::numeric_limits<double>::epsilon(),
+        threshSchwartz/(maxShBlkNorm*maxnPrim4))
+      );
+#endif
+
+    // Get the max over all the matricies for the shell block ∞-norms
+    // OVERWRITES ShBlkNorms[0]
+    if( !NonHermitian ) {
+      for(auto k = 0; k < nShell*nShell; k++) {
+        double mx = std::abs(ShBlkNorms[0][k]);
+        for(auto iMat = 1; iMat < nMat; iMat++)
+          mx = std::max(mx,std::abs(ShBlkNorms[iMat][k]));
+        ShBlkNorms[0][k] = mx;
+      }
+    } else {
+      for(auto i = 0; i < nShell; i++)
+      for(auto j = 0; j <= i; j++) {
+        double mx = 
+          std::max(std::abs(ShBlkNorms[0][i + j*nShell]),
+                   std::abs(ShBlkNorms[0][j + i*nShell]));
+
+        for(auto iMat = 1; iMat < nMat; iMat++)
+          mx = std::max(mx,
+            std::max(std::abs(ShBlkNorms[iMat][i + j*nShell]),
+                     std::abs(ShBlkNorms[iMat][j + i*nShell])));
+
+        ShBlkNorms[0][i + j*nShell] = mx;
+        ShBlkNorms[0][j + i*nShell] = mx;
+      }
+    }
+
+
+#else
+    // Set Linbint precision
+    engines[0].set_precision(std::numeric_limits<double>::epsilon());
+#endif
+
+    // Copy master thread engine to other threads
+    for(size_t i = 1; i < nThreads; i++) engines[i] = engines[0];
+
+#ifdef _SUB_TIMINGS
+    std::chrono::duration<double> durInner(0.), durCont(0.), durSymm(0.), durZero(0.);
+#endif
+
+    // Keeping track of number of integrals skipped
+    std::vector<size_t> nSkip(nThreads,0);
+
+    // MPI info
+    size_t mpiChunks = (nShell * (nShell + 1) / 2) / mpiSize;
+    size_t mpiS12St  = mpiRank * mpiChunks;
+    size_t mpiS12End = (mpiRank + 1) * mpiChunks;
+    if( mpiRank == (mpiSize - 1) ) mpiS12End = (nShell * (nShell + 1) / 2);
+
+    auto topDirect = tick();
+    #pragma omp parallel
+    {
+
+    // Set up thread local storage
+
+    // SMP info
+    size_t thread_id = GetThreadID();
+
+    auto &engine = engines[thread_id];
+    const auto& buf_vec = engine.results();
+    
+    auto &AX_loc = AXthreads[thread_id];
+
+
+    double * intBuffer_loc  = intBuffer  + thread_id*lenIntBuffer;
+    double * intBuffer2_loc = intBuffer2 + thread_id*lenIntBuffer;
+
+
+    size_t n1,n2;
+
+    // Always Loop over s2 <= s1
+    for(size_t s1(0ul), bf1_s(0ul), s12(0ul); s1 < nShell; bf1_s+=n1, s1++) { 
+      n1 = basisSet_.shells[s1].size(); // Size of Shell 1
+
+    auto sigPair12_it = basisSet_.shellData.shData.at(s1).begin();
+    for( const size_t& s2 : basisSet_.shellData.sigShellPair[s1] ) {
+      size_t bf2_s = basisSet_.mapSh2Bf[s2];
+      n2 = basisSet_.shells[s2].size(); // Size of Shell 2
+
+      const auto * sigPair12 = sigPair12_it->get();
+      sigPair12_it++;
+
+#ifdef CQ_ENABLE_MPI
+      // MPI partition s12 blocks
+      if( (s12 < mpiS12St) or (s12 >= mpiS12End) ) { s12++; continue; }
+#endif
+
+      // Round-Robin work distribution
+      if( (s12++) % nThreads != thread_id ) continue;
+
+      // Cache variables for shells 1 and 2
+        
+#ifdef _FULL_DIRECT
+      // Deneneracy factor for s1,s2 pair
+      double s12_deg = (s1 == s2) ? 1.0 : 2.0;
+#endif
+
+#ifdef _SHZ_SCREEN
+      double shz12 = 0, shMax12 = 0;
+      if( screen ) {
+        shz12 = schwartz[s1 + s2*nShell];
+        shMax12 = ShBlkNorms[0][s1 + s2*nShell];
+      }
+#endif
+
+// The upper bound of s3 is s1 for the 8-fold symmetry and
+// nShell for 4-fold.
+#ifdef _USE_EIGHT_FOLD
+  #define S3_MAX s1
+#elif defined(_USE_FOUR_FOLD)
+  // the "-" is for the <= in the loop
+  #define S3_MAX nShell - 1
+#endif
+
+      size_t n3,n4;
+
+      for(size_t s3(0ul), bf3_s(0ul), s34(0ul); s3 <= S3_MAX; s3++, bf3_s += n3) { 
+        n3 = basisSet_.shells[s3].size(); // Size of Shell 3
+
+#ifdef _SHZ_SCREEN
+
+        double shMax123 = 0;
+        if( screen ) {
+          // Pre-calculate shell-block norm max's that only
+          // depend on shells 1,2 and 3
+          shMax123 = 
+            std::max(ShBlkNorms[0][s1 + s3*nShell], 
+                     ShBlkNorms[0][s2 + s3*nShell]);
+
+          shMax123 = std::max(shMax123,shMax12);
+        }
+
+#endif
+        
+// The upper bound of s4 is either s2 or s3 based on s1 and s3 for
+// the 8-fold symmetry and s3 for the 4-fold symmetry
+#ifdef _USE_EIGHT_FOLD
+        size_t s4_max = (s1 == s3) ? s2 : s3;
+#elif defined(_USE_FOUR_FOLD)
+        size_t s4_max =  s3;
+#endif
+
+      auto sigPair34_it = basisSet_.shellData.shData.at(s3).begin();
+      for( const size_t& s4 : basisSet_.shellData.sigShellPair[s3] ) {
+
+        if (s4 > s4_max)
+          break;  // for each s3, s4 are stored in monotonically increasing
+                  // order
+
+        const auto * sigPair34 = sigPair34_it->get();
+        sigPair34_it++;
+                    
+        size_t bf4_s = basisSet_.mapSh2Bf[s4];
+        n4 = basisSet_.shells[s4].size(); // Size of Shell 4
+
+#ifdef _SHZ_SCREEN
+
+        double shMax = 0;
+
+        if( screen ) {
+          // Compute Shell norm max
+          shMax = 
+            std::max(ShBlkNorms[0][s1 + s4*nShell],
+            std::max(ShBlkNorms[0][s2 + s4*nShell],
+                     ShBlkNorms[0][s3 + s4*nShell]));
+
+          shMax = std::max(shMax,shMax123);
+
+#endif
+
+          if((shMax *shMax * shz12 * schwartz[s3 + s4*nShell]) < 
+             threshSchwartz) { nSkip[thread_id]++; continue; }
+        }
+      
+
+#ifdef _FULL_DIRECT
+
+        // Degeneracy factor for s3,s4 pair
+        double s34_deg = (s3 == s4) ? 1.0 : 2.0;
+
+        // Degeneracy factor for s1, s2, s3, s4 quartet
+        double s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
+
+        // Total degeneracy factor
+        double s1234_deg = s12_deg * s34_deg * s12_34_deg;
+
+#endif
+
+#if 1
+        // Evaluate ERI for shell quartet (s1 s2 | s3 s4)
+        engine.compute2<
+          libint2::Operator::coulomb, libint2::BraKet::xx_xx, 0>(
+          basisSet_.shells[s1],
+          basisSet_.shells[s2],
+          basisSet_.shells[s3],
+          basisSet_.shells[s4]
+#ifdef _PRECOMPUTE_SHELL_PAIRS
+          ,sigPair12,sigPair34
+#endif
+        );
+#endif
+
+        // Libint2 internal screening
+        const double *buff = buf_vec[0];
+
+        if(buff == nullptr) { nSkip[thread_id]++; continue; }
+
+#ifdef _FULL_DIRECT
+
+// Flag to turn contraction on and off
+#if 1
+        // Scale the buffer by the degeneracy factor and store
+        // in infBuffer
+        std::transform(buff,buff + n1*n2*n3*n4,intBuffer_loc,
+          std::bind1st(std::multiplies<double>(),0.5*s1234_deg));
+
+        size_t b1,b2,b3,b4;
+        double *Xp1, *Xp2;
+        double X1,X2;
+        MatsT      T1,T2,T3,T4;
+        MatsT      *Tp1,*Tp2;
+
+        for(auto iMat = 0; iMat < nMat; iMat++) {
+          
+          // Hermetian contraction
+          if( matList[iMat].HER ) { 
+            if( matList[iMat].contType == COULOMB )
+            for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)      
+            for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++) { 
+              // Cache i,j variables
+              b1 = bf1 + nBasis*bf2; 
+              X1 = *reinterpret_cast<double*>(matList[iMat].X  + b1);
+              Xp1 = reinterpret_cast<double*>(AX_loc[iMat] + b1);
+            for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++) 
+            for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) { 
+
+              // J(1,2) += I * X(4,3)
+              *Xp1 += *GetRealPtr(matList[iMat].X,bf4,bf3,nBasis) * intBuffer_loc[ijkl];
+
+              // J(4,3) += I * X(1,2)
+              *GetRealPtr(AX_loc[iMat],bf4,bf3,nBasis) +=  X1 * intBuffer_loc[ijkl];
+
+              // J(2,1) and J(3,4) are handled on symmetrization after
+              // contraction
+            } // kl loop
+            } // ij loop
+
+            else if( matList[iMat].contType == EXCHANGE )
+            for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)      
+            for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++)       
+            for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++) {
+
+              // Cache i,j,k variables
+              b1 = bf1 + bf3*nBasis;
+              b2 = bf2 + bf3*nBasis;
+
+              T1 = 0.5 * SmartConj(matList[iMat].X[b1]);
+              T2 = 0.5 * SmartConj(matList[iMat].X[b2]);
+
+            for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) { 
+
+              // Indicies are swapped here to loop over contiguous memory
+                
+              // K(1,3) += 0.5 * I * X(2,4) = 0.5 * I * CONJ(X(4,2)) (**HER**)
+              AX_loc[iMat][b1]           += 0.5 * SmartConj(matList[iMat].X[bf4+nBasis*bf2]) * intBuffer_loc[ijkl];
+
+              // K(4,2) += 0.5 * I * X(3,1) = 0.5 * I * CONJ(X(1,3)) (**HER**)
+              AX_loc[iMat][bf4 + bf2*nBasis] += T1 * intBuffer_loc[ijkl];
+
+              // K(4,1) += 0.5 * I * X(3,2) = 0.5 * I * CONJ(X(2,3)) (**HER**)
+              AX_loc[iMat][bf4 + bf1*nBasis] += T2 * intBuffer_loc[ijkl];
+
+              // K(2,3) += 0.5 * I * X(1,4) = 0.5 * I * CONJ(X(4,1)) (**HER**)
+              AX_loc[iMat][b2]           += 0.5 * SmartConj(matList[iMat].X[bf4+nBasis*bf1]) * intBuffer_loc[ijkl];
+
+            } // l loop
+            } // ijk
+
+          // Nonhermetian contraction
+          } else {
+
+            if( matList[iMat].contType == COULOMB )
+            for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)      
+            for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++) { 
+              // Cache i,j variables
+              b1 = bf1 + nBasis*bf2; 
+              T1 = *(matList[iMat].X  + b1);
+              Tp1 = (AX_loc[iMat] + b1);
+
+              b2 = bf2 + nBasis*bf1; 
+              T2 = *(matList[iMat].X  + b2);
+              Tp2 = (AX_loc[iMat] + b2);
+            for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++) 
+            for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) { 
+
+              // J(1,2) += I * X(4,3)
+              *Tp1 += 0.5*( matList[iMat].X[bf4 + bf3*nBasis] + matList[iMat].X[bf3 + bf4*nBasis]) * intBuffer_loc[ijkl];
+
+              // J(3,4) += I * X(2,1)
+              AX_loc[iMat][bf3 + bf4*nBasis] +=  0.5*(T2+T1) * intBuffer_loc[ijkl];
+
+              // J(2,1) += I * X(3,4)
+              *Tp2 += 0.5*( matList[iMat].X[bf4 + bf3*nBasis] + matList[iMat].X[bf3 + bf4*nBasis]) * intBuffer_loc[ijkl];
+
+              // J(4,3) += I * X(1,2)
+              AX_loc[iMat][bf4 + bf3*nBasis] +=  0.5*(T2+T1) * intBuffer_loc[ijkl];
+
+            } // kl loop
+            } // ij loop
+
+            else if( matList[iMat].contType == EXCHANGE )
+            for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)      
+            for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++)       
+            for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++) {
+
+              // Cache i,j,k variables
+              b1 = bf1 + bf3*nBasis;
+              b2 = bf2 + bf3*nBasis;
+
+              T1 = 0.5 * matList[iMat].X[b1];
+              T2 = 0.5 * matList[iMat].X[b2];
+
+              b3 = bf3 + bf1*nBasis;
+              b4 = bf3 + bf2*nBasis;
+
+              T3 = 0.5 * matList[iMat].X[b3];
+              T4 = 0.5 * matList[iMat].X[b4];
+            for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) { 
+
+              // K(3,1) += 0.5 * I * X(4,2)
+              AX_loc[iMat][b3]           += 0.5 * matList[iMat].X[bf4+nBasis*bf2] * intBuffer_loc[ijkl];
+
+              // K(4,2) += 0.5 * I * X(3,1)
+              AX_loc[iMat][bf4 + bf2*nBasis] += T3 * intBuffer_loc[ijkl];
+ 
+              // K(4,1) += 0.5 * I * X(3,2)
+              AX_loc[iMat][bf4 + bf1*nBasis] += T4 * intBuffer_loc[ijkl];
+
+              // K(3,2) += 0.5 * I * X(4,1)
+              AX_loc[iMat][b4]           += 0.5 * matList[iMat].X[bf4+nBasis*bf1] * intBuffer_loc[ijkl];
+
+              // K(1,3) += 0.5 * I * X(2,4)
+              AX_loc[iMat][b1]           += 0.5 * matList[iMat].X[bf2+nBasis*bf4] * intBuffer_loc[ijkl];
+
+              // K(2,4) += 0.5 * I * X(1,3)
+              AX_loc[iMat][bf2 + bf4*nBasis] += T1 * intBuffer_loc[ijkl];
+ 
+              // K(1,4) += 0.5 * I * X(2,3)
+              AX_loc[iMat][bf1 + bf4*nBasis] += T2 * intBuffer_loc[ijkl];
+
+              // K(2,3) += 0.5 * I * X(1,4)
+              AX_loc[iMat][b2]           += 0.5 * matList[iMat].X[bf1+nBasis*bf4] * intBuffer_loc[ijkl];
+
+            } // l loop
+            } // ijk
+
+          } // Symmetry check
+
+        } // iMat loop
+
+#endif
+
+#endif
+
+      } // loop s4
+      } // loop s3
+
+    }; // s2
+    }; // s1
+
+
+    }; // OpenMP context
+
+
+#ifdef _REPORT_INTEGRAL_TIMINGS
+    size_t nIntSkip = std::accumulate(nSkip.begin(),nSkip.end(),0);
+    std::cout << "New Screened " << nIntSkip << std::endl;
+
+    auto durDirect = tock(topDirect);
+    std::cout << "New Direct Contraction took " <<  durDirect << " s\n"; 
+
+    std::cout << std::endl;
+#endif
+
+
+#ifdef _FULL_DIRECT
+
+    MatsT* SCR = this->memManager_.template malloc<MatsT>(nSQ_);
+    for( auto iMat = 0; iMat < nMat;  iMat++ ) 
+    for( auto iTh  = 0; iTh < nThreads; iTh++) {
+  
+    //prettyPrintSmart(std::cerr,"AX " + std::to_string(iMat) + " " + std::to_string(iTh),
+    //  AXthreads[iTh][iMat],nBasis,nBasis,nBasis);
+
+      if( matList[iMat].HER ) {
+
+        MatAdd('N','C',nBasis,nBasis,MatsT(0.5),AXthreads[iTh][iMat],nBasis,MatsT(0.5),
+          AXthreads[iTh][iMat],nBasis,SCR,nBasis);
+
+        if( nThreads != 1 )
+          MatAdd('N','N',nBasis,nBasis,MatsT(1.),SCR,nBasis,MatsT(1.), matList[iMat].AX,nBasis,matList[iMat].AX,nBasis);
+        else
+          SetMat('N',nBasis,nBasis,MatsT(1.),SCR,nBasis,matList[iMat].AX,nBasis);
+
+      } else {
+
+        if( nThreads != 1 )
+          MatAdd('N','N',nBasis,nBasis,MatsT(0.5),AXthreads[iTh][iMat],nBasis,
+            MatsT(1.), matList[iMat].AX,nBasis,matList[iMat].AX,nBasis);
+        else 
+          Scale(nBasis*nBasis,MatsT(0.5),matList[iMat].AX,1);
+
+
+      //std::transform(AXthreads[iTh][iMat], AXthreads[iTh][iMat] + nBasis*nBasis, 
+      //  matList[iMat].AX, []( G x ) -> G { return x / 4.; } );
+      }
+
+    };
+    this->memManager_.free(SCR);
+    
+#else
+
+    for( auto &C : matList ) {
+
+      // Symmetrize J contraction
+      if( C.contType == COULOMB ) 
+        HerMat('L',nBasis,C.AX,nBasis);
+  
+      // Inplace transpose of K contraction
+      if( C.contType == EXCHANGE ) 
+        IMatCopy('C',nBasis,nBasis,MatsT(1.),C.AX,nBasis,nBasis);
+
+    } // Loop over contractions
+
+#endif
+
+
+#ifdef CQ_ENABLE_MPI
+    // Combine all G[X] contributions onto Root process
+    if( mpiSize > 1 ) {
+
+      // FIXME: This should be able to be done with MPI_IN_PLACE for
+      // the root process
+        
+      MatsT* mpiScr;
+      if( mpiRank == 0 ) mpiScr = memManager_.malloc<MatsT>(nBasis*nBasis);
+
+      for( auto &C : matList ) {
+//      prettyPrintSmart(std::cerr,"AX in Direct",C.AX,nBasis,nBasis,nBasis);
+
+        mxx::reduce( C.AX, nBasis*nBasis, mpiScr, 0, std::plus<MatsT>(), comm );
+
+        // Copy over the output buffer on root
+        if( mpiRank == 0 ) std::copy_n(mpiScr,nBasis*nBasis,C.AX);
+
+      }
+
+      if( mpiRank == 0 ) memManager_.free(mpiScr);
+
+    }
+
+#endif
+
+    // Free scratch space
+    memManager_.free(intBuffer);
+#ifdef _SHZ_SCREEN
+    memManager_.free(ShBlkNorms_raw);
+#endif
+    if(AXRaw != nullptr) memManager_.free(AXRaw);
+
+    // Turn threads for LA back on
+    SetLAThreads(LAThreads);
+
+  }
 
 }; // namespace ChronusQ
 

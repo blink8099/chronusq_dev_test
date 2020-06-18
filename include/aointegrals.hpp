@@ -123,7 +123,6 @@ namespace ChronusQ {
     CONTRACTION_ALGORITHM contrAlg = DIRECT;///< Alg for 2-body contraction
 
     double threshSchwartz = 1e-12; ///< Schwartz screening threshold
-
     
     SafeFile savFile; ///< Hard storage of integrals
 
@@ -141,8 +140,8 @@ namespace ChronusQ {
      *  \param [in] mol        Molecule object for molecular specification
      *  \param [in] basis      The GTO basis for integral evaluation
      */
-    AOIntegralsBase(CQMemManager &mem, Molecule &mol, BasisSet &basis) :
-      memManager_(mem), molecule_(mol), basisSet_(basis) {
+    AOIntegralsBase(CQMemManager &mem, Molecule &mol, BasisSet &basis, BasisSet *dfbasis=nullptr) :
+      memManager_(mem), molecule_(mol), basisSet_(basis){
 
       nTT_  = basis.nBasis * ( basis.nBasis + 1 ) / 2;
       nSQ_  = basis.nBasis * basis.nBasis;
@@ -167,18 +166,16 @@ namespace ChronusQ {
   };
 
 
-
-
-
-
-
   /**
    *  \brief Templated class to handle the evaluation and storage of 
    *  integral matrices representing quantum mechanical operators in
    *  a finite basis set.
    *
    *  Templated over storage type (IntsT) to allow for a seamless
-   *  interface to both GTO and GIAO basis sets.
+   *  interface to both real- and complex-valued basis sets 
+   *  (e.g., GTO and GIAO)
+   *
+   *  Real-valued arithmetics are kept in AOIntegrals
    */
   template <typename IntsT>
   class AOIntegrals : public AOIntegralsBase {
@@ -191,22 +188,16 @@ namespace ChronusQ {
     // General wrapper for 1-e integrals
     // See src/aointegrals/aointegrals_onee_drivers.cxx for documentation
     std::vector<IntsT*> OneEDriverLibint(libint2::Operator,std::vector<libint2::Shell>&);
-
-    // 1-e builders for in-house integral code
-    template <size_t NOPER, bool SYMM, typename F>
-    std::vector<IntsT*> OneEDriverLocal(const F&,std::vector<libint2::Shell>&);
     template <size_t NOPER, bool SYMM, typename F>
     std::vector<IntsT*> OneEDriverLocalGTO(const F&,std::vector<libint2::Shell>&);
-    template <size_t NOPER, bool SYMM, typename F>
-    std::vector<IntsT*> OneEDriverLocalGIAO(const F&,std::vector<libint2::Shell>&);
 
     public:
 
-    double* schwartz = nullptr; ///< Schwartz bounds for the ERIs
+    double* schwartz = nullptr;   ///< Schwartz bounds for the ERIs
 
     oper_t overlap   = nullptr;   ///< Overlap matrix 
     oper_t kinetic   = nullptr;   ///< Kinetic matrix 
-    oper_t potential = nullptr; ///< Nuclear potential matrix 
+    oper_t potential = nullptr;   ///< Nuclear potential matrix 
 
     oper_t_coll lenElecDipole;     ///< Electric Dipole matrix     (length)
     oper_t_coll lenElecQuadrupole; ///< Electric Quadrupole matrix (length)
@@ -223,8 +214,14 @@ namespace ChronusQ {
     oper_t       PVdotP = nullptr;
     oper_t_coll  PVcrossP;  
 
+    oper_t_coll  rVr;     
+    oper_t_coll  PVrprVP; 
+    oper_t_coll  PVrmrVP; 
+    // These three are used in GIAO X2C 
+
     // 2-e Storage
-    oper_t ERI = nullptr;    ///< Electron-Electron repulsion integrals (4 index) 
+    oper_t ERI = nullptr;    ///< Electron-Electron repulsion integrals (4 index)
+    oper_t ERISOC = nullptr; // HBL 4C: 2e integral SOC (S,X,Y,Z) by 4 index.
 
     // Constructors
     
@@ -280,13 +277,11 @@ namespace ChronusQ {
     // Integral evaluation
     // (see src/aointegrals/aointegrals_onee/twoe_drivers.cxx for docs)
 
-    void computeAOOneE(EMPerturbation&,OneETerms&);     // Evaluate the 1-e ints (general)
+    virtual void computeAOOneE(EMPerturbation&,OneETerms&);     // Evaluate the 1-e ints (general)
     void computeAOOneEGTO(OneETerms&);                  // Evaluate the 1-e ints in the CGTO basis
-    void computeAOOneEGIAO(EMPerturbation&,OneETerms&); // Evaluate the 1-e ints in the GIAO basis
 
-    void computeERI(EMPerturbation&);                   // Evaluate ERIs (general)
+    virtual void computeERI(EMPerturbation&);                   // Evaluate ERIs (general)
     void computeERIGTO();                               // Evaluate ERIs in the CGTO basis
-    void computeERIGIAO(EMPerturbation&);               // Evaluate ERIs in the GIAO basis
     void computeSchwartz();                             // Evaluate schwartz bounds (currently implemented for CGTOs 
 
 
@@ -300,11 +295,11 @@ namespace ChronusQ {
      *
      *  \param [in/ont] contList List of one body operators for contraction.
      */ 
-    template <typename TT>
+    template <typename MatsT>
     void twoBodyContract(
         MPI_Comm comm,
         const bool screen,
-        std::vector<TwoBodyContraction<TT>> &contList, 
+        std::vector<TwoBodyContraction<MatsT>> &contList, 
         EMPerturbation &pert) {
 
       if( contrAlg == INCORE ) twoBodyContractIncore(comm,contList);
@@ -312,11 +307,11 @@ namespace ChronusQ {
         twoBodyContractDirect(comm,screen,contList,pert);
 
     };
-    template <typename TT>
+    template <typename MatsT>
     void twoBodyContract(
         MPI_Comm comm,
         const bool screen,
-        std::vector<TwoBodyContraction<TT>> &contList) { 
+        std::vector<TwoBodyContraction<MatsT>> &contList) { 
 
       EMPerturbation pert;
       twoBodyContract(comm,screen,contList,pert);
@@ -324,22 +319,65 @@ namespace ChronusQ {
 
     };
     
-    template <typename TT>
+    template <typename MatsT>
     inline void twoBodyContract(
         MPI_Comm comm, 
-        std::vector<TwoBodyContraction<TT>> &contList, 
+        std::vector<TwoBodyContraction<MatsT>> &contList, 
         EMPerturbation &pert) {
 
       twoBodyContract(comm,true,contList,pert);
 
     }
 
-    template <typename TT>
+    template <typename MatsT>
     inline void twoBodyContract(
         MPI_Comm comm, 
-        std::vector<TwoBodyContraction<TT>> &contList) { 
+        std::vector<TwoBodyContraction<MatsT>> &contList) { 
 
       twoBodyContract(comm,true,contList);
+
+    }
+
+    template <typename MatsT>
+    void twoBodyContractSOC(
+        MPI_Comm comm,
+        const bool screen,
+        std::vector<TwoBodyContraction<MatsT>> &contList, 
+        EMPerturbation &pert) {
+
+      if( contrAlg == INCORE ) twoBodyContractSOCIncore(comm,contList);
+      else if( contrAlg == DIRECT ) 
+        twoBodyContractDirect(comm,screen,contList,pert);
+
+    };
+    template <typename MatsT>
+    void twoBodyContractSOC(
+        MPI_Comm comm,
+        const bool screen,
+        std::vector<TwoBodyContraction<MatsT>> &contList) { 
+
+      EMPerturbation pert;
+      twoBodyContractSOC(comm,screen,contList,pert);
+
+
+    };
+    
+    template <typename MatsT>
+    inline void twoBodyContractSOC(
+        MPI_Comm comm, 
+        std::vector<TwoBodyContraction<MatsT>> &contList, 
+        EMPerturbation &pert) {
+
+      twoBodyContractSOC(comm,true,contList,pert);
+
+    }
+
+    template <typename MatsT>
+    inline void twoBodyContractSOC(
+        MPI_Comm comm, 
+        std::vector<TwoBodyContraction<MatsT>> &contList) { 
+
+      twoBodyContractSOC(comm,true,contList);
 
     }
 
@@ -347,14 +385,20 @@ namespace ChronusQ {
     // Perform the two body contraction incore (using the rank-4 ERI tensor)
     // see include/aointegrals/contract/incore.hpp for docs.
       
-    template <typename TT>
-    void twoBodyContractIncore(MPI_Comm, std::vector<TwoBodyContraction<TT>>&);
+    template <typename MatsT>
+    void twoBodyContractIncore(MPI_Comm, std::vector<TwoBodyContraction<MatsT>>&);
+    template <typename MatsT>
+    void twoBodyContractSOCIncore(MPI_Comm, std::vector<TwoBodyContraction<MatsT>>&);
 
-    template <typename TT>
-    void JContractIncore(MPI_Comm, TwoBodyContraction<TT> &);
+    template <typename MatsT>
+    void JContractIncore(MPI_Comm, TwoBodyContraction<MatsT> &);
+    template <typename MatsT>
+    void JContractSOCIncore(MPI_Comm, TwoBodyContraction<MatsT> &);
 
-    template <typename TT>
-    void KContractIncore(MPI_Comm, TwoBodyContraction<TT> &);
+    template <typename MatsT>
+    void KContractIncore(MPI_Comm, TwoBodyContraction<MatsT> &);
+    template <typename MatsT>
+    void KContractSOCIncore(MPI_Comm, TwoBodyContraction<MatsT> &);
 
 
 
@@ -362,37 +406,43 @@ namespace ChronusQ {
     // Perform the two body contraction directly
     // see include/aointegrals/contract/direct.hpp for docs.
       
-    template <typename TT>
+    template <typename MatsT>
     void twoBodyContractDirect(
         MPI_Comm,
         const bool,
-        std::vector<TwoBodyContraction<TT>>&, 
+        std::vector<TwoBodyContraction<MatsT>>&, 
         EMPerturbation &pert);
 
-    template <typename TT>
+    template <typename MatsT>
     void directScaffold(
         MPI_Comm,
         const bool,
-        std::vector<TwoBodyContraction<TT>>&);
+        std::vector<TwoBodyContraction<MatsT>>&);
 
-    template <typename TT>
+    template <typename MatsT>
+    void directScaffoldNew(
+        MPI_Comm,
+        const bool,
+        std::vector<TwoBodyContraction<MatsT>>&);
+
+    template <typename MatsT>
     void directScaffold(
         MPI_Comm,
         const bool,
-        std::vector<TwoBodyContraction<TT>>&, 
+        std::vector<TwoBodyContraction<MatsT>>&, 
         EMPerturbation &pert);
 
-    template <typename TT>
+    template <typename MatsT>
     void JContractDirect(
         MPI_Comm,
         const bool,
-        TwoBodyContraction<TT> &);
+        TwoBodyContraction<MatsT> &);
 
-    template <typename TT>
+    template <typename MatsT>
     void KContractDirect(
         MPI_Comm,
         const bool,
-        TwoBodyContraction<TT> &);
+        TwoBodyContraction<MatsT> &);
 
 
     
@@ -405,3 +455,4 @@ namespace ChronusQ {
 
 }; // namespace ChronusQ
 
+#include <aointegrals/giaointegrals.hpp> 

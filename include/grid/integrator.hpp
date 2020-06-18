@@ -48,7 +48,7 @@ using cart_t = std::array<double,3>;
 namespace ChronusQ {
 
   /**
-   *  Public function used in the SphereINtegrator (and so in the BeckeIntegrator) 
+   *  Public function used in the SphereIntegrator (and so in the BeckeIntegrator) 
    *  the function to be integrated needs to get as arguments the res, the batch of points, 
    *  batch of weights, and an arbitrary number of arguments
    */
@@ -550,7 +550,7 @@ namespace ChronusQ {
           for(size_t jCenter = 0; jCenter < molecule_.nAtoms; jCenter++){
             if(iCenter == jCenter) continue;
             double RB = R[jCenter + iPt*molecule_.nAtoms];
-            double mu = (RA - RB) / (molecule_.RIJ[iCenter][jCenter]);
+            double mu = (RA - RB) / (this->molecule_.RIJ[iCenter][jCenter]);
             partitionScratch[iCenter] *= 0.5 * (1.0 - gBecke(mu)); //Eq. 21
           }
 
@@ -570,6 +570,125 @@ namespace ChronusQ {
       return weightMax;
 
     }; // evalPartitionWeights
+
+
+    double RAB(size_t aCenter, size_t bCenter) {
+
+      double abDistance = 0.0;
+      cart_t rA({0.,0.,0.});
+
+      rA[0] = this->molecule_.atoms[aCenter].coord[0]  - this->molecule_.atoms[bCenter].coord[0];
+      rA[1] = this->molecule_.atoms[aCenter].coord[1]  - this->molecule_.atoms[bCenter].coord[1];
+      rA[2] = this->molecule_.atoms[bCenter].coord[2]  - this->molecule_.atoms[bCenter].coord[2];
+
+      abDistance = std::sqrt(rA[0]*rA[0] +rA[1]*rA[1] + rA[2]*rA[2]);
+
+      return abDistance;
+
+    }; // RAB
+
+    void evalFrischPartitionWeights(
+      const size_t                            iCurrent,
+      const std::vector<std::array<double,3>> &points,
+      std::vector<double>                     &weights 
+    ) {
+
+      size_t nAtoms = this->molecule_.nAtoms;
+      const double magic_ssf_factor = 0.64;
+      auto hFrisch = [&](double x) {
+#if 1
+        const double s_x  = x / magic_ssf_factor;
+        const double s_x2 = s_x  * s_x;
+        const double s_x3 = s_x  * s_x2;
+        const double s_x5 = s_x3 * s_x2;
+        const double s_x7 = s_x5 * s_x2;
+
+        return (35.*(s_x - s_x3) + 21.*s_x5 - 5.*s_x7) / 16.;
+#else
+        const double s_x = x / magic_ssf_factor;
+
+        return ( 35. * ( s_x - std::pow(s_x,3) ) + 21. * std::pow(s_x,5) -
+             5.  * std::pow(s_x, 7) ) / 16.;
+#endif
+      };
+
+
+      //auto gFrisch = [&](double x){ return hFrisch(hFrisch(hFrisch(x))); };
+      auto gFrisch = [&](double x){ return hFrisch(x); };
+
+      std::vector<double> partitionScratch(nAtoms);
+      std::vector<double> atomsDist(nAtoms);
+
+      // Find nearest neighbor
+      size_t iClosest;
+      double cur_dist = std::numeric_limits<double>::infinity();
+      for( auto iCenter = 0; iCenter < nAtoms; ++iCenter )
+      if( iCenter != iCurrent and this->molecule_.RIJ[iCenter][iCurrent] < cur_dist ) {
+        iClosest = iCenter;
+        cur_dist = this->molecule_.RIJ[iCenter][iCurrent];
+      }
+
+      const double dist_cutoff = 0.5 * (1-magic_ssf_factor) * cur_dist;
+
+      double weightMax = 0.0;
+      for(size_t iPt = 0; iPt < weights.size(); iPt++){ 
+
+        const double da_x_cur = points[iPt][0] - this->molecule_.atoms[iCurrent].coord[0];
+        const double da_y_cur = points[iPt][1] - this->molecule_.atoms[iCurrent].coord[1];
+        const double da_z_cur = points[iPt][2] - this->molecule_.atoms[iCurrent].coord[2];
+
+        atomsDist[iCurrent] = 
+          std::sqrt(da_x_cur*da_x_cur + da_y_cur*da_y_cur + da_z_cur*da_z_cur);
+
+        if( atomsDist[iCurrent] < dist_cutoff ) continue; // Partition weight = 1
+
+        // Compute distances of each center to point
+        for(size_t iCenter = 0; iCenter < nAtoms; iCenter++) {
+
+          if( iCenter == iCurrent ) continue;
+
+          const double da_x = points[iPt][0] - this->molecule_.atoms[iCenter].coord[0];
+          const double da_y = points[iPt][1] - this->molecule_.atoms[iCenter].coord[1];
+          const double da_z = points[iPt][2] - this->molecule_.atoms[iCenter].coord[2];
+
+          atomsDist[iCenter] = std::sqrt(da_x*da_x + da_y*da_y + da_z*da_z);
+
+        }
+
+        std::fill(partitionScratch.begin(),partitionScratch.end(),1.);
+        for(size_t iCenter = 0; iCenter < nAtoms; iCenter++) {
+
+        for(size_t jCenter = 0; jCenter < iCenter; jCenter++){
+
+          //if( partitionScratch[iCenter] <= 0. and partitionScratch[jCenter] <= 0. ) continue;
+
+          const double mu = (atomsDist[iCenter] - atomsDist[jCenter]) / 
+                            this->molecule_.RIJ[iCenter][jCenter];
+
+          if( mu <= -magic_ssf_factor ) {
+            partitionScratch[jCenter] = 0.;
+          } else if (mu >= magic_ssf_factor) {
+            partitionScratch[iCenter] = 0.;
+          } else {
+            double g = 0.5 * ( 1. - gFrisch(mu) );
+            partitionScratch[iCenter] *= g;
+            partitionScratch[jCenter] *= 1. - g;
+          }
+
+        }
+        }
+
+        // Normalization
+        double sum = 0.0;
+        for(size_t iCenter = 0; iCenter < nAtoms; iCenter++)
+          sum += partitionScratch[iCenter];
+
+        // Updating weights
+        weights[iPt] *= partitionScratch[iCurrent] / sum;
+        weightMax = std::max(weightMax, weights[iPt]);
+
+      } // loop iPt
+    }
 
   /**
    *  \brief Evaluate the squared distances for all cart_t points in the batchPt 
@@ -807,7 +926,17 @@ namespace ChronusQ {
 #endif
 
         // Modify weight according Becke scheme, get max weight
+#if 1
         auto maxWeight = evalPartitionWeights(iAtm,cenR_loc,weights); 
+#if INT_DEBUG_LEVEL < 3
+        if (std::abs(maxWeight) < epsilon) {
+          //std::cerr << "batch screened" << std::endl;
+          return;
+        }
+#endif
+#else
+	evalFrischPartitionWeights(iAtm,batch,weights);
+#endif
 
 #if INT_DEBUG_LEVEL >= 1
         // Timing
@@ -815,12 +944,6 @@ namespace ChronusQ {
         durWeight += botWeight - topWeight;
 #endif
 
-#if INT_DEBUG_LEVEL < 3
-         if (std::abs(maxWeight) < epsilon) {
-           //std::cerr << "batch screened" << std::endl;
-           return;
-         }
-#endif
 
 
 #if INT_DEBUG_LEVEL >= 1

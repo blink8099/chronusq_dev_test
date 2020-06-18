@@ -33,6 +33,14 @@
 
 namespace ChronusQ {
 
+    // Indexmap
+    int indexmap(int, int, int, int);
+
+    double * cross(double*, double*);
+    int * cross(int*, int*);
+    double dot(double*, double*);
+    int dot(int*, int*);
+
   struct RealGTOIntEngine {
     // overlap integral of a shell pair  
     static std::vector<std::vector<double>> computeOverlapS(libint2::ShellPair&,
@@ -41,6 +49,15 @@ namespace ChronusQ {
     // horizontal recursion of contracted overlap integral 
     static double hRRSab(libint2::ShellPair&, libint2::Shell&,libint2::Shell&,
                   int,int*,int,int*);
+
+    
+    static double Overlapformula(int*, int*, libint2::ShellPair&,libint2::Shell&,libint2::Shell&);
+
+    static double f_k(int, int, int*, int*, libint2::ShellPair::PrimPairData&,libint2::Shell&,libint2::Shell&);
+
+    static double I_w(int, int*, int*, libint2::ShellPair::PrimPairData&,libint2::Shell&,libint2::Shell&);
+
+    static double unconoverlap(int*, int*, libint2::ShellPair::PrimPairData&,libint2::Shell&,libint2::Shell&);
 
     // horizontal recursion of uncontracted overlap integral
     static double hRRiPPSab(libint2::ShellPair::PrimPairData&,libint2::Shell&,libint2::Shell&,
@@ -213,6 +230,18 @@ namespace ChronusQ {
 
     /* ERI Integrals */
 
+    // Bottumup HGP
+    static std::vector<double> BottomupHGP( 
+      libint2::ShellPair &, libint2::ShellPair &, 
+      libint2::Shell &, libint2::Shell &,
+      libint2::Shell &, libint2::Shell &);
+
+    // HBL 4C:  Bottomup HGP for 2e SOC ERI
+    static std::vector<std::vector<double>> BottomupHGP_TwoESP( 
+      libint2::ShellPair &, libint2::ShellPair &, 
+      libint2::Shell &, libint2::Shell &,
+      libint2::Shell &, libint2::Shell &);
+
     // compute ERI of shell pair 1 and 2
     static std::vector<double> computeERIabcd(libint2::ShellPair&,libint2::ShellPair&,
       libint2::Shell&,libint2::Shell&,libint2::Shell&,libint2::Shell&);
@@ -273,6 +302,10 @@ namespace ChronusQ {
 
     // complex overlap vertical recursion for uncontracted case
     static dcomplex compvRRSa0(libint2::ShellPair::PrimPairData&, libint2::Shell&, double*, 
+      dcomplex, int, int* );
+
+    // complex overlap vertical recursion for uncontracted case
+    static dcomplex compvRRS0b(libint2::ShellPair::PrimPairData&, libint2::Shell&, double*, 
       dcomplex, int, int* );
 
     // compute a shell pair of GIAO Kinetic integral
@@ -344,6 +377,125 @@ namespace ChronusQ {
     static dcomplex compvRRVa0( const std::vector<libint2::Shell>&,
       libint2::ShellPair::PrimPairData&, libint2::Shell&, double*, dcomplex*, double*,
       int, int, int*, int);
+
+    // complex potential horizontal recursion for uncontracted case
+    static dcomplex comphRRiPPVab( const std::vector<libint2::Shell>&,
+      libint2::ShellPair::PrimPairData&, libint2::Shell&, 
+      libint2::Shell&, double*, dcomplex, int, int*, int, int*, int, int, const Molecule&); 
+
+    // complex potential vertical recursion for uncontracted case
+    static dcomplex compvRRV0b( const std::vector<libint2::Shell>&,
+      libint2::ShellPair::PrimPairData&, libint2::Shell&, double*, dcomplex*, double*,
+      int, int, int*, int);
+
+    /* Complex Spin-Orbit Integrals */
+
+    // spin orbit integrals of a shell pair  
+    static std::vector<std::vector<dcomplex>> computeGIAOSL( 
+      const std::vector<libint2::Shell>&, libint2::ShellPair&, libint2::Shell&, 
+      libint2::Shell&, double*, const Molecule& ); 
+  
+    static inline std::vector<std::vector<dcomplex>> computeGIAOSL( 
+      libint2::ShellPair &pair, libint2::Shell &s1, libint2::Shell &s2, double* H, 
+      const Molecule& mol ) {
+      
+      std::vector<libint2::Shell> dummy;   
+      return computeGIAOSL(dummy,pair,s1,s2,H,mol);
+
+    }  
+
+    // calculate spin orbit integral for an element
+    static dcomplex compSLabmu(const std::vector<libint2::Shell>&, 
+      libint2::ShellPair::PrimPairData&, libint2::Shell&, libint2::Shell&, double*, 
+      double*, dcomplex, int, int*, int, int*, int, int, const Molecule& );   
+
+
+    /* GIAO pV dot p Integrals */ 
+
+    // spin free integrals of a shell pair  
+    static std::vector<std::vector<dcomplex>> computeGIAOpVdotp( 
+      const std::vector<libint2::Shell>&, libint2::ShellPair&, libint2::Shell&, 
+      libint2::Shell&, double*, const Molecule& ); 
+  
+    static inline std::vector<std::vector<dcomplex>> computeGIAOpVdotp( 
+      libint2::ShellPair &pair, libint2::Shell &s1, libint2::Shell &s2, double* H, 
+      const Molecule& mol ) {
+      
+      std::vector<libint2::Shell> dummy;   
+      return computeGIAOpVdotp(dummy,pair,s1,s2,H,mol);
+
+    }  
+
+    // calculate spin free integral for an element
+    static dcomplex comppVpab(const std::vector<libint2::Shell>&, 
+      libint2::ShellPair::PrimPairData&, libint2::Shell&, libint2::Shell&, double*, 
+      double*, dcomplex, int, int*, int, int*, int, const Molecule& );   
+
+    /* GIAO X2C integrals */
+    static std::vector<std::vector<dcomplex>> computeGIAOrVr(
+      const std::vector<libint2::Shell>&, libint2::ShellPair&, libint2::Shell&, 
+      libint2::Shell&, double*, const Molecule& ); 
+      
+    static inline std::vector<std::vector<dcomplex>> computeGIAOrVrp( 
+      libint2::ShellPair &pair, libint2::Shell &s1, libint2::Shell &s2, double* H, 
+      const Molecule& mol ) {
+      
+      std::vector<libint2::Shell> dummy;   
+      return computeGIAOrVr(dummy,pair,s1,s2,H,mol);
+
+    }  
+
+    // complex rVr integral for contracted case
+    static dcomplex comprVr( const std::vector<libint2::Shell>&,
+      libint2::ShellPair&, libint2::Shell&, 
+      libint2::Shell&, double*, std::vector<dcomplex>&, int, int*, int, int*, 
+      int, int, const Molecule&); 
+
+
+
+    // pVr + rVp integrals of a shell pair  
+    static std::vector<std::vector<dcomplex>> computeGIAOpVrprVp( 
+      const std::vector<libint2::Shell>&, libint2::ShellPair&, libint2::Shell&, 
+      libint2::Shell&, double*, const Molecule& ); 
+  
+    static inline std::vector<std::vector<dcomplex>> computeGIAOpVrprVp( 
+      libint2::ShellPair &pair, libint2::Shell &s1, libint2::Shell &s2, double* H, 
+      const Molecule& mol ) {
+      
+      std::vector<libint2::Shell> dummy;   
+      return computeGIAOpVrprVp(dummy,pair,s1,s2,H,mol);
+
+    }  
+
+    // calculate pVr + rVp integral for an element in uncontracted case 
+    static dcomplex comppVrprVp(const std::vector<libint2::Shell>&, 
+      libint2::ShellPair::PrimPairData&, libint2::Shell&, libint2::Shell&, double*, 
+      double*, dcomplex, int, int*, int, int*, int, int, int, const Molecule& );   
+
+
+    // pVr - rVp integrals of a shell pair  
+    static std::vector<std::vector<dcomplex>> computeGIAOpVrmrVp( 
+      const std::vector<libint2::Shell>&, libint2::ShellPair&, libint2::Shell&, 
+      libint2::Shell&, double*, const Molecule& ); 
+  
+    static inline std::vector<std::vector<dcomplex>> computeGIAOpVrmrVp( 
+      libint2::ShellPair &pair, libint2::Shell &s1, libint2::Shell &s2, double* H, 
+      const Molecule& mol ) {
+      
+      std::vector<libint2::Shell> dummy;   
+      return computeGIAOpVrmrVp(dummy,pair,s1,s2,H,mol);
+
+    }  
+
+    // calculate pVr - rVp integral for an element in uncontracted case 
+    static dcomplex comppVrmrVp(const std::vector<libint2::Shell>&, 
+      libint2::ShellPair::PrimPairData&, libint2::Shell&, libint2::Shell&, double*, 
+      double*, dcomplex, int, int*, int, int*, int, int, int, const Molecule& );   
+
+
+
+
+
 
     /* GIAO ERI */
     
