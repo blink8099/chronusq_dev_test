@@ -29,6 +29,7 @@
 #include <util/matout.hpp>
 #include <cqlinalg/blas1.hpp>
 #include <cqlinalg/blas3.hpp>
+#include <algorithm>
 
 namespace ChronusQ {
 
@@ -97,12 +98,17 @@ namespace ChronusQ {
     nShell = shells.size();
 
     // Compute the number of Basis functions and primitives
-    std::tie(nBasis,nPrimitive) = std::accumulate(shells.begin(),shells.end(),
-      std::pair<size_t,size_t>{0,0},
-      [](std::pair<size_t,size_t> init, libint2::Shell &sh) ->
-         std::pair<size_t,size_t> {
-        return { init.first + sh.size(), 
-                 init.second + sh.size()*sh.alpha.size() };
+    nBasis = std::accumulate(shells.begin(),shells.end(),0,
+      [](size_t init, libint2::Shell &sh) -> size_t {
+        return init + sh.size();
+      }
+    );
+
+    // Uncontract Basis functions and get number of primitives
+    uncontractShells();
+    nPrimitive = std::accumulate(primitives.begin(),primitives.end(),0,
+      [](size_t init, auto &sh) -> size_t {
+        return init + sh.first.size();
       }
     );
 
@@ -235,29 +241,31 @@ namespace ChronusQ {
 
   }; // BasisSet::operator<<
 
-
   /**
    *  \brief Return the uncontracted shell set of the current
    *  contracted shell set
    */ 
-  std::vector<libint2::Shell> BasisSet::uncontractShells() {
+  void BasisSet::uncontractShells() {
 
-    std::vector<libint2::Shell> newShells;
+    primitives.clear();
 
-    for(auto &shell : shells) // Loop over shells
-    for(auto &a : shell.alpha) // Loop over primitives
-      newShells.push_back(
-        libint2::Shell{
-          { a },
-          { {shell.contr[0].l, shell.contr[0].pure, { 1.0 } } },
-          { { shell.O[0], shell.O[1], shell.O[2] } }
+    size_t count = 0;
+
+    for(auto &shell : shells) {// Loop over shells
+      for(auto &con : shell.contr) {// Loop over contractions
+        for(auto &a : shell.alpha) {// Loop over primitives
+          libint2::Shell newShell{
+            { a },
+            { { con.l, con.pure, { 1.0 } } },
+            { { shell.O[0], shell.O[1], shell.O[2] } }
+          };
+          if (primitives.find(newShell) == primitives.end()) {
+            primitives[newShell] = count;
+            count += newShell.size();
+          }
         }
-      );
-    
-
-
-    return newShells;
-
+      }
+    }
 
   }; // BasisSet::uncontractShells
 
@@ -268,7 +276,16 @@ namespace ChronusQ {
     // Copy basis
     BasisSet newBasis(*this);
 
-    newBasis.shells = this->uncontractShells();
+    newBasis.shells.clear();
+    for (const auto &prim : primitives) {
+      newBasis.shells.push_back(prim.first);
+    }
+
+    std::sort(newBasis.shells.begin(), newBasis.shells.end(),
+      [this](const libint2::Shell &a, const libint2::Shell &b)->bool {
+        return primitives[a] < primitives[b];
+    });
+
     newBasis.update();
 
     return newBasis;
@@ -284,17 +301,28 @@ namespace ChronusQ {
 
     double *rA = MAP;
 
+    size_t cumeNBf = 0;
     // Compute the unnormalized mapping
-    for(auto iSh = 0; iSh < nShell; iSh++) {
+    for(size_t iSh = 0; iSh < nShell; iSh++) {
 
+      size_t nContr= shells[iSh].contr.size();
       size_t nPrim = shells[iSh].alpha.size();
-      size_t nBf   = shells[iSh].size();
 
-      for(auto iP = 0ul; iP < nPrim; iP++)
-      for(auto iB = 0ul; iB < nBf;   iB++) 
-        rA[iB + (iP*nBf + iB)*nBasis] = unNormCont[iSh][iP];
-
-      rA += nPrim * nBf * nBasis + nBf;
+      for(size_t iC = 0; iC < nContr; iC++) {// Loop over contractions
+        size_t nBf   = shells[iSh].contr[iC].size();
+        for(size_t iP = 0; iP < nPrim; iP++) {// Loop over primitives
+          libint2::Shell prim{
+            { shells[iSh].alpha[iP] },
+            { {shells[iSh].contr[iC].l, shells[iSh].contr[iC].pure, { 1.0 } } },
+            { { shells[iSh].O[0], shells[iSh].O[1], shells[iSh].O[2] } }
+          };
+          size_t primIdx = primitives[prim];
+          for(size_t iB = 0; iB < nBf; iB++) {
+            MAP[cumeNBf+iB + (primIdx+iB)*nBasis] = unNormCont[iSh][iP];
+          }
+        }
+        cumeNBf += nBf;
+      }
 
     } // loop over shells
 

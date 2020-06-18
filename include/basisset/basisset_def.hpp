@@ -30,6 +30,8 @@
 
 #include <libint2/shell.h>
 
+#include <unordered_map>
+
 namespace ChronusQ {
 
   enum BASIS_FUNCTION_TYPE {
@@ -63,6 +65,31 @@ namespace ChronusQ {
 
   };
 
+  /**
+   *  \brief The PrimShellHash struct. Compute a Hash value for
+   *  a primitive shell.
+   *
+   *  Warning: does not distinguish contracted shells.
+   */
+  struct PrimShellHash
+  {
+    std::size_t operator()(libint2::Shell const& s) const noexcept
+    {
+      std::vector<size_t> hs{
+        std::hash<double>{}(s.alpha[0]),
+        std::hash<int>{}(s.contr[0].l),
+        std::hash<bool>{}(s.contr[0].pure),
+        std::hash<double>{}(s.O[0]),
+        std::hash<double>{}(s.O[1]),
+        std::hash<double>{}(s.O[2])
+      };
+      size_t h = 0;
+      for (size_t hi : hs)
+        h = hi ^ (h << 1);
+      return h;
+    }
+  };
+
 
   /**
    *  \brief The BasisSet struct. Contains information pertinant
@@ -94,6 +121,9 @@ namespace ChronusQ {
 
     std::vector<libint2::Shell> shells;    ///< Basis shells
     ShellPairData               shellData; ///< Shell pair data
+
+    std::unordered_map<libint2::Shell, size_t, PrimShellHash> primitives;
+      ///< Primitive shells
 
     std::vector<std::vector<double>> unNormCont;
       ///< Unnormalized basis coefficients
@@ -151,7 +181,7 @@ namespace ChronusQ {
 
     // Misc functions
       
-    std::vector<libint2::Shell> uncontractShells();
+    void uncontractShells();
     void makeMapPrim2Cont(double*, double*, CQMemManager&);
 
 
