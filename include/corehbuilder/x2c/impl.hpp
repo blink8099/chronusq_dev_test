@@ -47,7 +47,8 @@ namespace ChronusQ {
     CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
     molecule_(other.molecule_), basisSet_(other.basisSet_),
     uncontractedBasis_(other.uncontractedBasis_),
-    uncontractedInts_(other.uncontractedInts_) {
+    uncontractedInts_(other.uncontractedInts_),
+    nPrimUse_(other.nPrimUse_) {
 
     X2C_COLLECTIVE_OP(COPY_OTHER_MEMBER_OP, COPY_OTHER_MEMBER_VEC_OP)
 
@@ -58,7 +59,8 @@ namespace ChronusQ {
     CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
     molecule_(other.molecule_), basisSet_(other.basisSet_),
     uncontractedBasis_(other.uncontractedBasis_),
-    uncontractedInts_(other.uncontractedInts_) {
+    uncontractedInts_(other.uncontractedInts_),
+    nPrimUse_(other.nPrimUse_) {
 
     X2C_COLLECTIVE_OP(MOVE_OTHER_MEMBER_OP, MOVE_OTHER_MEMBER_VEC_OP)
 

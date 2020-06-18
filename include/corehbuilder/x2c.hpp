@@ -55,6 +55,7 @@ namespace ChronusQ {
     BasisSet           basisSet_;          ///< BasisSet for original basis defintion
     BasisSet           uncontractedBasis_; ///< BasisSet for uncontracted basis defintion
     AOIntegrals<IntsT> uncontractedInts_;  ///< AOIntegrals for uncontracted basis
+    size_t             nPrimUse_;          ///< Number of primitives used in p space
 
   public:
 
