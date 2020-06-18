@@ -24,6 +24,15 @@
 
 #include "scf.hpp"
 
+// Redudant primitive test with U^91+ one-electron system
+TEST( X2CHF, U_91_plus_defBasis ) {
+
+  CQSCFTEST( "scf/serial/x2c/U^91+_defBasis",
+    "U^91+_defBasis.bin.ref",1e-6,
+    false, false, false, false, false, true);
+
+};
+
 // Water 6-311+G(d,p) (Spherical) test
 TEST( X2CHF, Water_6311pGdp_sph ) {
 
