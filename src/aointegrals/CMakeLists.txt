@@ -22,11 +22,14 @@
 #
 add_library(aointegrals STATIC impl.cxx 
 aointegrals_onee_drivers.cxx
-aointegrals_onee_real_gto.cxx
-aointegrals_onee_complex_giao.cxx
+aointegrals_onee_engine.cxx
 aointegrals_twoe_drivers.cxx
-aointegrals_twoe_real_gto.cxx 
-aointegrals_twoe_complex_giao.cxx)
+aointegrals_twoe_engine.cxx 
+aointegrals_twoesp_gto.cxx
+giaointegrals_twoe_drivers.cxx
+giaointegrals_onee_drivers.cxx
+giaointegrals_onee_engine.cxx
+giaointegrals_twoe_engine.cxx)
 
 target_link_libraries( aointegrals PUBLIC ChronusQ::HDF5 )
 

@@ -48,7 +48,8 @@
     OP_VEC_OP(IntsT,this,other,memManager_,magQuadrupole); \
     \
     /* 2-e Integrals */ \
-    OP_OP(IntsT,this,other,memManager_,ERI)
+    OP_OP(IntsT,this,other,memManager_,ERI); \
+    OP_OP(IntsT,this,other,memManager_,ERISOC) // HBL 4C
 
 
 

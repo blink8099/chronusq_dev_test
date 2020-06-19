@@ -273,18 +273,25 @@ namespace ChronusQ {
       Molecule atom(0,defaultMultip,{ uniqueElements[iUn] });
       BasisSet basis(this->aoints.basisSet().basisName,
         this->aoints.basisSet().basisDef, this->aoints.basisSet().inputDef,
-        atom, REAL_GTO,this->aoints.basisSet().forceCart, false);
+        atom, this->aoints.basisSet().basisType, this->aoints.basisSet().forceCart, false);
      
-      AOIntegrals<IntsT> aointsAtom(this->memManager,atom,basis);
-      
-      aointsAtom.contrAlg = INCORE;
+      std::shared_ptr<AOIntegrals<IntsT>> aointsAtom = nullptr;
+
+      if(this->aoints.basisSet().basisType == REAL_GTO)
+        aointsAtom = std::make_shared<AOIntegrals<IntsT>>(this->memManager,atom,basis);
+      else if(this->aoints.basisSet().basisType == COMPLEX_GIAO)
+        aointsAtom = std::dynamic_pointer_cast<AOIntegrals<IntsT>>(
+            std::make_shared<GIAOIntegrals>(this->memManager,atom,basis));
+
+     
+      aointsAtom->contrAlg = INCORE;
 
       std::shared_ptr<SingleSlater<MatsT,IntsT>> ss;
       
   
       ss = std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>> (
              std::make_shared<HartreeFock<MatsT,IntsT>>(
-               rcomm,aointsAtom,1, ( defaultMultip == 1 )
+               rcomm,*aointsAtom,1, ( defaultMultip == 1 )
              )
            );
 
@@ -295,7 +302,7 @@ namespace ChronusQ {
       ss->coreHBuilder = std::make_shared<NRCoreH<MatsT,IntsT>>(ss->aoints);
 
       ss->formCoreH(pert);
-      aointsAtom.computeERIGTO();
+      aointsAtom->computeERI(pert);
 
 
       ss->formGuess();
@@ -338,7 +345,7 @@ namespace ChronusQ {
       std::cout << std::endl
                 << "  *** Forming Initial Fock Matrix from SAD Density ***\n\n";
 
-    formFock(pert,false);
+    this->formFock(pert,false);
 
 
   }; // SingleSlater<T>::SADGuess

@@ -32,7 +32,7 @@ namespace ChronusQ {
    *  Check valid keywords in the section.
    *
   */
-  void CQBASIS_VALID( std::ostream &out, CQInputFile &input ) {
+  void CQBASIS_VALID( std::ostream &out, CQInputFile &input) {
 
     // Allowed keywords
     std::vector<std::string> allowedKeywords = {
@@ -83,8 +83,11 @@ namespace ChronusQ {
       OPTOPT( basisDef = input.getData<std::string>("BASIS.BASISDEF"); )
 
     // Check for consistency
-    if ( basisName.empty() and basisDef.empty() )
-      CErr("Basis file or specification not found!");
+    if ( basisName.empty() and basisDef.empty() ){
+      BasisSet basis;
+      return basis;
+    //  CErr("Basis file or specification not found!");
+    }
 
     BASIS_FUNCTION_TYPE bType = REAL_GTO;
     try{

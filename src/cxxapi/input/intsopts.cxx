@@ -76,7 +76,7 @@ namespace ChronusQ {
         );
     else if(basis.basisType == COMPLEX_GIAO)
       aoi = std::dynamic_pointer_cast<AOIntegralsBase>(
-          std::make_shared<AOIntegrals<dcomplex>>(mem,mol,basis)
+          std::make_shared<GIAOIntegrals>(mem,mol,basis)
         );
 
 
@@ -95,7 +95,6 @@ namespace ChronusQ {
 
     // Parse Schwartz threshold
     OPTOPT( aoi->threshSchwartz = input.getData<double>("INTS.SCHWARTZ"); )
-
 
     // Print
     out <<  *aoi << std::endl;

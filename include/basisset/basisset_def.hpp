@@ -109,7 +109,7 @@ namespace ChronusQ {
     bool inputDef;
     bool forceCart;
 
-    size_t nBasis;      ///< Number of CGTO basis functions
+    size_t nBasis = 0;  ///< Number of CGTO basis functions
     size_t nPrimitive;  ///< Number of primitive GTO functions
     size_t nShell;      ///< Number of CGTO basis shells
     size_t maxPrim;     ///< Max primitive dimension of basis
@@ -133,7 +133,7 @@ namespace ChronusQ {
     std::vector<size_t> mapCen2BfSt; ///< Map Cen # -> Starting BF #
 
     // Disable default constructor
-    BasisSet() = delete;
+    BasisSet() { };
 
 
     // Path / Molecule constructor.
