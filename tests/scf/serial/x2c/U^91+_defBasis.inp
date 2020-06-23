@@ -16,6 +16,7 @@ geom:
 [QM]
 reference = X2CHF
 job = SCF
+x2ctype = Full
 
 [MISC]
 nsmp = 1

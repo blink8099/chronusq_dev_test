@@ -394,7 +394,19 @@ namespace ChronusQ {
 
     }
 
-    if( oneETerms.relativistic ) {
+    if( oneETerms.scalarRelativistic ) {
+
+      auto _PVdP = OneEDriverLocalGTO<1,true>(
+            [&](libint2::ShellPair& pair, libint2::Shell& sh1,
+                libint2::Shell& sh2) -> std::vector<std::vector<double>> {
+              return RealGTOIntEngine::computepVdotp(molecule_.chargeDist,
+                  pair,sh1,sh2,molecule_);
+              }, basisSet_.shells);
+
+      PVdotP    = reinterpret_cast<double*>(_PVdP[0]);
+    }
+
+    if( oneETerms.SORelativistic ) {
 
       auto _SL = OneEDriverLocalGTO<3,false>(
             [&](libint2::ShellPair& pair, libint2::Shell& sh1, 
@@ -403,14 +415,6 @@ namespace ChronusQ {
                   pair,sh1,sh2,molecule_);
               }, basisSet_.shells);
 
-      auto _PVdP = OneEDriverLocalGTO<1,true>(
-            [&](libint2::ShellPair& pair, libint2::Shell& sh1, 
-                libint2::Shell& sh2) -> std::vector<std::vector<double>> { 
-              return RealGTOIntEngine::computepVdotp(molecule_.chargeDist,
-                  pair,sh1,sh2,molecule_);
-              }, basisSet_.shells);
-
-      PVdotP    = reinterpret_cast<double*>(_PVdP[0]);
       PVcrossP  = {reinterpret_cast<double*>(_SL[0]),
                    reinterpret_cast<double*>(_SL[1]),
                    reinterpret_cast<double*>(_SL[2])};

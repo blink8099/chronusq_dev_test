@@ -1,5 +1,5 @@
 #
-#  Water X2CSLATER/6-311+G(d,p) : SCF
+#  Cd scalarX2CSLATER/Sapporo-dkh3-dzp-2012-sp : SCF
 #  SERIAL
 #
 #  Molecule Specification 
@@ -15,6 +15,7 @@ geom:
 [QM]
 reference = X2CSLATER
 job = SCF
+x2ctype = scalar
 
 [BASIS]
 basis = SAPPORO-DKH3-DZP-2012-SP 

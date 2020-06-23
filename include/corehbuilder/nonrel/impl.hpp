@@ -131,11 +131,19 @@ namespace ChronusQ {
 
     this->aoints_.computeAOOneE(emPert,this->oneETerms_); // compute the necessary 1e ints
 
+    computeNRCH(emPert, CH);
+
+  };  // void NRCoreH::computeCoreH(std::vector<MatsT*> &CH)
+
+  /**
+   *  \brief Compute the non-relativistic Core Hamiltonian in the CGTO basis
+   *
+   *  \f[ H(S) = 2(T + V) \f]
+   */
+  template <typename MatsT, typename IntsT>
+  void NRCoreH<MatsT,IntsT>::computeNRCH(EMPerturbation& emPert, std::vector<MatsT*> &CH) {
+
     size_t NB = this->aoints_.basisSet().nBasis;
-
-    //MatAdd('N','N',NB,NB,IntsT(2.),aoints_.kinetic,NB,
-    //  IntsT(2.),aoints_.potential,NB,CH[0],NB);
-
 
     // MatAdd for Real + Real -> Complex does not make sense
     for(auto k = 0ul; k < NB*NB; k++)

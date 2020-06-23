@@ -29,4 +29,8 @@ namespace ChronusQ {
   template class X2C<dcomplex,double>;
   template class X2C<dcomplex,dcomplex>;
 
+  // Instantiate copy constructors
+  template X2C<dcomplex,double>::X2C(const X2C<double,double> &, int);
+  template X2C<dcomplex,dcomplex>::X2C(const X2C<dcomplex,dcomplex> &, int);
+
 }; // namespace ChronusQ

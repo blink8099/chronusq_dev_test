@@ -27,6 +27,7 @@
 #include <corehbuilder.hpp>
 #include <corehbuilder/nonrel.hpp>
 #include <corehbuilder/x2c.hpp>
+#include <corehbuilder/x2c/atomic.hpp>
 
 namespace ChronusQ {
 
@@ -476,33 +477,64 @@ namespace ChronusQ {
 
 
 
-
-    if( isX2CRef ) {
-      std::string x2c_str = "FULL";
-      X2C_TYPE x2ctype = {false,false,false};
-      OPTOPT( x2c_str = input.getData<std::string>("QM.X2CTYPE")  );
-      trim(x2c_str);
-
-      if( not x2c_str.compare("FULL") )
-        x2ctype = {false,false,false};
-      else if( not x2c_str.compare("ALU") )
-        x2ctype = {true,true,false};
-      else if( not x2c_str.compare("DLU") )
-        x2ctype = {true,false,false};
-      else if( not x2c_str.compare("AMLH") )
-        x2ctype = {true,true,true};
-      else if( not x2c_str.compare("DLH") )
-        x2ctype = {true,false,true};
+    // Construct CoreHBuilder
+    std::string x2c_str;
+    bool atomic = false;
+    ATOMIC_X2C_TYPE x2ctype = {false,false};
+    bool scalarOnly = false;
+    OPTOPT( x2c_str = input.getData<std::string>("QM.X2CTYPE")  );
+    trim(x2c_str);
+    split(tokens,x2c_str);
+    for(auto &X : tokens) {
+      trim(X);
+      if( not X.compare("FULL") ) {
+        atomic = false;
+        x2ctype = {false,false};
+      } else if( not X.compare("ALH") ) {
+        atomic = true;
+        x2ctype = {true,true};
+      } else if( not X.compare("ALU") ) {
+        atomic = true;
+        x2ctype = {true,false};
+      } else if( not X.compare("DLH") ) {
+        atomic = true;
+        x2ctype = {false,true};
+      } else if( not X.compare("DLU") ) {
+        atomic = true;
+        x2ctype = {false,false};
+      } else if( not X.compare("SO") )
+        scalarOnly = false;
+      else if( not X.compare("SCALAR") )
+        scalarOnly = true;
       else
-        CErr(x2c_str + " not a valid QM.X2CTYPE",out);
-
+        CErr(X + " not a valid QM.X2CTYPE",out);
+    }
+    if( isX2CRef or scalarOnly ) {
       if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
-        p->coreHBuilder = std::make_shared<X2C<dcomplex,double>>(
-          *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+        if (atomic)
+          p->coreHBuilder = std::make_shared<AtomicX2C<dcomplex,double>>(
+            *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
+            scalarOnly, x2ctype);
+        else
+          p->coreHBuilder = std::make_shared<X2C<dcomplex,double>>(
+            *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
+            scalarOnly);
+      } else if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
+        if (scalarOnly) {
+          if (atomic)
+            p->coreHBuilder = std::make_shared<AtomicX2C<double,double>>(
+              *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
+              scalarOnly, x2ctype);
+          else
+            p->coreHBuilder = std::make_shared<X2C<double,double>>(
+              *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
+              scalarOnly);
+        } else
+          CErr("SOX2C + Real WFN is not a valid option",std::cout);
       } else if (std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
         CErr("X2C + Complex Ints NYI",std::cout);
       } else {
-        CErr("X2C + Real WFN is not a valid option",std::cout);
+        CErr("Complex INT + Real WFN is not a valid option",std::cout);
       }
     } else {
       if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {

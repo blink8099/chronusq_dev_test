@@ -22,19 +22,16 @@
  *
  */
 #include <corehbuilder/x2c.hpp>
+#include <corehbuilder/nonrel.hpp>
 #include <physcon.hpp>
 #include <cqlinalg.hpp>
 #include <cqlinalg/svd.hpp>
 
 namespace ChronusQ {
 
-  template <typename T>
-  void formW(size_t NP, dcomplex *W, size_t LDW, T* pVdotP, size_t LDD, T* pVxPZ,
-    size_t LDZ, T* pVxPY, size_t LDY, T* pVxPX, size_t LDX);
-
   template <>
   void formW(size_t NP, dcomplex *W, size_t LDW, dcomplex* pVdotP, size_t LDD, dcomplex* pVxPZ,
-    size_t LDZ, dcomplex* pVxPY, size_t LDY, dcomplex* pVxPX, size_t LDX) {
+    size_t LDZ, dcomplex* pVxPY, size_t LDY, dcomplex* pVxPX, size_t LDX, bool scalarOnly) {
 
     // W = [ W1  W2 ]
     //     [ W3  W4 ]
@@ -42,6 +39,11 @@ namespace ChronusQ {
     dcomplex *W2 = W1 + LDW*NP;
     dcomplex *W3 = W1 + NP;
     dcomplex *W4 = W2 + NP;
+
+    if (scalarOnly) {
+      SetMatDiag(NP,NP,pVdotP,LDD,W,LDW);
+      return;
+    }
 
     // W1 = pV.p + i (pVxp)(Z)
     MatAdd('N','N',NP,NP,dcomplex(1.),pVdotP,LDD,dcomplex(0.,1.),pVxPZ,LDZ,W1,LDW);
@@ -49,13 +51,13 @@ namespace ChronusQ {
     MatAdd('N','N',NP,NP,dcomplex(1.),pVdotP,LDD,dcomplex(0.,-1.),pVxPZ,LDZ,W4,LDW);
     // W2 = (pVxp)(Y) + i (pVxp)(X)
     MatAdd('N','N',NP,NP,dcomplex(1.),pVxPY,LDY,dcomplex(0.,1.),pVxPX,LDX,W2,LDW);
-    // W3 = (pVxp)(Y) - i (pVxp)(X)
-    MatAdd('N','N',NP,NP,dcomplex(1.),pVxPY,LDY,dcomplex(0.,-1.),pVxPX,LDX,W3,LDW);
+    // W3 = -(pVxp)(Y) + i (pVxp)(X)
+    MatAdd('N','N',NP,NP,dcomplex(-1.),pVxPY,LDY,dcomplex(0.,1.),pVxPX,LDX,W3,LDW);
   }
 
   template <>
   void formW(size_t NP, dcomplex *W, size_t LDW, double* pVdotP, size_t LDD, double* pVxPZ,
-    size_t LDZ, double* pVxPY, size_t LDY, double* pVxPX, size_t LDX) {
+    size_t LDZ, double* pVxPY, size_t LDY, double* pVxPX, size_t LDX, bool scalarOnly) {
 
     // W = [ W1  W2 ]
     //     [ W3  W4 ]
@@ -64,12 +66,17 @@ namespace ChronusQ {
     dcomplex *W3 = W1 + NP;
     dcomplex *W4 = W2 + NP;
 
-    // W1 = pV.p + i (pVxp)(Z)
-    SetMatRE('N',NP,NP,1.,pVdotP,LDD,W1,LDW);
+    // Scalar part
+    SetMatDiag(NP,NP,pVdotP,LDD,W,LDW);
+
+    if (scalarOnly) return;
+
+    // Spin-orbit part
+
+    // W1 = i (pVxp)(Z)
     SetMatIM('N',NP,NP,1.,pVxPZ,LDZ,W1,LDW);
 
     // W4 = conj(W1)
-    SetMatRE('N',NP,NP,1.,pVdotP,LDD,W4,LDW);
     SetMatIM('N',NP,NP,-1.,pVxPZ,LDZ,W4,LDW);
 
     // W2 = (pVxp)(Y) + i (pVxp)(X)
@@ -81,23 +88,69 @@ namespace ChronusQ {
     SetMatIM('N',NP,NP,1., pVxPX,LDX,W3,LDW);
   }
 
-  /**
-   *  \brief Compute one-electron integrals
-   */
-  template <typename MatsT, typename IntsT>
-  void X2C<MatsT, IntsT>::computeAOOneE(EMPerturbation &emPert) {
-    this->aoints_.computeAOOneE(emPert,this->oneETerms_); // compute the necessary 1e ints
+  template <>
+  void formW(size_t NP, double *W, size_t LDW, double* pVdotP, size_t LDD, double* pVxPZ,
+    size_t LDZ, double* pVxPY, size_t LDY, double* pVxPX, size_t LDX, bool scalarOnly) {
+
+    if (not scalarOnly) CErr("SOX2C + Real WFN is not a valid option");
+
+    // Scalar part
+    SetMatDiag(NP,NP,pVdotP,LDD,W,LDW);
   }
 
-  template void X2C<double,double>::computeAOOneE(EMPerturbation&);
-  template void X2C<dcomplex,double>::computeAOOneE(EMPerturbation&);
-  template void X2C<dcomplex,dcomplex>::computeAOOneE(EMPerturbation&);
+  /**
+   *  \brief Boettger scaling for spin-orbit operator
+   */
+  template <typename MatsT, typename IntsT>
+  void X2C<MatsT, IntsT>::BoettgerScale(std::vector<MatsT*> &CH) {
+
+    size_t NB = basisSet_.nBasis;
+
+    size_t n1, n2;
+    std::array<double,6> Ql={0.,2.,10.,28.,60.,110.};
+
+    if( this->basisSet_.maxL > 5 ) CErr("Boettger scaling for L > 5 NYI");
+
+    for(auto s1(0ul), i(0ul); s1 < this->basisSet_.nShell; s1++, i+=n1) {
+      n1 = this->basisSet_.shells[s1].size();
+
+      size_t L1 = this->basisSet_.shells[s1].contr[0].l;
+      if ( L1 == 0 ) continue;
+
+      size_t Z1 = this->molecule_.atoms[this->basisSet_.mapSh2Cen[s1]].atomicNumber;
+
+
+    for(auto s2(0ul), j(0ul); s2 < this->basisSet_.nShell; s2++, j+=n2) {
+      n2 = this->basisSet_.shells[s2].size();
+
+      size_t L2 = this->basisSet_.shells[s2].contr[0].l;
+      if ( L2 == 0 ) continue;
+
+      size_t Z2 = this->molecule_.atoms[this->basisSet_.mapSh2Cen[s2]].atomicNumber;
+
+      MatsT fudgeFactor = -1 * std::sqrt(
+        Ql[L1] * Ql[L2] /
+        Z1 / Z2
+      );
+
+      MatAdd('N','N',n1,n2,MatsT(1.),CH[1] + i + j*NB,NB,
+        fudgeFactor,CH[1] + i + j*NB,NB, CH[1] + i + j*NB,NB);
+
+      MatAdd('N','N',n1,n2,MatsT(1.),CH[2] + i + j*NB,NB,
+        fudgeFactor,CH[2] + i + j*NB,NB, CH[2] + i + j*NB,NB);
+
+      MatAdd('N','N',n1,n2,MatsT(1.),CH[3] + i + j*NB,NB,
+        fudgeFactor,CH[3] + i + j*NB,NB, CH[3] + i + j*NB,NB);
+
+    } // loop s2
+    } // loop s1
+  }
 
   /**
    *  \brief Compute the X2C Core Hamiltonian
    */
   template <typename MatsT, typename IntsT>
-  void X2C<MatsT, IntsT>::computeX2C(EMPerturbation& emPert, std::vector<MatsT*> &CH) {
+  void X2C<MatsT, IntsT>::computeX2C(EMPerturbation &emPert, std::vector<MatsT*> &CH) {
     IntsT* XXX = reinterpret_cast<IntsT*>(NULL);
 
     size_t NP = uncontractedBasis_.nPrimitive;
@@ -115,10 +168,11 @@ namespace ChronusQ {
     IntsT *PVdotP    = memManager_.malloc<IntsT>(NP*NP);
     std::copy_n(uncontractedInts_.PVdotP, NP*NP, PVdotP);
     std::vector<IntsT *> PVcrossP(3);
-    for(size_t i = 0; i < 3; i++) {
-      PVcrossP[i] = memManager_.malloc<IntsT>(NP*NP);
-      std::copy_n(uncontractedInts_.PVcrossP[i], NP*NP, PVcrossP[i]);
-    }
+    if (this->oneETerms_.SORelativistic)
+      for(size_t i = 0; i < 3; i++) {
+        PVcrossP[i] = memManager_.malloc<IntsT>(NP*NP);
+        std::copy_n(uncontractedInts_.PVcrossP[i], NP*NP, PVcrossP[i]);
+      }
 
     // Compute the mappings from primitives to CGTOs
     mapPrim2Cont = memManager_.malloc<IntsT>(NP*NB);
@@ -127,7 +181,7 @@ namespace ChronusQ {
 
     // Allocate Scratch Space (enough for 2*NP x 2*NP complex matricies)
     IntsT   *SCR1  = memManager_.malloc<IntsT>(8*NP*NP);
-    dcomplex *CSCR1 = reinterpret_cast<dcomplex*>(SCR1);
+    MatsT *CSCR1 = reinterpret_cast<MatsT*>(SCR1);
 
     // Singular value storage (initially S then T)
     p = memManager_.malloc<double>(NP);
@@ -136,7 +190,6 @@ namespace ChronusQ {
     // Get SVD of uncontracted overlap
     // Store the left singular vectors in S
     nPrimUse_ = ORTH(NP,NP,overlap,NP,SS,XXX,NP,memManager_);
-    std::cout << nPrimUse_ << " primitives used in P-space." << std::endl;
 
     size_t NPU = nPrimUse_;
 
@@ -179,10 +232,11 @@ namespace ChronusQ {
         IntsT(0.),PVdotP,NPU);
 
     // Loop over PVxP terms
-    for(auto & SL : PVcrossP ){
-      Gemm('C','N',NPU,NP,NP,IntsT(1.),UK,NP,SL,NP,IntsT(0.),SCR1,NPU);
-      Gemm('N','N',NPU,NPU,NP,IntsT(1.),SCR1,NPU,UK,NP,IntsT(0.),SL,NPU);
-    }
+    if (this->oneETerms_.SORelativistic)
+      for(auto & SL : PVcrossP ){
+        Gemm('C','N',NPU,NP,NP,IntsT(1.),UK,NP,SL,NP,IntsT(0.),SCR1,NPU);
+        Gemm('N','N',NPU,NPU,NP,IntsT(1.),SCR1,NPU,UK,NP,IntsT(0.),SL,NPU);
+      }
 
     // P^2 -> P^-1
     for(auto i = 0; i < NPU; i++) SS[i] = 1./std::sqrt(2*SS[i]);
@@ -191,57 +245,51 @@ namespace ChronusQ {
     for(auto j = 0; j < NPU; j++)
     for(auto i = 0; i < NPU; i++){
       PVdotP[i + j*NPU] *= SS[i] * SS[j];
-      for(auto &SL : PVcrossP)
-        SL[i + j*NPU] *= SS[i] * SS[j];
+      if (this->oneETerms_.SORelativistic)
+        for(auto &SL : PVcrossP)
+          SL[i + j*NPU] *= SS[i] * SS[j];
     }
 
     // Allocate 4C CORE Hamiltonian
 
     // CH = [ V    cp       ]
     //      [ cp   W - 2mc^2]
-    dcomplex *CH4C = memManager_.malloc<dcomplex>(16*NPU*NPU);
-    memset(CH4C,0,16*NPU*NPU*sizeof(dcomplex));
+    MatsT *CH4C = memManager_.malloc<MatsT>(16*NPU*NPU);
+    memset(CH4C,0,16*NPU*NPU*sizeof(MatsT));
 
     // Allocate W separately  as it's needed later
     size_t LDW = 2*NPU;
-    dcomplex *Wp  = memManager_.malloc<dcomplex>(LDW*LDW);
+    MatsT *Wp  = memManager_.malloc<MatsT>(LDW*LDW);
 
     formW(NPU,Wp,LDW,PVdotP,NPU,
         PVcrossP[2],NPU,
         PVcrossP[1],NPU,
-        PVcrossP[0],NPU);
+        PVcrossP[0],NPU,
+        not this->oneETerms_.SORelativistic);
 
     // Subtract out 2mc^2 from W diagonals
     const double WFact = 2. * SpeedOfLight * SpeedOfLight;
     for(auto j = 0ul; j < 2*NPU; j++) Wp[j + LDW*j] -= WFact;
 
     // Copy W into the 4C CH storage
-    dcomplex *CHW = CH4C + 8*NPU*NPU + 2*NPU;
-    SetMat('N',2*NPU,2*NPU,dcomplex(1.),Wp,LDW,CHW,4*NPU);
+    MatsT *CHW = CH4C + 8*NPU*NPU + 2*NPU;
+    SetMat('N',2*NPU,2*NPU,MatsT(1.),Wp,LDW,CHW,4*NPU);
 
     // P^-1 -> P
     for(auto i = 0; i < NPU; i++) SS[i] = 1./SS[i];
 
     // V = [ P2P  0   ]
     //     [ 0    P2P ]
-    dcomplex * V1 = CH4C;
-    dcomplex * V2 = V1 + 4*NPU*NPU + NPU;
-
-    if(std::is_same<IntsT,double>::value) {
-      SetMatRE('N',NPU,NPU,1.,reinterpret_cast<double*>(P2P),NPU,V1,4*NPU);
-      SetMatRE('N',NPU,NPU,1.,reinterpret_cast<double*>(P2P),NPU,V2,4*NPU);
-    } else {
-      SetMat('N',NPU,NPU,dcomplex(1.),reinterpret_cast<dcomplex*>(P2P),NPU,V1,4*NPU);
-      SetMat('N',NPU,NPU,dcomplex(1.),reinterpret_cast<dcomplex*>(P2P),NPU,V2,4*NPU);
-    }
+    MatsT * V = CH4C;
+    SetMatDiag(NPU,NPU,P2P,NPU,V,4*NPU);
 
     // Set the diagonal cp blocks of CH
     // CP = [cp 0  ]
     //      [0  cp ]
-    dcomplex *CP11 = CH4C + 8*NPU*NPU;
-    dcomplex *CP12 = CP11 + 4*NPU*NPU + NPU;
-    dcomplex *CP21 = CH4C + 2*NPU;
-    dcomplex *CP22 = CP21 + 4*NPU*NPU + NPU;
+    MatsT *CP11 = CH4C + 8*NPU*NPU;
+    MatsT *CP12 = CP11 + 4*NPU*NPU + NPU;
+    MatsT *CP21 = CH4C + 2*NPU;
+    MatsT *CP22 = CP21 + 4*NPU*NPU + NPU;
 
     for(auto j = 0; j < NPU; j++) {
       CP11[j + 4*NPU*j] = SpeedOfLight * SS[j];
@@ -257,8 +305,8 @@ namespace ChronusQ {
 
 
     // Get pointers to "L" and "S" components of eigenvectors
-    dcomplex *L = CH4C + 8*NPU*NPU;
-    dcomplex *S = L + 2*NPU;
+    MatsT *L = CH4C + 8*NPU*NPU;
+    MatsT *S = L + 2*NPU;
 
 
     // Invert "L"; L -> L^-1
@@ -266,20 +314,20 @@ namespace ChronusQ {
 
 
     // Reuse the charge conjugated space for X and Y
-    X = memManager_.malloc<dcomplex>(4*NPU*NPU);
-    memset(X,0,4*NPU*NPU*sizeof(dcomplex));
-    Y = memManager_.malloc<dcomplex>(4*NPU*NPU);
-    memset(Y,0,4*NPU*NPU*sizeof(dcomplex));
+    X = memManager_.malloc<MatsT>(4*NPU*NPU);
+    memset(X,0,4*NPU*NPU*sizeof(MatsT));
+    Y = memManager_.malloc<MatsT>(4*NPU*NPU);
+    memset(Y,0,4*NPU*NPU*sizeof(MatsT));
 
     // Form X = S * L^-1
-    Gemm('N','N',2*NPU,2*NPU,2*NPU,dcomplex(1.),S,4*NPU,L,4*NPU,
-      dcomplex(0.),X,2*NPU);
+    Gemm('N','N',2*NPU,2*NPU,2*NPU,MatsT(1.),S,4*NPU,L,4*NPU,
+      MatsT(0.),X,2*NPU);
 
     // Form Y = sqrt(1 + X**H * X)
 
     // Y = X**H * X
-    Gemm('C','N',2*NPU,2*NPU,2*NPU,dcomplex(1.),X,2*NPU,X,2*NPU,
-      dcomplex(0.),Y,2*NPU);
+    Gemm('C','N',2*NPU,2*NPU,2*NPU,MatsT(1.),X,2*NPU,X,2*NPU,
+      MatsT(0.),Y,2*NPU);
 
     // Y = Y + I
     for(auto j = 0; j < 2*NPU; j++) Y[j + 2*NPU*j] += 1.0;
@@ -294,28 +342,15 @@ namespace ChronusQ {
       CSCR1[i + 2*NPU*j] = Y[i + 2*NPU*j] * std::pow(CHEV[j],-0.25);
 
     // Y = SCR1 * SCR1**H
-    Gemm('N','C',2*NPU,2*NPU,2*NPU,dcomplex(1.),CSCR1,2*NPU,CSCR1,2*NPU,
-      dcomplex(0.),Y,2*NPU);
+    Gemm('N','C',2*NPU,2*NPU,2*NPU,MatsT(1.),CSCR1,2*NPU,CSCR1,2*NPU,
+      MatsT(0.),Y,2*NPU);
 
     // Build the effective two component CH in "L"
-    dcomplex *FullCH2C = L;
-
-    // Zero it out
-    for(auto j = 0; j < 2*NPU; j++)
-    for(auto i = 0; i < 2*NPU; i++)
-      FullCH2C[i + 4*NPU*j] = 0.;
+    MatsT *FullCH2C = L;
 
     // Copy P2P into spin diagonal blocks of 2C CH
-    dcomplex *CH2C1 = FullCH2C;
-    dcomplex *CH2C2 = CH2C1 + 4*NPU*NPU + NPU;
-
-    if(std::is_same<IntsT,double>::value) {
-      SetMatRE('N',NPU,NPU,1.,reinterpret_cast<double*>(P2P),NPU,CH2C1,4*NPU);
-      SetMatRE('N',NPU,NPU,1.,reinterpret_cast<double*>(P2P),NPU,CH2C2,4*NPU);
-    } else {
-      SetMat('N',NPU,NPU,dcomplex(1.),reinterpret_cast<dcomplex*>(P2P),NPU,CH2C1,4*NPU);
-      SetMat('N',NPU,NPU,dcomplex(1.),reinterpret_cast<dcomplex*>(P2P),NPU,CH2C2,4*NPU);
-    }
+    MatsT *CH2C1 = FullCH2C;
+    SetMatDiag(NPU,NPU,P2P,NPU,CH2C1,4*NPU);
 
     // Construct 2C CH in the uncontracted basis
     // 2C CH = Y * (V' + cp * X + X**H * cp + X**H * W' * X) * Y
@@ -328,42 +363,48 @@ namespace ChronusQ {
     }
 
     // 2C CH += SCR1 + SCR1**H
-    MatAdd('N','N',2*NPU,2*NPU,dcomplex(1.),FullCH2C,4*NPU,dcomplex(1.),
+    MatAdd('N','N',2*NPU,2*NPU,MatsT(1.),FullCH2C,4*NPU,MatsT(1.),
       CSCR1,2*NPU, FullCH2C,4*NPU);
-    MatAdd('N','C',2*NPU,2*NPU,dcomplex(1.),FullCH2C,4*NPU,dcomplex(1.),
+    MatAdd('N','C',2*NPU,2*NPU,MatsT(1.),FullCH2C,4*NPU,MatsT(1.),
       CSCR1,2*NPU, FullCH2C,4*NPU);
 
 
     // SCR1 = X**H * W
-    Gemm('C','N',2*NPU,2*NPU,2*NPU,dcomplex(1.),X,2*NPU,Wp,LDW,dcomplex(0.),
+    Gemm('C','N',2*NPU,2*NPU,2*NPU,MatsT(1.),X,2*NPU,Wp,LDW,MatsT(0.),
       CSCR1,2*NPU);
 
     // 2C CH += SCR1 * X
-    Gemm('N','N',2*NPU,2*NPU,2*NPU,dcomplex(1.),CSCR1,2*NPU,X,2*NPU,
-      dcomplex(1.),FullCH2C,4*NPU);
+    Gemm('N','N',2*NPU,2*NPU,2*NPU,MatsT(1.),CSCR1,2*NPU,X,2*NPU,
+      MatsT(1.),FullCH2C,4*NPU);
 
     // SCR1 = CH2C * Y
-    Gemm('C','N',2*NPU,2*NPU,2*NPU,dcomplex(1.),FullCH2C,4*NPU,Y,2*NPU,dcomplex(0.),
+    Gemm('C','N',2*NPU,2*NPU,2*NPU,MatsT(1.),FullCH2C,4*NPU,Y,2*NPU,MatsT(0.),
       CSCR1,2*NPU);
 
 
     // 2C CH = Y * SCR1
-    Gemm('N','N',2*NPU,2*NPU,2*NPU,dcomplex(1.),Y,2*NPU,CSCR1,2*NPU,
-      dcomplex(0.),FullCH2C,4*NPU);
+    Gemm('N','N',2*NPU,2*NPU,2*NPU,MatsT(1.),Y,2*NPU,CSCR1,2*NPU,
+      MatsT(0.),FullCH2C,4*NPU);
 
     // Allocate memory for the uncontracted spin components
     // of the 2C CH
-    dcomplex *HUnS = memManager_.malloc<dcomplex>(NP*NP);
-    dcomplex *HUnZ = memManager_.malloc<dcomplex>(NP*NP);
-    dcomplex *HUnX = memManager_.malloc<dcomplex>(NP*NP);
-    dcomplex *HUnY = memManager_.malloc<dcomplex>(NP*NP);
+    MatsT *HUnS = memManager_.malloc<MatsT>(NP*NP);
+    MatsT *HUnZ, *HUnX, *HUnY;
 
-    SpinScatter(NPU,FullCH2C,4*NPU,HUnS,NPU,HUnZ,NPU,HUnY,NPU,HUnX,NPU);
+    if (this->oneETerms_.SORelativistic) {
+      HUnZ = memManager_.malloc<MatsT>(NP*NP);
+      HUnX = memManager_.malloc<MatsT>(NP*NP);
+      HUnY = memManager_.malloc<MatsT>(NP*NP);
+      SpinScatter(NPU,FullCH2C,4*NPU,HUnS,NPU,HUnZ,NPU,HUnY,NPU,HUnX,NPU);
+    } else {
+      MatAdd('N','N',NPU,NPU,MatsT(1.),FullCH2C,4*NPU,MatsT(1.),
+        FullCH2C+NPU+4*NPU*NPU,4*NPU,HUnS,NPU);
+    }
 
     // Partition the scratch space into one complex and one real NP x NP
     // matrix
     IntsT   * SUK   = SCR1;
-    dcomplex * CSCR2 = reinterpret_cast<dcomplex*>(SUK + NP*NP);
+    MatsT * CSCR2 = reinterpret_cast<MatsT*>(SUK + NP*NP);
 
     // Store the Product of S and UK
     Gemm('N','N',NP,NPU,NP,IntsT(1.),uncontractedInts_.overlap,NP,UK,NP,IntsT(0.),SCR1,NP);
@@ -378,104 +419,69 @@ namespace ChronusQ {
     //
 
     // Transform H(S)
-    Gemm('N','N',NP,NPU,NPU,dcomplex(1.),SUK,NP,HUnS,NPU,dcomplex(0.),
+    Gemm('N','N',NP,NPU,NPU,MatsT(1.),SUK,NP,HUnS,NPU,MatsT(0.),
       CSCR2,NP);
-    Gemm('N','C',NP,NP,NPU,dcomplex(1.),SUK,NP,CSCR2,NP,dcomplex(0.),
+    Gemm('N','C',NP,NP,NPU,MatsT(1.),SUK,NP,CSCR2,NP,MatsT(0.),
       HUnS,NP);
 
-    // Transform H(Z)
-    Gemm('N','N',NP,NPU,NPU,dcomplex(1.),SUK,NP,HUnZ,NPU,dcomplex(0.),
-      CSCR2,NP);
-    Gemm('N','C',NP,NP,NPU,dcomplex(1.),SUK,NP,CSCR2,NP,dcomplex(0.),
-      HUnZ,NP);
+    if (this->oneETerms_.SORelativistic) {
+      // Transform H(Z)
+      Gemm('N','N',NP,NPU,NPU,MatsT(1.),SUK,NP,HUnZ,NPU,MatsT(0.),
+        CSCR2,NP);
+      Gemm('N','C',NP,NP,NPU,MatsT(1.),SUK,NP,CSCR2,NP,MatsT(0.),
+        HUnZ,NP);
 
-    // Transform H(Y)
-    Gemm('N','N',NP,NPU,NPU,dcomplex(1.),SUK,NP,HUnY,NPU,dcomplex(0.),
-      CSCR2,NP);
-    Gemm('N','C',NP,NP,NPU,dcomplex(1.),SUK,NP,CSCR2,NP,dcomplex(0.),
-      HUnY,NP);
+      // Transform H(Y)
+      Gemm('N','N',NP,NPU,NPU,MatsT(1.),SUK,NP,HUnY,NPU,MatsT(0.),
+        CSCR2,NP);
+      Gemm('N','C',NP,NP,NPU,MatsT(1.),SUK,NP,CSCR2,NP,MatsT(0.),
+        HUnY,NP);
 
-    // Transform H(X)
-    Gemm('N','N',NP,NPU,NPU,dcomplex(1.),SUK,NP,HUnX,NPU,dcomplex(0.),
-      CSCR2,NP);
-    Gemm('N','C',NP,NP,NPU,dcomplex(1.),SUK,NP,CSCR2,NP,dcomplex(0.),
-      HUnX,NP);
+      // Transform H(X)
+      Gemm('N','N',NP,NPU,NPU,MatsT(1.),SUK,NP,HUnX,NPU,MatsT(0.),
+        CSCR2,NP);
+      Gemm('N','C',NP,NP,NPU,MatsT(1.),SUK,NP,CSCR2,NP,MatsT(0.),
+        HUnX,NP);
+    }
 
     // Transform H(k) into the contracted basis
 
-    Gemm('N','N',NB,NP,NP,dcomplex(1.),mapPrim2Cont,NB,HUnS,
-      NP,dcomplex(0.),CSCR1,NB);
-    Gemm('N','C',NB,NB,NP,dcomplex(1.),mapPrim2Cont,NB,CSCR1,
-      NB,dcomplex(0.),HUnS,NB);
+    Gemm('N','N',NB,NP,NP,MatsT(1.),mapPrim2Cont,NB,HUnS,
+      NP,MatsT(0.),CSCR1,NB);
+    Gemm('N','C',NB,NB,NP,MatsT(1.),mapPrim2Cont,NB,CSCR1,
+      NB,MatsT(0.),CH[0],NB);
 
-    Gemm('N','N',NB,NP,NP,dcomplex(1.),mapPrim2Cont,NB,HUnZ,
-      NP,dcomplex(0.),CSCR1,NB);
-    Gemm('N','C',NB,NB,NP,dcomplex(1.),mapPrim2Cont,NB,CSCR1,
-      NB,dcomplex(0.),HUnZ,NB);
+    if (CH.size() > 1) {
 
-    Gemm('N','N',NB,NP,NP,dcomplex(1.),mapPrim2Cont,NB,HUnY,
-      NP,dcomplex(0.),CSCR1,NB);
-    Gemm('N','C',NB,NB,NP,dcomplex(1.),mapPrim2Cont,NB,CSCR1,
-      NB,dcomplex(0.),HUnY,NB);
+      if (this->oneETerms_.SORelativistic) {
+        Gemm('N','N',NB,NP,NP,MatsT(1.),mapPrim2Cont,NB,HUnZ,
+          NP,MatsT(0.),CSCR1,NB);
+        Gemm('N','C',NB,NB,NP,MatsT(1.),mapPrim2Cont,NB,CSCR1,
+          NB,MatsT(0.),CH[1],NB);
 
-    Gemm('N','N',NB,NP,NP,dcomplex(1.),mapPrim2Cont,NB,HUnX,
-      NP,dcomplex(0.),CSCR1,NB);
-    Gemm('N','C',NB,NB,NP,dcomplex(1.),mapPrim2Cont,NB,CSCR1,
-      NB,dcomplex(0.),HUnX,NB);
+        Gemm('N','N',NB,NP,NP,MatsT(1.),mapPrim2Cont,NB,HUnY,
+          NP,MatsT(0.),CSCR1,NB);
+        Gemm('N','C',NB,NB,NP,MatsT(1.),mapPrim2Cont,NB,CSCR1,
+          NB,MatsT(0.),CH[2],NB);
 
+        Gemm('N','N',NB,NP,NP,MatsT(1.),mapPrim2Cont,NB,HUnX,
+          NP,MatsT(0.),CSCR1,NB);
+        Gemm('N','C',NB,NB,NP,MatsT(1.),mapPrim2Cont,NB,CSCR1,
+          NB,MatsT(0.),CH[3],NB);
+      } else {
+        memset(CH[1],0,NB*NB*sizeof(MatsT));
+        memset(CH[2],0,NB*NB*sizeof(MatsT));
+        memset(CH[3],0,NB*NB*sizeof(MatsT));
+      }
 
-    size_t n1, n2;
-    std::array<double,6> Ql={0.,2.,10.,28.,60.,110.};
+    }
 
-    if( basisSet_.maxL > 5 ) CErr("Boettger scaling for L > 5 NYI");
+    memManager_.free(overlap, kinetic, potential, PVdotP,
+      SCR1, P2P, CH4C, Wp, CHEV, HUnS);
+    if (this->oneETerms_.SORelativistic)
+      memManager_.free(PVcrossP[0], PVcrossP[1], PVcrossP[2],
+        HUnZ, HUnX, HUnY);
 
-    for(auto s1(0ul), i(0ul); s1 < basisSet_.nShell; s1++, i+=n1) {
-      n1 = basisSet_.shells[s1].size();
-
-      size_t L1 = basisSet_.shells[s1].contr[0].l;
-      if ( L1 == 0 ) continue;
-
-      size_t Z1 = molecule_.atoms[basisSet_.mapSh2Cen[s1]].atomicNumber;
-
-
-    for(auto s2(0ul), j(0ul); s2 < basisSet_.nShell; s2++, j+=n2) {
-      n2 = basisSet_.shells[s2].size();
-
-      size_t L2 = basisSet_.shells[s2].contr[0].l;
-      if ( L2 == 0 ) continue;
-
-      size_t Z2 = molecule_.atoms[basisSet_.mapSh2Cen[s2]].atomicNumber;
-
-      dcomplex fudgeFactor = -1 * std::sqrt(
-        Ql[L1] * Ql[L2] /
-        Z1 / Z2
-      );
-
-      MatAdd('N','N',n1,n2,dcomplex(1.),HUnZ + i + j*NB,NB,
-        fudgeFactor,HUnZ + i + j*NB,NB, HUnZ + i + j*NB,NB);
-
-      MatAdd('N','N',n1,n2,dcomplex(1.),HUnY + i + j*NB,NB,
-        fudgeFactor,HUnY + i + j*NB,NB, HUnY + i + j*NB,NB);
-
-      MatAdd('N','N',n1,n2,dcomplex(1.),HUnX + i + j*NB,NB,
-        fudgeFactor,HUnX + i + j*NB,NB, HUnX + i + j*NB,NB);
-
-    } // loop s2
-    } // loop s1
-
-
-//    GetMatRE('N',NB,NB,1.,HUnS,NB,CH[0],NB);
-//    GetMatIM('N',NB,NB,1.,HUnZ,NB,CH[1],NB);
-//    GetMatIM('N',NB,NB,1.,HUnY,NB,CH[2],NB);
-//    GetMatIM('N',NB,NB,1.,HUnX,NB,CH[3],NB);
-    std::copy_n(HUnS,NB*NB,CH[0]);
-    std::copy_n(HUnZ,NB*NB,CH[1]);
-    std::copy_n(HUnY,NB*NB,CH[2]);
-    std::copy_n(HUnX,NB*NB,CH[3]);
-
-    memManager_.free(overlap, kinetic, potential,
-      PVdotP, PVcrossP[0], PVcrossP[1], PVcrossP[2],
-      SCR1, P2P, CH4C, Wp, CHEV, HUnS, HUnZ, HUnX, HUnY);
   }
 
   template void X2C<dcomplex,double>::computeX2C(EMPerturbation&, std::vector<dcomplex*>&);
@@ -484,9 +490,7 @@ namespace ChronusQ {
     CErr("X2C + Complex Ints NYI",std::cout);
   }
 
-  template<> void X2C<double,double>::computeX2C(EMPerturbation&, std::vector<double*>&) {
-    CErr("X2C + Real WFN is not a valid option",std::cout);
-  }
+  template void X2C<double,double>::computeX2C(EMPerturbation&, std::vector<double*>&);
 
 
   /**
@@ -494,8 +498,9 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   void X2C<MatsT, IntsT>::computeCoreH(EMPerturbation& emPert, std::vector<MatsT*> &CH) {
-    computeAOOneE(emPert);
+    this->aoints_.computeAOOneE(emPert,this->oneETerms_); // compute the necessary 1e ints
     computeX2C(emPert, CH);
+    if (this->oneETerms_.SORelativistic) BoettgerScale(CH);
   }
 
   template void X2C<dcomplex,double>::computeCoreH(EMPerturbation&, std::vector<dcomplex*>&);
@@ -504,9 +509,7 @@ namespace ChronusQ {
     CErr("X2C + Complex Ints NYI",std::cout);
   }
 
-  template<> void X2C<double,double>::computeCoreH(EMPerturbation&, std::vector<double*>&) {
-    CErr("X2C + Real WFN is not a valid option",std::cout);
-  }
+  template void X2C<double,double>::computeCoreH(EMPerturbation&, std::vector<double*>&);
 
   /**
    *  \brief Compute the picture change matrices UL, US
@@ -526,26 +529,19 @@ namespace ChronusQ {
     Gemm('N','N',NB,NP,NP,IntsT(1.),mapPrim2Cont,NB,
       uncontractedInts_.overlap,NP,IntsT(0.),UP2CS,NB);
     IntsT *UP2CSUK = memManager_.malloc<IntsT>(4*NP*NPU);
-    memset(UP2CSUK,0,4*NB*NPU*sizeof(IntsT));
     Gemm('N','N',NB,NPU,NP,IntsT(1.),UP2CS,NB,UK,NP,IntsT(0.),UP2CSUK,2*NB);
-    if(std::is_same<IntsT,double>::value) {
-      SetMatRE('N',NB,NPU,1.,reinterpret_cast<double*>(UP2CSUK),2*NB,
-        reinterpret_cast<double*>(UP2CSUK + 2*NB*NPU + NB),2*NB);
-    } else {
-      SetMat('N',NB,NPU,dcomplex(1.),reinterpret_cast<dcomplex*>(UP2CSUK),2*NB,
-        reinterpret_cast<dcomplex*>(UP2CSUK + 2*NB*NPU + NB),2*NB);
-    }
+    SetMatDiag(NB,NPU,UP2CSUK,2*NB,UP2CSUK,2*NB);
 
     // 2. R^T = UP2C * S * UK * Y^T
-    dcomplex *RT = memManager_.malloc<dcomplex>(4*NB*NPU);
-    Gemm('N','C',2*NB,2*NPU,2*NPU,dcomplex(1.),UP2CSUK,2*NB,
-      Y,2*NPU,dcomplex(0.),RT,2*NB);
+    MatsT *RT = memManager_.malloc<MatsT>(4*NB*NPU);
+    Gemm('N','C',2*NB,2*NPU,2*NPU,MatsT(1.),UP2CSUK,2*NB,
+      Y,2*NPU,MatsT(0.),RT,2*NB);
 
     // 3. Xp = 2 c p^-1 X
     double twoC = 2 * SpeedOfLight;
     double *twoCPinv = memManager_.malloc<double>(NPU);
     for(size_t i = 0; i < NPU; i++) twoCPinv[i] = twoC/p[i];
-    dcomplex *twoCPinvX = memManager_.malloc<dcomplex>(4*NPU*NPU);
+    MatsT *twoCPinvX = memManager_.malloc<MatsT>(4*NPU*NPU);
     for(size_t j = 0; j < 2*NPU; j++)
     for(size_t i = 0; i < NPU; i++) {
       twoCPinvX[i + 2*NPU*j] = twoCPinv[i] * X[i + 2*NPU*j];
@@ -555,27 +551,19 @@ namespace ChronusQ {
     // 4. UK2c = [ UK  0  ]
     //           [ 0   UK ]
     IntsT *UK2c = UP2CSUK;
-    memset(UP2CSUK,0,4*NP*NPU*sizeof(IntsT));
-    IntsT *UK2c2 = UK2c + 2*NP*NPU + NP;
-    if(std::is_same<IntsT,double>::value) {
-      SetMatRE('N',NP,NPU,1.,reinterpret_cast<double*>(UK),NP,UK2c,2*NP);
-      SetMatRE('N',NP,NPU,1.,reinterpret_cast<double*>(UK),NP,UK2c2,2*NP);
-    } else {
-      SetMat('N',NP,NPU,dcomplex(1.),reinterpret_cast<dcomplex*>(UK),NP,UK2c,2*NP);
-      SetMat('N',NP,NPU,dcomplex(1.),reinterpret_cast<dcomplex*>(UK),NP,UK2c2,2*NP);
-    }
+    SetMatDiag(NP,NPU,UK,NP,UK2c,2*NP);
 
     // 5. US = UK2c * Xp * RT^T
-    UL = memManager_.malloc<dcomplex>(4*NP*NB);
-    US = memManager_.malloc<dcomplex>(4*NP*NB);
-    Gemm('N','C',2*NPU,2*NB,2*NPU,dcomplex(1.),twoCPinvX,2*NPU,
-      RT,2*NB,dcomplex(0.),UL,2*NPU);
-    Gemm('N','N',2*NP,2*NB,2*NPU,dcomplex(1.),UK2c,2*NP,
-      UL,2*NPU,dcomplex(0.),US,2*NP);
+    UL = memManager_.malloc<MatsT>(4*NP*NB);
+    US = memManager_.malloc<MatsT>(4*NP*NB);
+    Gemm('N','C',2*NPU,2*NB,2*NPU,MatsT(1.),twoCPinvX,2*NPU,
+      RT,2*NB,MatsT(0.),UL,2*NPU);
+    Gemm('N','N',2*NP,2*NB,2*NPU,MatsT(1.),UK2c,2*NP,
+      UL,2*NPU,MatsT(0.),US,2*NP);
 
     // 6. UL = UK2c * RT^T
-    Gemm('N','C',2*NP,2*NB,2*NPU,dcomplex(1.),UK2c,2*NP,
-      RT,2*NB,dcomplex(0.),UL,2*NP);
+    Gemm('N','C',2*NP,2*NB,2*NPU,MatsT(1.),UK2c,2*NP,
+      RT,2*NB,MatsT(0.),UL,2*NP);
 
     memManager_.free(UP2CS, UP2CSUK, RT, twoCPinv, twoCPinvX);
 
@@ -587,23 +575,18 @@ namespace ChronusQ {
     CErr("X2C + Complex Ints NYI",std::cout);
   }
 
-  template<> void X2C<double,double>::computeU() {
-    CErr("X2C + Real WFN is not a valid option",std::cout);
-  }
+  template void X2C<double,double>::computeU();
 
   /**
    *  \brief Compute the X2C Core Hamiltonian
    */
   template <typename MatsT, typename IntsT>
   void X2C<MatsT, IntsT>::computeX2C_UDU(EMPerturbation& emPert, std::vector<MatsT*> &CH) {
-    IntsT* XXX = reinterpret_cast<IntsT*>(NULL);
 
     size_t NP = uncontractedBasis_.nPrimitive;
     size_t NB = basisSet_.nBasis;
 
     // Make copy of integrals
-    IntsT *overlap   = memManager_.malloc<IntsT>(NP*NP);
-    std::copy_n(uncontractedInts_.overlap, NP*NP, overlap);
     IntsT *kinetic   = memManager_.malloc<IntsT>(NP*NP);
     std::copy_n(uncontractedInts_.kinetic, NP*NP, kinetic);
     IntsT *potential = memManager_.malloc<IntsT>(NP*NP);
@@ -611,139 +594,77 @@ namespace ChronusQ {
     IntsT *PVdotP    = memManager_.malloc<IntsT>(NP*NP);
     std::copy_n(uncontractedInts_.PVdotP, NP*NP, PVdotP);
     std::vector<IntsT *> PVcrossP(3);
-    for(size_t i = 0; i < 3; i++) {
-      PVcrossP[i] = memManager_.malloc<IntsT>(NP*NP);
-      std::copy_n(uncontractedInts_.PVcrossP[i], NP*NP, PVcrossP[i]);
-    }
+    if (this->oneETerms_.SORelativistic)
+      for(size_t i = 0; i < 3; i++) {
+        PVcrossP[i] = memManager_.malloc<IntsT>(NP*NP);
+        std::copy_n(uncontractedInts_.PVcrossP[i], NP*NP, PVcrossP[i]);
+      }
 
     // Allocate W separately  as it's needed later
     size_t LDW = 2*NP;
-    W = memManager_.malloc<dcomplex>(LDW*LDW);
+    W = memManager_.malloc<MatsT>(LDW*LDW);
 
     formW(NP,W,LDW,PVdotP,NP,
-        PVcrossP[2],NP,
-        PVcrossP[1],NP,
-        PVcrossP[0],NP);
+      PVcrossP[2],NP,
+      PVcrossP[1],NP,
+      PVcrossP[0],NP,
+      not this->oneETerms_.SORelativistic);
 
     // T2c = [ T  0 ]
     //       [ 0  T ]
     IntsT *T2c = memManager_.malloc<IntsT>(LDW*LDW);
-    memset(T2c,0,4*NP*NP*sizeof(IntsT));
-    IntsT *T2c2 = T2c + 2*NP*NP + NP;
-    if(std::is_same<IntsT,double>::value) {
-      SetMatRE('N',NP,NP,1.,reinterpret_cast<double*>(kinetic),NP,T2c,2*NP);
-      SetMatRE('N',NP,NP,1.,reinterpret_cast<double*>(kinetic),NP,T2c2,2*NP);
-    } else {
-      SetMat('N',NP,NP,dcomplex(1.),reinterpret_cast<dcomplex*>(kinetic),NP,T2c,2*NP);
-      SetMat('N',NP,NP,dcomplex(1.),reinterpret_cast<dcomplex*>(kinetic),NP,T2c2,2*NP);
-    }
+    SetMatDiag(NP,NP,kinetic,NP,T2c,2*NP);
 
     // V2c = [ V  0 ]
     //       [ 0  V ]
     IntsT *V2c = memManager_.malloc<IntsT>(LDW*LDW);
-    memset(V2c,0,4*NP*NP*sizeof(IntsT));
-    IntsT *V2c2 = V2c + 2*NP*NP + NP;
-    if(std::is_same<IntsT,double>::value) {
-      SetMatRE('N',NP,NP,1.,reinterpret_cast<double*>(potential),NP,V2c,2*NP);
-      SetMatRE('N',NP,NP,1.,reinterpret_cast<double*>(potential),NP,V2c2,2*NP);
-    } else {
-      SetMat('N',NP,NP,dcomplex(1.),reinterpret_cast<dcomplex*>(potential),NP,V2c,2*NP);
-      SetMat('N',NP,NP,dcomplex(1.),reinterpret_cast<dcomplex*>(potential),NP,V2c2,2*NP);
-    }
+    SetMatDiag(NP,NP,potential,NP,V2c,2*NP);
 
-    dcomplex *Hx2c = memManager_.malloc<dcomplex>(4*NB*NB);
-    memset(Hx2c,0,4*NB*NB*sizeof(dcomplex));
+    MatsT *Hx2c = memManager_.malloc<MatsT>(4*NB*NB);
+    MatsT *SCR = memManager_.malloc<MatsT>(4*NP*NB);
 
-    dcomplex *SCR = memManager_.malloc<dcomplex>(4*NP*NB);
-
-    // Hx2c += UL^H * T2c * US
-    Gemm('N','N',2*NP,2*NB,2*NP,dcomplex(1.),T2c,2*NP,
-      US,2*NP,dcomplex(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,dcomplex(1.),UL,2*NP,
-      SCR,2*NP,dcomplex(1.),Hx2c,2*NB);
+    // Hx2c = UL^H * T2c * US
+    Gemm('N','N',2*NP,2*NB,2*NP,MatsT(1.),T2c,2*NP,
+      US,2*NP,MatsT(0.),SCR,2*NP);
+    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(1.),UL,2*NP,
+      SCR,2*NP,MatsT(0.),Hx2c,2*NB);
     // Hx2c += US^H * T2c * UL
-    Gemm('N','N',2*NP,2*NB,2*NP,dcomplex(1.),T2c,2*NP,
-      UL,2*NP,dcomplex(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,dcomplex(1.),US,2*NP,
-      SCR,2*NP,dcomplex(1.),Hx2c,2*NB);
+    Gemm('N','N',2*NP,2*NB,2*NP,MatsT(1.),T2c,2*NP,
+      UL,2*NP,MatsT(0.),SCR,2*NP);
+    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(1.),US,2*NP,
+      SCR,2*NP,MatsT(1.),Hx2c,2*NB);
     // Hx2c -= US^H * T2c * US
-    Gemm('N','N',2*NP,2*NB,2*NP,dcomplex(1.),T2c,2*NP,
-      US,2*NP,dcomplex(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,dcomplex(-1.),US,2*NP,
-      SCR,2*NP,dcomplex(1.),Hx2c,2*NB);
+    Gemm('N','N',2*NP,2*NB,2*NP,MatsT(1.),T2c,2*NP,
+      US,2*NP,MatsT(0.),SCR,2*NP);
+    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(-1.),US,2*NP,
+      SCR,2*NP,MatsT(1.),Hx2c,2*NB);
     // Hx2c += UL^H * V2c * UL
-    Gemm('N','N',2*NP,2*NB,2*NP,dcomplex(1.),V2c,2*NP,
-      UL,2*NP,dcomplex(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,dcomplex(1.),UL,2*NP,
-      SCR,2*NP,dcomplex(1.),Hx2c,2*NB);
+    Gemm('N','N',2*NP,2*NB,2*NP,MatsT(1.),V2c,2*NP,
+      UL,2*NP,MatsT(0.),SCR,2*NP);
+    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(1.),UL,2*NP,
+      SCR,2*NP,MatsT(1.),Hx2c,2*NB);
     // Hx2c += 1/(4*C**2) US^H * W * US
     Gemm('N','N',2*NP,2*NB,2*NP,
-      dcomplex(0.25/SpeedOfLight/SpeedOfLight),W,2*NP,
-      US,2*NP,dcomplex(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,dcomplex(1.),US,2*NP,
-      SCR,2*NP,dcomplex(1.),Hx2c,2*NB);
+      MatsT(0.25/SpeedOfLight/SpeedOfLight),W,2*NP,
+      US,2*NP,MatsT(0.),SCR,2*NP);
+    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(1.),US,2*NP,
+      SCR,2*NP,MatsT(1.),Hx2c,2*NB);
 
-    // Allocate memory for the uncontracted spin components
-    // of the 2C CH
-    dcomplex *HUnS = memManager_.malloc<dcomplex>(NB*NB);
-    dcomplex *HUnZ = memManager_.malloc<dcomplex>(NB*NB);
-    dcomplex *HUnX = memManager_.malloc<dcomplex>(NB*NB);
-    dcomplex *HUnY = memManager_.malloc<dcomplex>(NB*NB);
+    if (this->oneETerms_.SORelativistic)
+      SpinScatter(NB,Hx2c,2*NB,CH[0],NB,CH[1],NB,CH[2],NB,CH[3],NB);
+    else {
+      MatAdd('N','N',NB,NB,MatsT(1.),Hx2c,2*NB,MatsT(1.),
+        Hx2c+NB+2*NB*NB,2*NB,CH[0],NB);
+      if (CH.size() > 1) {
+        memset(CH[1],0,NB*NB*sizeof(MatsT));
+        memset(CH[2],0,NB*NB*sizeof(MatsT));
+        memset(CH[3],0,NB*NB*sizeof(MatsT));
+      }
+    }
 
-    SpinScatter(NB,Hx2c,2*NB,HUnS,NB,HUnZ,NB,HUnY,NB,HUnX,NB);
-
-    size_t n1, n2;
-    std::array<double,6> Ql={0.,2.,10.,28.,60.,110.};
-
-    if( basisSet_.maxL > 5 ) CErr("Boettger scaling for L > 5 NYI");
-
-    for(auto s1(0ul), i(0ul); s1 < basisSet_.nShell; s1++, i+=n1) {
-      n1 = basisSet_.shells[s1].size();
-
-      size_t L1 = basisSet_.shells[s1].contr[0].l;
-      if ( L1 == 0 ) continue;
-
-      size_t Z1 = molecule_.atoms[basisSet_.mapSh2Cen[s1]].atomicNumber;
-
-
-    for(auto s2(0ul), j(0ul); s2 < basisSet_.nShell; s2++, j+=n2) {
-      n2 = basisSet_.shells[s2].size();
-
-      size_t L2 = basisSet_.shells[s2].contr[0].l;
-      if ( L2 == 0 ) continue;
-
-      size_t Z2 = molecule_.atoms[basisSet_.mapSh2Cen[s2]].atomicNumber;
-
-      dcomplex fudgeFactor = -1 * std::sqrt(
-        Ql[L1] * Ql[L2] /
-        Z1 / Z2
-      );
-
-      MatAdd('N','N',n1,n2,dcomplex(1.),HUnZ + i + j*NB,NB,
-        fudgeFactor,HUnZ + i + j*NB,NB, HUnZ + i + j*NB,NB);
-
-      MatAdd('N','N',n1,n2,dcomplex(1.),HUnY + i + j*NB,NB,
-        fudgeFactor,HUnY + i + j*NB,NB, HUnY + i + j*NB,NB);
-
-      MatAdd('N','N',n1,n2,dcomplex(1.),HUnX + i + j*NB,NB,
-        fudgeFactor,HUnX + i + j*NB,NB, HUnX + i + j*NB,NB);
-
-    } // loop s2
-    } // loop s1
-
-
-//    GetMatRE('N',NB,NB,1.,HUnS,NB,CH[0],NB);
-//    GetMatIM('N',NB,NB,1.,HUnZ,NB,CH[1],NB);
-//    GetMatIM('N',NB,NB,1.,HUnY,NB,CH[2],NB);
-//    GetMatIM('N',NB,NB,1.,HUnX,NB,CH[3],NB);
-    std::copy_n(HUnS,NB*NB,CH[0]);
-    std::copy_n(HUnZ,NB*NB,CH[1]);
-    std::copy_n(HUnY,NB*NB,CH[2]);
-    std::copy_n(HUnX,NB*NB,CH[3]);
-
-    memManager_.free(overlap, kinetic, potential,
-      PVdotP, PVcrossP[0], PVcrossP[1], PVcrossP[2],
-      T2c, V2c, Hx2c, SCR, HUnS, HUnZ, HUnX, HUnY);
+    memManager_.free(kinetic, potential, PVdotP, T2c, V2c, Hx2c, SCR);
+    if (this->oneETerms_.SORelativistic)
+      memManager_.free(PVcrossP[0], PVcrossP[1], PVcrossP[2]);
   }
 
   template void X2C<dcomplex,double>::computeX2C_UDU(EMPerturbation&, std::vector<dcomplex*>&);
@@ -752,9 +673,49 @@ namespace ChronusQ {
     CErr("X2C + Complex Ints NYI",std::cout);
   }
 
-  template<> void X2C<double,double>::computeX2C_UDU(EMPerturbation&, std::vector<double*>&) {
-    CErr("X2C + Real WFN is not a valid option",std::cout);
+  template void X2C<double,double>::computeX2C_UDU(EMPerturbation&, std::vector<double*>&);
+
+  /**
+   *  \brief Compute the X2C Core Hamiltonian correction to NR
+   */
+  template <typename MatsT, typename IntsT>
+  void X2C<MatsT, IntsT>::computeX2C_corr(EMPerturbation &emPert, std::vector<MatsT*> &CH) {
+
+    computeX2C(emPert, CH);
+
+    size_t NP = uncontractedBasis_.nPrimitive;
+    size_t NB = basisSet_.nBasis;
+
+    NRCoreH<MatsT, IntsT> nr(uncontractedInts_);
+    std::vector<MatsT*> NRCH(CH.size(), nullptr);
+    MatsT* SCR = memManager_.malloc<MatsT>(NB*NP);
+    for (auto &CHi : NRCH) {
+      CHi = memManager_.malloc<MatsT>(NP*NP);
+      memset(CHi,0,NP*NP*sizeof(MatsT));
+    }
+    nr.computeNRCH(emPert, NRCH);
+
+    // Transform H(k) into the contracted basis
+    for (size_t i=0; i<CH.size(); i++) {
+      Gemm('N','N',NB,NP,NP,MatsT(1.),mapPrim2Cont,NB,NRCH[i],
+        NP,MatsT(0.),SCR,NB);
+      Gemm('N','C',NB,NB,NP,MatsT(-1.),mapPrim2Cont,NB,SCR,
+        NB,MatsT(1.),CH[i],NB);
+    }
+
+    for (auto &CHi : NRCH)
+      memManager_.free(CHi);
+    memManager_.free(SCR);
+
   }
+
+  template void X2C<dcomplex,double>::computeX2C_corr(EMPerturbation&, std::vector<dcomplex*>&);
+
+  template<> void X2C<dcomplex,dcomplex>::computeX2C_corr(EMPerturbation&, std::vector<dcomplex*>&) {
+    CErr("X2C + Complex Ints NYI",std::cout);
+  }
+
+  template void X2C<double,double>::computeX2C_corr(EMPerturbation&, std::vector<double*>&);
 
 }; // namespace ChronusQ
 

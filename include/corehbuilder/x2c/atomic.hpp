@@ -27,16 +27,26 @@
 
 namespace ChronusQ {
 
+  struct ATOMIC_X2C_TYPE {
+    bool isolateAtom;  ///< If atomic OEI feel only the basis origin nuclei potential
+    bool diagonalOnly; ///< If only diagonal blocks of Hamiltonian are X2C corrected
+  };
+
   /**
    *  \brief The AtomicX2C class. A class to compute X2C Core Hamiltonian.
    *  Stores intermediate matrices.
    */
   template <typename MatsT, typename IntsT>
   class AtomicX2C : public X2C<MatsT, IntsT> {
+
+    template <typename MatsU, typename IntsU>
+    friend class AtomicX2C;
+
   protected:
-    X2C_TYPE type_ = {true, true, false};
-    std::vector<X2C<MatsT, IntsT>> atoms_;
-  private:
+    ATOMIC_X2C_TYPE                type_;    ///< Type of atomic approximation
+    std::vector<X2C<MatsT, IntsT>> atoms_;   ///< X2C of unique atoms in the molecule
+    std::vector<size_t>            atomIdx_; ///< Index of unique atom in atoms_
+
   public:
 
     // Constructors
@@ -45,23 +55,52 @@ namespace ChronusQ {
     AtomicX2C() = delete;
 
     // Default copy and move constructors
-    AtomicX2C(const AtomicX2C &) = default;
-    AtomicX2C(AtomicX2C &&)      = default;
+    AtomicX2C(const AtomicX2C<MatsT,IntsT> &);
+    AtomicX2C(AtomicX2C<MatsT,IntsT> &&);
 
     /**
      * \brief Constructor
      *
+     *  \param [in] aoints     Reference to the global AOIntegrals
      *  \param [in] memManager Memory manager for matrix allocation
      *  \param [in] mol        Molecule object for molecular specification
      *  \param [in] basis      The GTO basis for integral evaluation
+     *  \param [in] type       The type of atomic X2C
      */
-    AtomicX2C(CQMemManager &mem, const Molecule &mol, const BasisSet &basis) :
-      X2C<MatsT, IntsT>(mem, mol, basis) { ; }
+    AtomicX2C(AOIntegrals<IntsT> &aoints, CQMemManager &mem,
+        const Molecule &mol, const BasisSet &basis,
+        bool scalarOnly, ATOMIC_X2C_TYPE type) :
+      X2C<MatsT,IntsT>(aoints, mem, mol, basis, scalarOnly),
+      type_(type) {}
+
+    /**
+     * \brief Constructor
+     *
+     *  \param [in] aoints     Reference to the global AOIntegrals
+     */
+    AtomicX2C(AOIntegrals<IntsT> &aoints, bool scalarOnly, ATOMIC_X2C_TYPE type) :
+      X2C<MatsT,IntsT>(aoints, scalarOnly), type_(type) {}
+
+    // Different type
+    template <typename MatsU>
+    AtomicX2C(const AtomicX2C<MatsU,IntsT> &other, int dummy = 0);
+    template <typename MatsU>
+    AtomicX2C(AtomicX2C<MatsU,IntsT> &&     other, int dummy = 0);
 
 
     // Public Member functions
 
-    void computeCoreH(EMPerturbation& emPert, std::vector<MatsT*>& CH);
+    // Deallocation (see include/x2c/impl.hpp for docs)
+    virtual void dealloc();
+
+    // Compute core Hamitlonian
+    virtual void computeX2C(EMPerturbation&, std::vector<MatsT*>&);
+    virtual void computeU();
+
+    // Compute the gradient
+    virtual void getGrad() {
+      CErr("X2C CoreH gradient NYI",std::cout);
+    }
 
   };
 

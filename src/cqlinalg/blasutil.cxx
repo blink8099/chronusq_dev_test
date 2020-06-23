@@ -61,6 +61,26 @@ namespace ChronusQ {
   };
 
   template <typename _F>
+  void SpinScatter(size_t M, size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
+    _F *AZ, size_t LDAZ, _F *AY, size_t LDAY, _F *AX, size_t LDAX) {
+
+    assert(( std::is_same<_F,dcomplex>::value ));
+
+    _F YFACT = ComplexScale<_F>();
+
+    _F* A_AA = A;
+    _F* A_AB = A_AA + N*LDA;
+    _F* A_BA = A_AA + M;
+    _F* A_BB = A_AB + M;
+
+    MatAdd('N','N',M,N,_F(1.),A_AA,LDA,_F(1.) ,A_BB,LDA,AS,LDAS);
+    MatAdd('N','N',M,N,_F(1.),A_AA,LDA,_F(-1.),A_BB,LDA,AZ,LDAZ);
+    MatAdd('N','N',M,N,YFACT ,A_AB,LDA,-YFACT ,A_BA,LDA,AY,LDAY);
+    MatAdd('N','N',M,N,_F(1.),A_AB,LDA,_F(1.) ,A_BA,LDA,AX,LDAX);
+
+  };
+
+  template <typename _F>
   void SpinGather(size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
     _F *AZ, size_t LDAZ, _F *AY, size_t LDAY, _F *AX, size_t LDAX) {
 
@@ -99,6 +119,15 @@ namespace ChronusQ {
     size_t LDAX);
 
   template
+  void SpinScatter(size_t M, size_t N, double *A, size_t LDA, double *AS, size_t LDAS,
+    double *AZ, size_t LDAZ, double *AY, size_t LDAY, double *AX, size_t LDAX);
+
+  template
+  void SpinScatter(size_t M, size_t N, dcomplex *A, size_t LDA, dcomplex *AS, size_t LDAS,
+    dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX,
+    size_t LDAX);
+
+  template
   void SpinGather(size_t N, double *A, size_t LDA, double *AS, size_t LDAS,
     double *AZ, size_t LDAZ, double *AY, size_t LDAY, double *AX, size_t LDAX);
 
@@ -122,7 +151,7 @@ namespace ChronusQ {
   void SetMat(char TRANS, size_t M, size_t N, _FScale ALPHA, _F1 *A, size_t LDA,
     size_t SA, _F2 *B, size_t LDB, size_t SB) {
 
-    assert( TRANS == 'N' or TRANS == 'R' );
+    assert( TRANS == 'N' or TRANS == 'R' or TRANS == 'T' or TRANS == 'C');
 
     using namespace Eigen;
 
@@ -135,10 +164,20 @@ namespace ChronusQ {
 
 
     F1Map AMap(A,M,N, DynamicStride(LDA,SA));
-    F2Map BMap(B,M,N, DynamicStride(LDB,SB));
 
-    if      ( TRANS == 'N' ) BMap = ALPHA * AMap;
-    else if ( TRANS == 'R' ) BMap = ALPHA * AMap.conjugate();
+    if      ( TRANS == 'N' ) {
+      F2Map BMap(B,M,N, DynamicStride(LDB,SB));
+      BMap = ALPHA * AMap;
+    } else if ( TRANS == 'R' ) {
+      F2Map BMap(B,M,N, DynamicStride(LDB,SB));
+      BMap = ALPHA * AMap.conjugate();
+    } else if ( TRANS == 'T' ) {
+      F2Map BMap(B,N,M, DynamicStride(LDB,SB));
+      BMap = ALPHA * AMap.transpose();
+    } else if ( TRANS == 'C' ) {
+      F2Map BMap(B,N,M, DynamicStride(LDB,SB));
+      BMap = ALPHA * AMap.transpose().conjugate();
+    }
 
   }
 
@@ -178,6 +217,25 @@ namespace ChronusQ {
 
 
 #endif
+
+  template
+  void SetMat(char TRANS, size_t M, size_t N, double ALPHA, double *A,
+    size_t LDA, size_t SA, dcomplex *B, size_t LDB, size_t SB);
+
+
+  /// \brief A2c = [ A  0 ]
+  ///              [ 0  A ]
+  template <typename _F1, typename _F2>
+  void SetMatDiag(size_t M, size_t N, _F1 *A, size_t LDA, _F2 *A2c, size_t LD2c) {
+    SetMat('N',M,N,1.,A,LDA,A2c,LD2c);
+    SetMat('N',M,N,1.,A,LDA,A2c + M + N*LD2c,LD2c);
+    SetMat('N',M,N,0.,A,LDA,A2c + M,LD2c);
+    SetMat('N',M,N,0.,A,LDA,A2c + N*LD2c,LD2c);
+  }
+
+  template void SetMatDiag(size_t, size_t, double*, size_t, double*, size_t);
+  template void SetMatDiag(size_t, size_t, double*, size_t, dcomplex*, size_t);
+  template void SetMatDiag(size_t, size_t, dcomplex*, size_t, dcomplex*, size_t);
 
 
 
