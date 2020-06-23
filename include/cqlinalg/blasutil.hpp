@@ -34,6 +34,11 @@ namespace ChronusQ {
   void SpinScatter(size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
     _F *AZ, size_t LDAZ, _F *AY, size_t LDAY, _F *AX, size_t LDAX);
 
+  // Spin Scatter a matrix
+  template <typename _F>
+  void SpinScatter(size_t M, size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
+    _F *AZ, size_t LDAZ, _F *AY, size_t LDAY, _F *AX, size_t LDAX);
+
   // Spin Gather a matrix
   template <typename _F>
   void SpinGather(size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
@@ -76,6 +81,11 @@ namespace ChronusQ {
   template <typename _F>
   void GetMatIM(char TRANS, size_t M, size_t N, double ALPHA, _F *A, 
     size_t LDA, double *B, size_t LDB);
+
+  // A2c = [ A  0 ]
+  //       [ 0  A ]
+  template <typename _F1, typename _F2>
+  void SetMatDiag(size_t M, size_t N, _F1 *A, size_t LDA, _F2 *A2c, size_t LD2c);
 
 
 

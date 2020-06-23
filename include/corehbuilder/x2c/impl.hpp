@@ -44,6 +44,15 @@ namespace ChronusQ {
 
   template <typename MatsT, typename IntsT>
   X2C<MatsT,IntsT>::X2C(const X2C<MatsT,IntsT> &other) :
+    X2C(other,0) {}
+
+  template <typename MatsT, typename IntsT>
+  X2C<MatsT,IntsT>::X2C(X2C<MatsT,IntsT> &&other) :
+    X2C(std::move(other),0) {}
+
+  template <typename MatsT, typename IntsT>
+  template <typename MatsU>
+  X2C<MatsT,IntsT>::X2C(const X2C<MatsU,IntsT> &other, int dummy) :
     CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
     molecule_(other.molecule_), basisSet_(other.basisSet_),
     uncontractedBasis_(other.uncontractedBasis_),
@@ -55,7 +64,8 @@ namespace ChronusQ {
   }
 
   template <typename MatsT, typename IntsT>
-  X2C<MatsT,IntsT>::X2C(X2C<MatsT,IntsT> &&other) :
+  template <typename MatsU>
+  X2C<MatsT,IntsT>::X2C(X2C<MatsU,IntsT> &&other, int dummy) :
     CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
     molecule_(other.molecule_), basisSet_(other.basisSet_),
     uncontractedBasis_(other.uncontractedBasis_),

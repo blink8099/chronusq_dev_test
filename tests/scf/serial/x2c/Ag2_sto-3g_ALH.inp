@@ -1,24 +1,28 @@
 #
-#  Cd scalarX2CHF/Sapporo-dkh3-dzp-2012-sp : SCF
+#  Ag2 ALHX2CHF/sto-3g : SCF
 #  SERIAL
 #
-#  Molecule Specification 
+#  Molecule Specification
 [Molecule]
 charge = 0
 mult = 1
 geom: 
- Cd  0  0  0
+ Ag  0.0  0.0  0.0 
+ Ag  0.0  0.0  2.5
 
-# 
+#
 #  Job Specification
 #
 [QM]
 reference = X2CHF
 job = SCF
-x2ctype = scalar
+x2ctype = ALH
+
+[SCF]
+guess = sad
 
 [BASIS]
-basis = SAPPORO-DKH3-DZP-2012-SP 
+basis = sto-3g
 
 [MISC]
 nsmp = 1

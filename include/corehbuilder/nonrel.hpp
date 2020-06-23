@@ -58,6 +58,7 @@ namespace ChronusQ {
     // Compute core Hamitlonian
     void addMagPert(EMPerturbation&, std::vector<MatsT*>&);
     virtual void computeCoreH(EMPerturbation &, std::vector<MatsT*>&);
+    virtual void computeNRCH(EMPerturbation &, std::vector<MatsT*>&);
 
     // Compute the gradient
     virtual void getGrad() {

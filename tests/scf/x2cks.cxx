@@ -50,14 +50,6 @@ TEST( X2CKS, Hg_SAP_DZP_DKH3_2012_SP_SLATER  ) {
  
 };
 
-// Zn SAPPORO DZP DKH_2012 SP SLATER
-TEST( X2CKS, Zn_SAP_DZP_DKH3_2012_SP_SLATER  ) {
-
-  CQSCFTEST( "scf/serial/x2c/zn_sap_dz_dkh3_2012_sp_slater", 
-    "zn_sap_dz_dkh3_2012_sp_slater.bin.ref",1e-6 );
- 
-};
-
 // Cd SAPPORO DZP DKH_2012 SP SLATER
 TEST( X2CKS, Cd_SAP_DZP_DKH3_2012_SP_SLATER  ) {
 
@@ -76,14 +68,6 @@ TEST( X2CKS, Hg_SAP_DZP_DKH3_2012_SP_B3LYP  ) {
     "hg_sap_dz_dkh3_2012_sp_b3lyp.bin.ref",1e-6,true,true,
                false,false,true,true);
 
-};
-
-// Zn SAPPORO DZP DKH_2012 SP B3LYP
-TEST( X2CKS, Zn_SAP_DZP_DKH3_2012_SP_B3LYP  ) {
-
-  CQSCFTEST( "scf/serial/x2c/zn_sap_dz_dkh3_2012_sp_b3lyp", 
-    "zn_sap_dz_dkh3_2012_sp_b3lyp.bin.ref",1e-6 );
- 
 };
 
 // Cd SAPPORO DZP DKH_2012 SP B3LYP

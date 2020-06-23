@@ -64,7 +64,8 @@ namespace ChronusQ {
   struct OneETerms {
     bool finiteWidthNuc;
     bool coreH; //overlap, kinetic, potential
-    bool relativistic; //spin-orbit, scalar relativity
+    bool scalarRelativistic; //scalar relativity
+    bool SORelativistic; //spin-orbit relativity
   };
 
   /**
