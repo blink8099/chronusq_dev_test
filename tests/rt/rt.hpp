@@ -58,6 +58,7 @@ using namespace ChronusQ;
   \
   auto timeDims = tempFile.getDims("/RT/TIME");\
   auto moDims = tempFile.getDims("/SCF/MO1");\
+  auto denDims = tempFile.getDims("/SCF/1PDM_SCALAR");\
   \
   bool exists_(true);\
   std::string fName_(RT_TEST_REF #midr ".temp");\
@@ -94,7 +95,7 @@ using namespace ChronusQ;
   size_t newTimeD = timeDims[0]*2 - 1;\
   std::vector<double> tArr(newTimeD, 0.);\
   std::vector<double> tArr3(newTimeD*3, 0.);\
-  std::vector<dcomplex> tdDen(moDims[0]*moDims[1], 0.);\
+  std::vector<dcomplex> tdDen(denDims[0]*denDims[1], 0.);\
   \
   tempFile.readData("/RT/TIME", tArr.data());\
   midFile.safeWriteData("/RT/TIME", tArr.data(), {newTimeD});\
@@ -112,10 +113,10 @@ using namespace ChronusQ;
   for ( auto &str : decomp ) { \
     try { \
       tempFile.readData("/RT/TD_1PDM_" + str, tdDen.data());\
-      midFile.safeWriteData("/RT/TD_1PDM_" + str, tdDen.data(), moDims);\
+      midFile.safeWriteData("/RT/TD_1PDM_" + str, tdDen.data(), denDims);\
       \
       tempFile.readData("/RT/TD_1PDM_ORTHO_" + str, tdDen.data());\
-      midFile.safeWriteData("/RT/TD_1PDM_ORTHO_" + str, tdDen.data(), moDims);\
+      midFile.safeWriteData("/RT/TD_1PDM_ORTHO_" + str, tdDen.data(), denDims);\
     } catch(...) { }\
   }\
   \
@@ -173,6 +174,7 @@ using namespace ChronusQ;
   std::ifstream oldFile( RT_TEST_REF #midr, std::ios::binary );\
   std::ofstream newFile( TEST_OUT #in ".bin" );\
   newFile << oldFile.rdbuf();\
+  newFile.flush();\
   \
   CQRTTEST( in, ref )
 

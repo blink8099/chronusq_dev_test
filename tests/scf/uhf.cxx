@@ -40,6 +40,20 @@ TEST( UHF, O2_631Gd ) {
 
 };
 
+// MnHe sto-3g test
+TEST( UHF, MnHe_sto3G ) {
+
+  CQSCFTEST( "scf/serial/uhf/MnHe_sto-3G", "MnHe_sto-3G.bin.ref" );
+
+};
+
+// RbHe sto-3g test
+TEST( UHF, RbHe_sto3G ) {
+
+  CQSCFTEST( "scf/serial/uhf/RbHe_sto-3G", "RbHe_sto-3G.bin.ref" );
+
+};
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Li 6-31G(d) test
