@@ -9,6 +9,19 @@
 
   FORMAT: YYYY-MM-DD
 
+  - 2020-07-17 0.3.3 (BETA)
+    - Support multiplicities up to element Es for SAD guess
+    - Fix incorrect multiplicities for elements S, P, and Mn in SAD guess
+    - Restructure SingleSlater class to have CoreHBuilder and FockBuilder objects
+    - Fix incorrect reference data for X2C RT unit tests
+    - Fix uncontracted basis by removing duplicate primitives
+    - Allow arbitrary indentation now allowed in input file
+    - Fix mixed GEMM call between double and dcomplex types
+    - Fix input basis case sensitivity when parsing element labels
+    - Fix simultaneous file read failure from GPLHR_MPI tests
+    - Fix include guards
+    - Bump OpenBLAS -> v0.3.9
+
   - 2020-04-25 0.3.2 (BETA)
     - Add ability to read user specified basis from input file or path to file
     - Add B3PW91 functional
