@@ -24,7 +24,7 @@ cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
 project(ChronusQ CXX C Fortran)
 set(ChronusQ_VERSION_MAJOR 0)
 set(ChronusQ_VERSION_MINOR 3)
-set(ChronusQ_VERSION_PATCH 2)
+set(ChronusQ_VERSION_PATCH 3)
 
 
 # Options
