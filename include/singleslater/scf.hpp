@@ -221,8 +221,11 @@ namespace ChronusQ {
       //  printFockTimings(std::cout);
     }
 
-    if( scfControls.scfAlg == _NEWTON_RAPHSON_SCF and scfConv.nSCFIter > 0 )
-      scfControls.scfStep = _NEWTON_RAPHSON_STEP;
+    if( scfControls.scfAlg == _NEWTON_RAPHSON_SCF and scfConv.nSCFIter > 0 ) {
+      if(std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr)
+        CErr("Newton Raphson SCF not implemented for ROHF",std::cout);
+      else scfControls.scfStep = _NEWTON_RAPHSON_STEP;
+    }
 
     if( scfControls.scfStep == _CONVENTIONAL_SCF_STEP )
       ConventionalSCF(scfControls.doExtrap and frmFock);
@@ -529,11 +532,16 @@ namespace ChronusQ {
     ROOT_ONLY(comm); 
     size_t NB = this->aoints.basisSet().nBasis * nC;
     size_t NB2 = NB*NB;
+    bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
 
     // Copy over the fockMatrixOrtho into MO storage
     if(nC == 1 and iCS) 
       std::transform(fockMatrixOrtho[SCALAR],fockMatrixOrtho[SCALAR] + NB2,this->mo1,
         [](MatsT a){ return a / 2.; }
+      );
+    else if(iRO) 
+      std::transform(fockMatrixOrtho[SCALAR],fockMatrixOrtho[SCALAR] + NB2,this->mo1,
+        [](MatsT a){ return a ; }
       );
     else if(nC == 1)
       for(auto j = 0; j < NB2; j++) {
@@ -552,7 +560,10 @@ namespace ChronusQ {
       memManager );
     if( INFO != 0 ) CErr("HermetianEigen failed in Fock1",std::cout);
 
-    if(nC == 1 and not iCS) {
+    if(iRO) {
+      std::copy_n(this->mo1, NB2, this->mo2);// for ROHF
+      std::copy_n(this->eps1, NB, this->eps2);
+    } else if(nC == 1 and not iCS) {
       INFO = HermetianEigen('V', 'L', NB, this->mo2, NB, this->eps2, 
         memManager );
       if( INFO != 0 ) CErr("HermetianEigen failed in Fock2",std::cout);

@@ -40,6 +40,7 @@ namespace ChronusQ {
     ROOT_ONLY(comm); 
 
     // Static Damping
+    scfControls.doDamp &= (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) == nullptr);
     if (scfControls.doDamp) fockDamping();
 
     // DIIS extrapolation
@@ -237,6 +238,7 @@ namespace ChronusQ {
     size_t OSize = memManager.template getSize(fockMatrix[SCALAR]);
     size_t NB    = this->aoints.basisSet().nBasis;
     MatsT* SCR     = memManager.template malloc<MatsT>(nC*nC*NB*NB);
+    bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
 
     if(this->nC == 1) {
       // FD(S) = F(S)D(S)
@@ -244,7 +246,7 @@ namespace ChronusQ {
         onePDMOrtho[SCALAR], NB, MatsT(0.), FDC[SCALAR], NB);
 
       // FD(S) += F(z)D(z)
-      if(nC == 2 or !iCS) {
+      if(nC == 2 or !iCS and !iRO) {
         Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho[MZ], NB, 
           onePDMOrtho[MZ], NB, MatsT(0.), SCR, NB);
         MatAdd('N','N', NB, NB, MatsT(1.), FDC[SCALAR], NB, MatsT(1.), 
@@ -257,7 +259,7 @@ namespace ChronusQ {
         SCR, NB, FDC[SCALAR], NB);
 
 
-      if(nC == 2 or !iCS) {
+      if(nC == 2 or !iCS and !iRO) {
         // FD(z) = F(S)D(z) + F(z)D(S)
         Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho[SCALAR], NB, 
           onePDMOrtho[MZ], NB, MatsT(0.), FDC[MZ], NB);

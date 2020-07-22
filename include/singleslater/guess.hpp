@@ -363,6 +363,7 @@ namespace ChronusQ {
       ss->scfControls.dampError = 1e-4;
       ss->scfControls.nKeep     = 8;
       ss->coreHBuilder = std::make_shared<NRCoreH<MatsT,IntsT>>(ss->aoints);
+      ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>();
 
       ss->formCoreH(pert);
       aointsAtom->computeERI(pert);

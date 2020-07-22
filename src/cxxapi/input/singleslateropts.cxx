@@ -147,11 +147,12 @@ namespace ChronusQ {
     std::vector<std::string> rawRefs(KSRefs);
     rawRefs.insert(rawRefs.begin(),"HF");
 
-    // Construct R/U/G/X2C reference keywords
-    std::vector<std::string> RRefs, URefs, GRefs, X2CRefs;
+    // Construct R/U/RO/G/X2C reference keywords
+    std::vector<std::string> RRefs, URefs, RORefs, GRefs, X2CRefs;
     for(auto &f : rawRefs) {
       RRefs.emplace_back( "R" + f );
       URefs.emplace_back( "U" + f );
+      RORefs.emplace_back( "RO" + f);
       GRefs.emplace_back( "G" + f );
       X2CRefs.emplace_back( "X2C" + f );
     }
@@ -168,14 +169,16 @@ namespace ChronusQ {
       std::find(RRefs.begin(),RRefs.end(),refString) != RRefs.end();
     bool isURef   = 
       std::find(URefs.begin(),URefs.end(),refString) != URefs.end();
+    bool isRORef  =
+      std::find(RORefs.begin(),RORefs.end(),refString) != RORefs.end();
     bool isGRef   = 
       std::find(GRefs.begin(),GRefs.end(),refString) != GRefs.end();
     bool isX2CRef = 
       std::find(X2CRefs.begin(),X2CRefs.end(),refString) != X2CRefs.end();
 
     // Throw an error if not a valid reference keyword
-    if( not isRawRef and not isRRef and not isURef and not isGRef and 
-        not isX2CRef )
+    if( not isRawRef and not isRRef and not isURef and not isRORef and 
+        not isGRef and not isX2CRef )
       CErr(refString + " is not a valid QM.REFERENCE",out);
 
     // Cleanup the reference string
@@ -330,7 +333,7 @@ namespace ChronusQ {
         CErr("Spin-Restricted Reference only valid for singlet spin multiplicities",out);
       else
         iCS = true;
-    else if( isURef )
+    else if( isURef  or isRORef )
       iCS = false;
     else if( isGRef or isX2CRef ) {
       iCS = false; nC = 2;
@@ -423,6 +426,11 @@ namespace ChronusQ {
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<KohnSham<double,double>>( KS_LIST(double) )
           );
+      else if(isRORef)
+        ss = std::dynamic_pointer_cast<SingleSlaterBase>(
+            std::make_shared<HartreeFock<double,double>>(
+            "Real Restricted Open-shell Hartree-Fock", "R-ROHF", HF_LIST(double) )
+          );
       else if(not isGIAO)
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<HartreeFock<double,double>>( HF_LIST(double) )
@@ -447,6 +455,11 @@ namespace ChronusQ {
               "Exact Two Component","X2C-",HF_LIST(double)
             )
           );
+      else if(isRORef)
+        ss = std::dynamic_pointer_cast<SingleSlaterBase>(
+            std::make_shared<HartreeFock<dcomplex,double>>(
+            "Complex Restricted Open-shell Hartree-Fock", "C-ROHF", HF_LIST(double) )
+          );
       else
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<HartreeFock<dcomplex,double>>( HF_LIST(double) )
@@ -467,6 +480,11 @@ namespace ChronusQ {
             std::make_shared<HartreeFock<dcomplex,dcomplex>>(
               "Exact Two Component","X2C-",HF_LIST(dcomplex)
             )
+          );
+      else if(isRORef)
+        ss = std::dynamic_pointer_cast<SingleSlaterBase>(
+            std::make_shared<HartreeFock<dcomplex,dcomplex>>(
+            "Complex Restricted Open-shell Hartree-Fock", "C-ROHF", HF_LIST(dcomplex) )
           );
       else
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
@@ -519,6 +537,7 @@ namespace ChronusQ {
           p->coreHBuilder = std::make_shared<X2C<dcomplex,double>>(
             *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
             scalarOnly);
+        p->fockBuilder = std::make_shared<FockBuilder<dcomplex,double>>();
       } else if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
         if (scalarOnly) {
           if (atomic)
@@ -529,6 +548,7 @@ namespace ChronusQ {
             p->coreHBuilder = std::make_shared<X2C<double,double>>(
               *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
               scalarOnly);
+          p->fockBuilder = std::make_shared<FockBuilder<double,double>>();
         } else
           CErr("SOX2C + Real WFN is not a valid option",std::cout);
       } else if (std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
@@ -540,16 +560,23 @@ namespace ChronusQ {
       if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
         p->coreHBuilder = std::make_shared<NRCoreH<double,double>>(
           *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+        if(isRORef) p->fockBuilder = std::make_shared<ROFock<double,double>>();
+        else p->fockBuilder = std::make_shared<FockBuilder<double,double>>();
       } else if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
         p->coreHBuilder = std::make_shared<NRCoreH<dcomplex,double>>(
           *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+        if(isRORef) p->fockBuilder = std::make_shared<ROFock<dcomplex,double>>();
+        else p->fockBuilder = std::make_shared<FockBuilder<dcomplex,double>>();
       } else if (auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
         p->coreHBuilder = std::make_shared<NRCoreH<dcomplex,dcomplex>>(
           *std::dynamic_pointer_cast<AOIntegrals<dcomplex>>(aoints));
+        if(isRORef) p->fockBuilder = std::make_shared<ROFock<dcomplex,dcomplex>>();
+        else p->fockBuilder = std::make_shared<FockBuilder<dcomplex,dcomplex>>();
       } else {
         CErr("Complex INT + Real WFN is not a valid option",std::cout);
       }
     }
+
 
 
 

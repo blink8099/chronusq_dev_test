@@ -26,6 +26,9 @@
 #include <fockbuilder.hpp>
 #include <util/time.hpp>
 #include <cqlinalg.hpp>
+#include <fockbuilder/rofock/impl.hpp>
+
+#include <typeinfo>
 
 namespace ChronusQ {
 
@@ -173,5 +176,31 @@ namespace ChronusQ {
     ss.printFock(std::cout);
 #endif
   }
+
+  /**
+   *  \brief The pointer convertor. This static function converts
+   *  the underlying polymorphism correctly to hold a different
+   *  type of matrices. It is called when the corresponding
+   *  SingleSlater object is being converted.
+   */
+  template <typename MatsT, typename IntsT>
+  template <typename MatsU>
+  std::shared_ptr<FockBuilder<MatsU,IntsT>>
+  FockBuilder<MatsT,IntsT>::convert(const std::shared_ptr<FockBuilder<MatsT,IntsT>>& fb) {
+
+    if (not fb) return nullptr;
+
+    const std::type_index tIndex(typeid(*fb));
+
+    if (tIndex == std::type_index(typeid(ROFock<MatsT,IntsT>))) {
+      return std::make_shared<ROFock<MatsU,IntsT>>(
+               *std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fb));
+
+    } else {
+      return std::make_shared<FockBuilder<MatsU,IntsT>>(
+               *std::dynamic_pointer_cast<FockBuilder<MatsT,IntsT>>(fb));
+    }
+
+  } // FockBuilder<MatsT,IntsT>::convert
 
 }; // namespace ChronusQ
