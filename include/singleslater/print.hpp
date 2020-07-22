@@ -396,7 +396,7 @@ namespace ChronusQ {
 
         if( i == 0 )
           out << "Occupied:\n";
-        else if( i == this->nOB )
+        if( i == this->nOB )
           out << "\n\nVirtual:\n";
 
         out << std::setw(13) << this->eps2[i];

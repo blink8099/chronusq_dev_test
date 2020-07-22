@@ -23,46 +23,44 @@
  */
 #pragma once
 
-#include <fields.hpp>
-#include <singleslater.hpp>
+#include <fockbuilder.hpp>
+#include <fockbuilder/impl.hpp>
+
 
 namespace ChronusQ {
 
   /**
-   * \brief The FockBuilder class
+   * \brief The ROFock class
    */
   template <typename MatsT, typename IntsT>
-  class FockBuilder {
+  class ROFock : public FockBuilder<MatsT,IntsT> {
   public:
 
     // Constructors
-    FockBuilder() = default;
+    ROFock() = default;
 
     // Different type
     template <typename MatsU>
-    FockBuilder(const FockBuilder<MatsU,IntsT> &);
+    ROFock(const ROFock<MatsU,IntsT> &) : FockBuilder<MatsT,IntsT>(){}
     template <typename MatsU>
-    FockBuilder(FockBuilder<MatsU,IntsT> &&);
+    ROFock(ROFock<MatsU,IntsT> &&) : FockBuilder<MatsT,IntsT>(){}
 
     // Virtual destructor
-    virtual ~FockBuilder() {}
+    virtual ~ROFock() {}
 
 
     // Public member functions
 
-    // Form the Hartree-Fock perturbation tensor (see include/fockbuilder/impl.hpp for docs)
-    virtual void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
+    // Form an Roothaan's effective fock for ROHF (see include/fockbuilder/ROFock/impl.hpp for docs)
+    void rohfFock(SingleSlater<MatsT,IntsT> &);
 
     // Form a fock matrix (see include/fockbuilder/impl.hpp for docs)
     virtual void formFock(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
 
     // Compute the gradient
-    virtual void getGrad() {}
-
-    // Pointer convertor
-    template <typename MatsU>
-    static std::shared_ptr<FockBuilder<MatsU,IntsT>>
-    convert(const std::shared_ptr<FockBuilder<MatsT,IntsT>>&);
+    virtual void getGrad() {
+      CErr("ROHF Fock gradient NYI",std::cout);
+}
 
 
   };
@@ -70,4 +68,4 @@ namespace ChronusQ {
 }
 
 // Include header for implementation
-#include <fockbuilder/impl.hpp>
+#include <fockbuilder/rofock/impl.hpp>

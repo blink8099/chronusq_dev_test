@@ -135,8 +135,7 @@ namespace ChronusQ {
     template <typename... Args>
     SingleSlater(MPI_Comm c, AOIntegrals<IntsT> &aoi, Args... args) :
       SingleSlaterBase(c,aoi.memManager(),args...), WaveFunctionBase(c,aoi.memManager(),args...),
-      QuantumBase(c,aoi.memManager(),args...), WaveFunction<MatsT,IntsT>(c,aoi,args...),
-      fockBuilder(std::make_shared<FockBuilder<MatsT,IntsT>>())
+      QuantumBase(c,aoi.memManager(),args...), WaveFunction<MatsT,IntsT>(c,aoi,args...)
       //, coreType(NON_RELATIVISTIC), orthoType(LOWDIN)
     {
       // Allocate SingleSlater Object
