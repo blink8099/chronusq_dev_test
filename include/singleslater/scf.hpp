@@ -50,40 +50,26 @@ namespace ChronusQ {
     // Checkpoint if file exists
     if( savFile.exists() ) {
 
-      size_t NB = this->aoints.basisSet().nBasis;
+      size_t NB = this->nAlphaOrbital();
       size_t NBC = this->nC * NB;
 
-      auto t_type_indx = std::type_index(typeid(MatsT));
-      size_t t_hash = t_type_indx.hash_code();
+      size_t t_hash = typeid(MatsT).hash_code();
 
       // Save Field type
       savFile.safeWriteData("SCF/FIELD_TYPE",&t_hash,{1});
 
+      savFile.safeWriteData("SCF/1PDM", *this->onePDM);
 
-      const std::array<std::string,4> spinLabel =
-        { "SCALAR", "MZ", "MY", "MX" };
+      savFile.safeWriteData("SCF/FOCK", *fockMatrix);
 
-      // Save Matricies
-      for(auto i = 0; i < this->fockMatrix.size(); i++) {
+      savFile.safeWriteData("SCF/1PDM_ORTHO", *onePDMOrtho);
 
-        savFile.safeWriteData("SCF/1PDM_" + spinLabel[i],
-          this->onePDM[i],{NB,NB});
-
-        savFile.safeWriteData("SCF/FOCK_" + spinLabel[i],
-          this->fockMatrix[i],{NB,NB});
-
-        savFile.safeWriteData("SCF/1PDM_ORTHO_" + spinLabel[i],
-          this->onePDMOrtho[i],{NB,NB});
-
-        savFile.safeWriteData("SCF/FOCK_ORTHO_" + spinLabel[i],
-          this->fockMatrixOrtho[i],{NB,NB});
-
-      }
+      savFile.safeWriteData("SCF/FOCK_ORTHO", *fockMatrixOrtho);
 
       // Save MOs
-      savFile.safeWriteData("SCF/MO1", this->mo1, {NBC,NBC});
+      savFile.safeWriteData("SCF/MO1", this->mo[0].pointer(), {NBC,NBC});
       if( this->nC == 1 and not this->iCS )
-        savFile.safeWriteData("SCF/MO2", this->mo2, {NBC,NBC});
+        savFile.safeWriteData("SCF/MO2", this->mo[1].pointer(), {NBC,NBC});
 
       // Save Energies
       savFile.safeWriteData("SCF/TOTAL_ENERGY",&this->totalEnergy,
@@ -109,11 +95,8 @@ namespace ChronusQ {
     // If file doesnt exist, checkpoint important bits in core
     } else {
 
-      size_t OSize = memManager.template getSize(fockMatrix[SCALAR]);
-
       // Copy over current AO density matrix
-      for(auto i = 0; i < this->onePDM.size(); i++)
-        std::copy_n(this->onePDM[i],OSize,curOnePDM[i]);
+      *curOnePDM = *this->onePDM;
 
       // Copy the previous orthonormal Fock matrix for damping. It's the 
       // previous Fock since saveCurrentState is called at the beginning 
@@ -122,8 +105,7 @@ namespace ChronusQ {
           
         // Avoid saving the guess Fock for extrapolation
         if (scfConv.nSCFIter > 0) {
-          for(auto i = 0; i < this->fockMatrixOrtho.size(); i++)
-            std::copy_n(this->fockMatrixOrtho[i],OSize,prevFock[i]);
+          prevFock = fockMatrixOrtho;
         }
       }
 
@@ -153,10 +135,7 @@ namespace ChronusQ {
     // requires the onePDMOrtho storage is populated.
     //
     // *** Replicated on all MPI processes ***
-    for(auto i = 0; i < this->onePDM.size(); i++)
-      std::copy_n(this->onePDM[i],
-        memManager.template getSize(onePDMOrtho[i]),
-        onePDMOrtho[i]);
+    *onePDMOrtho = *this->onePDM;
 
     // Transform the orthonormal density to the AO basis 
     // (on root MPI process)
@@ -172,7 +151,7 @@ namespace ChronusQ {
     MatsT* C = getNRCoeffs();
 
     // MO(:,i) = MO(:,i) + \sum_a C(a,i) MO(:,a)
-    const size_t NB   = this->aoints.basisSet().nBasis;
+    const size_t NB   = this->nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -184,12 +163,12 @@ namespace ChronusQ {
 
     for(auto i = 0ul, ai = 0ul; i < NO;  i++)
     for(auto a = NO           ; a < NBC; a++, ai++) 
-      AXPY(NBC,-C[ai],this->mo1 + a*NBC,1,this->mo1 + i*NBC,1);
+      AXPY(NBC,-C[ai],this->mo[0].pointer() + a*NBC,1,this->mo[0].pointer() + i*NBC,1);
 
     if( nC == 1 and not iCS )
       for(auto i = 0ul, ai = 0ul; i < this->nOB;  i++)
       for(auto a = this->nOB   ; a < NB; a++, ai++) 
-        AXPY(NB,-C[ai + nOAVA],this->mo2 + a*NB,1,this->mo2 + i*NB,1);
+        AXPY(NB,-C[ai + nOAVA],this->mo[1].pointer() + a*NB,1,this->mo[1].pointer() + i*NB,1);
 
     this->memManager.free(C);
 
@@ -233,18 +212,17 @@ namespace ChronusQ {
       NewtonRaphsonSCF();
 
     if ( scfControls.resetMOCoeffs ) {
-      savFile.readData("SCF/OLD_MO1", this->mo1);
+      savFile.readData("SCF/OLD_MO1", this->mo[0].pointer());
       if ( this->nC == 1 and not this->iCS )
-        savFile.readData("SCF/OLD_MO2", this->mo2);
+        savFile.readData("SCF/OLD_MO2", this->mo[1].pointer());
     }
 
 #ifdef CQ_ENABLE_MPI
     // Broadcast the AO 1PDM to all MPI processes
     if( MPISize(comm) > 1 ) {
       std::cerr  << "  *** Scattering the 1PDM ***\n";
-      for(auto k = 0; k < this->onePDM.size(); k++)
-        MPIBCast(this->onePDM[k],
-          memManager.template getSize(this->onePDM[k]),0,comm);
+      for(auto mat : this->onePDM->SZYXPointers())
+        MPIBCast(mat,memManager.template getSize(mat),0,comm);
     }
 #endif
 
@@ -273,7 +251,7 @@ namespace ChronusQ {
 
     }
 
-    const size_t NB   = this->aoints.basisSet().nBasis;
+    const size_t NB   = this->nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -338,9 +316,9 @@ namespace ChronusQ {
 
 
     // MO1 = MO1 * EXPROT
-    Gemm('N','N',NBC,NBC,NBC,MatsT(1.),this->mo1,NBC,EXPROT,NBC,MatsT(0.),
+    Gemm('N','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,EXPROT,NBC,MatsT(0.),
       ROT,NBC);
-    std::copy_n(ROT,NBC2,this->mo1);
+    std::copy_n(ROT,NBC2,this->mo[0].pointer());
 
 
 
@@ -397,15 +375,15 @@ namespace ChronusQ {
 
 
       // Check density convergence
- 
-      size_t DSize = memManager. template getSize(fockMatrix[SCALAR]);
-      size_t NB    = this->aoints.basisSet().nBasis;
+
+      size_t NB    = basisSet().nBasis;
+      size_t DSize = NB*NB;
       scfConv.RMSDenScalar = 
-        TwoNorm<double>(DSize,deltaOnePDM[SCALAR],1) / NB;
+        TwoNorm<double>(DSize,deltaOnePDM->S().pointer(),1) / NB;
       scfConv.RMSDenMag = 0.;
-      for(auto i = 1; i < deltaOnePDM.size(); i++)
-        scfConv.RMSDenMag += 
-          std::pow(TwoNorm<double>(DSize,deltaOnePDM[i],1),2.);
+      for(auto i = 1; i < deltaOnePDM->nComponent(); i++)
+        scfConv.RMSDenMag += std::pow(TwoNorm<double>(DSize,
+            (*deltaOnePDM)[static_cast<PAULI_SPINOR_COMPS>(i)].pointer(),1),2.);
  
       scfConv.RMSDenMag = std::sqrt(scfConv.RMSDenMag) / NB;
       
@@ -477,29 +455,20 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::formDelta() {
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
 
     // Compute difference on root MPI process
     if( MPIRank(comm) == 0 ) {
       if( not savFile.exists() )
-        for(auto i = 0; i < this->onePDM.size(); i++)
-          MatAdd('N','N',NB,NB,MatsT(1.),this->onePDM[i],NB,MatsT(-1.),
-            curOnePDM[i],NB,deltaOnePDM[i],NB);
+        *deltaOnePDM = *this->onePDM - *curOnePDM;
       else {
 
-        MatsT* DENSCR = this->memManager.template malloc<MatsT>(NB*NB);
-        const std::array<std::string,4> spinLabel =
-          { "SCALAR", "MZ", "MY", "MX" };
+        PauliSpinorSquareMatrices<MatsT> DENSCR(this->memManager, NB,
+            this->onePDM->hasXY(), this->onePDM->hasZ());
 
-        for(auto i = 0; i < this->onePDM.size(); i++) {
+        savFile.readData("/SCF/1PDM",DENSCR);
 
-          savFile.readData("/SCF/1PDM_" + spinLabel[i],DENSCR);
-
-          MatAdd('N','N',NB,NB,MatsT(1.),this->onePDM[i],NB,MatsT(-1.),
-            DENSCR,NB,deltaOnePDM[i],NB);
-        }
-
-        this->memManager.free(DENSCR);
+        *deltaOnePDM = *this->onePDM - DENSCR;
 
       }
     }
@@ -507,7 +476,7 @@ namespace ChronusQ {
 #ifdef CQ_ENABLE_MPI
     // Broadcast the change in the 1PDM
     if( MPISize(comm) > 1 ) 
-      for(auto &X : deltaOnePDM) {
+      for(auto &X : deltaOnePDM->SZYXPointers()) {
         MPIBCast(X,NB*NB,0,comm);
       }
 #endif
@@ -530,41 +499,30 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::diagOrthoFock() {
 
     ROOT_ONLY(comm); 
-    size_t NB = this->aoints.basisSet().nBasis * nC;
+    size_t NB = this->nAlphaOrbital() * nC;
     size_t NB2 = NB*NB;
     bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
 
     // Copy over the fockMatrixOrtho into MO storage
     if(nC == 1 and iCS) 
-      std::transform(fockMatrixOrtho[SCALAR],fockMatrixOrtho[SCALAR] + NB2,this->mo1,
-        [](MatsT a){ return a / 2.; }
-      );
-    else if(iRO) 
-      std::transform(fockMatrixOrtho[SCALAR],fockMatrixOrtho[SCALAR] + NB2,this->mo1,
-        [](MatsT a){ return a ; }
-      );
+      this->mo = fockMatrixOrtho->template spinGatherToBlocks<MatsT>(false,false);
+    else if(iRO)
+      this->mo[0] = fockMatrixOrtho->S();
     else if(nC == 1)
-      for(auto j = 0; j < NB2; j++) {
-        this->mo1[j] = 0.5 * (fockMatrixOrtho[SCALAR][j] + fockMatrixOrtho[MZ][j]); 
-        this->mo2[j] = 0.5 * (fockMatrixOrtho[SCALAR][j] - fockMatrixOrtho[MZ][j]); 
-      }
-    else { 
-
-      SpinGather(NB/2,this->mo1,NB,fockMatrixOrtho[SCALAR],NB/2,fockMatrixOrtho[MZ],
-        NB/2,fockMatrixOrtho[MY],NB/2,fockMatrixOrtho[MX],NB/2);
-
-    }
+      this->mo = fockMatrixOrtho->template spinGatherToBlocks<MatsT>(false);
+    else
+      this->mo[0] = fockMatrixOrtho->template spinGather<MatsT>();
 
     // Diagonalize the Fock Matrix
-    int INFO = HermetianEigen('V', 'L', NB, this->mo1, NB, this->eps1, 
+    int INFO = HermetianEigen('V', 'L', NB, this->mo[0].pointer(), NB, this->eps1,
       memManager );
     if( INFO != 0 ) CErr("HermetianEigen failed in Fock1",std::cout);
 
     if(iRO) {
-      std::copy_n(this->mo1, NB2, this->mo2);// for ROHF
+      this->mo[1] = this->mo[0]; // for ROHF
       std::copy_n(this->eps1, NB, this->eps2);
     } else if(nC == 1 and not iCS) {
-      INFO = HermetianEigen('V', 'L', NB, this->mo2, NB, this->eps2, 
+      INFO = HermetianEigen('V', 'L', NB, this->mo[1].pointer(), NB, this->eps2,
         memManager );
       if( INFO != 0 ) CErr("HermetianEigen failed in Fock2",std::cout);
     }
@@ -585,9 +543,11 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::ao2orthoFock() {
 
-    ROOT_ONLY(comm); 
-    for(auto i = 0; i < fockMatrix.size(); i++)
-      Ortho1TransT(fockMatrix[i],fockMatrixOrtho[i]);
+    ROOT_ONLY(comm);
+
+    size_t NB = ortho[0].dimension();
+    *fockMatrixOrtho = fockMatrix->transform(
+          'N', ortho[0].pointer(), NB, NB);
 
   }; // SingleSlater<MatsT>::ao2orthoFock
 
@@ -604,8 +564,9 @@ namespace ChronusQ {
 
     ROOT_ONLY(comm);
 
-    for(auto i = 0; i < onePDMOrtho.size(); i++)
-      Ortho1Trans(onePDMOrtho[i],this->onePDM[i]);
+    size_t NB = ortho[0].dimension();
+    *this->onePDM = onePDMOrtho->transform(
+          'C', ortho[0].pointer(), NB, NB);
 
 #if 0
     print1PDMOrtho(std::cout);
@@ -617,7 +578,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::ortho2aoMOs() {
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = this->nAlphaOrbital();
 
     // Transform MOs on MPI root as slave processes do not have
     // updated MO coefficients
@@ -625,23 +586,23 @@ namespace ChronusQ {
       MatsT* SCR = this->memManager.template malloc<MatsT>(this->nC*NB*NB);
 
       // Transform the (top half) of MO1
-      Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho1,NB,
-        this->mo1,this->nC*NB,MatsT(0.),SCR,NB);
-      SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo1,this->nC*NB);
+      Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
+          this->mo[0].pointer(),this->nC*NB,MatsT(0.),SCR,NB);
+      SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer(),this->nC*NB);
       
       if( this->nC == 2 ) {
 
         // Transform the bottom half of MO1
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho1,NB,
-          this->mo1 + NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo1 + NB,this->nC*NB);
+        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
+            this->mo[0].pointer() + NB,this->nC*NB,MatsT(0.),SCR,NB);
+        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + NB,this->nC*NB);
 
       } else if( not this->iCS ) {
 
         // Transform MO2
-        Gemm('N','N',NB,NB,NB,MatsT(1.),this->ortho1,NB,this->mo2,NB,MatsT(0.),
-          SCR,NB);
-        SetMat('N',NB,NB,MatsT(1.),SCR,NB,this->mo2,NB);
+        Gemm('N','N',NB,NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
+            this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
+        SetMat('N',NB,NB,MatsT(1.),SCR,NB,this->mo[1].pointer(),NB);
 
       }
 
@@ -656,9 +617,9 @@ namespace ChronusQ {
     if( MPISize(comm) > 1 ) {
 
       std::cerr  << "  *** Scattering the AO-MOs ***\n";
-      MPIBCast(this->mo1,nC*nC*NB*NB,0,comm);
+      MPIBCast(this->mo[0].pointer(),nC*nC*NB*NB,0,comm);
       if( nC == 1 and not iCS )
-        MPIBCast(this->mo2,nC*nC*NB*NB,0,comm);
+        MPIBCast(this->mo[1].pointer(),nC*nC*NB*NB,0,comm);
 
       std::cerr  << "  *** Scattering EPS ***\n";
       MPIBCast(this->eps1,nC*NB,0,comm);
@@ -666,8 +627,8 @@ namespace ChronusQ {
         MPIBCast(this->eps2,nC*NB,0,comm);
 
       std::cerr  << "  *** Scattering FOCK ***\n";
-      for(int k = 0; k < fockMatrix.size(); k++)
-        MPIBCast(fockMatrix[k],NB*NB,0,comm);
+      for(MatsT *mat : fockMatrix->SZYXPointers())
+        MPIBCast(mat,NB*NB,0,comm);
 
     }
 
@@ -684,12 +645,12 @@ namespace ChronusQ {
 
     // MO1 inner product
     Gemm('N','N',NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
-      this->mo1,this->nC*NB,T(0.),SCR2,this->nC*NB);
+      this->mo[0].pointer(),this->nC*NB,T(0.),SCR2,this->nC*NB);
     if(this->nC == 2)
       Gemm('N','N',NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
-        this->mo1+NB,this->nC*NB,T(0.),SCR2+NB,this->nC*NB);
+        this->mo[0].pointer()+NB,this->nC*NB,T(0.),SCR2+NB,this->nC*NB);
    
-    Gemm('C','N',this->nC*NB,this->nC*NB,this->nC*NB,T(1.),this->mo1,
+    Gemm('C','N',this->nC*NB,this->nC*NB,this->nC*NB,T(1.),this->mo[0].pointer(),
       this->nC*NB,SCR2,this->nC*NB,T(0.),SCR3,this->nC*NB);
 
     for(auto i = 0; i < this->nC*NB; i++)
@@ -703,8 +664,8 @@ namespace ChronusQ {
 
 
     if(this->nC == 1 and not this->iCS) {
-      Gemm('N','N',NB,NB,NB,T(1.),this->aoints.overlap,NB,this->mo2,NB,T(0.),SCR2,NB);
-      Gemm('C','N',NB,NB,NB,T(1.),this->mo2,NB,SCR2,NB,T(0.),SCR3,NB);
+      Gemm('N','N',NB,NB,NB,T(1.),this->aoints.overlap,NB,this->mo[1].pointer(),NB,T(0.),SCR2,NB);
+      Gemm('C','N',NB,NB,NB,T(1.),this->mo[1].pointer(),NB,SCR2,NB,T(0.),SCR3,NB);
 
       for(auto i = 0; i < this->nC*NB; i++)
         SCR3[i*(this->nC*NB + 1)] -= 1.;
@@ -759,7 +720,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT, IntsT>::orthoAOMO() {
 
-    const size_t NB   = this->aoints.basisSet().nBasis;
+    const size_t NB   = this->nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = this->nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -769,13 +730,13 @@ namespace ChronusQ {
     MatsT* SCR2 = this->memManager.template malloc<MatsT>(NBC*NBC);
 
     // SCR2 = C**H S C
-    Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap,NB,this->mo1,NBC,MatsT(0.),
-      SCR,NBC);
+    Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+         this->mo[0].pointer(),NBC,MatsT(0.),SCR,NBC);
     if( this->nC == 2 )
-      Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap,NB,this->mo1+NB,NBC,
-        MatsT(0.),SCR+NB,NBC);
+      Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+           this->mo[0].pointer()+NB,NBC,MatsT(0.),SCR+NB,NBC);
 
-    Gemm('C','N',NBC,NBC,NBC,MatsT(1.),this->mo1,NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
+    Gemm('C','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
 
     // SCR2 = L L**H -> L
     int INFO = Cholesky('L',NBC,SCR2,NBC);
@@ -784,13 +745,13 @@ namespace ChronusQ {
     INFO = TriInv('L','N',NBC,SCR2,NBC);
 
     // MO1 = MO1 * L^-H
-    Trmm('R','L','C','N',NBC,NBC,MatsT(1.),SCR2,NBC,this->mo1,NBC);
+    Trmm('R','L','C','N',NBC,NBC,MatsT(1.),SCR2,NBC,this->mo[0].pointer(),NBC);
 
     // Reorthogonalize MOB
     if( this->nC == 1 and not this->iCS ) {
-      Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap,NB,this->mo2,NB,MatsT(0.),
-        SCR,NB);
-      Gemm('C','N',NB,NB,NB,MatsT(1.),this->mo2,NBC,SCR,NB,MatsT(0.),SCR2,NB);
+      Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+           this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
+      Gemm('C','N',NB,NB,NB,MatsT(1.),this->mo[1].pointer(),NBC,SCR,NB,MatsT(0.),SCR2,NB);
 
       // SCR2 = L L**H -> L
       INFO = Cholesky('L',NB,SCR2,NB);
@@ -799,7 +760,7 @@ namespace ChronusQ {
       INFO = TriInv('L','N',NB,SCR2,NB);
 
       // MO2 = MO2 * L^-H
-      Trmm('R','L','C','N',NB,NB,MatsT(1.),SCR2,NB,this->mo2,NB);
+      Trmm('R','L','C','N',NB,NB,MatsT(1.),SCR2,NB,this->mo[1].pointer(),NB);
 
     }
 

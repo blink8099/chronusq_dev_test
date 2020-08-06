@@ -68,30 +68,21 @@ namespace ChronusQ {
     // to use the guess Fock and it's not saved anyway.
     if(scfConv.nSCFIter == 0) return;
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
     double dp = scfControls.dampParam;
    
     // Damp the current orthonormal Fock matrix 
     if( not savFile.exists() )
-      for(auto i = 0; i < fockMatrixOrtho.size(); i++)
-        MatAdd('N','N', NB, NB, MatsT(1-dp), fockMatrixOrtho[i], NB, MatsT(dp), 
-          prevFock[i], NB, fockMatrixOrtho[i], NB);
+      *fockMatrixOrtho = (1-dp) * *fockMatrixOrtho + dp * *prevFock;
     else {
 
-      MatsT* FSCR = this->memManager.template malloc<MatsT>(NB*NB);
-      const std::array<std::string,4> spinLabel =
-        { "SCALAR", "MZ", "MY", "MX" };
+      PauliSpinorSquareMatrices<MatsT> FSCR(this->memManager, NB,
+          fockMatrixOrtho->hasXY(), fockMatrixOrtho->hasZ());
 
-      for(auto i = 0; i < fockMatrixOrtho.size(); i++) {
+      savFile.readData("/SCF/FOCK_ORTHO", FSCR);
 
-        savFile.readData("/SCF/FOCK_ORTHO_" + spinLabel[i],FSCR);
+      *fockMatrixOrtho = (1-dp) * *fockMatrixOrtho + dp * FSCR;
 
-        MatAdd('N','N', NB, NB, MatsT(1-dp), fockMatrixOrtho[i], NB, MatsT(dp), 
-         FSCR, NB, fockMatrixOrtho[i], NB);
-
-      }
-
-      this->memManager.free(FSCR);
     }
 
   }; // SingleSlater<T>::fockDamping
@@ -108,39 +99,33 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::scfDIIS(size_t nExtrap) {
 
     // Save the current AO Fock and density matrices
-    size_t NB    = this->aoints.basisSet().nBasis;
+    size_t NB    = basisSet().nBasis;
     size_t iDIIS = scfConv.nSCFIter % scfControls.nKeep;
-    for(auto i = 0; i < this->fockMatrix.size(); i++) {
-      std::copy_n(this->fockMatrix[i],NB*NB,diisFock[iDIIS][i]);
-      std::copy_n(this->onePDM[i],NB*NB,diisOnePDM[iDIIS][i]);
-    }
+
+    diisFock[iDIIS] = *this->fockMatrix;
+    diisOnePDM[iDIIS] = *this->onePDM;
 
     // Evaluate orthonormal [F,D] and store in diisError
     FDCommutator(diisError[iDIIS]);
 
     scfConv.nrmFDC = 0.;
-    for(auto &E : diisError[iDIIS])
+    for(auto E : diisError[iDIIS].SZYXPointers())
       scfConv.nrmFDC = std::max(scfConv.nrmFDC,TwoNorm<double>(NB*NB,E,1));
 
     // Just save the Fock, density, and commutator for the first iteration
     if (scfConv.nSCFIter == 0) return;
       
     // Build the B matrix and return the coefficients for the extrapolation
-    size_t nMat = fockMatrixOrtho.size();
-    DIIS<MatsT> extrap(nExtrap,nMat,NB*NB,diisError);
+    DIIS<MatsT> extrap(nExtrap,diisError);
 
 
     if(extrap.extrapolate()) { 
       // Extrapolate Fock and density matrices using DIIS coefficients
-      for(auto i = 0; i < fockMatrixOrtho.size(); i++) {
-        std::fill_n(fockMatrix[i],NB*NB,0.);
-        std::fill_n(this->onePDM[i],NB*NB,0.);
-        for(auto j = 0; j < nExtrap; j++) {
-          MatAdd('N','N', NB, NB, MatsT(1.), fockMatrix[i], NB, MatsT(extrap.coeffs[j]), 
-            diisFock[j][i], NB, fockMatrix[i], NB);
-          MatAdd('N','N', NB, NB, MatsT(1.), this->onePDM[i], NB, 
-            MatsT(extrap.coeffs[j]), diisOnePDM[j][i], NB, this->onePDM[i], NB);
-        } 
+      fockMatrix->clear();
+      this->onePDM->clear();
+      for(auto j = 0; j < nExtrap; j++) {
+        *fockMatrix += extrap.coeffs[j] * diisFock[j];
+        *this->onePDM += extrap.coeffs[j] * diisOnePDM[j];
       }
     } else {
       std::cout << "\n    *** WARNING: DIIS Inversion Failed -- "
@@ -164,33 +149,31 @@ namespace ChronusQ {
     ROOT_ONLY(comm);
 
     diisFock.clear();
+    diisFock.reserve(scfControls.nKeep);
     diisOnePDM.clear();
+    diisOnePDM.reserve(scfControls.nKeep);
     diisError.clear();
-    prevFock.clear();
-
-    size_t FSize = memManager.template getSize(fockMatrix[SCALAR]);
+    diisError.reserve(scfControls.nKeep);
 
     // Allocate memory to store previous orthonormal Focks and densities for DIIS
     if (scfControls.diisAlg != NONE) {
       for(auto i = 0; i < scfControls.nKeep; i++) {
-        diisFock.emplace_back();
-        diisOnePDM.emplace_back();
-        diisError.emplace_back();
-        for(auto j = 0; j < this->fockMatrix.size(); j++) {
-          diisFock[i].emplace_back(memManager.template malloc<MatsT>(FSize));
-          diisOnePDM[i].emplace_back(memManager.template malloc<MatsT>(FSize));
-          diisError[i].emplace_back(memManager.template malloc<MatsT>(FSize));
-          std::fill_n(diisFock[i][j],FSize,0.);
-          std::fill_n(diisOnePDM[i][j],FSize,0.);
-          std::fill_n(diisError[i][j],FSize,0.);
-        } 
+        diisFock.emplace_back(memManager, fockMatrix->dimension(),
+                                  fockMatrix->hasXY(), fockMatrix->hasZ());
+        diisFock.back().clear();
+        diisOnePDM.emplace_back(memManager, fockMatrix->dimension(),
+                                    fockMatrix->hasXY(), fockMatrix->hasZ());
+        diisOnePDM.back().clear();
+        diisError.emplace_back(memManager, fockMatrix->dimension(),
+                                   fockMatrix->hasXY(), fockMatrix->hasZ());
+        diisError.back().clear();
       }
     }
 
     // Allocate memory to store previous orthonormal Fock for damping 
-    if( scfControls.doDamp and not savFile.exists() ) 
-      for(auto i = 0; i < this->fockMatrix.size(); i++) 
-        prevFock.emplace_back(memManager.template malloc<MatsT>(FSize));
+    if( scfControls.doDamp and not savFile.exists() ) {
+      SPIN_OPERATOR_ALLOC(basisSet().nBasis,prevFock);
+    }
 
   }; // SingleSlater<T>::allocExtrapStorage
 
@@ -207,17 +190,13 @@ namespace ChronusQ {
 
     // Deallocate memory to store previous orthonormal Focks and densities for DIIS
     if (scfControls.diisAlg != NONE) {
-      for(auto i = 0; i < scfControls.nKeep; i++) {
-        for(auto j = 0; j < this->fockMatrix.size(); j++) {
-          memManager.free(diisFock[i][j]);
-          memManager.free(diisOnePDM[i][j]);
-          memManager.free(diisError[i][j]);
-        } 
-      }
+      diisFock.clear();
+      diisOnePDM.clear();
+      diisError.clear();
     }
 
     // Deallocate memory to store previous orthonormal Fock for damping 
-    for( auto &F : prevFock ) memManager.free(F);
+    prevFock = nullptr;
 
   }; // SingleSlater<T>::deallocExtrapStorage
 
@@ -233,73 +212,63 @@ namespace ChronusQ {
    *
    */ 
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::FDCommutator(oper_t_coll &FDC) {
+  void SingleSlater<MatsT,IntsT>::FDCommutator(PauliSpinorSquareMatrices<MatsT> &FDC) {
 
-    size_t OSize = memManager.template getSize(fockMatrix[SCALAR]);
-    size_t NB    = this->aoints.basisSet().nBasis;
-    MatsT* SCR     = memManager.template malloc<MatsT>(nC*nC*NB*NB);
+    size_t NB    = basisSet().nBasis;
     bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
 
     if(this->nC == 1) {
+      SquareMatrix<MatsT> SCR(memManager, NB);
+
       // FD(S) = F(S)D(S)
-      Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho[SCALAR], NB, 
-        onePDMOrtho[SCALAR], NB, MatsT(0.), FDC[SCALAR], NB);
+      Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho->S().pointer(), NB,
+        onePDMOrtho->S().pointer(), NB, MatsT(0.), FDC.S().pointer(), NB);
 
       // FD(S) += F(z)D(z)
       if(nC == 2 or !iCS and !iRO) {
-        Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho[MZ], NB, 
-          onePDMOrtho[MZ], NB, MatsT(0.), SCR, NB);
-        MatAdd('N','N', NB, NB, MatsT(1.), FDC[SCALAR], NB, MatsT(1.), 
-          SCR, NB, FDC[SCALAR], NB);
+        Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho->Z().pointer(), NB,
+          onePDMOrtho->Z().pointer(), NB, MatsT(0.), SCR.pointer(), NB);
+        FDC.S() += SCR;
       }
 
       // Form {FD - DF}(S)
-      std::copy_n(FDC[SCALAR],OSize,SCR);
-      MatAdd('N','C', NB, NB, MatsT(1.), FDC[SCALAR], NB, MatsT(-1.), 
-        SCR, NB, FDC[SCALAR], NB);
+      SCR = FDC.S();
+      MatAdd('N','C', NB, NB, MatsT(1.), FDC.S().pointer(), NB,
+             MatsT(-1.), SCR.pointer(), NB, FDC.S().pointer(), NB);
 
 
       if(nC == 2 or !iCS and !iRO) {
         // FD(z) = F(S)D(z) + F(z)D(S)
-        Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho[SCALAR], NB, 
-          onePDMOrtho[MZ], NB, MatsT(0.), FDC[MZ], NB);
-        Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho[MZ], NB, 
-          onePDMOrtho[SCALAR], NB, MatsT(0.), SCR, NB);
-        MatAdd('N','N', NB, NB, MatsT(1.), FDC[MZ], NB, MatsT(1.), 
-          SCR, NB, FDC[MZ], NB);
+        Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho->S().pointer(), NB,
+          onePDMOrtho->Z().pointer(), NB, MatsT(0.), FDC.Z().pointer(), NB);
+        Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho->Z().pointer(), NB,
+          onePDMOrtho->S().pointer(), NB, MatsT(0.), SCR.pointer(), NB);
+        FDC.Z() += SCR;
 
         // Form {FD - DF}(z)
-        std::copy_n(FDC[MZ],OSize,SCR);
-        MatAdd('N','C', NB, NB, MatsT(1.), FDC[MZ], NB, MatsT(-1.), 
-          SCR, NB, FDC[MZ], NB);
+        SCR = FDC.Z();
+        MatAdd('N','C', NB, NB, MatsT(1.), FDC.Z().pointer(), NB,
+               MatsT(-1.), SCR.pointer(), NB, FDC.Z().pointer(), NB);
       }
     } else {
 
-      MatsT* FO = memManager.template malloc<MatsT>(4*NB*NB);
-      MatsT* DO = memManager.template malloc<MatsT>(4*NB*NB);
-
       // Gather the orthonormal Fock and densities
-      SpinGather(NB,FO,2*NB,fockMatrixOrtho[SCALAR],NB,fockMatrixOrtho[MZ],
-        NB,fockMatrixOrtho[MY],NB,fockMatrixOrtho[MX],NB);
-      SpinGather(NB,DO,2*NB,onePDMOrtho[SCALAR],NB,onePDMOrtho[MZ],
-        NB,onePDMOrtho[MY],NB,onePDMOrtho[MX],NB);
+      SquareMatrix<MatsT> FO(fockMatrixOrtho->template spinGather<MatsT>());
+      SquareMatrix<MatsT> DO(onePDMOrtho->template spinGather<MatsT>());
+      SquareMatrix<MatsT> SCR(memManager, 2*NB);
 
       // Compute FD product
-      Gemm('N','N',2*NB,2*NB,2*NB,MatsT(1.),FO,2*NB,DO,2*NB,MatsT(0.),SCR,2*NB);
+      Gemm('N','N',2*NB,2*NB,2*NB,MatsT(1.),FO.pointer(),2*NB,
+           DO.pointer(),2*NB,MatsT(0.),SCR.pointer(),2*NB);
       
       // Compute FD - DF (Store in FO scratch)
-      MatAdd('N','C',2*NB,2*NB,MatsT(1.),SCR,2*NB,MatsT(-1.),SCR,2*NB,
-        FO,2*NB);
+      MatAdd('N','C',2*NB,2*NB,MatsT(1.),SCR.pointer(),2*NB,
+             MatsT(-1.),SCR.pointer(),2*NB,FO.pointer(),2*NB);
 
       // Scatter Product into FDC
-      SpinScatter(NB,FO,2*NB,FDC[SCALAR],NB,FDC[MZ],
-        NB,FDC[MY],NB,FDC[MX],NB);
+      FDC = FO.template spinScatter<MatsT>();
 
-      memManager.free(FO,DO);
     }
-
-
-    memManager.free(SCR);
 
   }; // SingleSlater<T>::FDCommutator
 

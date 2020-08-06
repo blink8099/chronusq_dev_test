@@ -165,6 +165,8 @@ namespace ChronusQ {
          std::cerr << "  PTR = " << ptr << std::endl;
        #endif
 
+       assert( AllocatedBlocks_.find(static_cast<void*>(ptr)) == AllocatedBlocks_.end() );
+
        // Keep a record of the block
        AllocatedBlocks_[ptr] = { n * sizeof(T), nBlocks }; 
 
@@ -193,7 +195,7 @@ namespace ChronusQ {
        assert( it != AllocatedBlocks_.end() );
 
        #ifdef MEM_PRINT
-         std::cerr << "Freeing " << it->second 
+         std::cerr << "Freeing " << it->second.second 
                    << " blocks of data starting from " 
                    << static_cast<void*>(ptr) << std::endl;
        #endif

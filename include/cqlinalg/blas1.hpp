@@ -46,7 +46,7 @@ namespace ChronusQ {
    *  parameter documentation.
    */ 
   template <typename _F1, typename _F2, typename _F3>
-  _F1 InnerProd(int N, _F2 *X, int INCX, _F3 *Y, int INCY);
+  _F1 InnerProd(int N, const _F2 *X, int INCX, const _F3 *Y, int INCY);
 
   /**
    *  \brief Swaps the states of two vectors
@@ -94,8 +94,8 @@ namespace ChronusQ {
    *  parameter documentation.
    *    
    */
-  template <typename _F, typename _ShiftF>
-  void AXPY(int N, _ShiftF alpha, _F *X, int INCX, _F *Y, int INCY);
+  template <typename _F1, typename _F2, typename _ShiftF>
+  void AXPY(int N, _ShiftF alpha, const _F1 *X, int INCX, _F2 *Y, int INCY);
 
   /**
    *  \brief Returns the specified norm of a matrix.

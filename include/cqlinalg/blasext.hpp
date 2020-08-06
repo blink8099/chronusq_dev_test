@@ -54,8 +54,9 @@ namespace ChronusQ {
    */ 
   template <typename _F1, typename _F2, typename _F3, typename _FScale1, 
     typename _FScale2>
-  void MatAdd(char TRANSA, char TRANSB, size_t M, size_t N, _FScale1 ALPHA, 
-    _F1 *A, size_t LDA, _FScale2 BETA, _F2 *B, size_t LDB, _F3 *C, size_t LDC);
+  void MatAdd(char TRANSA, char TRANSB, size_t M, size_t N,
+              _FScale1 ALPHA, const _F1 *A, size_t LDA, _FScale2 BETA,
+              const _F2 *B, size_t LDB, _F3 *C, size_t LDC);
 
   /**
    *  \brief Perform an in-place matrix operation of the type

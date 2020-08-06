@@ -21,10 +21,11 @@
 #   E-Mail: xsli@uw.edu
 #
 add_subdirectory(cqlinalg)
+add_subdirectory(matrix)
 add_subdirectory(grid)
 add_subdirectory(molecule)
 add_subdirectory(basisset)
-add_subdirectory(aointegrals)
+add_subdirectory(electronintegrals)
 add_subdirectory(quantum)
 add_subdirectory(wavefunction)
 add_subdirectory(x2c)

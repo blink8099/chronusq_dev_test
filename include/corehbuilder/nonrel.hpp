@@ -39,8 +39,8 @@ namespace ChronusQ {
 
     // Disable default constructor
     NRCoreH() = delete;
-    NRCoreH(AOIntegrals<IntsT> &aoints):
-      CoreHBuilder<MatsT,IntsT>(aoints, {false,true,false}) {}
+    NRCoreH(Integrals<IntsT> &aoints, AOIntsOptions aoiOptions):
+      CoreHBuilder<MatsT,IntsT>(aoints, aoiOptions) {}
 
     // Same or Different type
     template <typename MatsU>
@@ -56,9 +56,12 @@ namespace ChronusQ {
     // Public member functions
 
     // Compute core Hamitlonian
-    void addMagPert(EMPerturbation&, std::vector<MatsT*>&);
-    virtual void computeCoreH(EMPerturbation &, std::vector<MatsT*>&);
-    virtual void computeNRCH(EMPerturbation &, std::vector<MatsT*>&);
+    void addMagPert(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    virtual void computeCoreH(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    virtual void computeNRCH(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
 
     // Compute the gradient
     virtual void getGrad() {

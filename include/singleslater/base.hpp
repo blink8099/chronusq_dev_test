@@ -25,7 +25,7 @@
 
 #include <chronusq_sys.hpp>
 #include <wavefunction/base.hpp>
-#include <aointegrals.hpp>
+#include <integrals.hpp>
 #include <fields.hpp>
 #include <util/files.hpp>
 

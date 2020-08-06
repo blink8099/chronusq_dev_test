@@ -68,6 +68,3 @@ namespace ChronusQ {
   };
 
 }
-
-// Include header for implementation
-#include <fockbuilder/impl.hpp>

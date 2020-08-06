@@ -39,18 +39,13 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void ROFock<MatsT,IntsT>::rohfFock(SingleSlater<MatsT,IntsT> &ss) {
 
-    typedef MatsT*                    oper_t;
-
-    size_t NB = ss.aoints.basisSet().nBasis;
+    size_t NB = ss.basisSet().nBasis;
     size_t NB2 = NB*NB;
 
     ROOT_ONLY(ss.comm);
 
     //construct focka and fockb
-    for(auto j = 0; j < NB2; j++) {
-      ss.mo1[j] = 0.5 * (ss.fockMatrix[SCALAR][j] + ss.fockMatrix[MZ][j]);
-      ss.mo2[j] = 0.5 * (ss.fockMatrix[SCALAR][j] - ss.fockMatrix[MZ][j]); 
-    }
+    ss.mo = ss.fockMatrix->template spinGatherToBlocks<MatsT>(false);
 
     //construct projectors for closed, open, virtual
     //pc = dmb * S
@@ -59,19 +54,21 @@ namespace ChronusQ {
     MatsT* pc  = ss.memManager.template malloc<MatsT>(NB*NB);
     MatsT* po  = ss.memManager.template malloc<MatsT>(NB*NB);
     MatsT* pv  = ss.memManager.template malloc<MatsT>(NB*NB);
-    MatsT* tmp  = ss.memManager.template malloc<MatsT>(NB*NB);
+    SquareMatrix<MatsT> tmp(ss.memManager,NB);
     MatsT* tmp2 = ss.memManager.template malloc<MatsT>(NB*NB);
-    MatsT* S = ss.memManager.template malloc<MatsT>(NB*NB);
 
     //overlap matrix
-    std::transform(ss.aoints.overlap, ss.aoints.overlap+NB2, S,
-                   [](MatsT a){return a;});
-    for(auto j = 0; j < NB2; j++) tmp[j] = 0.5 * (ss.onePDM[0][j] - ss.onePDM[1][j]);
-    Gemm('N','N',NB,NB,NB,MatsT(1.),tmp,NB,S,NB,MatsT(0.),pc,NB);
-    for(auto j = 0; j < NB2; j++) tmp[j] = ss.onePDM[1][j];
-    Gemm('N','N',NB,NB,NB,MatsT(1.),tmp,NB,S,NB,MatsT(0.),po,NB);
-    for(auto j = 0; j < NB2; j++) tmp[j] = 0.5 * (ss.onePDM[0][j] + ss.onePDM[1][j]);
-    Gemm('N','N',NB,NB,NB,MatsT(-1.),tmp,NB,S,NB,MatsT(0.),pv,NB);
+    tmp = 0.5 * (ss.onePDM->S() - ss.onePDM->Z());
+    Gemm('N','N',NB,NB,NB,MatsT(1.),tmp.pointer(),NB,
+         SquareMatrix<MatsT>(ss.aoints.overlap->matrix()).pointer(),NB,
+         MatsT(0.),pc,NB);
+    Gemm('N','N',NB,NB,NB,MatsT(1.),ss.onePDM->Z().pointer(),NB,
+         SquareMatrix<MatsT>(ss.aoints.overlap->matrix()).pointer(),NB,
+         MatsT(0.),po,NB);
+    tmp = 0.5 * (ss.onePDM->S() + ss.onePDM->Z());
+    Gemm('N','N',NB,NB,NB,MatsT(-1.),tmp.pointer(),NB,
+         SquareMatrix<MatsT>(ss.aoints.overlap->matrix()).pointer(),NB,
+         MatsT(0.),pv,NB);
     for(auto j = 0; j < NB; j++) pv[j*NB+j] = MatsT(1.) + pv[j*NB+j];
     /*
      * construct Roothaan's effective fock
@@ -84,20 +81,24 @@ namespace ChronusQ {
         ======== ======== ====== =========
         where Fc = (Fa + Fb) / 2
      */
-    Gemm('N','N',NB,NB,NB,MatsT(0.5),ss.fockMatrix[SCALAR],NB,pc,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(0.5),pc,NB,tmp2,NB,MatsT(0.),tmp,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(1.),pv,NB,tmp2,NB,MatsT(1.),tmp,NB);
-    Gemm('N','N',NB,NB,NB,MatsT(0.5),ss.fockMatrix[SCALAR],NB,po,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(0.5),po,NB,tmp2,NB,MatsT(1.),tmp,NB);
-    Gemm('N','N',NB,NB,NB,MatsT(0.5),ss.fockMatrix[SCALAR],NB,pv,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(0.5),pv,NB,tmp2,NB,MatsT(1.),tmp,NB);
-    Gemm('N','N',NB,NB,NB,MatsT(1.),ss.mo2,NB,pc,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp,NB);
-    Gemm('N','N',NB,NB,NB,MatsT(1.),ss.mo1,NB,pv,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp,NB);
-    MatAdd('C','N',NB,NB,MatsT(1.),tmp,NB,MatsT(1.),tmp,NB,ss.fockMatrix[SCALAR],NB);
+    Gemm('N','N',NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
+         pc,NB,MatsT(0.),tmp2,NB);
+    Gemm('C','N',NB,NB,NB,MatsT(0.5),pc,NB,tmp2,NB,MatsT(0.),tmp.pointer(),NB);
+    Gemm('C','N',NB,NB,NB,MatsT(1.),pv,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    Gemm('N','N',NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
+         po,NB,MatsT(0.),tmp2,NB);
+    Gemm('C','N',NB,NB,NB,MatsT(0.5),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    Gemm('N','N',NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
+         pv,NB,MatsT(0.),tmp2,NB);
+    Gemm('C','N',NB,NB,NB,MatsT(0.5),pv,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    Gemm('N','N',NB,NB,NB,MatsT(1.),ss.mo[1].pointer(),NB,pc,NB,MatsT(0.),tmp2,NB);
+    Gemm('C','N',NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    Gemm('N','N',NB,NB,NB,MatsT(1.),ss.mo[0].pointer(),NB,pv,NB,MatsT(0.),tmp2,NB);
+    Gemm('C','N',NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    MatAdd('C','N',NB,NB,MatsT(1.),tmp.pointer(),NB,MatsT(1.),
+           tmp.pointer(),NB,ss.fockMatrix->S().pointer(),NB);
 
-    ss.memManager.free(pc,po,pv,tmp,tmp2,S);
+    ss.memManager.free(pc,po,pv,tmp2);
   }; // ROFock<MatsT, IntsT>::rohfFock
 
   /**
@@ -112,9 +113,6 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void ROFock<MatsT,IntsT>::formFock(SingleSlater<MatsT,IntsT> &ss,
     EMPerturbation &pert, bool increment, double xHFX) {
-
-    size_t NB = ss.aoints.basisSet().nBasis;
-    size_t NB2 = NB*NB;
 
     // General fock build
     FockBuilder<MatsT,IntsT>::formFock(ss, pert, increment, xHFX);

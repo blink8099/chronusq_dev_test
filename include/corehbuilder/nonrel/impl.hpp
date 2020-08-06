@@ -24,33 +24,29 @@
 #pragma once
 
 #include <corehbuilder/nonrel.hpp>
+#include <matrix.hpp>
 
 namespace ChronusQ {
 
   template <>
   void NRCoreH<dcomplex, dcomplex>::addMagPert(EMPerturbation &pert,
-      std::vector<dcomplex*> &CH) {
-
+      std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> coreH) {
 
     //Compute the GIAO non-relativistic core Hamiltonian in the CGTO basis
     //H(S) = 2(T + V) + B * L + sigma * B + 1/4 *(B\timesr)^2
 
-    size_t NB = aoints_.basisSet().nBasis;
     dcomplex onei = dcomplex(0,1);
     auto magAmp = pert.getDipoleAmp(Magnetic);
 
 
     // this part add the angular momentum term
     for ( auto index = 0 ; index < 3 ; index++ ) {
-      MatAdd('N','N',NB,NB,-magAmp[index]*onei,
-        aoints_.magDipole[index],NB,dcomplex(1.),CH[0],NB,CH[0],NB);
+      *coreH += -magAmp[index] * onei * (*aoints_.magnetic)[index].matrix();
     } // for ( auto inde = 0 ; inde < 3 ; inde++ )
 
     // this part add the length gauge electric quadrupole term
-    int diagindex[3];
-    diagindex[0] = 0;  // xx
-    diagindex[1] = 3;  // yy
-    diagindex[2] = 5;  // zz
+    const std::array<std::string,3> diagindex =
+      { "XX","YY","ZZ" };
 
     double diagcoeff[3];
     diagcoeff[0] = 1.0/8.0*(magAmp[1]*magAmp[1]+magAmp[2]*magAmp[2]);
@@ -58,17 +54,12 @@ namespace ChronusQ {
     diagcoeff[2] = 1.0/8.0*(magAmp[0]*magAmp[0]+magAmp[1]*magAmp[1]);
 
     // add diagonal part
-    for ( auto index = 0 ; index < 3 ; index++ ) {
-      MatAdd('N','N',NB,NB,
-        dcomplex(2.0*diagcoeff[index]),
-        aoints_.lenElecQuadrupole[diagindex[index]],
-        NB,dcomplex(1.),CH[0],NB,CH[0], NB);
+    for ( size_t index = 0 ; index < 3 ; index++ ) {
+      *coreH += 2.0*diagcoeff[index] * (*aoints_.lenElectric)[diagindex[index]].matrix();
     }
 
-    int offindex[3];
-    offindex[0] = 1;  // xy
-    offindex[1] = 2;  // xz
-    offindex[2] = 4;  // yz
+    const std::array<std::string,3> offindex =
+      { "XY","XZ","YZ" };
 
     double offcoeff[3];
     offcoeff[0] = -1.0/4.0*magAmp[0]*magAmp[1];
@@ -76,45 +67,37 @@ namespace ChronusQ {
     offcoeff[2] = -1.0/4.0*magAmp[1]*magAmp[2];
 
     // add off diagonal part
-    for ( auto index = 0 ; index < 3 ; index++ ) {
-      MatAdd('N','N',NB,NB,
-        dcomplex(2.0*offcoeff[index]),
-        aoints_.lenElecQuadrupole[offindex[index]],
-        NB,dcomplex(1.),CH[0],NB,CH[0], NB);
+    for ( size_t index = 0 ; index < 3 ; index++ ) {
+      *coreH += 2.0*offcoeff[index] * (*aoints_.lenElectric)[offindex[index]].matrix();
     }
 
-
     // finally spin Zeeman term
-    if(CH.size() > 1) {
-      // z component
-      SetMat('N',NB,NB,dcomplex(magAmp[2]),aoints_.overlap,
-        NB, CH[1],NB );
+    // z component
+    if(coreH->hasZ())
+      coreH->Z() = magAmp[2] * aoints_.overlap->matrix();
 
-      if(CH.size() > 2) {
-        // y component
-        SetMat('N',NB,NB,dcomplex(magAmp[1]),aoints_.overlap,
-          NB, CH[2],NB );
+    if(coreH->hasXY()) {
+      // y component
+      coreH->Y() = magAmp[1] * aoints_.overlap->matrix();
 
-        // x coponent
-        SetMat('N',NB,NB,dcomplex(magAmp[0]),aoints_.overlap,
-          NB, CH[3],NB );
-      }
+      // x coponent
+      coreH->X() = magAmp[0] * aoints_.overlap->matrix();
     }
 
 
   }
 
   template <>
-  void NRCoreH<dcomplex, double>::addMagPert(EMPerturbation &pert,
-    std::vector<dcomplex*> &CH) {
+  void NRCoreH<dcomplex, double>::addMagPert(EMPerturbation&,
+    std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>>) {
 
 
     CErr("GIAO + Real integrals is not a valid option");
 
   }
   template <>
-  void NRCoreH<double, double>::addMagPert(EMPerturbation &pert,
-    std::vector<double*> &CH) {
+  void NRCoreH<double, double>::addMagPert(EMPerturbation&,
+    std::shared_ptr<PauliSpinorSquareMatrices<double>>) {
 
 
     CErr("GIAO + Real integrals is not a valid option");
@@ -127,11 +110,10 @@ namespace ChronusQ {
    *  \f[ H(S) = 2(T + V) \f]
    */
   template <typename MatsT, typename IntsT>
-  void NRCoreH<MatsT,IntsT>::computeCoreH(EMPerturbation& emPert, std::vector<MatsT*> &CH) {
+  void NRCoreH<MatsT,IntsT>::computeCoreH(EMPerturbation& emPert,
+      std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH) {
 
-    this->aoints_.computeAOOneE(emPert,this->oneETerms_); // compute the necessary 1e ints
-
-    computeNRCH(emPert, CH);
+    computeNRCH(emPert, coreH);
 
   };  // void NRCoreH::computeCoreH(std::vector<MatsT*> &CH)
 
@@ -141,16 +123,14 @@ namespace ChronusQ {
    *  \f[ H(S) = 2(T + V) \f]
    */
   template <typename MatsT, typename IntsT>
-  void NRCoreH<MatsT,IntsT>::computeNRCH(EMPerturbation& emPert, std::vector<MatsT*> &CH) {
-
-    size_t NB = this->aoints_.basisSet().nBasis;
+  void NRCoreH<MatsT,IntsT>::computeNRCH(EMPerturbation& emPert,
+      std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH) {
 
     // MatAdd for Real + Real -> Complex does not make sense
-    for(auto k = 0ul; k < NB*NB; k++)
-      CH[0][k] = 2. * (this->aoints_.kinetic[k] + this->aoints_.potential[k]);
+    *coreH = 2. * (this->aoints_.kinetic->matrix() + this->aoints_.potential->matrix());
 
-    if( this->aoints_.basisSet().basisType == COMPLEX_GIAO and pert_has_type(emPert,Magnetic) )
-      addMagPert(emPert,CH);
+    if( this->aoiOptions_.basisType == COMPLEX_GIAO and pert_has_type(emPert,Magnetic) )
+      addMagPert(emPert,coreH);
 
 
   #ifdef _DEBUGGIAOONEE

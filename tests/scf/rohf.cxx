@@ -29,7 +29,7 @@
 // Li 6-31G(d) test
 TEST( ROHF, Li_631Gd ) {
 
-  CQSCFTEST( "scf/serial/rohf/li_6-31Gd_nodiis", "li_rohf_6-31Gd.bin.ref" );
+  CQSCFTEST( "scf/serial/rohf/li_6-31Gd_nodiis", "li_rohf_6-31Gd.bin.ref", 1e-7 );
 
 };
 
@@ -45,7 +45,7 @@ TEST( ROHF, O2_631Gd ) {
 // SMP Li 6-31G(d) test
 TEST( ROHF, PAR_Li_631Gd ) {
 
-  CQSCFTEST( "scf/parallel/rohf/li_6-31Gd", "li_rohf_6-31Gd.bin.ref" );
+  CQSCFTEST( "scf/parallel/rohf/li_6-31Gd", "li_rohf_6-31Gd.bin.ref", 1e-7 );
 
 };
 

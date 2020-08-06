@@ -1,4 +1,4 @@
-/* 
+/*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
  *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
@@ -129,7 +129,7 @@ namespace ChronusQ {
                   (GDenS[iPt + 2*NPts] * GTZ[iPt + 2*NPts]);
 
         U gPTzz(0.);
-        if( this->onePDM.size() > 1 ) {
+        if( this->onePDM->hasZ() ) {
 
           // Sum of both <SZ> and <ZS>
           gPTsz += (GDenZ[iPt]          * GTS[iPt]         ) +
@@ -168,7 +168,7 @@ namespace ChronusQ {
          ( V2RG[6*iPt    ] + V2RG[6*iPt + 1] + V2RG[6*iPt + 2] - 
            V2RG[6*iPt + 3] - V2RG[6*iPt + 4] - V2RG[6*iPt + 5]   ) * TZ[iPt];
 
-        if( this->onePDM.size() > 1 )
+        if( this->onePDM->hasZ() )
           ZgammaVar4[iPt] = 
             ( V2G[6*iPt    ] + 2*V2G[6*iPt + 1] -   V2G[6*iPt + 4] -
               V2G[6*iPt + 5]                                         ) * gPTss +
@@ -201,7 +201,7 @@ namespace ChronusQ {
                   (GDenS[iPt + 2*NPts] * GTZ[iPt + 2*NPts]);
 
         U gPTzz(0.);
-        if( this->onePDM.size() > 1 ) {
+        if( this->onePDM->hasZ() ) {
 
           // Sum of both <SZ> and <ZS>
           gPTsz += (GDenZ[iPt]          * GTS[iPt]         ) +
@@ -234,7 +234,7 @@ namespace ChronusQ {
           ( V2RG[6*iPt    ] - V2RG[6*iPt + 2] + V2RG[6*iPt + 3] - V2RG[6*iPt + 5] ) * TS[iPt] +
           ( V2RG[6*iPt    ] - V2RG[6*iPt + 2] - V2RG[6*iPt + 3] + V2RG[6*iPt + 5] ) * TZ[iPt];
 
-        if( this->onePDM.size() > 1 )
+        if( this->onePDM->hasZ() )
           ZgammaVar4[iPt] = 
             ( V2G[6*iPt    ] + 2*V2G[6*iPt + 2] -   V2G[6*iPt + 3] +
               V2G[6*iPt + 5]                                         ) * gPTss +
@@ -291,7 +291,7 @@ namespace ChronusQ {
         U FgY = ZgammaVar1[iPt] * GTS[iPt + NPts  ] + ZgammaVar2[iPt] * GTZ[iPt + NPts  ] + ZgammaVar3[iPt] * GDenS[iPt + NPts  ];
         U FgZ = ZgammaVar1[iPt] * GTS[iPt + 2*NPts] + ZgammaVar2[iPt] * GTZ[iPt + 2*NPts] + ZgammaVar3[iPt] * GDenS[iPt + 2*NPts];
 
-        if( this->onePDM.size() > 1 ) {
+        if( this->onePDM->hasZ() ) {
 
           FgX += ZgammaVar4[iPt] * GDenZ[iPt         ];
           FgY += ZgammaVar4[iPt] * GDenZ[iPt + NPts  ];
@@ -336,10 +336,10 @@ namespace ChronusQ {
 
     size_t itOff = this->nC == 2 ? 5 : 3;
     size_t nVec = cList.size() / itOff;
-    size_t NB     = this->aoints.basisSet().nBasis;
+    size_t NB     = this->basisSet().nBasis;
     size_t NB2    = NB*NB;
     size_t NPPB   = intParam.nRadPerBatch * intParam.nAng;
-    size_t nAtoms = this->aoints.molecule().nAtoms;
+    size_t nAtoms = this->molecule().nAtoms;
 
 
     // Parallelism
@@ -372,19 +372,17 @@ namespace ChronusQ {
     U* NBNPSCR = this->memManager.template malloc<U>(NB*NPPB * NT);
 
 
-    std::vector<double*> Re1PDM;
-    for(auto i = 0; i < this->onePDM.size(); i++) {
-      if( std::is_same<MatsT,double>::value )
-        Re1PDM.push_back(reinterpret_cast<double*>(this->onePDM[i]));
-      else {
-        Re1PDM.push_back(this->memManager.template malloc<double>(NB2));
-        GetMatRE('N',NB,NB,1.,this->onePDM[i],NB,Re1PDM.back(),NB);
-      }
-    }
+    std::shared_ptr<PauliSpinorSquareMatrices<double>> Re1PDM;
+    if (std::is_same<MatsT,double>::value)
+      Re1PDM = std::dynamic_pointer_cast<PauliSpinorSquareMatrices<double>>(
+          this->onePDM);
+    else
+      Re1PDM = std::make_shared<PauliSpinorSquareMatrices<double>>(
+          this->onePDM->real_part());
 
 
 
-    std::vector<std::vector<double *>> ReTSymm, ImTSymm; 
+    std::vector<std::vector<double *>> ReTSymm, ImTSymm;
     for(auto iVec = 0; iVec < nVec; iVec++) {
       ReTSymm.emplace_back();
 
@@ -627,23 +625,23 @@ namespace ChronusQ {
 
 
 
-      // This evaluates the V variables for all components 
+      // This evaluates the V variables for all components
       // (Scalar, MZ (UKS) and Mx, MY (2 Comp))
       evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
-        NBNBSCR_r, NBNPSCR_r, Re1PDM[SCALAR], DenS_loc , 
+        NBNBSCR_r, NBNPSCR_r, Re1PDM->S().pointer(), DenS_loc ,
         GDenS_loc, GDenS_loc + NPts, GDenS_loc + 2*NPts, BasisEval);
 
-      if( this->onePDM.size() > 1 )
+      if( this->onePDM->hasZ() )
         evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
-          NBNBSCR_r ,NBNPSCR_r, Re1PDM[MZ], DenZ_loc, 
+          NBNBSCR_r ,NBNPSCR_r, Re1PDM->Z().pointer(), DenZ_loc,
           GDenZ_loc, GDenZ_loc + NPts, GDenZ_loc + 2*NPts, BasisEval);
 
-      if( this->onePDM.size() > 2 ) {
+      if( this->onePDM->hasXY() ) {
         evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
-          NBNBSCR_r ,NBNPSCR_r, Re1PDM[MY], DenY_loc, 
+          NBNBSCR_r ,NBNPSCR_r, Re1PDM->Y().pointer(), DenY_loc,
           GDenY_loc, GDenY_loc + NPts, GDenY_loc + 2*NPts, BasisEval);
         evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
-          NBNBSCR_r ,NBNPSCR_r, Re1PDM[MX], DenX_loc, 
+          NBNBSCR_r ,NBNPSCR_r, Re1PDM->X().pointer(), DenX_loc,
           GDenX_loc, GDenX_loc + NPts, GDenX_loc + 2*NPts, BasisEval);
       
       }
@@ -689,7 +687,7 @@ namespace ChronusQ {
           NBNBSCR_r ,NBNPSCR_r, ReTSymm[iT][MZ] , TZ_d, 
           GTZ_d, GTZ_d + NPts, GTZ_d + 2*NPts, BasisEval);
 
-        if( this->onePDM.size() > 2 ) {
+        if( this->onePDM->hasXY() ) {
 
           double *TY_d      = reinterpret_cast<double*>(TY_loc);
           double *GTY_d     = reinterpret_cast<double*>(GTY_loc);
@@ -753,8 +751,8 @@ namespace ChronusQ {
 
     // Create the BeckeIntegrator object
     BeckeIntegrator<EulerMac> 
-      integrator(intComm,this->memManager,this->aoints.molecule(),
-        this->aoints.basisSet(), EulerMac(intParam.nRad), intParam.nAng, 
+      integrator(intComm,this->memManager,this->molecule(),
+        this->basisSet(), EulerMac(intParam.nRad), intParam.nAng,
         intParam.nRadPerBatch, (isGGA ? GRADIENT : NOGRAD), intParam.epsilon);
 
     // Integrate the FXC
@@ -830,8 +828,7 @@ namespace ChronusQ {
     this->memManager.free( GxcT_raw, NBNBSCR, NBNPSCR );
 
     for(auto &Y : ReTSymm) for(auto &X : Y) this->memManager.free(X);
-    if( not std::is_same<MatsT,double>::value )
-      for(auto &X : Re1PDM) this->memManager.free(X);
+    Re1PDM = nullptr;
 
     if( DenS ) this->memManager.free( DenS );
     if( DenZ ) this->memManager.free( DenZ );

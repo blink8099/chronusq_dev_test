@@ -25,6 +25,7 @@
 
 #include <singleslater.hpp>
 #include <corehbuilder.hpp>
+#include <corehbuilder/x2c.hpp>
 #include <fockbuilder.hpp>
 
 #include <util/time.hpp>
@@ -72,21 +73,36 @@ namespace ChronusQ {
 
     ROOT_ONLY(comm);
 
-    if( coreH.size() != 0 )
+    if( coreH != nullptr )
       CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
 
-    size_t NB = this->aoints.basisSet().nBasis;
-    size_t nSQ  = NB*NB;
+    size_t NB = basisSet().nBasis;
 
-    coreH.emplace_back(memManager.malloc<MatsT>(nSQ));
-    if(not iCS and nC == 1 and this->aoints.basisSet().basisType == COMPLEX_GIAO) 
-      coreH.emplace_back(memManager.malloc<MatsT>(nSQ));
-    else if(nC == 2) {
-      coreH.emplace_back(memManager.malloc<MatsT>(nSQ));
-      coreH.emplace_back(memManager.malloc<MatsT>(nSQ));
-      coreH.emplace_back(memManager.malloc<MatsT>(nSQ));
-    }
+    if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
+      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
+    else if(nC == 2)
+      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
+    else
+      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
 
+
+    // Prepare one-electron integrals
+    std::vector<std::pair<OPERATOR,size_t>> ops;
+    if (std::is_same<IntsT, double>::value)
+      ops = {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0},
+             {LEN_ELECTRIC_MULTIPOLE,3},
+             {VEL_ELECTRIC_MULTIPOLE,3}, {MAGNETIC_MULTIPOLE,2}};
+    else
+      ops = {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0},
+             {LEN_ELECTRIC_MULTIPOLE,3},
+             {MAGNETIC_MULTIPOLE,1}};
+
+    bool finiteNuclei = false;
+    if (std::dynamic_pointer_cast<X2C<MatsT,IntsT>>(coreHBuilder))
+      finiteNuclei = true;
+    this->aoints.computeAOOneE(memManager,this->molecule(),
+        basisSet(),emPert, ops,
+        {basisSet().basisType,finiteNuclei,false,false}); // compute the necessary 1e ints
 
     // Compute core Hamiltonian
     coreHBuilder->computeCoreH(emPert,coreH);
@@ -99,13 +115,13 @@ namespace ChronusQ {
     // Save the Core Hamiltonian
     if( savFile.exists() ) {
 
-      size_t NB = this->aoints.basisSet().nBasis;
       const std::array<std::string,4> spinLabel =
         { "SCALAR", "MZ", "MY", "MX" };
 
-      for(auto i = 0; i < coreH.size(); i++)
+      std::vector<MatsT*> CH(coreH->SZYXPointers());
+      for(auto i = 0; i < CH.size(); i++)
         savFile.safeWriteData("INTS/CORE_HAMILTONIAN_" +
-          spinLabel[i], coreH[i], {NB,NB});
+          spinLabel[i], CH[i], {NB,NB});
 
     }
 
@@ -123,21 +139,18 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT> 
   void SingleSlater<MatsT,IntsT>::computeOrtho() {
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
     size_t nSQ  = NB*NB;
 
     // Allocate orthogonalization matricies
-    ortho1 = memManager.malloc<MatsT>(nSQ);
-    ortho2 = memManager.malloc<MatsT>(nSQ);
-
-    std::fill_n(ortho1,nSQ,0.);
-    std::fill_n(ortho2,nSQ,0.);
+    ortho[0].clear();
+    ortho[1].clear();
 
     // Allocate scratch
     MatsT* SCR1 = memManager.malloc<MatsT>(nSQ);
 
     // Copy the overlap over to scratch space
-    std::copy_n(this->aoints.overlap,nSQ,SCR1);
+    std::copy_n(this->aoints.overlap->pointer(),nSQ,SCR1);
 
     if(orthoType == LOWDIN) {
 
@@ -162,7 +175,7 @@ namespace ChronusQ {
       // Compute O1 = X * V**T
       Gemm('N','C',NB,NB,NB,
         static_cast<MatsT>(1.),SCR2,NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho1,NB);
+        static_cast<MatsT>(0.),ortho[0].pointer(),NB);
 
 
       // Compute X = V * s^{1/2} in place (by multiplying by s)
@@ -174,7 +187,7 @@ namespace ChronusQ {
       // Compute O2 = X * V**T
       Gemm('N','C',NB,NB,NB,
         static_cast<MatsT>(1.),SCR2,NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho2,NB);
+        static_cast<MatsT>(0.),ortho[1].pointer(),NB);
 
 #ifdef _DEBUGORTHO
       // Debug code to validate the Lowdin orthogonalization
@@ -184,7 +197,7 @@ namespace ChronusQ {
 
       // Check that ortho1 and ortho2 are inverses of eachother
       Gemm('N','N',NB,NB,NB,
-        static_cast<MatsT>(1.),ortho1,NB,ortho2,NB,
+        static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[1].pointer(),NB,
         static_cast<MatsT>(0.),SCR1,NB);
       
       for(auto j = 0; j < NB; j++)
@@ -201,7 +214,7 @@ namespace ChronusQ {
 
       // Check that ortho2 * ortho2 is the overlap
       Gemm('N','N',NB,NB,NB,
-        static_cast<MatsT>(1.),ortho2,NB,ortho2,NB,
+        static_cast<MatsT>(1.),ortho[1].pointer(),NB,ortho[1].pointer(),NB,
         static_cast<MatsT>(0.),SCR1,NB);
       
       maxDiff = -100000;
@@ -219,7 +232,7 @@ namespace ChronusQ {
 
       // Check that ortho1 * ortho1 is the inverse of the overlap
       Gemm('N','N',NB,NB,NB,
-        static_cast<MatsT>(1.),ortho1,NB,ortho1,NB,
+        static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[0].pointer(),NB,
         static_cast<MatsT>(0.),SCR1,NB);
       Gemm('N','N',NB,NB,NB,
         static_cast<MatsT>(1.),SCR1,NB,reinterpret_cast<MatsT*>(this->aoints.overlap),NB,
@@ -256,20 +269,20 @@ namespace ChronusQ {
       // Copy the lower triangle to ortho2 (O2 = L)
       for(auto j = 0; j < NB; j++)
       for(auto i = j; i < NB; i++)
-        ortho2[i + j*NB] = SCR1[i + j*NB];
+        ortho[1](i,j) = SCR1[i + j*NB];
 
       // Compute the inverse of the overlap using the Cholesky factors
       CholeskyInv('L',NB,SCR1,NB);
 
       // O1 = O2**T * S^{-1}
       Gemm('T','N',NB,NB,NB,
-        static_cast<MatsT>(1.),ortho2,NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho1,NB);
+        static_cast<MatsT>(1.),ortho[1].pointer(),NB,SCR1,NB,
+        static_cast<MatsT>(0.),ortho[0].pointer(),NB);
 
       // Remove upper triangle junk from O1
       for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < j               ; i++)
-        ortho1[i + j*NB] = 0.;
+      for(auto i = 0; i < j ; i++)
+        ortho[0](i,j) = 0.;
 
 #ifdef _DEBUGORTHO
       // Debug code to validate the Lowdin orthogonalization
@@ -314,62 +327,40 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::MOFOCK() {
 
-    const size_t NB   = this->aoints.basisSet().nBasis;
-    const size_t NB2  = NB * NB;
+    const size_t NB   = this->nAlphaOrbital();
     const size_t NBC  = nC * NB;
-    const size_t NBC2 = NBC * NBC;
-
 
     if( fockMO.empty() ) {
-      fockMO.emplace_back(memManager.template malloc<MatsT>(NBC2));
+      fockMO.emplace_back(memManager, NBC);
       if( nC == 1 and not iCS )
-        fockMO.emplace_back(memManager.template malloc<MatsT>(NBC2));
+        fockMO.emplace_back(memManager, NBC);
     }
 
     if( MPIRank(comm) == 0 ) {
-      MatsT* SCR1 = memManager.template malloc<MatsT>(NBC2);
 
-      MatsT* FSTORAGE = fockMatrix[0];
+      if ( nC == 2 )
+        fockMO[0] = fockMatrix->template spinGather<MatsT>();
+      else if ( nC == 1 )
+        fockMO = fockMatrix->template spinGatherToBlocks<MatsT>(false, not iCS);
+
+      fockMO[0] = fockMO[0].transform('N',this->mo[0].pointer(),NBC,NBC);
 
       if( nC == 1 and not iCS ) {
 
-        MatAdd('N','N',NB,NB,MatsT(1.),fockMatrix[0],NB,MatsT(1.) ,fockMatrix[1],NB,fockMO[0],NB);
-        MatAdd('N','N',NB,NB,MatsT(1.),fockMatrix[0],NB,MatsT(-1.),fockMatrix[1],NB,fockMO[1],NB);
-
-        FSTORAGE = fockMO[0];
-
-      } else if( nC == 2 ) {
-
-        SpinGather(NB,fockMO[0],NBC,fockMatrix[SCALAR],NB,fockMatrix[MZ],NB,
-          fockMatrix[MY],NB,fockMatrix[MX],NB);
-
-        FSTORAGE = fockMO[0];
+        fockMO[1] = fockMO[1].transform('N',this->mo[1].pointer(),NBC,NBC);
 
       }
 
-      
-      MatsT tfact = (nC == 2) ? 1. : 0.5;
-
-      Gemm('C','N',NBC,NBC,NBC,MatsT(1.),this->mo1,NBC,FSTORAGE,NBC,MatsT(0.),SCR1,NBC);
-      Gemm('N','N',NBC,NBC,NBC,tfact,SCR1,NBC,this->mo1,NBC,MatsT(0.),
-          fockMO[0],NBC);
-
-      if( nC == 1 and not iCS ) {
-        Gemm('C','N',NB,NB,NB,MatsT(1.),this->mo2,NB,fockMO[1],NB,MatsT(0.),SCR1,NB);
-        Gemm('N','N',NB,NB,NB,tfact,SCR1,NB,this->mo2,NB,MatsT(0.),fockMO[1],NB);
-      }
-
-      memManager.free(SCR1);
     }
 
-  //prettyPrintSmart(std::cout,"MOF",fockMO[0],NBC,NBC,NBC);
+  //prettyPrintSmart(std::cout,"MOF",fockMO[0].pointer(),NBC,NBC,NBC);
 
 #ifdef CQ_ENABLE_MPI
 
     if(MPISize(comm) > 1) {
       std::cerr  << "  *** Scattering MO-FOCK ***\n";
       for(int k = 0; k < fockMO.size(); k++)
-        MPIBCast(fockMO[k],NBC*NBC,0,comm);
+        MPIBCast(fockMO[k].pointer(),NBC*NBC,0,comm);
     }
 
 #endif

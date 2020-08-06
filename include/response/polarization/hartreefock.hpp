@@ -48,6 +48,9 @@ namespace ChronusQ {
     const size_t tdOffSet = N / 2;
     const size_t chunk    = 600;
 
+    std::shared_ptr<ERIContractions<U,IntsT>> ERI =
+        ERIContractions<MatsT,IntsT>::template convert<U>(hf.ERI);
+
     for(auto &X : x) {
 
       const size_t nVec = X.nVec;
@@ -76,7 +79,7 @@ namespace ChronusQ {
           this->template phTransitionVecMO2AO<U>(c,scatter,nDo,N,V_c,
               V_c + tdOffSet);
 
-        hf.aoints.twoBodyContract(c,cList); // form G[V]
+        ERI->twoBodyContract(c,cList); // form G[V]
 
 
         // Only finish transformation on root process

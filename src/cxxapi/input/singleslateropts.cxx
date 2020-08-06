@@ -28,6 +28,12 @@
 #include <corehbuilder/nonrel.hpp>
 #include <corehbuilder/x2c.hpp>
 #include <corehbuilder/x2c/atomic.hpp>
+#include <fockbuilder/rofock.hpp>
+#include <electronintegrals/twoeints.hpp>
+#include <electronintegrals/twoeints/gtodirecteri.hpp>
+#include <electronintegrals/twoeints/incore4indexeri.hpp>
+#include <electronintegrals/twoeints/giaodirecteri.hpp>
+#include <electronintegrals/twoeints/incorerieri.hpp>
 
 namespace ChronusQ {
 
@@ -98,8 +104,9 @@ namespace ChronusQ {
    *
    */ 
   std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
-    std::ostream &out, CQInputFile &input, 
-    std::shared_ptr<AOIntegralsBase> aoints) {
+    std::ostream &out, CQInputFile &input,
+    CQMemManager &mem, Molecule &mol, BasisSet &basis,
+    std::shared_ptr<IntegralsBase> aoints) {
 
     out << "  *** Parsing QM.REFERENCE options ***\n";
 
@@ -321,7 +328,7 @@ namespace ChronusQ {
     // Raw reference
     if( isRawRef ) {
       out << "  *** Auto-determination of reference: " << refString << " -> ";
-      iCS = aoints->molecule().multip == 1;
+      iCS = mol.multip == 1;
 
       if(iCS) out << "R" << refString;
       else    out << "U" << refString;
@@ -329,7 +336,7 @@ namespace ChronusQ {
       out << " ***" << std::endl;
       
     } else if( isRRef )
-      if( aoints->molecule().multip != 1 )
+      if( mol.multip != 1 )
         CErr("Spin-Restricted Reference only valid for singlet spin multiplicities",out);
       else
         iCS = true;
@@ -340,7 +347,7 @@ namespace ChronusQ {
     }
 
     // Sanity Checks
-    bool isGIAO = aoints->basisSet().basisType == COMPLEX_GIAO;
+    bool isGIAO = basis.basisType == COMPLEX_GIAO;
 
     if( nC == 2 and not RCflag.compare("REAL") )
       CErr("Real + Two-Component not valid",out);
@@ -412,10 +419,10 @@ namespace ChronusQ {
 
 
   #define KS_LIST(T) \
-    funcName,funcList,MPI_COMM_WORLD,intParam,dynamic_cast<AOIntegrals<T>&>(*aoints),nC,iCS
+    funcName,funcList,MPI_COMM_WORLD,intParam,mem,mol,basis,dynamic_cast<Integrals<T>&>(*aoints),nC,iCS
 
   #define HF_LIST(T) \
-    MPI_COMM_WORLD,dynamic_cast<AOIntegrals<T>&>(*aoints),nC,iCS
+    MPI_COMM_WORLD,mem,mol,basis,dynamic_cast<Integrals<T>&>(*aoints),nC,iCS
 
 
     // Construct the SS object
@@ -495,7 +502,7 @@ namespace ChronusQ {
 
 
 
-    // Construct CoreHBuilder
+    // Parse X2C option
     std::string x2c_str;
     bool atomic = false;
     ATOMIC_X2C_TYPE x2ctype = {false,false};
@@ -527,27 +534,52 @@ namespace ChronusQ {
       else
         CErr(X + " not a valid QM.X2CTYPE",out);
     }
+
+
+    // Parse Finite Width Nuclei
+    AOIntsOptions aoiOptions{basis.basisType,false,false,false,false,false,false,false};
+    std::string finiteCore = "DEFAULT";
+    OPTOPT( finiteCore = input.getData<std::string>("INTS.FINITE_NUCLEI"); )
+    trim(finiteCore);
+    if( not finiteCore.compare("TRUE") )
+      aoiOptions.finiteWidthNuc = true;
+    else if( not finiteCore.compare("FALSE") )
+      aoiOptions.finiteWidthNuc = false;
+    else if( not finiteCore.compare("DEFAULT") )
+      aoiOptions.finiteWidthNuc = isX2CRef or scalarOnly;
+    else
+      CErr(finiteCore + " not a valid INTS.ALG",out);
+    OPTOPT( aoiOptions.DiracCoulomb = input.getData<bool>("INTS.DC") )
+    OPTOPT( aoiOptions.SSSS = input.getData<bool>("INTS.SSSS") )
+    OPTOPT( aoiOptions.Gaunt = input.getData<bool>("INTS.DCB") )
+    OPTOPT( aoiOptions.Gauge = input.getData<bool>("INTS.GAUGE") )
+    if(aoiOptions.Gaunt) aoiOptions.DiracCoulomb = true;
+
+
+    // Construct CoreHBuilder
     if( isX2CRef or scalarOnly ) {
+      aoiOptions.OneEScalarRelativity = true;
+      aoiOptions.OneESpinOrbit = not scalarOnly;
       if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
         if (atomic)
           p->coreHBuilder = std::make_shared<AtomicX2C<dcomplex,double>>(
-            *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
-            scalarOnly, x2ctype);
+              *std::dynamic_pointer_cast<Integrals<double>>(aoints),
+              mem, mol, basis, aoiOptions, x2ctype);
         else
           p->coreHBuilder = std::make_shared<X2C<dcomplex,double>>(
-            *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
-            scalarOnly);
+              *std::dynamic_pointer_cast<Integrals<double>>(aoints),
+              mem, mol, basis, aoiOptions);
         p->fockBuilder = std::make_shared<FockBuilder<dcomplex,double>>();
       } else if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
         if (scalarOnly) {
           if (atomic)
             p->coreHBuilder = std::make_shared<AtomicX2C<double,double>>(
-              *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
-              scalarOnly, x2ctype);
+                *std::dynamic_pointer_cast<Integrals<double>>(aoints),
+                mem, mol, basis, aoiOptions, x2ctype);
           else
             p->coreHBuilder = std::make_shared<X2C<double,double>>(
-              *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints),
-              scalarOnly);
+                *std::dynamic_pointer_cast<Integrals<double>>(aoints),
+                mem, mol, basis, aoiOptions);
           p->fockBuilder = std::make_shared<FockBuilder<double,double>>();
         } else
           CErr("SOX2C + Real WFN is not a valid option",std::cout);
@@ -559,23 +591,66 @@ namespace ChronusQ {
     } else {
       if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
         p->coreHBuilder = std::make_shared<NRCoreH<double,double>>(
-          *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+            *std::dynamic_pointer_cast<Integrals<double>>(aoints), aoiOptions);
         if(isRORef) p->fockBuilder = std::make_shared<ROFock<double,double>>();
         else p->fockBuilder = std::make_shared<FockBuilder<double,double>>();
       } else if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
         p->coreHBuilder = std::make_shared<NRCoreH<dcomplex,double>>(
-          *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+            *std::dynamic_pointer_cast<Integrals<double>>(aoints), aoiOptions);
         if(isRORef) p->fockBuilder = std::make_shared<ROFock<dcomplex,double>>();
         else p->fockBuilder = std::make_shared<FockBuilder<dcomplex,double>>();
       } else if (auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
         p->coreHBuilder = std::make_shared<NRCoreH<dcomplex,dcomplex>>(
-          *std::dynamic_pointer_cast<AOIntegrals<dcomplex>>(aoints));
+            *std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints), aoiOptions);
         if(isRORef) p->fockBuilder = std::make_shared<ROFock<dcomplex,dcomplex>>();
         else p->fockBuilder = std::make_shared<FockBuilder<dcomplex,dcomplex>>();
       } else {
         CErr("Complex INT + Real WFN is not a valid option",std::cout);
       }
     }
+
+
+
+    // Construct ERIContractions
+    if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
+      std::shared_ptr<TwoEInts<double>> ERI =
+          std::dynamic_pointer_cast<Integrals<double>>(aoints)->ERI;
+      if (auto eri_typed = std::dynamic_pointer_cast<DirectERI<double>>(ERI)) {
+        p->ERI = std::make_shared<GTODirectERIContraction<double,double>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<InCoreRIERI<double>>(ERI)) {
+        p->ERI = std::make_shared<InCoreRIERIContraction<double,double>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexERI<double>>(ERI)) {
+        p->ERI = std::make_shared<InCore4indexERIContraction<double,double>>(*eri_typed);
+      } else {
+        CErr("Invalid ERInts type for Wavefunction<double,double>",std::cout);
+      }
+    } else if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
+      std::shared_ptr<TwoEInts<double>> ERI =
+          std::dynamic_pointer_cast<Integrals<double>>(aoints)->ERI;
+      if (auto eri_typed = std::dynamic_pointer_cast<DirectERI<double>>(ERI)) {
+        p->ERI = std::make_shared<GTODirectERIContraction<dcomplex,double>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<InCoreRIERI<double>>(ERI)) {
+        p->ERI = std::make_shared<InCoreRIERIContraction<dcomplex,double>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexERI<double>>(ERI)) {
+        p->ERI = std::make_shared<InCore4indexERIContraction<dcomplex,double>>(*eri_typed);
+      } else {
+        CErr("Invalid ERInts type for Wavefunction<dcomplex,double>",std::cout);
+      }
+    } else if (auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
+      std::shared_ptr<TwoEInts<dcomplex>> ERI =
+          std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints)->ERI;
+      if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexERI<dcomplex>>(ERI)) {
+        p->ERI = std::make_shared<InCore4indexERIContraction<dcomplex,dcomplex>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<DirectERI<dcomplex>>(ERI)) {
+        p->ERI = std::make_shared<GIAODirectERIContraction>(*eri_typed);
+      } else {
+        CErr("Invalid ERInts type for Wavefunction<dcomplex,dcomplex>",std::cout);
+      }
+    } else {
+      CErr("Complex INT + Real WFN is not a valid option",std::cout);
+    }
+
+
 
 
 
