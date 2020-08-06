@@ -26,6 +26,8 @@
 #include <response/particleparticle.hpp>
 #include <response/particleparticle/singleslater_helper.hpp>
 
+#include <electronintegrals/twoeints.hpp>
+
 #include <cqlinalg/blas1.hpp>
 #include <cqlinalg/factorization.hpp>
 
@@ -48,6 +50,9 @@ namespace ChronusQ {
     const size_t tdOffSet = this->genSettings.doTDA ? 0 : this->aDim_;
     const size_t N        = this->nSingleDim_ ;  
     const size_t chunk    = 600;
+
+    std::shared_ptr<ERIContractions<U,IntsT>> ERI =
+        ERIContractions<MatsT,IntsT>::template convert<U>(ss.ERI);
 
     for(auto &X : x) {
 
@@ -77,7 +82,7 @@ namespace ChronusQ {
           this->template ppTransitionVecMO2AO<U>(c,scatter,nDo,N,V_c,
             V_c + tdOffSet);
 
-        ss.aoints.twoBodyContract(c,cList); // form G[V]
+        ERI->twoBodyContract(c,cList); // form G[V]
 
 
 

@@ -28,7 +28,7 @@
 #include <memmanager.hpp>
 #include <basisset.hpp>
 #include <fields.hpp>
-#include <aointegrals.hpp>
+#include <integrals.hpp>
 
 namespace ChronusQ {
 
@@ -49,18 +49,18 @@ namespace ChronusQ {
 
   protected:
 
-    CQMemManager      &memManager_;        ///< CQMemManager to allocate matricies
-    Molecule           molecule_;          ///< Molecule object for nuclear potential
-    BasisSet           basisSet_;          ///< BasisSet for original basis defintion
-    BasisSet           uncontractedBasis_; ///< BasisSet for uncontracted basis defintion
-    AOIntegrals<IntsT> uncontractedInts_;  ///< AOIntegrals for uncontracted basis
-    size_t             nPrimUse_;          ///< Number of primitives used in p space
+    CQMemManager    &memManager_;        ///< CQMemManager to allocate matricies
+    Molecule         molecule_;          ///< Molecule object for nuclear potential
+    BasisSet         basisSet_;          ///< BasisSet for original basis defintion
+    BasisSet         uncontractedBasis_; ///< BasisSet for uncontracted basis defintion
+    Integrals<IntsT> uncontractedInts_;  ///< AOIntegrals for uncontracted basis
+    size_t           nPrimUse_;          ///< Number of primitives used in p space
 
   public:
 
     // Operator storage
     IntsT*  mapPrim2Cont = nullptr;
-    MatsT*  W  = nullptr; ///< W = (\sigma p) V (\sigma p)
+    std::shared_ptr<SquareMatrix<MatsT>> W  = nullptr; ///< W = (\sigma p) V (\sigma p)
     IntsT*  UK = nullptr; ///< K transformation between p- and R-space
     double* p  = nullptr; ///< p momentum eigens
     MatsT*  X  = nullptr; ///< X = S * L^-1
@@ -87,22 +87,11 @@ namespace ChronusQ {
      *  \param [in] basis      The GTO basis for integral evaluation
      *  \param [in] scalarOnly Flag for scalar relativistic calculation
      */
-    X2C(AOIntegrals<IntsT> &aoints, CQMemManager &mem,
-        const Molecule &mol, const BasisSet &basis, bool scalarOnly) :
-      CoreHBuilder<MatsT,IntsT>(aoints, {true,true,true,not scalarOnly}),
+    X2C(Integrals<IntsT> &aoints, CQMemManager &mem,
+        const Molecule &mol, const BasisSet &basis, AOIntsOptions aoiOptions) :
+      CoreHBuilder<MatsT,IntsT>(aoints, aoiOptions),
       memManager_(mem),molecule_(mol), basisSet_(basis),
-      uncontractedBasis_(basisSet_.uncontractBasis()),
-      uncontractedInts_(memManager_,molecule_,uncontractedBasis_) {}
-
-    /**
-     * \brief Constructor
-     *
-     *  \param [in] aoints     Reference to the global AOIntegrals
-     *  \param [in] scalarOnly Flag for scalar relativistic calculation
-     */
-    X2C(AOIntegrals<IntsT> &aoints, bool scalarOnly) :
-      X2C(aoints, aoints.memManager(), aoints.molecule(),
-        aoints.basisSet(), scalarOnly) {}
+      uncontractedBasis_(basisSet_.uncontractBasis()) {}
 
     // Different type
     template <typename MatsU>
@@ -124,12 +113,16 @@ namespace ChronusQ {
     virtual void dealloc();
 
     // Compute core Hamitlonian
-    virtual void computeCoreH(EMPerturbation&, std::vector<MatsT*>&);
-    virtual void computeX2C(EMPerturbation&, std::vector<MatsT*>&);
+    virtual void computeCoreH(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    virtual void computeX2C(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
     virtual void computeU();
-    virtual void computeX2C_UDU(EMPerturbation&, std::vector<MatsT*>&);
-    virtual void computeX2C_corr(EMPerturbation&, std::vector<MatsT*>&);
-    void BoettgerScale(std::vector<MatsT*>&);
+    virtual void computeX2C_UDU(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    virtual void computeX2C_corr(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    void BoettgerScale(std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
 
     // Compute the gradient
     virtual void getGrad() {
@@ -137,9 +130,5 @@ namespace ChronusQ {
     }
 
   };
-
-  template <typename MatsT, typename IntsT>
-  void formW(size_t NP, MatsT *W, size_t LDW, IntsT* pVdotP, size_t LDD, IntsT* pVxPZ,
-    size_t LDZ, IntsT* pVxPY, size_t LDY, IntsT* pVxPX, size_t LDX, bool scalarOnly);
 
 }; // namespace ChronusQ

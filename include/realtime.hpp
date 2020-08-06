@@ -151,8 +151,8 @@ namespace ChronusQ {
     SingleSlaterBase         *reference_ = nullptr;  ///< Initial conditions
     _SSTyp<dcomplex,IntsT>    propagator_; ///< Object for time propagation
 
-    oper_t_coll DOSav;
-    oper_t_coll UH;
+    std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> DOSav;
+    std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> UH;
     
   public:
 

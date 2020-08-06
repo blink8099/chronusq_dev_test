@@ -26,12 +26,14 @@
 
 #include <chronusq_sys.hpp>
 #include <libint2/cxxapi.h>
-#include <aointegrals.hpp> 
+#include <electronintegrals.hpp>
 
 #include <util/threads.hpp>
 #include <H5Cpp.h>
 
 namespace ChronusQ {
+
+  void generateFmTTable();
 
   /**
    *  \brief Initialize the ChronusQ environment
@@ -48,7 +50,7 @@ namespace ChronusQ {
 
     // SS start
     pop_cart_ang_list();  // populate cartesian angular momentum list  
-    pop_car2sph_matrix();        // populate cartesian to spherical transform matrix
+    pop_car2sph_matrix(); // populate cartesian to spherical transform matrix
     generateFmTTable();
     // SS end
 

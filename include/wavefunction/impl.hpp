@@ -31,8 +31,6 @@
   
 #define WaveFunction_COLLECTIVE_OP(OP_MEMBER,OP_OP) \
   /* Handle densities */\
-  OP_OP(MatsT,this,other,this->memManager,mo1); \
-  OP_OP(MatsT,this,other,this->memManager,mo2); \
   OP_OP(double,this,other,this->memManager,eps1); \
   OP_OP(double,this,other,this->memManager,eps2); \
 
@@ -54,7 +52,12 @@ namespace ChronusQ {
     aoints(other.aoints),
     QuantumBase(dynamic_cast<const QuantumBase &>(other)),
     WaveFunctionBase(dynamic_cast<const WaveFunctionBase &>(other)),
-    Quantum<MatsT>(dynamic_cast<const Quantum<MatsU>&>(other)) {
+    Quantum<MatsT>(dynamic_cast<const Quantum<MatsU>&>(other)),
+    molecule_(other.molecule_) {
+
+    mo.reserve(2);
+    for (const SquareMatrix<MatsU> &mat : other.mo)
+      mo.emplace_back(mat);
 
 #ifdef _WaveFunctionDebug
     std::cout << "WaveFunction<T>::WaveFunction(const WaveFunction<U>&) "
@@ -81,7 +84,12 @@ namespace ChronusQ {
     aoints(other.aoints),
     QuantumBase(dynamic_cast<QuantumBase &&>(std::move(other))),
     WaveFunctionBase(dynamic_cast<WaveFunctionBase &&>(std::move(other))),
-    Quantum<MatsT>(dynamic_cast<Quantum<MatsU>&&>(std::move(other))) {
+    Quantum<MatsT>(dynamic_cast<Quantum<MatsU>&&>(std::move(other))),
+    molecule_(other.molecule_) {
+
+    mo.reserve(2);
+    for (SquareMatrix<MatsU> &mat : other.mo)
+      mo.emplace_back(std::move(mat));
 
 #ifdef _WaveFunctionDebug
     std::cout << "WaveFunction<T>::WaveFunction(WaveFunction<U>&&) "
@@ -115,13 +123,14 @@ namespace ChronusQ {
     std::cout << "WaveFunction::alloc (this = " << this << ")" << std::endl;
 #endif
 
-    size_t NB = this->nC * this->aoints.basisSet().nBasis;
+    size_t NB = this->nC * this->nAlphaOrbital();
 
-    mo1  = this->memManager.template malloc<MatsT>(NB*NB);
-    eps1 = this->memManager.template malloc<double>(NB);
+    mo.reserve(2);
+    mo.emplace_back(memManager, NB);
+    eps1 = memManager.malloc<double>(NB);
 
     if( this->nC == 1 and (not this->iCS) ) {
-      mo2  = this->memManager.template malloc<MatsT>(NB*NB);
+      mo.emplace_back(memManager, NB);
       eps2 = this->memManager.template malloc<double>(NB);
     }
 
@@ -139,6 +148,7 @@ namespace ChronusQ {
     std::cout << "WaveFunction::dealloc (this = " << this << ")" << std::endl;
 #endif
 
+    mo.clear();
     WaveFunction_COLLECTIVE_OP(DUMMY3,DEALLOC_OP_5);
 
   }; // WaveFunction<T>::dealloc

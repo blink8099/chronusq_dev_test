@@ -37,7 +37,8 @@ namespace ChronusQ {
     double rZero(0.);
     bool isReal = std::is_same<double,MatsT>::value;
 
-    size_t DSize = memManager.template getSize(onePDM[SCALAR]);
+    size_t NB = onePDM->dimension();
+    size_t DSize = NB * NB;
 
     // Scalar trace option always valid
 
@@ -63,7 +64,8 @@ namespace ChronusQ {
     assert( memManager.template getSize(op) == DSize );
 
     // Perform proper trace
-    return OperatorTrace<RetTyp>(DSize,onePDM[DenTyp],op);
+    MatsT *Dptr = (*onePDM)[static_cast<PAULI_SPINOR_COMPS>(DenTyp)].pointer();
+    return OperatorTrace<RetTyp>(DSize,Dptr,op);
 
   }; // Quantum<T>::OperatorSpinCombine
 

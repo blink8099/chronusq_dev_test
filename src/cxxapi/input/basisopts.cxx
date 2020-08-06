@@ -32,7 +32,7 @@ namespace ChronusQ {
    *  Check valid keywords in the section.
    *
   */
-  void CQBASIS_VALID( std::ostream &out, CQInputFile &input) {
+  void CQBASIS_VALID( std::ostream &out, CQInputFile &input, std::string section) {
 
     // Allowed keywords
     std::vector<std::string> allowedKeywords = {
@@ -44,13 +44,13 @@ namespace ChronusQ {
     };
 
     // Specified keywords
-    std::vector<std::string> basisKeywords = input.getDataInSection("BASIS");
+    std::vector<std::string> basisKeywords = input.getDataInSection(section);
 
     // Make sure all of basisKeywords in allowedKeywords
     for( auto &keyword : basisKeywords ) {
       auto ipos = std::find(allowedKeywords.begin(),allowedKeywords.end(),keyword);
       if( ipos == allowedKeywords.end() ) 
-        CErr("Keyword BASIS." + keyword + " is not recognized",std::cout);// Error
+        CErr("Keyword " + section + "." + keyword + " is not recognized",std::cout);// Error
     }
     // Check for disallowed combinations (if any)
   }
@@ -64,45 +64,45 @@ namespace ChronusQ {
    *
    *  \returns Appropriate BasisSet object for the input parameters
    */
-  BasisSet CQBasisSetOptions(std::ostream &out, CQInputFile &input,
-    Molecule &mol) {
+  std::shared_ptr<BasisSet> CQBasisSetOptions(std::ostream &out, CQInputFile &input,
+    Molecule &mol, std::string section) {
 
     // Determine if we're forcing cartesian functions
     bool forceCart(false);
-    OPTOPT( forceCart = input.getData<bool>("BASIS.FORCECART"); );
+    OPTOPT( forceCart = input.getData<bool>(section+".FORCECART"); );
 
     // Determine if we're parsing the basis from a basis file or the input file
     bool inputBasis(false);
-    OPTOPT( inputBasis = input.getData<bool>("BASIS.DEFINEBASIS") )
+    OPTOPT( inputBasis = input.getData<bool>(section+".DEFINEBASIS") )
 
     // Find the Basis Definition
     std::string basisName;
-    OPTOPT( basisName = input.getData<std::string>("BASIS.BASIS"); )
+    OPTOPT( basisName = input.getData<std::string>(section+".BASIS"); )
     std::string basisDef;
     if ( inputBasis )
-      OPTOPT( basisDef = input.getData<std::string>("BASIS.BASISDEF"); )
+      OPTOPT( basisDef = input.getData<std::string>(section+".BASISDEF"); )
 
     // Check for consistency
     if ( basisName.empty() and basisDef.empty() ){
-      BasisSet basis;
-      return basis;
+      return std::make_shared<BasisSet>();
     //  CErr("Basis file or specification not found!");
     }
 
     BASIS_FUNCTION_TYPE bType = REAL_GTO;
     try{
-      std::string bTypeString = input.getData<std::string>("BASIS.BASISTYPE");
+      std::string bTypeString = input.getData<std::string>(section+".BASISTYPE");
       if(not bTypeString.compare("GIAO")) bType = COMPLEX_GIAO;
       else if(not bTypeString.compare("GTO")) bType = REAL_GTO;
-      else CErr("BASIS.BASISTYPE not valid.",out);
+      else CErr(section+".BASISTYPE not valid.",out);
     } catch(...) {;}
 
     // Construct the BasisSet object
-    BasisSet basis(basisName,basisDef,inputBasis,mol,bType,forceCart,
-      MPIRank() == 0);
+    std::shared_ptr<BasisSet> basis =
+        std::make_shared<BasisSet>(basisName,basisDef,inputBasis,
+                                   mol,bType,forceCart,MPIRank() == 0);
 
     // Ouput BasisSet information
-    out << basis << std::endl;
+    out << *basis << std::endl;
 
     return basis; // Return BasisSet object (no intermediates)
 

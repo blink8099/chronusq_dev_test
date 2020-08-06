@@ -47,24 +47,24 @@ namespace ChronusQ {
 
     if (not ch) return nullptr;
 
-    const std::type_index tIndex(typeid(*ch));
+    const std::type_info &tID(typeid(*ch));
 
-    if (tIndex == std::type_index(typeid(NRCoreH<MatsT,IntsT>))) {
+    if (tID == typeid(NRCoreH<MatsT,IntsT>)) {
       return std::make_shared<NRCoreH<MatsU,IntsT>>(
                *std::dynamic_pointer_cast<NRCoreH<MatsT,IntsT>>(ch));
 
-    } else if (tIndex == std::type_index(typeid(X2C<MatsT,IntsT>))) {
+    } else if (tID == typeid(X2C<MatsT,IntsT>)) {
       return std::make_shared<X2C<MatsU,IntsT>>(
                *std::dynamic_pointer_cast<X2C<MatsT,IntsT>>(ch));
 
-    } else if (tIndex == std::type_index(typeid(FourComponent<MatsT,IntsT>))) {
+    } else if (tID == typeid(FourComponent<MatsT,IntsT>)) {
       return std::make_shared<FourComponent<MatsU,IntsT>>(
                *std::dynamic_pointer_cast<FourComponent<MatsT,IntsT>>(ch));
 
     } else {
-      std::stringstream ss;
-      ss << "CoreHBuilder implementation \"" << typeid(*ch).name() << "\" not registered in convert." << std::endl;
-      CErr(ss.str(),std::cout);
+      std::stringstream errMsg;
+      errMsg << "CoreHBuilder implementation \"" << tID.name() << "\" not registered in convert." << std::endl;
+      CErr(errMsg.str(),std::cout);
     }
 
     return nullptr;

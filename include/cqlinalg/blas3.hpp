@@ -29,7 +29,7 @@ namespace ChronusQ {
 
   template <typename _F1, typename _F2, typename _FScale>
   void Gemm(char TRANSA, char TRANSB, int M, int N, int K, _FScale ALPHA,
-    _F1 *A, int LDA, _F2 *B, int LDB, _FScale BETA, _F2 *C, int LDC);
+    const _F1 *A, int LDA, const _F2 *B, int LDB, _FScale BETA, _F2 *C, int LDC);
 
 #ifdef CQ_ENABLE_MPI
 

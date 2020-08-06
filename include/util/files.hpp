@@ -88,6 +88,9 @@ inline H5::CompType H5PredType() {
 
 namespace ChronusQ {
 
+  template <typename MatsT>
+  class PauliSpinorSquareMatrices;
+
   class SafeFile {
   
     std::string fName_;
@@ -151,6 +154,18 @@ namespace ChronusQ {
       void readData(const std::string &dataSet, T* data) {
         OpenDataSet(file,obj,dataSet);
         obj.read(data,H5PredType<T>());
+      };
+
+      template <typename T>
+      void readData(const std::string &dataSet,
+                    PauliSpinorSquareMatrices<T> &data) {
+        readData(dataSet + "_SCALAR", data.S().pointer());
+        if (data.hasZ())
+          readData(dataSet + "_MZ", data.Z().pointer());
+        if (data.hasXY()) {
+          readData(dataSet + "_MY", data.Y().pointer());
+          readData(dataSet + "_MX", data.X().pointer());
+        }
       };
 
       size_t sizeOfData(const std::string &dataSet) {
@@ -218,6 +233,19 @@ namespace ChronusQ {
 
         }
 
+      };
+
+      template <typename T>
+      void safeWriteData(const std::string &dataSet,
+                         PauliSpinorSquareMatrices<T> &data) {
+        size_t N = data.dimension();
+        safeWriteData(dataSet + "_SCALAR", data.S().pointer(), {N,N});
+        if (data.hasZ())
+          safeWriteData(dataSet + "_MZ", data.Z().pointer(), {N,N});
+        if (data.hasXY()) {
+          safeWriteData(dataSet + "_MY", data.Y().pointer(), {N,N});
+          safeWriteData(dataSet + "_MX", data.X().pointer(), {N,N});
+        }
       };
 
       std::vector<hsize_t> getDims(const std::string &dataSet) {

@@ -67,19 +67,11 @@ namespace ChronusQ {
      *  \param [in] basis      The GTO basis for integral evaluation
      *  \param [in] type       The type of atomic X2C
      */
-    AtomicX2C(AOIntegrals<IntsT> &aoints, CQMemManager &mem,
+    AtomicX2C(Integrals<IntsT> &aoints, CQMemManager &mem,
         const Molecule &mol, const BasisSet &basis,
-        bool scalarOnly, ATOMIC_X2C_TYPE type) :
-      X2C<MatsT,IntsT>(aoints, mem, mol, basis, scalarOnly),
+        AOIntsOptions aoiOptions, ATOMIC_X2C_TYPE type) :
+      X2C<MatsT,IntsT>(aoints, mem, mol, basis, aoiOptions),
       type_(type) {}
-
-    /**
-     * \brief Constructor
-     *
-     *  \param [in] aoints     Reference to the global AOIntegrals
-     */
-    AtomicX2C(AOIntegrals<IntsT> &aoints, bool scalarOnly, ATOMIC_X2C_TYPE type) :
-      X2C<MatsT,IntsT>(aoints, scalarOnly), type_(type) {}
 
     // Different type
     template <typename MatsU>
@@ -94,7 +86,8 @@ namespace ChronusQ {
     virtual void dealloc();
 
     // Compute core Hamitlonian
-    virtual void computeX2C(EMPerturbation&, std::vector<MatsT*>&);
+    virtual void computeX2C(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
     virtual void computeU();
 
     // Compute the gradient

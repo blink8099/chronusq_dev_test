@@ -22,7 +22,7 @@
  *  
  */
 
-
+#include <cxxapi/input.hpp>
 #include <cxxapi/procedural.hpp>
 #include <cxxapi/boilerplate.hpp>
 

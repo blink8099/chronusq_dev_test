@@ -23,6 +23,7 @@
  */
 #include <cqlinalg/blasutil.hpp>
 #include <cqlinalg/blasext.hpp>
+#include <cerr.hpp>
 
 namespace ChronusQ {
 
@@ -30,63 +31,97 @@ namespace ChronusQ {
   template <> double ComplexScale(){ return -1; }
   template <> dcomplex ComplexScale(){ return dcomplex(0,1); }
 
-  template <typename _F>
-  void SpinScatter(size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
-    _F *AZ, size_t LDAZ, _F *AY, size_t LDAY, _F *AX, size_t LDAX) {
+  template <typename _F1, typename _F2>
+  void SpinScatter(size_t M, size_t N, const _F1 *AA, size_t LDAA,
+      const _F1 *AB, size_t LDAB, const _F1 *BA, size_t LDBA,
+      const _F1 *BB, size_t LDBB, _F2 *AS, size_t LDAS,
+      _F2 *AZ, size_t LDAZ, _F2 *AY, size_t LDAY, _F2 *AX, size_t LDAX,
+      bool zeroABBA, bool BBeqAA) {
 
-    assert(( std::is_same<_F,dcomplex>::value ));
+    _F2 YFACT = ComplexScale<_F2>();
 
-    _F YFACT = ComplexScale<_F>();
+    if (BBeqAA) {
+      if(AS) SetMat('N',M,N,_F2(2.),AA,LDAA,AS,LDAS);
+      if(AZ) SetMat('N',M,N,_F2(0.0),AA,LDAA,AZ,LDAZ);
+    } else {
+      if(AS) MatAdd('N','N',M,N,_F2(1.),AA,LDAA,_F2(1.) ,BB,LDBB,AS,LDAS);
+      if(AZ) MatAdd('N','N',M,N,_F2(1.),AA,LDAA,_F2(-1.),BB,LDBB,AZ,LDAZ);
+    }
+
+    if (zeroABBA) {
+      if(AY) SetMat('N',M,N,_F2(0.0),AA,LDAA,AY,LDAY);
+      if(AX) SetMat('N',M,N,_F2(0.0),AA,LDAA,AX,LDAX);
+    } else {
+      if(AY) MatAdd('N','N',M,N, YFACT ,AB,LDAB, -YFACT ,BA,LDBA,AY,LDAY);
+      if(AX) MatAdd('N','N',M,N,_F2(1.),AB,LDAB,_F2(1.) ,BA,LDBA,AX,LDAX);
+    }
+
+  };
+
+  template <typename _F1, typename _F2>
+  void SpinScatter(size_t M, size_t N, const _F1 *A, size_t LDA, _F2 *AS, size_t LDAS,
+      _F2 *AZ, size_t LDAZ, _F2 *AY, size_t LDAY, _F2 *AX, size_t LDAX,
+      bool zeroABBA, bool BBeqAA) {
 
 /*
     for(auto j = 0; j < N; j++)
-    for(auto i = 0; i < N; i++) {
-      AS[i + j*LDAS] = A[i + j*LDA] + A[(i+N) + (j+N)*LDA];
-      AZ[i + j*LDAZ] = A[i + j*LDA] - A[(i+N) + (j+N)*LDA];
-      AY[i + j*LDAY] = YFACT * (A[i + (j+N)*LDA] - A[(i+N) + j*LDA]);
-      AX[i + j*LDAX] = A[i + (j+N)*LDA] + A[(i+N) + j*LDA];
+    for(auto i = 0; i < M; i++) {
+      AS[i + j*LDAS] = A[i + j*LDA] + A[(i+M) + (j+N)*LDA];
+      AZ[i + j*LDAZ] = A[i + j*LDA] - A[(i+M) + (j+N)*LDA];
+      AY[i + j*LDAY] = YFACT * (A[i + (j+N)*LDA] - A[(i+M) + j*LDA]);
+      AX[i + j*LDAX] = A[i + (j+N)*LDA] + A[(i+M) + j*LDA];
     }
 */
 
-    _F* A_AA = A;
-    _F* A_AB = A_AA + N*LDA;
-    _F* A_BA = A_AA + N;
-    _F* A_BB = A_AB + N;
+    const _F1* A_AA = A;
+    const _F1* A_AB = A_AA + N*LDA;
+    const _F1* A_BA = A_AA + M;
+    const _F1* A_BB = A_AB + M;
 
-    MatAdd('N','N',N,N,_F(1.),A_AA,LDA,_F(1.) ,A_BB,LDA,AS,LDAS);
-    MatAdd('N','N',N,N,_F(1.),A_AA,LDA,_F(-1.),A_BB,LDA,AZ,LDAZ);
-    MatAdd('N','N',N,N,YFACT ,A_AB,LDA,-YFACT ,A_BA,LDA,AY,LDAY);
-    MatAdd('N','N',N,N,_F(1.),A_AB,LDA,_F(1.) ,A_BA,LDA,AX,LDAX);
+    SpinScatter(M,N,A_AA,LDA,A_AB,LDA,A_BA,LDA,A_BB,LDA,
+                AS,LDAS,AZ,LDAZ,AY,LDAY,AX,LDAX,zeroABBA,BBeqAA);
 
   };
 
-  template <typename _F>
-  void SpinScatter(size_t M, size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
-    _F *AZ, size_t LDAZ, _F *AY, size_t LDAY, _F *AX, size_t LDAX) {
+  template <typename _F1, typename _F2>
+  void SpinScatter(size_t N, const _F1 *A, size_t LDA, _F2 *AS, size_t LDAS,
+      _F2 *AZ, size_t LDAZ, _F2 *AY, size_t LDAY, _F2 *AX, size_t LDAX,
+      bool zeroABBA, bool BBeqAA) {
 
-    assert(( std::is_same<_F,dcomplex>::value ));
-
-    _F YFACT = ComplexScale<_F>();
-
-    _F* A_AA = A;
-    _F* A_AB = A_AA + N*LDA;
-    _F* A_BA = A_AA + M;
-    _F* A_BB = A_AB + M;
-
-    MatAdd('N','N',M,N,_F(1.),A_AA,LDA,_F(1.) ,A_BB,LDA,AS,LDAS);
-    MatAdd('N','N',M,N,_F(1.),A_AA,LDA,_F(-1.),A_BB,LDA,AZ,LDAZ);
-    MatAdd('N','N',M,N,YFACT ,A_AB,LDA,-YFACT ,A_BA,LDA,AY,LDAY);
-    MatAdd('N','N',M,N,_F(1.),A_AB,LDA,_F(1.) ,A_BA,LDA,AX,LDAX);
+   SpinScatter(N,N,A,LDA,AS,LDAS,AZ,LDAZ,AY,LDAY,AX,LDAX,zeroABBA,BBeqAA);
 
   };
 
-  template <typename _F>
-  void SpinGather(size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
-    _F *AZ, size_t LDAZ, _F *AY, size_t LDAY, _F *AX, size_t LDAX) {
+  template <typename _F1, typename _F2>
+  void SpinGather(size_t M, size_t N, _F1 *AA, size_t LDAA, _F1 *AB, size_t LDAB,
+      _F1 *BA, size_t LDBA, _F1 *BB, size_t LDBB, const _F2 *AS, size_t LDAS,
+      const _F2 *AZ, size_t LDAZ, const _F2 *AY, size_t LDAY, const _F2 *AX, size_t LDAX,
+      bool zeroXY, bool zeroZ) {
 
-    assert(( std::is_same<_F,dcomplex>::value ));
+    _F2 YFACT = 0.5*ComplexScale<_F2>();
 
-    _F YFACT = 0.5*ComplexScale<_F>();
+    if (zeroZ) {
+      if(AA) SetMat('N',M,N,_F2(0.5),AS,LDAS,AA,LDAA);
+      if(BB) SetMat('N',M,N,_F2(0.5),AS,LDAS,BB,LDBB);
+    } else {
+      if(AA) MatAdd('N','N',M,N,_F2(0.5),AS,LDAS,_F2(0.5) ,AZ,LDAZ,AA,LDAA);
+      if(BB) MatAdd('N','N',M,N,_F2(0.5),AS,LDAS,_F2(-0.5),AZ,LDAZ,BB,LDBB);
+    }
+
+    if (zeroXY) {
+      if(BA) SetMat('N',M,N,_F2(0.0),AS,LDAS,BA,LDBA);
+      if(AB) SetMat('N',M,N,_F2(0.0),AS,LDAS,AB,LDAB);
+    } else {
+      if(BA) MatAdd('N','N',M,N,_F2(0.5),AX,LDAX, YFACT,AY,LDAY,BA,LDBA);
+      if(AB) MatAdd('N','N',M,N,_F2(0.5),AX,LDAX,-YFACT,AY,LDAY,AB,LDAB);
+    }
+
+  };
+
+  template <typename _F1, typename _F2>
+  void SpinGather(size_t M, size_t N, _F1 *A, size_t LDA, const _F2 *AS, size_t LDAS,
+      const _F2 *AZ, size_t LDAZ, const _F2 *AY, size_t LDAY, const _F2 *AX, size_t LDAX,
+      bool zeroXY, bool zeroZ) {
 
 /*
     for(auto j = 0; j < N; j++)
@@ -97,44 +132,123 @@ namespace ChronusQ {
       A[i + (j+N)*LDA]     = 0.5 * (AX[i + j*LDAS] - YFACT * AY[i + j*LDAZ]);
     }
 */
-    _F* A_AA = A;
-    _F* A_AB = A_AA + N*LDA;
-    _F* A_BA = A_AA + N;
-    _F* A_BB = A_AB + N;
+    _F1* A_AA = A;
+    _F1* A_AB = A_AA + N*LDA;
+    _F1* A_BA = A_AA + M;
+    _F1* A_BB = A_AB + M;
 
-    MatAdd('N','N',N,N,_F(0.5),AS,LDAS,_F(0.5) ,AZ,LDAZ,A_AA,LDA);
-    MatAdd('N','N',N,N,_F(0.5),AS,LDAS,_F(-0.5),AZ,LDAZ,A_BB,LDA);
-    MatAdd('N','N',N,N,_F(0.5),AX,LDAS,YFACT   ,AY,LDAZ,A_BA,LDA);
-    MatAdd('N','N',N,N,_F(0.5),AX,LDAS,-YFACT  ,AY,LDAZ,A_AB,LDA);
+    SpinGather(M,N,A_AA,LDA,A_AB,LDA,A_BA,LDA,A_BB,LDA,
+                AS,LDAS,AZ,LDAZ,AY,LDAY,AX,LDAX,zeroXY,zeroZ);
+
+  };
+
+  template <typename _F1, typename _F2>
+  void SpinGather(size_t N, _F1 *A, size_t LDA, const _F2 *AS, size_t LDAS,
+      const _F2 *AZ, size_t LDAZ, const _F2 *AY, size_t LDAY, const _F2 *AX, size_t LDAX,
+      bool zeroXY, bool zeroZ) {
+
+    SpinGather(N,N,A,LDA,AS,LDAS,AZ,LDAZ,AY,LDAY,AX,LDAX,zeroXY,zeroZ);
 
   };
 
   template
-  void SpinScatter(size_t N, double *A, size_t LDA, double *AS, size_t LDAS,
-    double *AZ, size_t LDAZ, double *AY, size_t LDAY, double *AX, size_t LDAX);
+  void SpinScatter(size_t M, size_t N, const double *AA, size_t LDAA,
+      const double *AB, size_t LDAB, const double *BA, size_t LDBA,
+      const double *BB, size_t LDBB, double *AS, size_t LDAS,
+      double *AZ, size_t LDAZ, double *AY, size_t LDAY, double *AX, size_t LDAX,
+      bool zeroABBA, bool zeroBB);
 
   template
-  void SpinScatter(size_t N, dcomplex *A, size_t LDA, dcomplex *AS, size_t LDAS,
-    dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX, 
-    size_t LDAX);
+  void SpinScatter(size_t M, size_t N, const double *AA, size_t LDAA,
+      const double *AB, size_t LDAB, const double *BA, size_t LDBA,
+      const double *BB, size_t LDBB, dcomplex *AS, size_t LDAS,
+      dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX, size_t LDAX,
+      bool zeroABBA, bool zeroBB);
 
   template
-  void SpinScatter(size_t M, size_t N, double *A, size_t LDA, double *AS, size_t LDAS,
-    double *AZ, size_t LDAZ, double *AY, size_t LDAY, double *AX, size_t LDAX);
+  void SpinScatter(size_t M, size_t N, const dcomplex *AA, size_t LDAA,
+      const dcomplex *AB, size_t LDAB, const dcomplex *BA, size_t LDBA,
+      const dcomplex *BB, size_t LDBB, dcomplex *AS, size_t LDAS,
+      dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX, size_t LDAX,
+      bool zeroABBA, bool zeroBB);
 
   template
-  void SpinScatter(size_t M, size_t N, dcomplex *A, size_t LDA, dcomplex *AS, size_t LDAS,
-    dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX,
-    size_t LDAX);
+  void SpinScatter(size_t M, size_t N, const double *A, size_t LDA, double *AS, size_t LDAS,
+      double *AZ, size_t LDAZ, double *AY, size_t LDAY, double *AX, size_t LDAX,
+      bool zeroABBA, bool zeroBB);
 
   template
-  void SpinGather(size_t N, double *A, size_t LDA, double *AS, size_t LDAS,
-    double *AZ, size_t LDAZ, double *AY, size_t LDAY, double *AX, size_t LDAX);
+  void SpinScatter(size_t M, size_t N, const double *A, size_t LDA, dcomplex *AS, size_t LDAS,
+      dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX, size_t LDAX,
+      bool zeroABBA, bool zeroBB);
 
   template
-  void SpinGather(size_t N, dcomplex *A, size_t LDA, dcomplex *AS, size_t LDAS,
-    dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX, 
-    size_t LDAX);
+  void SpinScatter(size_t M, size_t N, const dcomplex *A, size_t LDA, dcomplex *AS, size_t LDAS,
+      dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX, size_t LDAX,
+      bool zeroABBA, bool zeroBB);
+
+  template
+  void SpinScatter(size_t N, const double *A, size_t LDA, double *AS, size_t LDAS,
+      double *AZ, size_t LDAZ, double *AY, size_t LDAY, double *AX, size_t LDAX,
+      bool zeroABBA, bool zeroBB);
+
+  template
+  void SpinScatter(size_t N, const double *A, size_t LDA, dcomplex *AS, size_t LDAS,
+      dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX, size_t LDAX,
+      bool zeroABBA, bool zeroBB);
+
+  template
+  void SpinScatter(size_t N, const dcomplex *A, size_t LDA, dcomplex *AS, size_t LDAS,
+      dcomplex *AZ, size_t LDAZ, dcomplex *AY, size_t LDAY, dcomplex *AX, size_t LDAX,
+      bool zeroABBA, bool zeroBB);
+
+  template
+  void SpinGather(size_t M, size_t N, double *AA, size_t LDAA, double *AB, size_t LDAB,
+      double *BA, size_t LDBA, double *BB, size_t LDBB, const double *AS, size_t LDAS,
+      const double *AZ, size_t LDAZ, const double *AY, size_t LDAY, const double *AX, size_t LDAX,
+      bool zeroXY, bool zeroZ);
+
+  template
+  void SpinGather(size_t M, size_t N, dcomplex *AA, size_t LDAA, dcomplex *AB, size_t LDAB,
+      dcomplex *BA, size_t LDBA, dcomplex *BB, size_t LDBB, const double *AS, size_t LDAS,
+      const double *AZ, size_t LDAZ, const double *AY, size_t LDAY, const double *AX, size_t LDAX,
+      bool zeroXY, bool zeroZ);
+
+  template
+  void SpinGather(size_t M, size_t N, dcomplex *AA, size_t LDAA, dcomplex *AB, size_t LDAB,
+      dcomplex *BA, size_t LDBA, dcomplex *BB, size_t LDBB, const dcomplex *AS, size_t LDAS,
+      const dcomplex *AZ, size_t LDAZ, const dcomplex *AY, size_t LDAY, const dcomplex *AX,
+      size_t LDAX, bool zeroXY, bool zeroZ);
+
+  template
+  void SpinGather(size_t M, size_t N, double *A, size_t LDA, const double *AS, size_t LDAS,
+      const double *AZ, size_t LDAZ, const double *AY, size_t LDAY, const double *AX, size_t LDAX,
+      bool zeroXY, bool zeroZ);
+
+  template
+  void SpinGather(size_t M, size_t N, dcomplex *A, size_t LDA, const double *AS, size_t LDAS,
+      const double *AZ, size_t LDAZ, const double *AY, size_t LDAY, const double *AX, size_t LDAX,
+      bool zeroXY, bool zeroZ);
+
+  template
+  void SpinGather(size_t M, size_t N, dcomplex *A, size_t LDA, const dcomplex *AS, size_t LDAS,
+      const dcomplex *AZ, size_t LDAZ, const dcomplex *AY, size_t LDAY, const dcomplex *AX,
+      size_t LDAX, bool zeroXY, bool zeroZ);
+
+  template
+  void SpinGather(size_t N, double *A, size_t LDA, const double *AS, size_t LDAS,
+      const double *AZ, size_t LDAZ, const double *AY, size_t LDAY, const double *AX, size_t LDAX,
+      bool zeroXY, bool zeroZ);
+
+  template
+  void SpinGather(size_t N, dcomplex *A, size_t LDA, const double *AS, size_t LDAS,
+      const double *AZ, size_t LDAZ, const double *AY, size_t LDAY, const double *AX, size_t LDAX,
+      bool zeroXY, bool zeroZ);
+
+  template
+  void SpinGather(size_t N, dcomplex *A, size_t LDA, const dcomplex *AS, size_t LDAS,
+      const dcomplex *AZ, size_t LDAZ, const dcomplex *AY, size_t LDAY, const dcomplex *AX,
+      size_t LDAX, bool zeroXY, bool zeroZ);
 
 
 
@@ -148,14 +262,14 @@ namespace ChronusQ {
 
 
   template <typename _F1, typename _F2, typename _FScale>
-  void SetMat(char TRANS, size_t M, size_t N, _FScale ALPHA, _F1 *A, size_t LDA,
+  void SetMat(char TRANS, size_t M, size_t N, _FScale ALPHA, const _F1 *A, size_t LDA,
     size_t SA, _F2 *B, size_t LDB, size_t SB) {
 
     assert( TRANS == 'N' or TRANS == 'R' or TRANS == 'T' or TRANS == 'C');
 
     using namespace Eigen;
 
-    typedef Matrix<_F1,Dynamic,Dynamic,ColMajor> F1Mat;
+    typedef const Matrix<_F1,Dynamic,Dynamic,ColMajor> F1Mat;
     typedef Matrix<_F2,Dynamic,Dynamic,ColMajor> F2Mat;
     typedef Stride<Dynamic,Dynamic> DynamicStride; 
 
@@ -176,7 +290,7 @@ namespace ChronusQ {
       BMap = ALPHA * AMap.transpose();
     } else if ( TRANS == 'C' ) {
       F2Map BMap(B,N,M, DynamicStride(LDB,SB));
-      BMap = ALPHA * AMap.transpose().conjugate();
+      BMap = ALPHA * AMap.adjoint();
     }
 
   }
@@ -184,7 +298,7 @@ namespace ChronusQ {
 #ifdef _CQ_MKL
 
   template <>
-  void SetMat(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void SetMat(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, size_t SA, double *B, size_t LDB, size_t SB) {
 
     if( SA != 1 or SB != 1)
@@ -195,7 +309,7 @@ namespace ChronusQ {
   };
 
   template <>
-  void SetMat(char TRANS, size_t M, size_t N, dcomplex ALPHA, dcomplex *A, 
+  void SetMat(char TRANS, size_t M, size_t N, dcomplex ALPHA, const dcomplex *A,
     size_t LDA, size_t SA, dcomplex *B, size_t LDB, size_t SB) {
 
     if( SA != 1 or SB != 1)
@@ -208,40 +322,48 @@ namespace ChronusQ {
 #else
 
   template
-  void SetMat(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void SetMat(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, size_t SA, double *B, size_t LDB, size_t SB);
 
   template
-  void SetMat(char TRANS, size_t M, size_t N, dcomplex ALPHA, dcomplex *A, 
+  void SetMat(char TRANS, size_t M, size_t N, dcomplex ALPHA, const dcomplex *A,
     size_t LDA, size_t SA, dcomplex *B, size_t LDB, size_t SB);
 
 
 #endif
 
   template
-  void SetMat(char TRANS, size_t M, size_t N, double ALPHA, double *A,
+  void SetMat(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
+    size_t LDA, size_t SA, dcomplex *B, size_t LDB, size_t SB);
+
+  template
+  void SetMat(char TRANS, size_t M, size_t N, double ALPHA, const dcomplex *A,
+    size_t LDA, size_t SA, dcomplex *B, size_t LDB, size_t SB);
+
+  template
+  void SetMat(char TRANS, size_t M, size_t N, dcomplex ALPHA, const double *A,
     size_t LDA, size_t SA, dcomplex *B, size_t LDB, size_t SB);
 
 
   /// \brief A2c = [ A  0 ]
   ///              [ 0  A ]
   template <typename _F1, typename _F2>
-  void SetMatDiag(size_t M, size_t N, _F1 *A, size_t LDA, _F2 *A2c, size_t LD2c) {
+  void SetMatDiag(size_t M, size_t N, const _F1 *A, size_t LDA, _F2 *A2c, size_t LD2c) {
     SetMat('N',M,N,1.,A,LDA,A2c,LD2c);
     SetMat('N',M,N,1.,A,LDA,A2c + M + N*LD2c,LD2c);
     SetMat('N',M,N,0.,A,LDA,A2c + M,LD2c);
     SetMat('N',M,N,0.,A,LDA,A2c + N*LD2c,LD2c);
   }
 
-  template void SetMatDiag(size_t, size_t, double*, size_t, double*, size_t);
-  template void SetMatDiag(size_t, size_t, double*, size_t, dcomplex*, size_t);
-  template void SetMatDiag(size_t, size_t, dcomplex*, size_t, dcomplex*, size_t);
+  template void SetMatDiag(size_t, size_t, const double*, size_t, double*, size_t);
+  template void SetMatDiag(size_t, size_t, const double*, size_t, dcomplex*, size_t);
+  template void SetMatDiag(size_t, size_t, const dcomplex*, size_t, dcomplex*, size_t);
 
 
 
 
   template<>
-  void SetMatRE(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void SetMatRE(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, dcomplex *B, size_t LDB) {
 
     SetMat(TRANS,M,N,ALPHA,A,LDA,1,reinterpret_cast<double*>(B),2*LDB,2);
@@ -249,7 +371,7 @@ namespace ChronusQ {
   }; // SetMatRE (complex)
 
   template<>
-  void SetMatRE(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void SetMatRE(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, double *B, size_t LDB) {
 
     SetMat(TRANS,M,N,ALPHA,A,LDA,1,B,LDB,1);
@@ -259,7 +381,7 @@ namespace ChronusQ {
 
 
   template<>
-  void SetMatIM(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void SetMatIM(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, dcomplex *B, size_t LDB) {
 
     SetMat(TRANS,M,N,ALPHA,A,LDA,1,reinterpret_cast<double*>(B)+1,2*LDB,2);
@@ -267,7 +389,7 @@ namespace ChronusQ {
   }; // SetMatIM (complex)
 
   template<>
-  void SetMatIM(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void SetMatIM(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, double *B, size_t LDB) {
 
     assert(false);
@@ -275,15 +397,15 @@ namespace ChronusQ {
   }; // SetMatRM (real)
 
   template<>
-  void GetMatRE(char TRANS, size_t M, size_t N, double ALPHA, dcomplex *A, 
+  void GetMatRE(char TRANS, size_t M, size_t N, double ALPHA, const dcomplex *A,
     size_t LDA, double *B, size_t LDB) {
 
-    SetMat(TRANS,M,N,ALPHA,reinterpret_cast<double*>(A),2*LDA,2,B,LDA,1);
+    SetMat(TRANS,M,N,ALPHA,reinterpret_cast<const double*>(A),2*LDA,2,B,LDA,1);
 
   }; // GetMatRE (complex)
 
   template<>
-  void GetMatRE(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void GetMatRE(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, double *B, size_t LDB) {
 
     SetMat(TRANS,M,N,ALPHA,A,LDA,1,B,LDA,1);
@@ -291,24 +413,20 @@ namespace ChronusQ {
   }; // GetMatRE (real)
 
   template<>
-  void GetMatIM(char TRANS, size_t M, size_t N, double ALPHA, dcomplex *A, 
+  void GetMatIM(char TRANS, size_t M, size_t N, double ALPHA, const dcomplex *A,
     size_t LDA, double *B, size_t LDB) {
 
-    SetMat(TRANS,M,N,ALPHA,reinterpret_cast<double*>(A)+1,2*LDA,2,B,LDA,1);
+    SetMat(TRANS,M,N,ALPHA,reinterpret_cast<const double*>(A)+1,2*LDA,2,B,LDA,1);
 
   }; // GetMatIM (complex)
 
   template<>
-  void GetMatIM(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void GetMatIM(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, double *B, size_t LDB) {
 
     SetMat(TRANS,M,N,0.,A,LDA,1,B,LDA,1);
 
   }; // GetMatIM (real)
-
-
-
-
 
 
 

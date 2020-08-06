@@ -26,6 +26,8 @@
 #include <fockbuilder.hpp>
 #include <util/time.hpp>
 #include <cqlinalg.hpp>
+#include <matrix.hpp>
+#include <electronintegrals/twoeints/incorerieri.hpp>
 #include <fockbuilder/rofock/impl.hpp>
 
 #include <typeinfo>
@@ -67,46 +69,77 @@ namespace ChronusQ {
     typedef std::vector<oper_t>       oper_t_coll;
 
     // Decide list of onePDMs to use
-    oper_t_coll &contract1PDM  = increment ? ss.deltaOnePDM : ss.onePDM;
+    PauliSpinorSquareMatrices<MatsT> &contract1PDM
+        = increment ? *ss.deltaOnePDM : *ss.onePDM;
 
-    size_t NB = ss.aoints.basisSet().nBasis;
-    size_t NB2 = NB*NB;
+    size_t NB = ss.basisSet().nBasis;
 
-    size_t mpiRank   = MPIRank(ss.comm);
-    bool   isNotRoot = mpiRank != 0;
-
-
-    // Zero out J
-    if(not increment) memset(ss.coulombMatrix,0.,NB2*sizeof(MatsT));
-
-    std::vector<TwoBodyContraction<MatsT>> contract =
-      { {true, contract1PDM[SCALAR], ss.coulombMatrix, true, COULOMB} };
-
-    // Determine how many (if any) exchange terms to calculate
-    if( std::abs(xHFX) > 1e-12 )
-    for(auto i = 0; i < ss.exchangeMatrix.size(); i++) {
-      contract.push_back(
-          {true, contract1PDM[i], ss.exchangeMatrix[i], true, EXCHANGE}
-      );
-
-      // Zero out K[i]
-      if(not increment) memset(ss.exchangeMatrix[i],0,NB2*sizeof(MatsT));
+    // Zero out J and K[i]
+    if(not increment) {
+      ss.coulombMatrix->clear();
+      ss.exchangeMatrix->clear();
     }
 
-    ss.aoints.twoBodyContract(ss.comm, contract, pert);
+    std::vector<TwoBodyContraction<MatsT>> contract =
+      { {contract1PDM.S().pointer(), ss.coulombMatrix->pointer(), true, COULOMB} };
+
+    // Determine how many (if any) exchange terms to calculate
+    if( std::abs(xHFX) > 1e-12 and not increment and
+        (ss.scfControls.guess != SAD or ss.scfConv.nSCFIter != 0) and
+        std::dynamic_pointer_cast<InCoreRIERIContraction<MatsT, IntsT>>(ss.ERI)) {
+      ROOT_ONLY(ss.comm);
+      auto rieri = std::dynamic_pointer_cast<InCoreRIERIContraction<MatsT, IntsT>>(ss.ERI);
+
+      if(ss.nC == 1) {
+        SquareMatrix<MatsT> AAblock(ss.exchangeMatrix->memManager(), NB);
+        rieri->KCoefContract(ss.comm, ss.nOA, ss.mo[0].pointer(), AAblock.pointer());
+        if(ss.iCS) {
+          *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock);
+        } else {
+          SquareMatrix<MatsT> BBblock(ss.exchangeMatrix->memManager(), NB);
+          rieri->KCoefContract(ss.comm, ss.nOB, ss.mo[1].pointer(), BBblock.pointer());
+          *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock, BBblock);
+        }
+      } else {
+        SquareMatrix<MatsT> spinBlockForm(ss.exchangeMatrix->memManager(), NB*2);
+        InCoreRIERI<MatsT> rierispinor(dynamic_cast<InCoreRIERI<IntsT>&>(rieri->ints()).
+                                       template spatialToSpinBlock<MatsT>());
+        InCoreRIERIContraction<MatsT,MatsT>(rierispinor)
+            .KCoefContract(ss.comm, ss.nO, ss.mo[0].pointer(), spinBlockForm.pointer());
+        *ss.exchangeMatrix = spinBlockForm.template spinScatter<MatsT>();
+      }
+
+    } else if( std::abs(xHFX) > 1e-12 ) {
+      contract.push_back(
+          {contract1PDM.S().pointer(), ss.exchangeMatrix->pointer(), true, EXCHANGE}
+      );
+      if (ss.exchangeMatrix->hasZ())
+        contract.push_back(
+            {contract1PDM.Z().pointer(), ss.exchangeMatrix->Z().pointer(), true, EXCHANGE}
+        );
+      if (ss.exchangeMatrix->hasXY()) {
+        contract.push_back(
+            {contract1PDM.Y().pointer(), ss.exchangeMatrix->Y().pointer(), true, EXCHANGE}
+        );
+        contract.push_back(
+            {contract1PDM.X().pointer(), ss.exchangeMatrix->X().pointer(), true, EXCHANGE}
+        );
+      }
+    }
+
+    ss.ERI->twoBodyContract(ss.comm, contract, pert);
 
     ROOT_ONLY(ss.comm); // Return if not root (J/K only valid on root process)
 
 
     // Form GD: G[D] = 2.0*J[D] - K[D]
     if( std::abs(xHFX) > 1e-12 ) {
-      for(auto i = 0; i < ss.exchangeMatrix.size(); i++)
-        MatAdd('N','N', NB, NB, MatsT(0.), ss.twoeH[i], NB, MatsT(-xHFX), ss.exchangeMatrix[i], NB, ss.twoeH[i], NB);
+      *ss.twoeH = -xHFX * *ss.exchangeMatrix;
     } else {
-      for(auto i = 0; i < ss.fockMatrix.size(); i++) memset(ss.twoeH[i],0,NB2*sizeof(MatsT));
+      ss.twoeH->clear();
     }
     // G[D] += 2*J[D]
-    MatAdd('N','N', NB, NB, MatsT(1.), ss.twoeH[SCALAR], NB, MatsT(2.), ss.coulombMatrix, NB, ss.twoeH[SCALAR], NB);
+    *ss.twoeH += 2.0 * *ss.coulombMatrix;
 
 #if 0
   //printJ(std::cout);
@@ -129,7 +162,7 @@ namespace ChronusQ {
   void FockBuilder<MatsT,IntsT>::formFock(SingleSlater<MatsT,IntsT> &ss,
     EMPerturbation &pert, bool increment, double xHFX) {
 
-    size_t NB = ss.aoints.basisSet().nBasis;
+    size_t NB = ss.basisSet().nBasis;
     size_t NB2 = NB*NB;
 
     auto GDStart = tick(); // Start time for G[D]
@@ -141,20 +174,8 @@ namespace ChronusQ {
 
     ROOT_ONLY(ss.comm);
 
-
-    // Zero out the Fock
-    for(auto &F : ss.fockMatrix) std::fill_n(F,NB2,MatsT(0.));
-
-    // Copy over the Core Hamiltonian
-    for(auto i = 0; i < ss.coreH.size(); i++)
-      SetMat('N',NB,NB,MatsT(1.),ss.coreH[i],NB,ss.fockMatrix[i],NB);
-
-    // Add in the two electron term
-    for(auto i = 0ul; i < ss.fockMatrix.size(); i++)
-      MatAdd('N','N', NB, NB, MatsT(1.), ss.fockMatrix[i], NB, MatsT(1.), ss.twoeH[i], NB, ss.fockMatrix[i], NB);
-
-
-
+    // Form Fock
+    *ss.fockMatrix = *ss.coreH + *ss.twoeH;
 
     // Add in the electric field contributions
     // FIXME: the magnetic field contribution should go here as well to allow for RT
@@ -164,11 +185,9 @@ namespace ChronusQ {
 
       auto dipAmp = pert.getDipoleAmp(Electric);
 
-      // Because IntsT and MatsT need not be the same: MatAdd not possible
       for(auto i = 0;    i < 3;     i++)
-      for(auto k = 0ul;  k < NB*NB; k++)
-        ss.fockMatrix[SCALAR][k] -=
-          2. * dipAmp[i] * ss.aoints.lenElecDipole[i][k];
+        ss.fockMatrix->S() -=
+          2. * dipAmp[i] * (*ss.aoints.lenElectric)[i].matrix();
 
     }
 
@@ -190,9 +209,9 @@ namespace ChronusQ {
 
     if (not fb) return nullptr;
 
-    const std::type_index tIndex(typeid(*fb));
+    const std::type_info &tID(typeid(*fb));
 
-    if (tIndex == std::type_index(typeid(ROFock<MatsT,IntsT>))) {
+    if (tID == typeid(ROFock<MatsT,IntsT>)) {
       return std::make_shared<ROFock<MatsU,IntsT>>(
                *std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fb));
 

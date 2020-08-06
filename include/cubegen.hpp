@@ -118,9 +118,9 @@ namespace ChronusQ {
 
     void evalCDCube(){
 
-      size_t NB = ref_->aoints.basisSet().nBasis;
+      size_t NB = ref_->nAlphaOrbital();
 
-      std::vector<libint2::Shell> &shells = ref_->aoints.basisSet().shells;
+      std::vector<libint2::Shell> &shells = ref_->basisSet().shells;
       std::vector<double> BASIS(NB,0.);
       std::vector<T> SCR(NB,0.);
 
@@ -135,7 +135,7 @@ namespace ChronusQ {
 
         evalShellSet(ref_->memManager,NOGRAD,shells,&pt[0],1,&BASIS[0],false);
 
-        Gemm('T','N',1,NB,NB,T(1.),&BASIS[0],NB,ref_->onePDM[SCALAR],NB,
+        Gemm('T','N',1,NB,NB,T(1.),&BASIS[0],NB,ref_->onePDM->S().pointer(),NB,
             T(0.),&SCR[0],1);
 
         double val = InnerProd<double>(NB,&SCR[0],1,&BASIS[0],1);
@@ -155,9 +155,9 @@ namespace ChronusQ {
 
     void evalSDCube() {
 
-      size_t NB = ref_->aoints.basisSet().nBasis;
+      size_t NB = ref_->nAlphaOrbital();
 
-      std::vector<libint2::Shell> &shells = ref_->aoints.basisSet().shells;
+      std::vector<libint2::Shell> &shells = ref_->basisSet().shells;
       std::vector<double> BASIS(NB,0.);
       std::vector<T> SCR(NB,0.);
 
@@ -172,12 +172,13 @@ namespace ChronusQ {
 
         double val = 0;
 
-        if( ref_->onePDM.size() > 1 ) {
+        if( ref_->onePDM.hasZ() ) {
 
           evalShellSet(ref_->memManager,NOGRAD,shells,&pt[0],1,&BASIS[0],false);
-  
-          for(auto i = 1; i < ref_->onePDM.size(); i++) {
-            Gemm('T','N',1,NB,NB,T(1.),&BASIS[0],NB,ref_->onePDM[i],NB,
+
+          for(size_t i = 1; i < ref_->onePDM->nComponent(); i++) {
+            Gemm('T','N',1,NB,NB,T(1.),&BASIS[0],NB,
+                (*ref_->onePDM)[static_cast<PAULI_SPINOR_COMPS>(i)].pointer()],NB,
                 T(0.),&SCR[0],1);
   
             double tmp = InnerProd<double>(NB,&SCR[0],1,&BASIS[0],1);
@@ -204,9 +205,9 @@ namespace ChronusQ {
     void evalEPCube(){
     
     
-      size_t NB = ref_->aoints.basisSet().nBasis;
+      size_t NB = ref_->nAlphaOrbital();
 
-      std::vector<libint2::Shell> &shells = ref_->aoints.basisSet().shells;
+      std::vector<libint2::Shell> &shells = ref_->basisSet().shells;
     
       std::vector<T> SCR(NB*NB,0.);
     
@@ -265,9 +266,9 @@ namespace ChronusQ {
         HerMat('L',NB,&SCR[0],NB);
         prettyPrintSmart(std::cout,"V",&SCR[0],NB,NB,NB);
 
-        double val = InnerProd<double>(NB*NB,&SCR[0],1,ref_->onePDM[SCALAR],1);
+        double val = InnerProd<double>(NB*NB,&SCR[0],1,ref_->onePDM->S().pointer(),1);
 
-        for( auto &atom : ref_->aoints.molecule().atoms ) {
+        for( auto &atom : ref_->molecule().atoms ) {
 
           auto &c = atom.coord;
           val += atom.atomicNumber / 
@@ -294,8 +295,8 @@ namespace ChronusQ {
 
       CubeGenBase::writePreamble();
 
-      size_t nAtoms = ref_->aoints.molecule().nAtoms;
-      Molecule &mol = ref_->aoints.molecule();
+      size_t nAtoms = ref_->molecule().nAtoms;
+      Molecule &mol = ref_->molecule();
 
       *cubeFile << std::setprecision(6);
 
@@ -325,7 +326,7 @@ namespace ChronusQ {
       *cubeFile << std::setw(15) << L[2];
       *cubeFile << "\n";
 
-      for( auto &atom : ref_->aoints.molecule().atoms ) {
+      for( auto &atom : ref_->molecule().atoms ) {
 
         *cubeFile << std::setw(6) << atom.atomicNumber;
         *cubeFile << std::setw(15) << 0.;

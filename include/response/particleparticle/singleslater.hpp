@@ -559,7 +559,7 @@ namespace ChronusQ {
 
     // Print memory requirements (ish)
     if( isRoot ) {
-      size_t NB = this->ref_->aoints.basisSet().nBasis;
+      size_t NB = this->ref_->nAlphaOrbital();
       size_t vcSize = N*(nForm + nStore)*sizeof(double);
       size_t aoSize = NB*NB*(nForm + nStore)*sizeof(double);
       size_t parSize = nForm*NB*NB*sizeof(double)*(GetNumThreads()-1);
@@ -997,7 +997,7 @@ namespace ChronusQ {
 
 
     SingleSlater<MatsT,IntsT> &ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
-    const size_t NB   = ss.aoints.basisSet().nBasis;
+    const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -1040,25 +1040,25 @@ namespace ChronusQ {
 
     if( ss.nC == 2 or ss.iCS ) {
 
-      mo1 = ss.mo1;
-      mo2 = ss.mo1;
+      mo1 = ss.mo[0].pointer();
+      mo2 = ss.mo[0].pointer();
 
     } else {
 
       if( spinSepProp == PP_AA ) {
 
-        mo1 = ss.mo1;
-        mo2 = ss.mo1;
+        mo1 = ss.mo[0].pointer();
+        mo2 = ss.mo[0].pointer();
 
       } else if( spinSepProp == PP_AB ) {
 
-        mo1 = ss.mo1;
-        mo2 = ss.mo2;
+        mo1 = ss.mo[0].pointer();
+        mo2 = ss.mo[1].pointer();
 
       } else {
 
-        mo1 = ss.mo2;
-        mo2 = ss.mo2;
+        mo1 = ss.mo[1].pointer();
+        mo2 = ss.mo[1].pointer();
 
       }
 
@@ -1124,7 +1124,7 @@ namespace ChronusQ {
       AOaa  = first; 
       KAOaa = first + NB2;
 
-      cList.push_back( {true, AOaa, KAOaa, false, EXCHANGE } );
+      cList.push_back( {AOaa, KAOaa, false, EXCHANGE } );
 
       if( ss.nC == 2 ) {
 
@@ -1135,9 +1135,9 @@ namespace ChronusQ {
         AObb  = first + 6*NB2; 
         KAObb = first + 7*NB2;
 
-        cList.push_back( {true, AOab, KAOab, false, EXCHANGE } );
-        cList.push_back( {true, AOba, KAOba, false, EXCHANGE } );
-        cList.push_back( {true, AObb, KAObb, false, EXCHANGE } );
+        cList.push_back( {AOab, KAOab, false, EXCHANGE } );
+        cList.push_back( {AOba, KAOba, false, EXCHANGE } );
+        cList.push_back( {AObb, KAObb, false, EXCHANGE } );
 
       }
       
@@ -1194,7 +1194,7 @@ namespace ChronusQ {
 
 
     SingleSlater<MatsT,IntsT> &ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
-    const size_t NB   = ss.aoints.basisSet().nBasis;
+    const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -1227,25 +1227,25 @@ namespace ChronusQ {
 
     if( ss.nC == 2 or ss.iCS ) {
 
-      mo1 = ss.mo1;
-      mo2 = ss.mo1;
+      mo1 = ss.mo[0].pointer();
+      mo2 = ss.mo[0].pointer();
 
     } else {
 
       if( spinSepProp == PP_AA ) {
 
-        mo1 = ss.mo1;
-        mo2 = ss.mo1;
+        mo1 = ss.mo[0].pointer();
+        mo2 = ss.mo[0].pointer();
 
       } else if( spinSepProp == PP_AB ) {
 
-        mo1 = ss.mo1;
-        mo2 = ss.mo2;
+        mo1 = ss.mo[0].pointer();
+        mo2 = ss.mo[1].pointer();
 
       } else {
 
-        mo1 = ss.mo2;
-        mo2 = ss.mo2;
+        mo1 = ss.mo[1].pointer();
+        mo2 = ss.mo[1].pointer();
 
       }
 

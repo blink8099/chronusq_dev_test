@@ -22,8 +22,9 @@
  *
  */
 #include <corehbuilder/x2c/atomic.hpp>
-#include <util/preprocessor.hpp>
-#include <singleslater/guess.hpp>
+#include <corehbuilder/nonrel.hpp>
+#include <electronintegrals/relativisticints.hpp>
+#include <matrix.hpp>
 #include <cqlinalg.hpp>
 #include <physcon.hpp>
 
@@ -64,7 +65,8 @@ namespace ChronusQ {
    *  \brief Compute the AtomicX2C Core Hamiltonian
    */
   template <typename MatsT, typename IntsT>
-  void AtomicX2C<MatsT, IntsT>::computeX2C(EMPerturbation &emPert, std::vector<MatsT*> &CH) {
+  void AtomicX2C<MatsT, IntsT>::computeX2C(EMPerturbation &emPert,
+      std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH) {
     size_t NP = this->uncontractedBasis_.nPrimitive;
     size_t NB = this->basisSet_.nBasis;
 
@@ -74,7 +76,10 @@ namespace ChronusQ {
     std::vector<size_t> cumeNBs;
 
     if (type_.diagonalOnly)
-      NRCoreH<MatsT, IntsT>(this->aoints_).computeNRCH(emPert, CH);
+      NRCoreH<MatsT, IntsT>(this->aoints_, this->aoiOptions_)
+          .computeNRCH(emPert, coreH);
+
+    std::vector<MatsT*> CH(coreH->SZYXPointers());
 
     atoms_.clear();
     atoms_.reserve(Natom);
@@ -103,37 +108,45 @@ namespace ChronusQ {
       }
 
       Molecule atomMol(0, atom.atomicNumber % 2 + 1, { atom });
-      BasisSet basis(this->aoints_.basisSet().basisName,
-        this->aoints_.basisSet().basisDef, this->aoints_.basisSet().inputDef,
-        atomMol, this->aoints_.basisSet().basisType,
-        this->aoints_.basisSet().forceCart, false);
+      BasisSet basis(this->basisSet_.basisName,
+        this->basisSet_.basisDef, this->basisSet_.inputDef,
+        atomMol, this->basisSet_.basisType,
+        this->basisSet_.forceCart, false);
 
       cumeNBs.push_back(cumeNB);
       cumeNB += basis.nBasis;
       maxAtomNB = std::max(basis.nBasis, maxAtomNB);
       maxAtomNP = std::max(basis.nPrimitive, maxAtomNP);
 
-      std::shared_ptr<AOIntegrals<IntsT>> aointsAtom;
+      std::shared_ptr<Integrals<IntsT>> aointsAtom;
       if (type_.isolateAtom) {
-        aointsAtom = std::make_shared<AOIntegrals<IntsT>>(this->memManager_,atomMol,basis);
-      } else
-        aointsAtom = std::make_shared<AOIntegrals<IntsT>>(this->memManager_,this->molecule_,basis);
+        aointsAtom = std::make_shared<Integrals<IntsT>>();
+        atoms_.emplace_back(*aointsAtom, this->memManager_, atomMol, basis,
+                            this->aoiOptions_);
+      } else {
+        aointsAtom = std::make_shared<Integrals<IntsT>>();
+        atoms_.emplace_back(*aointsAtom, this->memManager_, this->molecule_, basis,
+                            this->aoiOptions_);
+      }
 
-      atoms_.emplace_back(*aointsAtom, not this->oneETerms_.SORelativistic);
-    }
-
-    std::vector<MatsT*> atomCH(CH.size(), nullptr);
-    for (auto &CHi : atomCH) {
-      CHi = this->memManager_.template malloc<MatsT>(maxAtomNB*maxAtomNB);
     }
 
     for (size_t k = 0; k < atoms_.size(); k++) {
+      size_t atomNB = atoms_[k].basisSet_.nBasis;
+      std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> atomCoreH;
+      if (coreH->hasXY())
+        atomCoreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(this->memManager_, atomNB, true);
+      else if (coreH->hasZ())
+        atomCoreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(this->memManager_, atomNB, false);
+      else
+        atomCoreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(this->memManager_, atomNB, false, false);
+      atomCoreH->clear();
       if (type_.diagonalOnly) {
-        atoms_[k].computeX2C_corr(emPert, atomCH);
-        size_t atomNB = atoms_[k].basisSet_.nBasis;
+        atoms_[k].computeX2C_corr(emPert, atomCoreH);
         size_t aN = k;
         if (type_.isolateAtom)
           aN = atoms_[k].molecule_.atoms[0].atomicNumber;
+        std::vector<MatsT*> atomCH(atomCoreH->SZYXPointers());
         for (size_t i : uniqueElements[aN])
           for (size_t j=0; j<atomCH.size(); j++)
             MatAdd('N','N', atomNB, atomNB,
@@ -141,13 +154,9 @@ namespace ChronusQ {
               MatsT(1.), CH[j] + NB * cumeNBs[i] + cumeNBs[i], NB,
               CH[j] + NB * cumeNBs[i] + cumeNBs[i], NB);
       } else {
-        atoms_[k].computeX2C(emPert, atomCH);
+        atoms_[k].computeX2C(emPert, atomCoreH);
         atoms_[k].computeU();
       }
-    }
-
-    for (auto &CHi : atomCH) {
-      this->memManager_.free(CHi);
     }
 
     assert(cumeNB == NB);
@@ -157,10 +166,15 @@ namespace ChronusQ {
     /// DLU/ALU O(N^3) Algorithm (commented out):
     ///   1> Combile diagonal matrix U = diag(U_A, U_B, U_C, ...)
     ///   2> Compute Hx2c = U * D * U
-    //computeU();
-    //this->uncontractedInts_.computeAOOneE(emPert,this->oneETerms_);
-    //this->computeX2C_UDU(emPert, CH);
-    //return;
+#ifdef UDU_ATOMIC_X2C_ALGORITHM
+    computeU();
+    this->uncontractedInts_.computeAOOneE(this->memManager_,
+        this->molecule_, this->uncontractedBasis_, emPert,
+        {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0}},
+        this->aoiOptions_);
+    this->computeX2C_UDU(emPert, coreH);
+    return;
+#endif
 
 
     /// DLU/ALU O(N^2) Algorithm:
@@ -180,22 +194,14 @@ namespace ChronusQ {
     MatsT *HUnX = this->memManager_.template malloc<MatsT>(maxAtomNB*maxAtomNB);
     MatsT *HUnY = this->memManager_.template malloc<MatsT>(maxAtomNB*maxAtomNB);
 
-    this->uncontractedInts_.computeAOOneE(emPert,this->oneETerms_);
+    this->uncontractedInts_.computeAOOneE(this->memManager_,
+        this->molecule_, this->uncontractedBasis_, emPert,
+        {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0}},
+        this->aoiOptions_);
 
-    this->W = this->memManager_.template malloc<MatsT>(4*NP*NP);
-
-    if (this->oneETerms_.SORelativistic)
-      formW(NP,this->W,2*NP,this->uncontractedInts_.PVdotP,NP,
-        this->uncontractedInts_.PVcrossP[2],NP,
-        this->uncontractedInts_.PVcrossP[1],NP,
-        this->uncontractedInts_.PVcrossP[0],NP,
-        not this->oneETerms_.SORelativistic);
-    else
-      formW(NP,this->W,2*NP,this->uncontractedInts_.PVdotP,NP,
-        reinterpret_cast<IntsT*>(NULL),0,
-        reinterpret_cast<IntsT*>(NULL),0,
-        reinterpret_cast<IntsT*>(NULL),0,
-        not this->oneETerms_.SORelativistic);
+    this->W = std::make_shared<SquareMatrix<MatsT>>(
+        std::dynamic_pointer_cast<OneERelInts<IntsT>>(
+            this->uncontractedInts_.potential)->template formW<MatsT>());
 
     size_t cumeINP = 0;
     size_t cumeINB = 0;
@@ -217,31 +223,29 @@ namespace ChronusQ {
         // T2c_AB = [ T_AB   0   ]
         //          [  0    T_AB ]
         SetMatDiag(atomINP,atomJNP,
-          this->uncontractedInts_.kinetic + TVshift,NP,T2c,2*atomINP);
+            this->uncontractedInts_.kinetic->pointer() + TVshift,
+            NP,T2c,2*atomINP);
 
         // V2c_AB = [ V_AB   0   ]
         //          [  0    V_AB ]
         SetMatDiag(atomINP,atomJNP,
-          this->uncontractedInts_.potential + TVshift,NP,V2c,2*atomINP);
+            this->uncontractedInts_.potential->pointer() + TVshift,
+            NP,V2c,2*atomINP);
 
         // W2c_AB = [ W11_AB  W12_AB]
         //          [ W21_AB  W22_AB]
         size_t WsubShift = cumeINP + 2*NP*cumeJNP;
-        memset(W2c,0,4*atomINP*atomJNP*sizeof(MatsT));
+        std::fill_n(W2c,4*atomINP*atomJNP,MatsT(0.));
         SetMat('N',atomINP,atomJNP,MatsT(1.),
-          reinterpret_cast<MatsT*>(this->W)
-            + WsubShift,2*NP,W2c,2*atomINP);
+          this->W->pointer() + WsubShift,2*NP,W2c,2*atomINP);
         SetMat('N',atomINP,atomJNP,MatsT(1.),
-          reinterpret_cast<MatsT*>(this->W)
-            + 2*NP*NP + WsubShift,2*NP,
+          this->W->pointer() + 2*NP*NP + WsubShift,2*NP,
           W2c + 2*atomINP*atomJNP,2*atomINP);
         SetMat('N',atomINP,atomJNP,MatsT(1.),
-          reinterpret_cast<MatsT*>(this->W)
-            + NP + WsubShift,2*NP,
+          this->W->pointer() + NP + WsubShift,2*NP,
           W2c + atomINP,2*atomINP);
         SetMat('N',atomINP,atomJNP,MatsT(1.),
-          reinterpret_cast<MatsT*>(this->W)
-            + 2*NP*NP + NP + WsubShift,2*NP,
+          this->W->pointer() + 2*NP*NP + NP + WsubShift,2*NP,
           W2c + 2*atomINP*atomJNP + atomINP,2*atomINP);
 
         // Hx2c_AB = U_AA D_AB U_BB
@@ -272,16 +276,16 @@ namespace ChronusQ {
         Gemm('C','N',2*atomINB,2*atomJNB,2*atomINP,MatsT(1.),
           atoms_[I].US,2*atomINP,SCR,2*atomINP,MatsT(1.),Hx2c,2*atomINB);
 
-        if (this->oneETerms_.SORelativistic)
+        if (this->aoiOptions_.OneESpinOrbit)
           SpinScatter(atomINB,atomJNB,Hx2c,2*atomINB,HUnS,atomINB,
             HUnZ,atomINB,HUnY,atomINB,HUnX,atomINB);
         else {
           MatAdd('N','N',atomINB,atomJNB,MatsT(1.),Hx2c,2*atomINB,MatsT(1.),
             Hx2c+atomINB+2*atomINB*atomJNB,2*atomINB,HUnS,atomINB);
           if (CH.size() > 1) {
-            memset(HUnZ,0,atomINB*atomJNB*sizeof(MatsT));
-            memset(HUnY,0,atomINB*atomJNB*sizeof(MatsT));
-            memset(HUnX,0,atomINB*atomJNB*sizeof(MatsT));
+            std::fill_n(HUnZ,atomINB*atomJNB,MatsT(0.));
+            std::fill_n(HUnY,atomINB*atomJNB,MatsT(0.));
+            std::fill_n(HUnX,atomINB*atomJNB,MatsT(0.));
           }
         }
 
@@ -315,7 +319,8 @@ namespace ChronusQ {
 
   }
 
-  template<> void AtomicX2C<dcomplex,dcomplex>::computeX2C(EMPerturbation&, std::vector<dcomplex*>&) {
+  template<> void AtomicX2C<dcomplex,dcomplex>::computeX2C(EMPerturbation&,
+      std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>>) {
     CErr("X2C + Complex Ints NYI",std::cout);
   }
 
@@ -329,9 +334,9 @@ namespace ChronusQ {
     size_t NB = this->basisSet_.nBasis;
 
     this->UL = this->memManager_.template malloc<MatsT>(4*NP*NB);
-    memset(this->UL,0,4*NP*NB*sizeof(MatsT));
+    std::fill_n(this->UL,4*NP*NB,MatsT(0.));
     this->US = this->memManager_.template malloc<MatsT>(4*NP*NB);
-    memset(this->US,0,4*NP*NB*sizeof(MatsT));
+    std::fill_n(this->US,4*NP*NB,MatsT(0.));
 
     size_t cumeNP = 0, cumeNB = 0;
 

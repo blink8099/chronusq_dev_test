@@ -25,6 +25,7 @@
 
 #include <chronusq_sys.hpp>
 #include <cqlinalg/solve.hpp>
+#include <matrix.hpp>
 
 namespace ChronusQ {
 
@@ -47,10 +48,8 @@ namespace ChronusQ {
   public:
 
     size_t         nExtrap;     ///< Size of extrapolation space
-    size_t         nMat;        ///< Number of matrices to trace for each element of B
-    size_t         OSize;       ///< Size of the error metrics used to construct B
     std::vector<T> coeffs;      ///< Vector of extrapolation coeficients
-    oper_t_coll2   errorMetric; ///< Vector of vectors containing error metrics
+    const std::vector<PauliSpinorSquareMatrices<T>> &errorMetric; ///< Vector of vectors containing error metrics
 
     // Constructor
       
@@ -63,8 +62,8 @@ namespace ChronusQ {
      *  \param [in]  errorMetric Vector of vectors containing error metrics
      *  \param [out] InvFail     Boolean of whether matrix inversion failed
      */ 
-    DIIS(size_t nExtrap, size_t nMat, size_t OSize, oper_t_coll2 errorMetric) :
-      nExtrap(nExtrap), nMat(nMat), OSize(OSize), errorMetric(errorMetric) {
+    DIIS(size_t nExtrap, const std::vector<PauliSpinorSquareMatrices<T>> &errorMetric) :
+      nExtrap(nExtrap), errorMetric(errorMetric) {
 
       coeffs.resize(nExtrap+1);
 
@@ -94,33 +93,44 @@ namespace ChronusQ {
     int N          = nExtrap + 1;
     int NRHS       = 1;
     bool InvFail   = false;
-    std::vector<T>   B(N*N,0);
+    SquareMatrix<T> B(errorMetric[0].memManager(), N);
+    B.clear();
 
+    size_t NB = errorMetric[0].dimension();
+    size_t OSize = NB*NB;
     // Build the B matrix
-    for(auto i = 0ul; i < nMat; i++){ 
-      for(auto j = 0ul; j < nExtrap; j++){
-        for(auto k = 0ul; k <= j; k++){
-          B[k+j*N] += InnerProd<T>(OSize,errorMetric[k][i],1,errorMetric[j][i],1);
+    for(auto j = 0ul; j < nExtrap; j++){
+      for(auto k = 0ul; k <= j; k++){
+        B(k,j) += InnerProd<T>(OSize,errorMetric[k].S().pointer(),1,
+                               errorMetric[j].S().pointer(),1);
+        if (errorMetric[k].hasZ())
+          B(k,j) += InnerProd<T>(OSize,errorMetric[k].Z().pointer(),1,
+                                 errorMetric[j].Z().pointer(),1);
+        if (errorMetric[k].hasXY()) {
+          B(k,j) += InnerProd<T>(OSize,errorMetric[k].Y().pointer(),1,
+                                 errorMetric[j].Y().pointer(),1);
+          B(k,j) += InnerProd<T>(OSize,errorMetric[k].X().pointer(),1,
+                                 errorMetric[j].X().pointer(),1);
         }
       }
     }
     for(auto j = 0ul; j < nExtrap; j++){
       for(auto k = 0ul; k < j; k++){
-         B[j+k*N] = B[k+j*N];
+         B(j,k) = B(k,j);
       }
     }
     for(auto l = 0ul; l < nExtrap; l++){
-      B[nExtrap+l*N] = -1.0;
-      B[l+nExtrap*N] = -1.0;
+      B(nExtrap,l) = -1.0;
+      B(l,nExtrap) = -1.0;
     }
-    B[nExtrap+nExtrap*N] = 0.0;
+    B(nExtrap,nExtrap) = 0.0;
   //prettyPrintSmart(std::cout,"B Matrix",&B[0],N,N,N);
 
     // Initialize LHS of the linear problem
     std::fill_n(&coeffs[0],N,0.);
     coeffs[nExtrap] = -1.0;
  
-    int INFO = LinSolve(N, 1, &B[0], N, &coeffs[0], N);
+    int INFO = LinSolve(N, 1, B.pointer(), N, &coeffs[0], N);
 
 //  for(auto i = 0ul; i < N; i++)
 //    std::cout << "coeff = " << coeffs[i] << std::endl;

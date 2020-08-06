@@ -24,7 +24,6 @@
 #pragma once
 
 #include <fockbuilder.hpp>
-#include <fockbuilder/impl.hpp>
 
 
 namespace ChronusQ {
@@ -60,12 +59,9 @@ namespace ChronusQ {
     // Compute the gradient
     virtual void getGrad() {
       CErr("ROHF Fock gradient NYI",std::cout);
-}
+    }
 
 
   };
 
 }
-
-// Include header for implementation
-#include <fockbuilder/rofock/impl.hpp>
