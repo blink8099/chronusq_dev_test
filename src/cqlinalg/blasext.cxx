@@ -30,6 +30,26 @@
 
 namespace ChronusQ {
 
+  // MatAdd helper macros
+  #define MATN
+
+  #define MATR \
+    .conjugate()
+
+  #define MATT \
+    .transpose()
+
+  #define MATC \
+    .adjoint()
+  
+  #define MAT_OP(OP, X) \
+    X.block(0,0,M,N) MAT ## OP .template cast<_F3>()
+
+  #define TRY_MAT_ADD(OPA, OPB) \
+    if ( TRANSA == #OPA[0] and TRANSB == #OPB[0] ) \
+       CMap.block(0,0,M,N).noalias() = \
+         ALPHA * MAT_OP(OPA, AMap) + BETA * MAT_OP(OPB, BMap);
+
   // MatAdd generic template
   template <typename _F1, typename _F2, typename _F3, typename _FScale1, 
     typename _FScale2>
@@ -68,66 +88,22 @@ namespace ChronusQ {
       Eigen::Map< Eigen::Matrix<_F3,
           Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor> > CMap(C,LDC,N);
 
-      if( TRANSA == 'C' and TRANSB == 'N' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,N,M).adjoint().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).template cast<_F3>();
-      else if( TRANSA == 'N' and TRANSB == 'C' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).template cast<_F3>() +
-          BETA  * BMap.block(0,0,N,M).adjoint().template cast<_F3>();
-      else if( TRANSA == 'C' and TRANSB == 'C' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,N,M).adjoint().template cast<_F3>() +
-          BETA  * BMap.block(0,0,N,M).adjoint().template cast<_F3>();
-      else if( TRANSA == 'T' and TRANSB == 'N' )
-        CMap.block(0,0,M,N).noalias() =
-          ALPHA * AMap.block(0,0,N,M).transpose().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).template cast<_F3>();
-      else if( TRANSA == 'N' and TRANSB == 'T' )
-        CMap.block(0,0,M,N).noalias() =
-          ALPHA * AMap.block(0,0,M,N).template cast<_F3>() +
-          BETA  * BMap.block(0,0,N,M).transpose().template cast<_F3>();
-      else if( TRANSA == 'T' and TRANSB == 'T' )
-        CMap.block(0,0,M,N).noalias() =
-          ALPHA * AMap.block(0,0,N,M).transpose().template cast<_F3>() +
-          BETA  * BMap.block(0,0,N,M).transpose().template cast<_F3>();
-      else if( TRANSA == 'C' and TRANSB == 'T' )
-        CMap.block(0,0,M,N).noalias() =
-          ALPHA * AMap.block(0,0,N,M).adjoint().template cast<_F3>() +
-          BETA  * BMap.block(0,0,N,M).transpose().template cast<_F3>();
-      else if( TRANSA == 'T' and TRANSB == 'C' )
-        CMap.block(0,0,M,N).noalias() =
-          ALPHA * AMap.block(0,0,N,M).transpose().template cast<_F3>() +
-          BETA  * BMap.block(0,0,N,M).adjoint().template cast<_F3>();
-      else if( TRANSA == 'R' and TRANSB == 'N' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).conjugate().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).template cast<_F3>();
-      else if( TRANSA == 'N' and TRANSB == 'R' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).conjugate().template cast<_F3>();
-      else if( TRANSA == 'R' and TRANSB == 'R' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).conjugate().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).conjugate().template cast<_F3>();
-      else if( TRANSA == 'C' and TRANSB == 'R' )
-        CMap.block(0,0,M,N).noalias() =
-          ALPHA * AMap.block(0,0,N,M).adjoint().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).conjugate().template cast<_F3>();
-      else if( TRANSA == 'R' and TRANSB == 'C' )
-        CMap.block(0,0,M,N).noalias() =
-          ALPHA * AMap.block(0,0,M,N).conjugate().template cast<_F3>() +
-          BETA  * BMap.block(0,0,N,M).adjoint().template cast<_F3>();
-      else if( TRANSA == 'T' and TRANSB == 'R' )
-        CMap.block(0,0,M,N).noalias() =
-          ALPHA * AMap.block(0,0,N,M).transpose().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).conjugate().template cast<_F3>();
-      else if( TRANSA == 'R' and TRANSB == 'T' )
-        CMap.block(0,0,M,N).noalias() =
-          ALPHA * AMap.block(0,0,M,N).conjugate().template cast<_F3>() +
-          BETA  * BMap.block(0,0,N,M).transpose().template cast<_F3>();
+      // Try all different combinations
+      TRY_MAT_ADD(N, C)
+      else TRY_MAT_ADD(C, N)
+      else TRY_MAT_ADD(C, C)
+      else TRY_MAT_ADD(N, T)
+      else TRY_MAT_ADD(T, N)
+      else TRY_MAT_ADD(T, T)
+      else TRY_MAT_ADD(C, T)
+      else TRY_MAT_ADD(T, C)
+      else TRY_MAT_ADD(R, N)
+      else TRY_MAT_ADD(N, R)
+      else TRY_MAT_ADD(R, R)
+      else TRY_MAT_ADD(R, C)
+      else TRY_MAT_ADD(C, R)
+      else TRY_MAT_ADD(R, T)
+      else TRY_MAT_ADD(T, R)
 
     }
 
