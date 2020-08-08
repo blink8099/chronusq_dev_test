@@ -159,11 +159,10 @@ namespace ChronusQ {
     for(auto &f : rawRefs) {
       RRefs.emplace_back( "R" + f );
       URefs.emplace_back( "U" + f );
-      RORefs.emplace_back( "RO" + f);
       GRefs.emplace_back( "G" + f );
       X2CRefs.emplace_back( "X2C" + f );
     }
-
+    RORefs.emplace_back( "ROHF" );
 
     // This is the reference string to be parsed
     std::string refString = tokens.back();
