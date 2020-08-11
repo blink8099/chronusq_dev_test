@@ -27,6 +27,7 @@ arithmetic/squarematrix.cxx
 arithmetic/paulispinormatrices.cxx
 arithmetic/scaledmatrix.cxx
 impl.cxx)
+target_link_libraries ( matrix PUBLIC ChronusQ::Libint2 )
 
 # Append electronintegrals to executable link
 list(APPEND CQEX_LINK matrix)

@@ -34,7 +34,7 @@ aointegrals/giaointegrals_onee_engine.cxx
 aointegrals/giaointegrals_twoe_engine.cxx
 impl.cxx)
 
-target_link_libraries( electronintegrals PUBLIC ChronusQ::HDF5 )
+target_link_libraries( electronintegrals PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
 
 if(TARGET libint)
   add_dependencies(electronintegrals libint)
