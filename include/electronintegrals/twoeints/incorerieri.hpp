@@ -126,6 +126,10 @@ namespace ChronusQ {
       CErr("AO integral evaluation is NOT implemented in super class InCoreRIERI.");
     }
 
+    virtual void clear() {
+      std::fill_n(ERI3J, this->nBasis()*NBNBRI, IntsT(0.));
+    }
+
     virtual void output(std::ostream &out, const std::string &s = "",
                         bool printFull = false) const {
       if (s == "")

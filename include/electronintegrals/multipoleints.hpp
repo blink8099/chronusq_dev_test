@@ -216,6 +216,11 @@ namespace ChronusQ {
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const AOIntsOptions&);
 
+    virtual void clear() {
+      for (OneEInts<IntsT>& c : components_)
+        c.clear();
+    }
+
     virtual void output(std::ostream &out, const std::string &s = "",
                         bool printFull = false) const {
       if (printFull) {
