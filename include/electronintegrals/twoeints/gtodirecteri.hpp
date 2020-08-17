@@ -78,6 +78,8 @@ namespace ChronusQ {
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const AOIntsOptions&) {}
 
+    virtual void clear() {}
+
     void computeSchwartz();
 
     virtual void output(std::ostream &out, const std::string &s = "",

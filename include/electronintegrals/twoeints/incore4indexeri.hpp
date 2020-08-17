@@ -110,6 +110,10 @@ namespace ChronusQ {
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const AOIntsOptions&);
 
+    virtual void clear() {
+      std::fill_n(ERI, NB2*NB2, IntsT(0.));
+    }
+
     virtual void output(std::ostream &out, const std::string &s = "",
                         bool printFull = false) const {
       if (s == "")

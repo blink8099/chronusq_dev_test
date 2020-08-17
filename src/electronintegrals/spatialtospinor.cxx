@@ -35,7 +35,8 @@ namespace ChronusQ {
   InCore4indexERI<IntsU> InCore4indexERI<IntsT>::spatialToSpinBlock() const {
     size_t NB = this->nBasis();
     InCore4indexERI<IntsU> spinor(this->memManager(), 2*NB);
-/*
+    spinor.clear();
+
     for (auto spls = 0ul; spls < 2; spls++)
     for (auto spmn = 0ul; spmn < 2; spmn++)
     for (auto sg = 0ul; sg < NB; sg++)
@@ -44,11 +45,7 @@ namespace ChronusQ {
     for (auto mu = 0ul; mu < NB; mu++) {
       spinor(spmn*NB+mu, spmn*NB+nu, spls*NB+lm, spls*NB+sg) = (*this)(mu, nu, lm, sg);
     }
-*/
-    IntsT* half_trans = this->memManager().template malloc<IntsT>(4*NB*NB3);
-    SetMatDiag(NB, NB3, pointer(), NB, half_trans, 2*NB);
-    SetMatDiag(4*NB3, NB, half_trans, 4*NB3, spinor.pointer(), 8*NB3);
-    this->memManager().free(half_trans);
+
     return spinor;
   }
 
