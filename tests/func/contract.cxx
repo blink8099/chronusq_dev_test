@@ -137,9 +137,6 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
 
 #ifdef _CQ_GENERATE_TESTS
 
-  // Compute ERI tensor
-  aoints.computeERI(pert); 
-
   // Generate random "X" matrix
   std::random_device r; 
   std::default_random_engine e(r());
@@ -156,7 +153,8 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   refFile.safeWriteData(storage + "/X",Rand,{NB,NB});
   
   // Perform incore ERI contraction and write result to disk
-  aoints.twoBodyContractIncore(MPI_COMM_WORLD,cont);
+  GTODirectERIContraction<FIELD,double> ERI(*aoints.ERI);
+  ERI.twoBodyContract(MPI_COMM_WORLD,true,cont,pert);
   refFile.safeWriteData(storage + "/AX",SX,{NB,NB});
 
 #else
