@@ -54,6 +54,13 @@ TEST( UHF, RbHe_sto3G ) {
 
 };
 
+// H atom 3-21g post-scf test
+TEST( UHF, H_321G ) {
+
+  CQSCFTEST( "scf/serial/uhf/H_3-21G", "H_3-21G.bin.ref" );
+
+};
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Li 6-31G(d) test

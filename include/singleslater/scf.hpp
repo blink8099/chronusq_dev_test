@@ -211,12 +211,6 @@ namespace ChronusQ {
     else
       NewtonRaphsonSCF();
 
-    if ( scfControls.resetMOCoeffs ) {
-      savFile.readData("SCF/OLD_MO1", this->mo[0].pointer());
-      if ( this->nC == 1 and not this->iCS )
-        savFile.readData("SCF/OLD_MO2", this->mo[1].pointer());
-    }
-
 #ifdef CQ_ENABLE_MPI
     // Broadcast the AO 1PDM to all MPI processes
     if( MPISize(comm) > 1 ) {
