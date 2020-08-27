@@ -806,14 +806,6 @@ namespace ChronusQ {
 
     }
 
-    // Save MO coefficents if doing a "reset" after the SCF
-    if ( scfControls.resetMOCoeffs ) {
-      savFile.safeWriteData("SCF/OLD_MO1", this->mo[0].pointer(), {NB, NB});
-      if ( this->nC == 1 and not this->iCS )
-        savFile.safeWriteData("SCF/OLD_MO2", this->mo[1].pointer(), {NB, NB});
-    }
-
-
     // Form density from MOs
     formDensity();
 

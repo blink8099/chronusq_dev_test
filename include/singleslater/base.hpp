@@ -62,7 +62,8 @@ namespace ChronusQ {
    */
   enum SCF_ALG {
     _CONVENTIONAL_SCF,
-    _NEWTON_RAPHSON_SCF
+    _NEWTON_RAPHSON_SCF,
+    _SKIP_SCF
   };
 
   /**
@@ -111,7 +112,6 @@ namespace ChronusQ {
 
     // Printing
     bool printMOCoeffs = false;
-    bool resetMOCoeffs = false;
 
   }; // SCFControls struct
 
