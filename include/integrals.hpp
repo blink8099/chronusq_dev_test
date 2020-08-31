@@ -122,10 +122,10 @@ namespace ChronusQ {
         const AOIntsOptions&);
 
     template <typename MatsT>
-    std::shared_ptr<Integrals<typename std::conditional<
+    Integrals<typename std::conditional<
     (std::is_same<IntsT, dcomplex>::value or
      std::is_same<MatsT, dcomplex>::value),
-    dcomplex, double>::type>> transform(
+    dcomplex, double>::type> transform(
         const std::vector<OPERATOR>&, const std::vector<std::string>&,
         char TRANS, const MatsT* T, int NT, int LDT) const;
     
