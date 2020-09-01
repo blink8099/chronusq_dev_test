@@ -134,6 +134,8 @@ namespace ChronusQ {
         ss.scfControls.guess = READMO;
       else if( not guessString.compare("READDEN") )
         ss.scfControls.guess = READDEN;
+      else if( not guessString.compare("FCHKMO") )
+        ss.scfControls.guess = FCHKMO;
       else
         CErr("Unrecognized entry for SCF.GUESS");
     )

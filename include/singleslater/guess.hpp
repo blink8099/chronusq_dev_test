@@ -160,6 +160,7 @@ namespace ChronusQ {
     else if( scfControls.guess == RANDOM ) RandomGuess();
     else if( scfControls.guess == READMO ) ReadGuessMO(); 
     else if( scfControls.guess == READDEN ) ReadGuess1PDM(); 
+    else if( scfControls.guess == FCHKMO ) FchkGuessMO(); 
     else CErr("Unknown choice for SCF.GUESS",std::cout);
 
 
@@ -819,6 +820,59 @@ namespace ChronusQ {
     formFock(pert,false);
 
   } // SingleSlater<T>::ReadGuessMO()
+
+  /**
+   *  \brief Reads in MOs from fchk file. 
+   *
+   **/
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::FchkGuessMO() {
+
+    if( printLevel > 0 ){
+      std::cout << "    * Reading in guess orbitals from file " << fchkFileName << "\n";
+      std::cout << "      See documentation of fchkToCQMO() if any problems" << "\n";
+    }
+
+    std::vector<int> shellList;
+
+    // Parsing fchk file and populating mo1(mo2)
+    // Outputs shell listing needed for angular momentum reorganization
+    shellList=fchkToCQMO();
+
+    // Dimension of mo1 and mo2
+    auto NB = this->nC * basisSet().nBasis;
+    auto NB2 = NB*NB;
+
+    // Reorders shells of mo1 to Chronus ordering
+    MatsT* mo1tmp = memManager.malloc<MatsT>(NB2);
+    SetMat('N',NB,NB,MatsT(1.),this->mo[0].pointer(),NB,mo1tmp,NB);
+    reorderAngMO(shellList,mo1tmp,0);
+    memManager.free(mo1tmp);
+
+    // Reorders shells of mo2 to Chronus ordering
+    if( this->nC == 1 and not this->iCS){
+      MatsT* mo2tmp = memManager.malloc<MatsT>(NB2);
+      SetMat('N',NB,NB,MatsT(1.),this->mo[1].pointer(),NB,mo2tmp,NB);
+      reorderAngMO(shellList,mo2tmp,1);
+      memManager.free(mo2tmp);
+    }
+
+    // Reorder spin components
+    if( this->nC == 2 ) reorderSpinMO();
+
+    // Form density from MOs
+    formDensity();
+
+    std::cout << "\n" << std::endl;
+    if( printLevel > 0 )
+      std::cout << std::endl
+                << "  *** Forming Initial Fock Matrix from Guess Density ***\n\n";
+
+    std::cout << "\n" << std::endl;
+    EMPerturbation pert;
+    formFock(pert,false);
+
+  } // SingleSlater<T>::FchkGuessMO()
 
 }; // namespace ChronusQ
 

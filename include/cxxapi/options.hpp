@@ -43,9 +43,14 @@ namespace ChronusQ {
   // See src/cxxapi/input/*opts.cxx for documentation
 
   // Parse the options relating to the Molecule object
-  Molecule CQMoleculeOptions(std::ostream &, CQInputFile &);
+  Molecule CQMoleculeOptions(std::ostream &, CQInputFile &, std::string &);
 
   void CQMOLECULE_VALID(std::ostream&, CQInputFile &);
+
+  void parseGeomInp(Molecule &, std::string &, std::ostream &);
+
+  void parseGeomFchk(Molecule &, std::string &, std::ostream &);
+
   // Parse the options relating to the BasisSet
   std::shared_ptr<BasisSet> CQBasisSetOptions(std::ostream &, CQInputFile &,
     Molecule &, std::string);

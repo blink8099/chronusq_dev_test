@@ -24,68 +24,14 @@
 
 #include "scf.hpp"
 
-
-
-// Li 6-31G(d) test
-TEST( UHF, Li_631Gd ) {
-
-  CQSCFTEST( "scf/serial/uhf/li_6-31Gd", "li_6-31Gd.bin.ref" );
-
-};
-
-// O2 6-31G(d) test
-TEST( UHF, O2_631Gd ) {
-
-  CQSCFTEST( "scf/serial/uhf/oxygen_6-31Gd", "oxygen_6-31Gd.bin.ref" );
-
-};
-
-// MnHe sto-3g test
-TEST( UHF, MnHe_sto3G ) {
-
-  CQSCFTEST( "scf/serial/uhf/MnHe_sto-3G", "MnHe_sto-3G.bin.ref" );
-
-};
-
-// RbHe sto-3g test
-TEST( UHF, RbHe_sto3G ) {
-
-  CQSCFTEST( "scf/serial/uhf/RbHe_sto-3G", "RbHe_sto-3G.bin.ref" );
-
-};
-
 // KCaKrK sto-3g test for fchk parsing
-TEST( UHF, KCaKrK_sto3G ) {
+TEST( GHF, KCaKr_sto3G ) {
 
-  CQSCFFCHKTEST( "scf/serial/uhf/KCaKrK_sto-3G", "KCaKrK_sto-3G.bin.ref", "KCaKrK_sto-3G.fchk" );
-
-};
-
-// H atom 3-21g post-scf test
-TEST( UHF, H_321G ) {
-
-  CQSCFTEST( "scf/serial/uhf/H_3-21G", "H_3-21G.bin.ref" );
+  CQSCFFCHKTEST( "scf/serial/ghf/KCaKr_sto-3G", "KCaKr_sto-3G.bin.ref", "KCaKr_sto-3G.fchk" );
 
 };
 
 #ifdef _CQ_DO_PARTESTS
 
-// SMP Li 6-31G(d) test
-TEST( UHF, PAR_Li_631Gd ) {
-
-  CQSCFTEST( "scf/parallel/uhf/li_6-31Gd", "li_6-31Gd.bin.ref" );
-
-};
-
-// SMP O2 6-31G(d) test
-TEST( UHF, PAR_O2_631Gd ) {
-
-  CQSCFTEST( "scf/parallel/uhf/oxygen_6-31Gd", "oxygen_6-31Gd.bin.ref" );
-
-};
 
 #endif
-
-
-
-

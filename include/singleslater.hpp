@@ -228,7 +228,12 @@ namespace ChronusQ {
     void RandomGuess();
     void ReadGuessMO();
     void ReadGuess1PDM();
+    void FchkGuessMO();
 
+    // Fchk-related functions 
+    std::vector<int> fchkToCQMO();
+    void reorderAngMO(std::vector<int> sl, MatsT* tmo, int sp);
+    void reorderSpinMO();
 
     // SCF procedural functions (see include/singleslater/scf.hpp for docs)
 

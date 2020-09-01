@@ -139,7 +139,7 @@ namespace ChronusQ {
 
 
     // Create Molecule and BasisSet objects
-    Molecule mol(std::move(CQMoleculeOptions(output,input)));
+    Molecule mol(std::move(CQMoleculeOptions(output,input,scrFileName)));
     std::shared_ptr<BasisSet> basis = CQBasisSetOptions(output,input,mol,"BASIS");
     std::shared_ptr<BasisSet> dfbasis = CQBasisSetOptions(output,input,mol,"DFBASIS");
 
@@ -158,6 +158,8 @@ namespace ChronusQ {
     if( ss->scfControls.guess == READMO or 
         ss->scfControls.guess == READDEN ) 
       rstExists = true;
+    if( ss->scfControls.guess == FCHKMO )
+      ss->fchkFileName = scrFileName;
 
     // Create the restart and scratch files
     SafeFile rstFile(rstFileName, rstExists);
