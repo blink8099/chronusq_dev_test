@@ -335,64 +335,63 @@ namespace ChronusQ {
 
   template <typename IntsT>
   template <typename TransT>
-  std::shared_ptr<Integrals<typename std::conditional<
+  Integrals<typename std::conditional<
   (std::is_same<IntsT, dcomplex>::value or
    std::is_same<TransT, dcomplex>::value),
-  dcomplex, double>::type>> Integrals<IntsT>::transform(
+  dcomplex, double>::type> Integrals<IntsT>::transform(
       const std::vector<OPERATOR> &ops, const std::vector<std::string> &miscOps,
       char TRANS, const TransT* T, int NT, int LDT) const {
     typedef typename std::conditional<
         (std::is_same<IntsT, dcomplex>::value or
          std::is_same<TransT, dcomplex>::value),
         dcomplex, double>::type ResultT;
-    std::shared_ptr<Integrals<ResultT>> transInts =
-        std::make_shared<Integrals<ResultT>>();
+    Integrals<ResultT> transInts;
     for (const OPERATOR op : ops)
       switch (op) {
       case OVERLAP:
-        transInts->overlap = std::dynamic_pointer_cast<OneEInts<ResultT>>(
+        transInts.overlap = std::dynamic_pointer_cast<OneEInts<ResultT>>(
             ElectronIntegrals::transform(*overlap, TRANS, T, NT, LDT));
         break;
       case KINETIC:
-        transInts->kinetic = std::dynamic_pointer_cast<OneEInts<ResultT>>(
+        transInts.kinetic = std::dynamic_pointer_cast<OneEInts<ResultT>>(
             ElectronIntegrals::transform(*kinetic, TRANS, T, NT, LDT));
         break;
       case NUCLEAR_POTENTIAL:
-        transInts->potential = std::dynamic_pointer_cast<OneEInts<ResultT>>(
+        transInts.potential = std::dynamic_pointer_cast<OneEInts<ResultT>>(
             ElectronIntegrals::transform(*potential, TRANS, T, NT, LDT));
         break;
       case LEN_ELECTRIC_MULTIPOLE:
-        transInts->lenElectric = std::dynamic_pointer_cast<MultipoleInts<ResultT>>(
+        transInts.lenElectric = std::dynamic_pointer_cast<MultipoleInts<ResultT>>(
             ElectronIntegrals::transform(*lenElectric, TRANS, T, NT, LDT));
         break;
       case VEL_ELECTRIC_MULTIPOLE:
-        transInts->velElectric = std::dynamic_pointer_cast<MultipoleInts<ResultT>>(
+        transInts.velElectric = std::dynamic_pointer_cast<MultipoleInts<ResultT>>(
             ElectronIntegrals::transform(*velElectric, TRANS, T, NT, LDT));
         break;
       case MAGNETIC_MULTIPOLE:
-        transInts->magnetic = std::dynamic_pointer_cast<MultipoleInts<ResultT>>(
+        transInts.magnetic = std::dynamic_pointer_cast<MultipoleInts<ResultT>>(
             ElectronIntegrals::transform(*magnetic, TRANS, T, NT, LDT));
         break;
       case ELECTRON_REPULSION:
-        transInts->ERI = std::dynamic_pointer_cast<TwoEInts<ResultT>>(
+        transInts.ERI = std::dynamic_pointer_cast<TwoEInts<ResultT>>(
             ElectronIntegrals::transform(*ERI, TRANS, T, NT, LDT));
         break;
       }
     for (const std::string &op : miscOps)
-      transInts->misc[op] = ElectronIntegrals::transform(*misc.at(op), TRANS, T, NT, LDT);
+      transInts.misc[op] = ElectronIntegrals::transform(*misc.at(op), TRANS, T, NT, LDT);
     return transInts;
   }
 
-  template std::shared_ptr<Integrals<double>> Integrals<double>::transform(
+  template Integrals<double> Integrals<double>::transform(
       const std::vector<OPERATOR>&, const std::vector<std::string>&,
       char TRANS, const double* T, int NT, int LDT) const;
-  template std::shared_ptr<Integrals<dcomplex>> Integrals<double>::transform(
+  template Integrals<dcomplex> Integrals<double>::transform(
       const std::vector<OPERATOR>&, const std::vector<std::string>&,
       char TRANS, const dcomplex* T, int NT, int LDT) const;
-  template std::shared_ptr<Integrals<dcomplex>> Integrals<dcomplex>::transform(
+  template Integrals<dcomplex> Integrals<dcomplex>::transform(
       const std::vector<OPERATOR>&, const std::vector<std::string>&,
       char TRANS, const double* T, int NT, int LDT) const;
-  template std::shared_ptr<Integrals<dcomplex>> Integrals<dcomplex>::transform(
+  template Integrals<dcomplex> Integrals<dcomplex>::transform(
       const std::vector<OPERATOR>&, const std::vector<std::string>&,
       char TRANS, const dcomplex* T, int NT, int LDT) const;
 
