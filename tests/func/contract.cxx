@@ -112,9 +112,11 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   
   // Memory
   auto memManager = CQMiscOptions(std::cout,input); 
+  // Dummy scrName since READGEOM=INPUTFILE
+  std::string scrName;
   
   // Molecule and BasisSet
-  Molecule mol(std::move(CQMoleculeOptions(std::cout,input))); 
+  Molecule mol(std::move(CQMoleculeOptions(std::cout,input,scrName)));
   std::shared_ptr<BasisSet> basis = CQBasisSetOptions(std::cout,input,mol,"BASIS");
 
   // AOIntegrals object

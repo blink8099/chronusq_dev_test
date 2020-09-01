@@ -28,7 +28,7 @@ set(SCF_TEST_BINARY_ROOT "${TEST_BINARY_ROOT}/scf" )
 
 # Set up compilation of SCF test exe
 add_executable(scftest ../ut.cxx 
-	rhf.cxx uhf.cxx rohf.cxx x2chf.cxx rhfnr.cxx
+	rhf.cxx uhf.cxx ghf.cxx rohf.cxx x2chf.cxx rhfnr.cxx
         rhf_giao.cxx uhf_giao.cxx rohf_giao.cxx ghf_giao.cxx
 	rks.cxx uks.cxx x2cks.cxx ks.cxx
         misc.cxx ri.cxx
@@ -49,6 +49,7 @@ file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/rks)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/uhf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/rohf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/uks)
+file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/ghf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/x2c)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/rhf_giao)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/uhf_giao)
@@ -84,6 +85,7 @@ include( CQTestGeneration )
 # Add tests
 add_cq_test( RHF_SCF      scftest "RHF.*"      )
 add_cq_test( UHF_SCF      scftest "UHF.*"      )
+add_cq_test( GHF_SCF      scftest "GHF.*"      )
 add_cq_test( ROHF_SCF     scftest "ROHF.*"     )
 add_cq_test( X2CHF_SCF    scftest "X2CHF.*"    )
 add_cq_test( RHF_NR_SCF   scftest "RHF_NR.*"   )

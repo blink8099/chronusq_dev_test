@@ -203,6 +203,7 @@ namespace ChronusQ {
 #include <singleslater/extrap.hpp>    // Extrapolate header
 #include <singleslater/print.hpp>     // Print header
 #include <singleslater/pop.hpp>       // Population analysis
+#include <singleslater/fchk.hpp>      // Fchk-specific header
 
 #include <singleslater/kohnsham/impl.hpp> // KS headers
 #include <singleslater/kohnsham/fxc.hpp> // KS headers

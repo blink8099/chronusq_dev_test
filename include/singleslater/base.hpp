@@ -46,7 +46,8 @@ namespace ChronusQ {
     SAD,
     RANDOM,
     READMO,
-    READDEN
+    READDEN,
+    FCHKMO
   };
 
   /**
@@ -154,6 +155,9 @@ namespace ChronusQ {
 
     // Save / Restart File
     SafeFile savFile;
+
+    // Fchk File
+    std::string fchkFileName;
        
     // Print Controls
     size_t printLevel; ///< Print Level
