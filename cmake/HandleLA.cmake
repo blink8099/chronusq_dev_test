@@ -130,6 +130,10 @@ if( CQ_NEED_OPENBLAS )
 
 
 
+  # Mirror find_package( BLAS ) variables
+  set( BLAS_FOUND TRUE )
+  set( BLAS_LIBRARIES ${OPENBLAS_LIBDIR}/libopenblas.a )
+
   set( CQ_LINALG_LIBRARIES  gfortran ${OPENBLAS_LIBDIR}/libopenblas.a )
   set( CQ_LINALG_INCLUDEDIR ${OPENBLAS_INCLUDEDIR} )
 

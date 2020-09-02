@@ -4,6 +4,9 @@
 external/mxx
 external/cxxblacs
 external/libint2*
+external/libcint-*
+external/libcint/*
+!external/libcint/patch
 external/openblas/include
 external/openblas/lib
 external/openblas/src

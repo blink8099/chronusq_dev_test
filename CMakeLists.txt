@@ -143,6 +143,7 @@ message( "ChronusQ Dependencies" )
 
 
 include(HandleLibint)
+include(HandleLibcint)
 include(FindLibXC)
 
 set(CQEX_LINK ${CQ_EXT_LINK} )
