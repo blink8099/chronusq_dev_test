@@ -42,7 +42,8 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   template <typename MatsU>
-  FockBuilder<MatsT,IntsT>::FockBuilder(const FockBuilder<MatsU,IntsT> &other) {}
+  FockBuilder<MatsT,IntsT>::FockBuilder(const FockBuilder<MatsU,IntsT> &other):
+      hamiltonianOptions_(other.hamiltonianOptions_){}
 
   /**
    *  Constructs a FockBuilder object from another of a another (possibly the
@@ -54,7 +55,8 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   template <typename MatsU>
-  FockBuilder<MatsT,IntsT>::FockBuilder(FockBuilder<MatsU,IntsT> &&other) {}
+  FockBuilder<MatsT,IntsT>::FockBuilder(FockBuilder<MatsU,IntsT> &&other):
+      hamiltonianOptions_(other.hamiltonianOptions_){}
 
   /**
    *  \brief Forms the Hartree-Fock perturbation tensor
@@ -65,14 +67,13 @@ namespace ChronusQ {
   void FockBuilder<MatsT,IntsT>::formGD(SingleSlater<MatsT,IntsT> &ss,
     EMPerturbation &pert, bool increment, double xHFX) {
 
-    typedef MatsT*                    oper_t;
-    typedef std::vector<oper_t>       oper_t_coll;
-
     // Decide list of onePDMs to use
     PauliSpinorSquareMatrices<MatsT> &contract1PDM
         = increment ? *ss.deltaOnePDM : *ss.onePDM;
 
     size_t NB = ss.basisSet().nBasis;
+    if( ss.nC == 4 )
+      CErr("4C formGD is implemented in class FourCompFock.");
 
     // Zero out J and K[i]
     if(not increment) {
@@ -149,6 +150,7 @@ namespace ChronusQ {
 
   } // FockBuilder::formGD
 
+
   /**
    *  \brief Forms the Fock matrix for a single slater determinant using
    *  the 1PDM.
@@ -161,9 +163,6 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void FockBuilder<MatsT,IntsT>::formFock(SingleSlater<MatsT,IntsT> &ss,
     EMPerturbation &pert, bool increment, double xHFX) {
-
-    size_t NB = ss.basisSet().nBasis;
-    size_t NB2 = NB*NB;
 
     auto GDStart = tick(); // Start time for G[D]
 

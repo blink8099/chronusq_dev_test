@@ -36,13 +36,17 @@ namespace ChronusQ {
   public:
 
     // Constructors
-    ROFock() = default;
+    ROFock() = delete;
+    ROFock(HamiltonianOptions hamiltonianOptions):
+        FockBuilder<MatsT,IntsT>(hamiltonianOptions) {}
 
     // Different type
     template <typename MatsU>
-    ROFock(const ROFock<MatsU,IntsT> &) : FockBuilder<MatsT,IntsT>(){}
+    ROFock(const ROFock<MatsU,IntsT> &other):
+        FockBuilder<MatsT,IntsT>(other){}
     template <typename MatsU>
-    ROFock(ROFock<MatsU,IntsT> &&) : FockBuilder<MatsT,IntsT>(){}
+    ROFock(ROFock<MatsU,IntsT> &&other):
+        FockBuilder<MatsT,IntsT>(other){}
 
     // Virtual destructor
     virtual ~ROFock() {}

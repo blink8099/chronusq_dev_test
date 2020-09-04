@@ -23,7 +23,7 @@
  */
 #include <corehbuilder/x2c.hpp>
 #include <corehbuilder/nonrel.hpp>
-#include <electronintegrals/relativisticints.hpp>
+#include <electronintegrals/oneeints/relativisticints.hpp>
 #include <matrix.hpp>
 #include <physcon.hpp>
 #include <cqlinalg.hpp>
@@ -97,7 +97,7 @@ namespace ChronusQ {
     uncontractedInts_.computeAOOneE(memManager_,
         molecule_, uncontractedBasis_, emPert,
         {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0}},
-        this->aoiOptions_);
+        this->hamiltonianOptions_);
 
     // Make copy of integrals
     IntsT *overlap   = memManager_.malloc<IntsT>(NP*NP);
@@ -295,7 +295,7 @@ namespace ChronusQ {
     // of the 2C CH
     PauliSpinorSquareMatrices<MatsT> HUn(
         FullCH2C.template spinScatter<MatsT>(
-            this->aoiOptions_.OneESpinOrbit,this->aoiOptions_.OneESpinOrbit));
+            this->hamiltonianOptions_.OneESpinOrbit,this->hamiltonianOptions_.OneESpinOrbit));
 
     // Partition the scratch space into one complex and one real NP x NP
     // matrix
@@ -336,7 +336,7 @@ namespace ChronusQ {
   void X2C<MatsT, IntsT>::computeCoreH(EMPerturbation& emPert,
       std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH) {
     computeX2C(emPert, coreH);
-    if (this->aoiOptions_.OneESpinOrbit)
+    if (this->hamiltonianOptions_.OneESpinOrbit)
       BoettgerScale(coreH);
   }
 
@@ -473,7 +473,7 @@ namespace ChronusQ {
       SCR,2*NP,MatsT(1.),Hx2c.pointer(),2*NB);
 
     *coreH = Hx2c.template spinScatter<MatsT>(
-        this->aoiOptions_.OneESpinOrbit, this->aoiOptions_.OneESpinOrbit);
+        this->hamiltonianOptions_.OneESpinOrbit, this->hamiltonianOptions_.OneESpinOrbit);
 
     memManager_.free(SCR);
   }
@@ -505,7 +505,7 @@ namespace ChronusQ {
         std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager_, NP);
     NRcoreH->clear();
 
-    NRCoreH<MatsT, IntsT>(uncontractedInts_, this->aoiOptions_)
+    NRCoreH<MatsT, IntsT>(uncontractedInts_, this->hamiltonianOptions_)
         .computeNRCH(emPert, NRcoreH);
 
     *coreH -= NRcoreH->transform('C', mapPrim2Cont, NB, NB);

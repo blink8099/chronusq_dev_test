@@ -27,6 +27,7 @@
 #include <corehbuilder.hpp>
 #include <corehbuilder/x2c.hpp>
 #include <fockbuilder.hpp>
+#include <physcon.hpp>
 
 #include <util/time.hpp>
 #include <cqlinalg/blasext.hpp>
@@ -77,18 +78,22 @@ namespace ChronusQ {
       CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
 
     size_t NB = basisSet().nBasis;
+    if( nC == 4 ) NB = 2 * NB;
 
     if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
       coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
-    else if(nC == 2)
+    else if(nC == 2 or nC == 4)
       coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
     else
       coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
 
 
+    // Make a copy of HamiltonianOptions
+    HamiltonianOptions hamiltonianOptions = coreHBuilder->getHamiltonianOptions();
+
     // Prepare one-electron integrals
     std::vector<std::pair<OPERATOR,size_t>> ops;
-    if (std::is_same<IntsT, double>::value)
+    if (hamiltonianOptions.basisType == REAL_GTO)
       ops = {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0},
              {LEN_ELECTRIC_MULTIPOLE,3},
              {VEL_ELECTRIC_MULTIPOLE,3}, {MAGNETIC_MULTIPOLE,2}};
@@ -97,12 +102,20 @@ namespace ChronusQ {
              {LEN_ELECTRIC_MULTIPOLE,3},
              {MAGNETIC_MULTIPOLE,1}};
 
-    bool finiteNuclei = false;
-    if (std::dynamic_pointer_cast<X2C<MatsT,IntsT>>(coreHBuilder))
-      finiteNuclei = true;
+    // Multipole integrals NYI for 4C
+    if (nC == 4) ops.resize(3);
+
+    // In case of X2C coreHBuilder, here we only compute
+    // non-relativistic one electron integrals for contracted basis functions.
+    // Relativistic integrals will be computed for uncontracted basis functions
+    // in X2C CoreHBuilder.
+    if (std::dynamic_pointer_cast<X2C<MatsT,IntsT>>(coreHBuilder)) {
+      hamiltonianOptions.OneEScalarRelativity = false;
+      hamiltonianOptions.OneESpinOrbit = false;
+    }
+
     this->aoints.computeAOOneE(memManager,this->molecule(),
-        basisSet(),emPert, ops,
-        {basisSet().basisType,finiteNuclei,false,false}); // compute the necessary 1e ints
+        basisSet(),emPert, ops, hamiltonianOptions); // compute the necessary 1e ints
 
     // Compute core Hamiltonian
     coreHBuilder->computeCoreH(emPert,coreH);
@@ -140,6 +153,7 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::computeOrtho() {
 
     size_t NB = basisSet().nBasis;
+    if( nC == 4 ) NB = 2 * NB;
     size_t nSQ  = NB*NB;
 
     // Allocate orthogonalization matricies
@@ -148,9 +162,21 @@ namespace ChronusQ {
 
     // Allocate scratch
     MatsT* SCR1 = memManager.malloc<MatsT>(nSQ);
+    std::fill_n(SCR1,nSQ,0.);
 
     // Copy the overlap over to scratch space
-    std::copy_n(this->aoints.overlap->pointer(),nSQ,SCR1);
+    if ( nC != 4 ) {
+      std::copy_n(this->aoints.overlap->pointer(),nSQ,SCR1);
+    } else if( nC == 4 ) {
+      // HBL 4C May need a Ints type check (SetMat) to capture GIAO.
+      SetMatRE('N',NB/2,NB/2,1.,
+               reinterpret_cast<double*>(this->aoints.overlap->pointer()),NB/2,
+               SCR1,NB);
+      SetMatRE('N',NB/2,NB/2,1./(2*SpeedOfLight*SpeedOfLight),
+               reinterpret_cast<double*>(this->aoints.kinetic->pointer()),NB/2,
+               SCR1+NB*NB/2+NB/2,NB);
+      //prettyPrintSmart(std::cout,"S Metric",SCR1,NB,NB,NB);
+    }
 
     if(orthoType == LOWDIN) {
 

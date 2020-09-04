@@ -48,15 +48,19 @@ namespace ChronusQ {
 
     // Allowed keywords
     std::vector<std::string> allowedKeywords = {
-      "ALG",
-      "SCHWARTZ",
-      "RI",
-      "CDRI_THRESHOLD",
-      "FINITE_NUCLEI",
-      "DC",
-      "DCB",
-      "SSSS",
-      "GAUGE"
+      "ALG",          // Direct or Incore?
+      "SCHWARTZ",     // double
+      "RI",           // AUXBASIS or CHOLESKY or False
+      "RITHRESHOLD",  // double
+      "FINITENUCLEI", // True or False
+      "NONRELCOULOMB",// True or False
+      "DC",           // True or False
+      "DIRACCOULOMB", // True or False
+      "BREIT",        // True or False
+      "GAUNT",        // True or False
+      "SSSS",         // True or False
+      "GAUGE",        // True or False
+      "LIBCINT"       // Ture or False
     };
 
     // Specified keywords

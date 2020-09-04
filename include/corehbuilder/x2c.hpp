@@ -81,15 +81,15 @@ namespace ChronusQ {
     /**
      * \brief Constructor
      *
-     *  \param [in] aoints     Reference to the global AOIntegrals
-     *  \param [in] memManager Memory manager for matrix allocation
-     *  \param [in] mol        Molecule object for molecular specification
-     *  \param [in] basis      The GTO basis for integral evaluation
-     *  \param [in] scalarOnly Flag for scalar relativistic calculation
+     *  \param [in] aoints             Reference to the global AOIntegrals
+     *  \param [in] memManager         Memory manager for matrix allocation
+     *  \param [in] mol                Molecule object for molecular specification
+     *  \param [in] basis              The GTO basis for integral evaluation
+     *  \param [in] hamiltonianOptions Flags for AO integrals evaluation
      */
     X2C(Integrals<IntsT> &aoints, CQMemManager &mem,
-        const Molecule &mol, const BasisSet &basis, AOIntsOptions aoiOptions) :
-      CoreHBuilder<MatsT,IntsT>(aoints, aoiOptions),
+        const Molecule &mol, const BasisSet &basis, HamiltonianOptions hamiltonianOptions) :
+      CoreHBuilder<MatsT,IntsT>(aoints, hamiltonianOptions),
       memManager_(mem),molecule_(mol), basisSet_(basis),
       uncontractedBasis_(basisSet_.uncontractBasis()) {}
 

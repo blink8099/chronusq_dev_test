@@ -63,7 +63,7 @@ namespace ChronusQ {
     virtual void computeAOOneE(CQMemManager &mem, Molecule &mol,
         BasisSet &basis, EMPerturbation&,
         const std::vector<std::pair<OPERATOR,size_t>>&,
-        const AOIntsOptions&) = 0;
+        const HamiltonianOptions&) = 0;
 
     // Print (see src/aointegrals/print.cxx for docs)
     template <typename G> 
@@ -120,7 +120,7 @@ namespace ChronusQ {
     virtual void computeAOOneE(CQMemManager &mem, Molecule &mol,
         BasisSet &basis, EMPerturbation&,
         const std::vector<std::pair<OPERATOR,size_t>>&,
-        const AOIntsOptions&);
+        const HamiltonianOptions&);
 
     template <typename MatsT>
     Integrals<typename std::conditional<

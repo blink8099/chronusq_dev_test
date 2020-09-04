@@ -25,7 +25,8 @@
 #include <integrals.hpp>
 #include <electronintegrals/contract/incore.hpp>
 #include <electronintegrals/contract/direct.hpp>
-#include <electronintegrals/relativisticints.hpp>
+#include <electronintegrals/contract/direct3index.hpp>
+#include <electronintegrals/oneeints/relativisticints.hpp>
 
 
 namespace ChronusQ {
@@ -69,6 +70,14 @@ namespace ChronusQ {
   template class GTODirectERIContraction<double, double>;
   template class GTODirectERIContraction<dcomplex, double>;
   template class GTODirectERIContraction<dcomplex, dcomplex>;
+
+  template class InCore4indexRelERIContraction<double, double>;
+  template class InCore4indexRelERIContraction<dcomplex, double>;
+  template class InCore4indexRelERIContraction<dcomplex, dcomplex>;
+
+  template class GTODirectRelERIContraction<double, double>;
+  template class GTODirectRelERIContraction<dcomplex, double>;
+  template class GTODirectRelERIContraction<dcomplex, dcomplex>;
 
   template class Integrals<double>;
   template class Integrals<dcomplex>;

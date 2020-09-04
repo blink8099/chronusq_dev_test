@@ -25,7 +25,7 @@
 #include <integrals.hpp>
 #include <electronintegrals/twoeints/incore4indexeri.hpp>
 #include <electronintegrals/twoeints/incorerieri.hpp>
-#include <electronintegrals/relativisticints.hpp>
+#include <electronintegrals/oneeints/relativisticints.hpp>
 #include <matrix.hpp>
 
 namespace ChronusQ {
@@ -46,7 +46,7 @@ namespace ChronusQ {
   void Integrals<IntsT>::computeAOOneE(CQMemManager &mem,
       Molecule &mol, BasisSet &basis, EMPerturbation &emPert,
       const std::vector<std::pair<OPERATOR,size_t>> &ops,
-      const AOIntsOptions &options) {
+      const HamiltonianOptions &options) {
 
     const std::array<std::string,3> dipoleList =
       { "X","Y","Z" };

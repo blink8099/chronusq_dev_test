@@ -126,10 +126,9 @@ namespace ChronusQ {
   void NRCoreH<MatsT,IntsT>::computeNRCH(EMPerturbation& emPert,
       std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH) {
 
-    // MatAdd for Real + Real -> Complex does not make sense
     *coreH = 2. * (this->aoints_.kinetic->matrix() + this->aoints_.potential->matrix());
 
-    if( this->aoiOptions_.basisType == COMPLEX_GIAO and pert_has_type(emPert,Magnetic) )
+    if( this->hamiltonianOptions_.basisType == COMPLEX_GIAO and pert_has_type(emPert,Magnetic) )
       addMagPert(emPert,coreH);
 
 

@@ -122,7 +122,7 @@ namespace ChronusQ {
 
     // Computation interfaces
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
-        OPERATOR, const AOIntsOptions&) {
+        OPERATOR, const HamiltonianOptions&) {
       CErr("AO integral evaluation is NOT implemented in super class InCoreRIERI.");
     }
 
@@ -237,7 +237,7 @@ namespace ChronusQ {
 
     // Computation interfaces
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
-        OPERATOR, const AOIntsOptions&);
+        OPERATOR, const HamiltonianOptions&);
 
     virtual void output(std::ostream &out, const std::string &s = "",
                         bool printFull = false) const {
@@ -301,7 +301,7 @@ namespace ChronusQ {
 
     // Computation interfaces
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
-                               OPERATOR, const AOIntsOptions&);
+                               OPERATOR, const HamiltonianOptions&);
 
     virtual void output(std::ostream &out, const std::string &s = "",
                         bool printFull = false) const {

@@ -295,7 +295,7 @@ namespace ChronusQ {
 
 
 
-  void BasisSet::makeMapPrim2Cont(double *SUn, double *MAP, CQMemManager &mem) {
+  void BasisSet::makeMapPrim2Cont(const double *SUn, double *MAP, CQMemManager &mem) {
 
     memset(MAP,0,nPrimitive * nBasis * sizeof(double));
 

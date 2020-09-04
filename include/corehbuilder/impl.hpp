@@ -24,9 +24,11 @@
 #pragma once
 
 #include <corehbuilder.hpp>
+#include <corehbuilder/nonrel.hpp>
 #include <corehbuilder/nonrel/impl.hpp>
 #include <corehbuilder/x2c.hpp>
 #include <corehbuilder/fourcomp.hpp>
+#include <corehbuilder/fourcomp/impl.hpp>
 
 #include <typeinfo>
 #include <memory>

@@ -69,8 +69,8 @@ namespace ChronusQ {
      */
     AtomicX2C(Integrals<IntsT> &aoints, CQMemManager &mem,
         const Molecule &mol, const BasisSet &basis,
-        AOIntsOptions aoiOptions, ATOMIC_X2C_TYPE type) :
-      X2C<MatsT,IntsT>(aoints, mem, mol, basis, aoiOptions),
+        HamiltonianOptions hamiltonianOptions, ATOMIC_X2C_TYPE type) :
+      X2C<MatsT,IntsT>(aoints, mem, mol, basis, hamiltonianOptions),
       type_(type) {}
 
     // Different type

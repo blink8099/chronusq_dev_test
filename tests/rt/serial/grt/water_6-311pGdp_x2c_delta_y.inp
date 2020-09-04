@@ -15,8 +15,9 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = 2CHF
 job = RT
+x2ctype = OneE
 
 [BASIS]
 basis = 6-311+g(d,p)

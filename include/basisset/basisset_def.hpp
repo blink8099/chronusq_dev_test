@@ -182,7 +182,7 @@ namespace ChronusQ {
     // Misc functions
       
     void uncontractShells();
-    void makeMapPrim2Cont(double*, double*, CQMemManager&);
+    void makeMapPrim2Cont(const double*, double*, CQMemManager&);
 
 
     BasisSet uncontractBasis();

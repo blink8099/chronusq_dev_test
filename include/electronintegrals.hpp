@@ -27,21 +27,11 @@
 #include <basisset.hpp>
 #include <molecule.hpp>
 #include <fields.hpp>
+#include <hamiltonianoptions.hpp>
 
 #include <type_traits>
 
 namespace ChronusQ {
-
-  struct AOIntsOptions {
-    BASIS_FUNCTION_TYPE basisType; //GTO or GIAO
-    bool finiteWidthNuc;
-    bool OneEScalarRelativity; //scalar relativity
-    bool OneESpinOrbit; //spin-orbit relativity
-    bool DiracCoulomb; //Dirac-Coulomb without SSSS
-    bool SSSS; // SSSS to Dirac-Coulomb
-    bool Gaunt; // Gaunt
-    bool Gauge; // Gauge
-  };
 
   /**
    *  The operator types to evaluate integrals.
@@ -81,7 +71,7 @@ namespace ChronusQ {
     // Computation interfaces
     /// Evaluate AO Integrals according to a basis set.
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
-        OPERATOR, const AOIntsOptions&) = 0;
+        OPERATOR, const HamiltonianOptions&) = 0;
 
     virtual void clear() = 0;
 

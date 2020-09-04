@@ -365,14 +365,17 @@ namespace ChronusQ {
       ss->scfControls.dampError = 1e-4;
       ss->scfControls.nKeep     = 8;
 
-      AOIntsOptions aoiOptions{basisType, false, false, false};
+      HamiltonianOptions hamiltonianOptions{basisType};
+      hamiltonianOptions.OneEScalarRelativity = false;
+      hamiltonianOptions.OneESpinOrbit = false;
       ss->coreHBuilder = std::make_shared<NRCoreH<MatsT,IntsT>>(
-            ss->aoints, aoiOptions);
-      ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>();
+          ss->aoints, hamiltonianOptions);
+      ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>(
+          hamiltonianOptions);
 
       ss->formCoreH(pert);
       aointsAtom->ERI->computeAOInts(basis, atom, pert,
-          ELECTRON_REPULSION, aoiOptions);
+          ELECTRON_REPULSION, hamiltonianOptions);
 
 
       ss->formGuess();

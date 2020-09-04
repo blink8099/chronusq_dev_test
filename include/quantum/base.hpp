@@ -175,9 +175,9 @@ namespace ChronusQ {
 
       ROOT_ONLY(comm);
 
-      computeMultipole(pert);
+      if(nC != 4)computeMultipole(pert);
       computeEnergy(pert);
-      computeSpin();
+      if(nC != 4) computeSpin();
       methodSpecificProperties();
 
     };

@@ -39,8 +39,8 @@ namespace ChronusQ {
 
     // Disable default constructor
     NRCoreH() = delete;
-    NRCoreH(Integrals<IntsT> &aoints, AOIntsOptions aoiOptions):
-      CoreHBuilder<MatsT,IntsT>(aoints, aoiOptions) {}
+    NRCoreH(Integrals<IntsT> &aoints, HamiltonianOptions hamiltonianOptions):
+      CoreHBuilder<MatsT,IntsT>(aoints, hamiltonianOptions) {}
 
     // Same or Different type
     template <typename MatsU>

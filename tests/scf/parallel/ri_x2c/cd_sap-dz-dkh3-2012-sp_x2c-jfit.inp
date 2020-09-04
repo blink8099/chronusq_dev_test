@@ -15,7 +15,7 @@ geom:
 [QM]
 reference = Real UHF
 job = SCF
-x2ctype = scalar
+x2ctype = SpinFree
 
 [BASIS]
 basis = SAPPORO-DKH3-DZP-2012-SP 

@@ -13,6 +13,7 @@ geom:
 [QM]
 reference = GLSDA
 job = RESP
+x2ctype = OneE
 
 [SCF]
 guess=readden

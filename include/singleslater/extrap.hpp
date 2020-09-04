@@ -69,6 +69,7 @@ namespace ChronusQ {
     if(scfConv.nSCFIter == 0) return;
 
     size_t NB = basisSet().nBasis;
+    if( this->nC == 4 ) NB = 2 * NB;
     double dp = scfControls.dampParam;
    
     // Damp the current orthonormal Fock matrix 
@@ -100,6 +101,7 @@ namespace ChronusQ {
 
     // Save the current AO Fock and density matrices
     size_t NB    = basisSet().nBasis;
+    if( this->nC == 4 ) NB = 2 * NB;
     size_t iDIIS = scfConv.nSCFIter % scfControls.nKeep;
 
     diisFock[iDIIS] = *this->fockMatrix;
@@ -216,6 +218,7 @@ namespace ChronusQ {
 
     size_t NB    = basisSet().nBasis;
     bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
+    if( this->nC == 4 ) NB = 2 * NB;
 
     if(this->nC == 1) {
       SquareMatrix<MatsT> SCR(memManager, NB);

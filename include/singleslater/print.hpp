@@ -366,20 +366,62 @@ namespace ChronusQ {
     out << "Orbital Eigenenergies " << (this->nC == 1 ? "(Alpha) " : "" )
         << "/ Eh\n" << bannerTop << "\n";
 
+    // Set number of occupied orbitals
     size_t NO = (this->nC == 1 ? this->nOA : this->nO);
-    for(auto i = 0ul; i < this->nC * this->nAlphaOrbital(); i++) {
+    if ( this->nC == 4 ) NO = this->nO + this->nC * this->nAlphaOrbital()/2;
 
-      if( i == 0 )
-        out << "Occupied:\n";
-      else if( i == NO )
-        out << "\n\nVirtual:\n";
+    //for(auto i = 0ul; i < this->nC * this->nAlphaOrbital(); i++) {
 
-      out << std::setw(13) << this->eps1[i];
+    //  if( i == 0 )
+    //    out << "Occupied:\n";
+    //  else if( i == NO )
+    //    out << "\n\nVirtual:\n";
 
-      if( i < NO and (i + 1) % 5 == 0 )  out << "\n";
-      else if( i >= NO and ((i - NO) + 1) % 5 == 0 ) out << "\n";
+    //  out << std::setw(13) << this->eps1[i];
+
+    //  if( i < NO and (i + 1) % 5 == 0 )  out << "\n";
+    //  else if( i >= NO and ((i - NO) + 1) % 5 == 0 ) out << "\n";
+    //}
+
+    if( nC != 4 ) {
+      for(auto i = 0ul; i < this->nC * this->nAlphaOrbital(); i++) {
+  
+        if( i == 0 )
+          out << "Occupied:\n";
+        else if( i == NO )
+          out << "\n\nVirtual:\n";
+  
+        out << std::setw(13) << this->eps1[i];
+  
+        if( i < NO and (i + 1) % 5 == 0 )  out << "\n";
+        else if( i >= NO and ((i - NO) + 1) % 5 == 0 ) out << "\n";
+      }
+    } else {
+      for(auto i = this->nC * this->nAlphaOrbital()/2; i < this->nC * this->nAlphaOrbital(); i++) {
+  
+        if( i == this->nC * this->nAlphaOrbital()/2 )
+          out << "Occupied:\n";
+        else if( i == NO )
+          out << "\n\nVirtual:\n";
+  
+        out << std::setw(13) << this->eps1[i];
+  
+        if( i < NO and (i + 1 - this->nC * this->nAlphaOrbital()/2) % 5 == 0 )  out << "\n";
+        else if( i >= NO and ((i - NO) + 1) % 5 == 0 ) out << "\n";
+      }
+
+      // Negative Energy States
+      for(auto i = 0ul; i < this->nC * this->nAlphaOrbital()/2; i++) {
+  
+        if( i == 0 )
+            out << "\n\nNegative Energy States:\n";
+
+        out << std::setw(13) << this->eps1[i];
+  
+        if( i < NO and (i + 1) % 5 == 0 )  out << "\n";
+        else if( i >= NO and ((i - NO) + 1) % 5 == 0 ) out << "\n";
+      }
     }
-
      
     out << "\n" << bannerEnd << "\n";
 

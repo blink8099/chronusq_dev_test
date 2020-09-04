@@ -34,7 +34,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 
-#include <electronintegrals/aooneeints.hpp>
+#include <electronintegrals/oneeints/aooneeints.hpp>
 
 // Debug directives
 //#define _DEBUGORTHO
@@ -287,7 +287,7 @@ namespace ChronusQ {
 
   template <>
   void OneEInts<double>::computeAOInts(BasisSet &basis, Molecule &mol,
-      EMPerturbation&, OPERATOR op, const AOIntsOptions &options) {
+      EMPerturbation&, OPERATOR op, const HamiltonianOptions &options) {
 
     if (options.basisType != REAL_GTO)
       CErr("Only Real GTOs are allowed in OneEInts<double>",std::cout);
@@ -332,7 +332,7 @@ namespace ChronusQ {
 
   template <>
   void MultipoleInts<double>::computeAOInts(BasisSet &basis, Molecule &mol,
-      EMPerturbation&, OPERATOR op, const AOIntsOptions &options) {
+      EMPerturbation&, OPERATOR op, const HamiltonianOptions &options) {
     if (options.basisType != REAL_GTO)
       CErr("Only Real GTOs are allowed in MultipoleInts<double>",std::cout);
     if (options.OneEScalarRelativity or options.OneESpinOrbit)
@@ -429,27 +429,32 @@ namespace ChronusQ {
 
   template <>
   void OneERelInts<double>::computeAOInts(BasisSet &basis, Molecule &mol,
-      EMPerturbation&, OPERATOR op, const AOIntsOptions &options) {
+      EMPerturbation&, OPERATOR op, const HamiltonianOptions &options) {
     if (options.basisType != REAL_GTO)
       CErr("Only Real GTOs are allowed in OneERelInts<double>",std::cout);
     if (not options.OneEScalarRelativity or op != NUCLEAR_POTENTIAL)
       CErr("Only relativistic nuclear potential is implemented in OneERelInts.",std::cout);
-    if (not options.finiteWidthNuc)
-      CErr("Relativistic nuclear potential requires finite width nuclei.",std::cout);
 
     std::vector<double*> _potential(1, pointer());
-    OneEDriverLocal<1,true>(
-        [&](libint2::ShellPair& pair, libint2::Shell& sh1,
-            libint2::Shell& sh2) -> std::vector<std::vector<double>> {
-          return RealGTOIntEngine::computePotentialV(mol.chargeDist,
-              pair,sh1,sh2,mol);
-          }, basis.shells,_potential);
+    if (options.finiteWidthNuc)
+      OneEDriverLocal<1,true>(
+          [&](libint2::ShellPair& pair, libint2::Shell& sh1,
+              libint2::Shell& sh2) -> std::vector<std::vector<double>> {
+            return RealGTOIntEngine::computePotentialV(mol.chargeDist,
+                pair,sh1,sh2,mol);
+            }, basis.shells,_potential);
+    else
+      OneEDriverLibint(libint2::Operator::nuclear,mol,basis.shells,_potential);
+
+    // Point nuclei is used when chargeDist is empty
+    const std::vector<libint2::Shell> &chargeDist = options.finiteWidthNuc ?
+        mol.chargeDist : std::vector<libint2::Shell>();
 
     std::vector<double*> _PVdP(1, scalar().pointer());
     OneEInts<double>::OneEDriverLocal<1,true>(
           [&](libint2::ShellPair& pair, libint2::Shell& sh1,
               libint2::Shell& sh2) -> std::vector<std::vector<double>> {
-            return RealGTOIntEngine::computepVdotp(mol.chargeDist,
+            return RealGTOIntEngine::computepVdotp(chargeDist,
                 pair,sh1,sh2,mol);
             }, basis.shells, _PVdP);
 
@@ -458,7 +463,7 @@ namespace ChronusQ {
       OneEInts<double>::OneEDriverLocal<3,false>(
             [&](libint2::ShellPair& pair, libint2::Shell& sh1,
                 libint2::Shell& sh2) -> std::vector<std::vector<double>> {
-              return RealGTOIntEngine::computeSL(mol.chargeDist,
+              return RealGTOIntEngine::computeSL(chargeDist,
                   pair,sh1,sh2,mol);
               }, basis.shells, SOXYZPointers());
     }
@@ -468,7 +473,7 @@ namespace ChronusQ {
   template void Integrals<double>::computeAOOneE(
       CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,
       const std::vector<std::pair<OPERATOR,size_t>>&,
-      const AOIntsOptions&);
+      const HamiltonianOptions&);
 
 }; // namespace ChronusQ
 

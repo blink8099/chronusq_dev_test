@@ -48,6 +48,9 @@ namespace ChronusQ {
 
     TWOBODY_CONTRACTION_TYPE contType;
 
+    double* ERI4 = nullptr;
+    int     IntTrans = 0; ///< 0: no integral transpose; 1: ij and kl transpose; 2: kl transpose; 3: ij transpose (NIY)
+
   }; // struct TwoBodyContraction
 
   /**

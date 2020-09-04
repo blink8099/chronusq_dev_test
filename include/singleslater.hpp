@@ -253,6 +253,7 @@ namespace ChronusQ {
 
     // Misc procedural
     void diagOrthoFock();
+    void diagAOFock();
     void FDCommutator(PauliSpinorSquareMatrices<MatsT>&);
     virtual void saveCurrentState();
     virtual void formDelta();

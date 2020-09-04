@@ -33,10 +33,19 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   class FockBuilder {
+
+    template <typename MatsU, typename IntsU>
+    friend class FockBuilder;
+
+  protected:
+    HamiltonianOptions hamiltonianOptions_; ///< One electron terms to be computed
+
   public:
 
     // Constructors
-    FockBuilder() = default;
+    FockBuilder() = delete;
+    FockBuilder(HamiltonianOptions hamiltonianOptions):
+      hamiltonianOptions_(hamiltonianOptions) {}
 
     // Different type
     template <typename MatsU>
@@ -49,6 +58,9 @@ namespace ChronusQ {
 
 
     // Public member functions
+    const HamiltonianOptions& getHamiltonianOptions() const {
+      return hamiltonianOptions_;
+    }
 
     // Form the Hartree-Fock perturbation tensor (see include/fockbuilder/impl.hpp for docs)
     virtual void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);

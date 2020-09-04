@@ -36,17 +36,17 @@ namespace ChronusQ {
 
   std::ostream& operator<<(std::ostream &out, const IntegralsBase &aoints) {
 
+/*
     out << "\nIntegral Engine Settings:\n" << BannerTop << "\n\n" ;
     out << std::left;
 
 
-    // XXX: Hard code this for now
+    XXX: Hard code this for now
     out << "  " << std::setw(28) << "ERI Engine:" << "Libint2" << std::endl;
     out << "  " << std::setw(28) << "One-Body Engine:" 
         << "Libint2 + In-House" << std::endl;
 
 
-/*
     out << std::endl;
     out << "  " << std::setw(28) << "Core Hamiltonian:";
     if(aoints.coreType == NON_RELATIVISTIC) 

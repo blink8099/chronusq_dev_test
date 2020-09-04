@@ -34,7 +34,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 
-#include <electronintegrals/aooneeints.hpp>
+#include <electronintegrals/oneeints/aooneeints.hpp>
 
 // Debug directives
 //#define _DEBUGORTHO
@@ -140,7 +140,7 @@ namespace ChronusQ {
 
   template <>
   void OneEInts<dcomplex>::computeAOInts(BasisSet &basis, Molecule &mol,
-      EMPerturbation &emPert, OPERATOR op, const AOIntsOptions &options) {
+      EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &options) {
     if (options.basisType == REAL_GTO)
       CErr("Real GTOs are not allowed in OneEInts<dcomplex>",std::cout);
     if (options.basisType == COMPLEX_GTO)
@@ -192,7 +192,7 @@ namespace ChronusQ {
 
   template <>
   void MultipoleInts<dcomplex>::computeAOInts(BasisSet &basis, Molecule&,
-      EMPerturbation &emPert, OPERATOR op, const AOIntsOptions &options) {
+      EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &options) {
     if (options.basisType == REAL_GTO)
       CErr("Real GTOs are not allowed in MultipoleInts<dcomplex>",std::cout);
     if (options.basisType == COMPLEX_GTO)
@@ -262,7 +262,7 @@ namespace ChronusQ {
 
   template <>
   void OneERelInts<dcomplex>::computeAOInts(BasisSet&, Molecule&,
-      EMPerturbation&, OPERATOR, const AOIntsOptions &options) {
+      EMPerturbation&, OPERATOR, const HamiltonianOptions &options) {
     if (options.basisType == REAL_GTO)
       CErr("Real GTOs are not allowed in OneERelInts<dcomplex>",std::cout);
     if (options.basisType == COMPLEX_GTO)
@@ -274,7 +274,7 @@ namespace ChronusQ {
   template void Integrals<dcomplex>::computeAOOneE(
       CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,
       const std::vector<std::pair<OPERATOR,size_t>>&,
-      const AOIntsOptions&);
+      const HamiltonianOptions&);
 
 
 }; // namespace ChronusQ

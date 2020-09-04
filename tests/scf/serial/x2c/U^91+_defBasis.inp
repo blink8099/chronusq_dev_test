@@ -14,9 +14,9 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = 2CHF
 job = SCF
-x2ctype = Full
+x2ctype = OneE
 
 [MISC]
 nsmp = 1

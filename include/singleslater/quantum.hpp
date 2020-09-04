@@ -76,10 +76,16 @@ namespace ChronusQ {
         }
       } else {
 
+        // 2C or 4C cases
         SquareMatrix<MatsT> spinBlockForm(memManager, NB);
 
-        Gemm('N', 'C', NB, NB, this->nO, MatsT(1.), this->mo[0].pointer(), NB,
-            this->mo[0].pointer(), NB, MatsT(0.), spinBlockForm.pointer(), NB);
+        if( nC == 2 ) {
+          Gemm('N', 'C', NB, NB, this->nO, MatsT(1.), this->mo[0].pointer(), NB,
+              this->mo[0].pointer(), NB, MatsT(0.), spinBlockForm.pointer(), NB);
+        } else if( nC == 4 ) {
+          Gemm('N', 'C', NB, NB, this->nO, MatsT(1.), this->mo[0].pointer()+(2*(NB/nC))*NB, NB,
+              this->mo[0].pointer()+(2*(NB/nC))*NB, NB, MatsT(0.), spinBlockForm.pointer(), NB);
+        }
 
         *this->onePDM = spinBlockForm.template spinScatter<MatsT>();
 
@@ -136,7 +142,6 @@ namespace ChronusQ {
     this->OBEnergy = 
       this->template computeOBProperty<double,DENSITY_TYPE::SCALAR>(
          coreH->S().pointer());
-    
     
     
     // One body Spin Orbit

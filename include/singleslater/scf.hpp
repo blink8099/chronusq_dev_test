@@ -450,6 +450,7 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::formDelta() {
 
     size_t NB = basisSet().nBasis;
+    if (nC == 4) NB *= 2;
 
     // Compute difference on root MPI process
     if( MPIRank(comm) == 0 ) {
@@ -504,8 +505,61 @@ namespace ChronusQ {
       this->mo[0] = fockMatrixOrtho->S();
     else if(nC == 1)
       this->mo = fockMatrixOrtho->template spinGatherToBlocks<MatsT>(false);
-    else
+    else {
       this->mo[0] = fockMatrixOrtho->template spinGather<MatsT>();
+
+//    prettyPrintSmart(std::cout,"Orthormal Fock",this->mo[0].pointer(),NB,NB,NB);
+    }
+
+    // Diagonalize the Fock Matrix
+    int INFO = HermetianEigen('V', 'L', NB, this->mo[0].pointer(), NB, this->eps1,
+      memManager );
+    if( INFO != 0 ) CErr("HermetianEigen failed in Fock1",std::cout);
+
+    if(iRO) {
+      this->mo[1] = this->mo[0]; // for ROHF
+      std::copy_n(this->eps1, NB, this->eps2);
+    } else if(nC == 1 and not iCS) {
+      INFO = HermetianEigen('V', 'L', NB, this->mo[1].pointer(), NB, this->eps2,
+        memManager );
+      if( INFO != 0 ) CErr("HermetianEigen failed in Fock2",std::cout);
+    }
+
+#if 0
+    printMO(std::cout);
+#endif
+
+  }; // SingleSlater<MatsT>::diagOrthoFock
+
+  /**
+   *  \brief Diagonalize the AO fock matrix
+   *
+   *  General purpose routine which diagonalizes the orthonormal
+   *  fock matrix and stores a set of orthonormal MO coefficients
+   *  (in WaveFunction::mo1 and possibly WaveFunction::mo2) and
+   *  orbital energies. General for both 1 and 2 spin components
+   */ 
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::diagAOFock() {
+
+    ROOT_ONLY(comm);
+    size_t NB = this->nAlphaOrbital() * nC;
+    size_t NB2 = NB*NB;
+    bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
+
+    // Copy over the fockMatrix into MO storage
+    if(nC == 1 and iCS)
+      this->mo = fockMatrix->template spinGatherToBlocks<MatsT>(false,false);
+    else if(iRO)
+      this->mo[0] = fockMatrix->S();
+    else if(nC == 1)
+      this->mo = fockMatrix->template spinGatherToBlocks<MatsT>(false);
+    else {
+      this->mo[0] = fockMatrix->template spinGather<MatsT>();
+
+    prettyPrintSmart(std::cout,"AO Fock",this->mo[0].pointer(),NB,NB,NB);
+
+    }
 
     // Diagonalize the Fock Matrix
     int INFO = HermetianEigen('V', 'L', NB, this->mo[0].pointer(), NB, this->eps1,
@@ -590,6 +644,24 @@ namespace ChronusQ {
         Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
             this->mo[0].pointer() + NB,this->nC*NB,MatsT(0.),SCR,NB);
         SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + NB,this->nC*NB);
+
+      } else if( this->nC == 4 ) {
+
+        //Second part of MO
+        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
+          this->mo[0].pointer() + NB,this->nC*NB,MatsT(0.),SCR,NB);
+        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + NB,this->nC*NB);
+
+        //Third part of MO
+        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
+          this->mo[0].pointer() + 2*NB,this->nC*NB,MatsT(0.),SCR,NB);
+        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + 2*NB,this->nC*NB);
+
+        //Fourth part of MO
+        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
+          this->mo[0].pointer() + 3*NB,this->nC*NB,MatsT(0.),SCR,NB);
+        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + 3*NB,this->nC*NB);
+       
 
       } else if( not this->iCS ) {
 

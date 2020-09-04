@@ -29,7 +29,8 @@
 // Li 6-31G(d) test
 TEST( UHF, Li_631Gd ) {
 
-  CQSCFTEST( "scf/serial/uhf/li_6-31Gd", "li_6-31Gd.bin.ref" );
+  CQSCFTEST( "scf/serial/uhf/li_6-31Gd", "li_6-31Gd.bin.ref", 1e-7,
+              true, true, true, true, true, true); 
 
 };
 
@@ -64,7 +65,8 @@ TEST( UHF, KCaKrK_sto3G ) {
 // H atom 3-21g post-scf test
 TEST( UHF, H_321G ) {
 
-  CQSCFTEST( "scf/serial/uhf/H_3-21G", "H_3-21G.bin.ref" );
+  CQSCFTEST( "scf/serial/uhf/H_3-21G", "H_3-21G.bin.ref", 1e-7,
+              true, true, true, true, true, true);
 
 };
 
@@ -80,7 +82,8 @@ TEST( UHF, NeHeH_fracZ_sto3G ) {
 // SMP Li 6-31G(d) test
 TEST( UHF, PAR_Li_631Gd ) {
 
-  CQSCFTEST( "scf/parallel/uhf/li_6-31Gd", "li_6-31Gd.bin.ref" );
+  CQSCFTEST( "scf/parallel/uhf/li_6-31Gd", "li_6-31Gd.bin.ref", 1e-7,
+              true, true, true, true, true, true);
 
 };
 
