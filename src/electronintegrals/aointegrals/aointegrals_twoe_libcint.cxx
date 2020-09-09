@@ -31,18 +31,10 @@
 #include <util/threads.hpp>
 #include <chrono>
 
-extern "C" {
-#include <cint.h>
-}
+#include <libcint.hpp>
 
 //#define __DEBUGERI__
 
-
-extern "C" int cint2e_ipvip1_sph(double *buf, int *shls,
-                     int *atm, int natm, int *bas, int nbas, double *env, CINTOpt *opt);
-
-extern "C" int cint2e_ip1ip2_sph(double *buf, int *shls,
-                     int *atm, int natm, int *bas, int nbas, double *env, CINTOpt *opt);
 
 namespace ChronusQ {
 

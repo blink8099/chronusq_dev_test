@@ -33,6 +33,10 @@ post-SCF quantum mechanical methods."
     LANGUAGES CXX C Fortran)
 
 
+# Append local cmake directory to find CMAKE Modules
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+include(CQHelperFunctions)
+
 # -----------------------------------------------------------------------------
 # Options
 # -----------------------------------------------------------------------------
@@ -42,36 +46,35 @@ option(ENABLE_COVERAGE     "Enable coverage and profiling"   OFF)
 option(CQ_LINALG_USESYSTEM "Use System defaults for LA libs" OFF)
 option(CQ_EXTERNAL_OPENMP  "Force linking to an external OpenMP library" OFF)
 option(CQ_ENABLE_TA  "Enable TA"  OFF)
-
-
-# Libint building options
-set(BUILD_LIBINT_TYPES NONE ALLOW FORCE)
-set(CQ_BUILD_LIBINT_TYPE ALLOW CACHE STRING "Disable, enable, or force CQ to build libint")
-set_property(CACHE CQ_BUILD_LIBINT_TYPE PROPERTY STRINGS ${BUILD_LIBINT_TYPES})
-
-if ( NOT CQ_BUILD_LIBINT_TYPE IN_LIST BUILD_LIBINT_TYPES )
-  message ( FATAL_ERROR "CQ_BUILD_LIBINT_TYPE must be one of ${BUILD_LIBINT_TYPES}" )
-endif()
-
-
-# Whether to build in external or build directory
 option(CQ_EXTERNAL_IN_BUILD_DIR "Build external dependencies in the build directory" OFF)
 
+
+# Required package building options
+#   These set the variables CQ_BUILD_${PKGNAME}_TYPE as ALLOW, FORCE, or NONE
+#   e.g.the option for libint is CQ_BUILD_LIBINT_TYPE
+build_pkg_option( LIBINT ALLOW )
+build_pkg_option( LIBCINT ALLOW )
+
+
+# -----------------------------------------------------------------------------
+
+
+# Move FetchContent base to either external in project root or build root
+#   Can be overridden by specifying FETCHCONTENT_BASE_DIR
+#   CMake's default for this is _deps in build root
 if ( NOT FETCHCONTENT_BASE_DIR AND NOT CQ_EXTERNAL_IN_BUILD_DIR )
   set ( FETCHCONTENT_BASE_DIR "${PROJECT_SOURCE_DIR}/external"
         CACHE STRING "" FORCE )
+elseif( NOT FETCHCONTENT_BASE_DIR )
+  set ( FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/external"
+        CACHE STRING "" FORCE )
 endif()
 
-# -----------------------------------------------------------------------------
 
 # Add specified paths to CMAKE_PREFIX_PATH
 if( MPI_PREFIX )
   set( CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${MPI_PREFIX} )
 endif()
-
-# Append local cmake directory to find CMAKE Modules
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-
 
 # C++14
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -150,7 +153,6 @@ set(CQEX_LINK ${CQ_EXT_LINK} )
 
 # HDF5
 find_package(HDF5 REQUIRED CXX)
-message( "${HDF5_CXX_LIBRARIES}" ) 
 add_library( ChronusQ::HDF5 INTERFACE IMPORTED )
 set_target_properties( ChronusQ::HDF5 PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${HDF5_INCLUDE_DIRS}"

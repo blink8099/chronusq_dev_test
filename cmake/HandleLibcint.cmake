@@ -24,7 +24,25 @@
 include(CheckCSourceCompiles)
 include(FetchContent)
 
-message ( "\n == Libcint ==\n" )
+
+# Checks if quadmath can be used and sets the result to QUADMATH_FOUND
+function ( check_libcint_quadmath )
+
+  set ( QUADMATH_TEST_SOURCE
+  "
+  #include <quadmath.h>
+  int main() { fabsq(1); return 0; }
+  ")
+  
+  set ( CMAKE_REQUIRED_LIBRARIES quadmath )
+  check_c_source_compiles ( "${QUADMATH_TEST_SOURCE}" QUADMATH_FOUND )
+
+  set ( QUADMATH_FOUND ${LIBCINT_QUADMATH_REQUIRED} PARENT_SCOPE )
+
+endfunction()
+
+
+message ( "\n == Libcint ==" )
 
 #
 #  Find preinstalled Libcint unless turned off
@@ -35,35 +53,21 @@ if ( NOT CQ_BUILD_LIBCINT_TYPE STREQUAL "FORCE" )
   # Otherwise create dummy target
   if ( DEFINED Libcint_ROOT )
 
-    set ( LIBCINT_LIBRARIES_FOUND FALSE )
+    find_library ( LIBCINT_LIBRARIES
+                   NAMES cint
+                   PATHS "${Libcint_ROOT}/lib64"
+                 )
 
-    if ( EXISTS "${Libcint_ROOT}/lib64/libcint.a" )
-      set ( LIBCINT_LIBRARIES "${Libcint_ROOT}/lib64/libcint.a" )
-      set ( LIBCINT_LIBRARIES_FOUND TRUE )
-    elseif ( EXISTS "${Libcint_ROOT}/lib64/libcint.so" )
-      set ( LIBCINT_LIBRARIES "${Libcint_ROOT}/lib64/libcint.so" )
-      set ( LIBCINT_LIBRARIES_FOUND TRUE )
-    endif()
-
-    if ( LIBCINT_LIBRARIES_FOUND AND
+    if ( LIBCINT_LIBRARIES AND
          EXISTS "${Libcint_ROOT}/include/cint.h" )
       
       set ( LIBCINT_INCLUDE_DIRS
           ${Libcint_ROOT}/include
       )
 
-      # We don't know if quadmath was linked against this by this method
-      # We'll just assume that if we can find it, it was.
-      set(QUADMATH_TEST_SOURCE
-      "
-      #include <quadmath.h>
-      int main() {
-      fabsq(1);
-      }
-      ")
-      
-      set(CMAKE_REQUIRED_LIBRARIES "quadmath")
-      check_c_source_compiles("${QUADMATH_TEST_SOURCE}" QUADMATH_FOUND)
+      set ( libcint_location ${LIBCINT_LIBRARIES} )
+
+      check_libcint_quadmath()
       if ( QUADMATH_FOUND )
         list( APPEND LIBCINT_LIBRARIES quadmath )
       endif()
@@ -81,7 +85,7 @@ if ( NOT CQ_BUILD_LIBCINT_TYPE STREQUAL "FORCE" )
   endif()
 
   if ( LIBCINT_FOUND )
-    message ( STATUS "Found External Libcint Installation" )
+    message ( STATUS "Found External Libcint Installation: ${libcint_location}" )
   endif()
 
 endif()
@@ -95,54 +99,89 @@ if ( NOT TARGET ChronusQ::Libcint )
 
   if ( NOT CQ_BUILD_LIBCINT_TYPE STREQUAL "NONE" )
 
-    message( STATUS "Opting to build a copy of Libcint" )
+    if ( NOT CQ_BUILD_LIBCINT_TYPE STREQUAL "FORCE" )
 
-    # Set prefix
-    if ( CQ_EXTERNAL_IN_BUILD_DIR )
-      set ( CUSTOM_LIBCINT_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/libcint )
-      set ( CQ_EXT_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external )
-    else()
-      set ( CUSTOM_LIBCINT_PREFIX ${PROJECT_SOURCE_DIR}/external/libcint )
-      set ( CQ_EXT_ROOT ${PROJECT_SOURCE_DIR}/external )
-    endif() 
+      message( STATUS "Checking for a previously built Libcint for CQ" )
+ 
+      find_library ( LIBCINT_LIBRARIES
+                     NAMES cint
+                     PATHS "${FETCHCONTENT_BASE_DIR}/libcint-build"
+                     NO_DEFAULT_PATH )
+ 
+      if ( LIBCINT_LIBRARIES AND
+           EXISTS "${FETCHCONTENT_BASE_DIR}/libcint-build/include/cint.h" AND
+           EXISTS "${FETCHCONTENT_BASE_DIR}/libcint-src/include/cint_funcs.h" )
+ 
+ 
+        set ( LIBCINT_INCLUDE_DIRS
+              "${FETCHCONTENT_BASE_DIR}/libcint-build/include"
+              "${FETCHCONTENT_BASE_DIR}/libcint-build/src"
+              "${FETCHCONTENT_BASE_DIR}/libcint-src/include" 
+              "${FETCHCONTENT_BASE_DIR}/libcint-src/src"
+        )
 
-    set ( ENABLE_STATIC_old ${ENABLE_STATIC} )
-    set ( ENABLE_STATIC ON )
 
-    FetchContent_Declare (
-      Libcint
-      PREFIX ${CUSTOM_LIBCINT_PREFIX}
-      GIT_REPOSITORY "https://github.com/sunqm/libcint"
-      GIT_TAG "v3.1.1"
-      UPDATE_COMMAND cd ${CQ_EXT_ROOT}/libcint-src && patch -N < ${PROJECT_SOURCE_DIR}/external/libcint/patch/CMakeLists.txt.patch || patch -N < ${PROJECT_SOURCE_DIR}/external/libcint/patch/CMakeLists.txt.patch | grep "Skipping patch" -q
-    )
-  
-    FetchContent_GetProperties ( Libcint )
+        set(libcint_location ${LIBCINT_LIBRARIES})
 
-    if ( NOT Libcint_POPULATED )
-
-      message ( STATUS "Downloading Libcint..." )
-      FetchContent_Populate ( Libcint )
-      message ( STATUS "Downloading Libcint - Done" )
-
-      add_subdirectory ( ${libcint_SOURCE_DIR} ${libcint_BINARY_DIR} )
+        check_libcint_quadmath()
+        if ( QUADMATH_FOUND )
+          list( APPEND LIBCINT_LIBRARIES quadmath )
+        endif()
+ 
+        add_library ( ChronusQ::Libcint INTERFACE IMPORTED )
+        set_target_properties ( ChronusQ::Libcint PROPERTIES
+          INTERFACE_INCLUDE_DIRECTORIES "${LIBCINT_INCLUDE_DIRS}"
+          INTERFACE_LINK_LIBRARIES      "${LIBCINT_LIBRARIES}"
+        )
+        
+        message ( STATUS "Found CQ Libcint Installation: ${libcint_location}" )
+      
+      endif()
 
     endif()
 
-    set ( ENABLE_STATIC ${ENABLE_STATIC_old} )
-    unset ( ENABLE_STATIC_old )
 
-    if ( TARGET openblas )
-      add_dependencies( cint openblas )
-    endif()
+    # If we're forcing building or failed finding a previously built version of
+    #   libcint for CQ
+    if ( NOT TARGET ChronusQ::Libcint )
+
+      message( STATUS "Opting to build a copy of Libcint" )
+
+      # Update project policy for Libcint
+      set ( CMAKE_POLICY_DEFAULT_CMP0048 NEW )
+
+      FetchContent_Declare (
+        Libcint
+        GIT_REPOSITORY "https://github.com/sunqm/libcint"
+        GIT_TAG "v3.1.1"
+        UPDATE_COMMAND cd ${FETCHCONTENT_BASE_DIR}/libcint-src && patch -N < ${PROJECT_SOURCE_DIR}/external/libcint/patch/CMakeLists.txt.patch || patch -N < ${PROJECT_SOURCE_DIR}/external/libcint/patch/CMakeLists.txt.patch | grep "Skipping patch" -q
+      )
   
-    add_library ( ChronusQ::Libcint ALIAS cint )
+      FetchContent_GetProperties ( Libcint )
+
+      if ( NOT Libcint_POPULATED )
+
+        message ( STATUS "Downloading Libcint..." )
+        FetchContent_Populate ( Libcint )
+        message ( STATUS "Downloading Libcint - Done" )
+
+        add_subdirectory ( ${libcint_SOURCE_DIR} ${libcint_BINARY_DIR} )
+
+      endif()
+
+      if ( TARGET openblas )
+        add_dependencies( cint openblas )
+      endif()
+  
+      add_library ( ChronusQ::Libcint ALIAS cint )
+
+    endif()
   
   else()
   
     message ( FATAL_ERROR "Suitable Libcint installation could not be found! \
-Set Libcint_ROOT to the prefix of the Libcint installation or turn \
-CQ_ALLOW_BUILD_LIBCINT on."
+Set Libcint_ROOT to the prefix of the Libcint installation or set \
+CQ_BUILD_LIBCINT_TYPE to ALLOW or FORCE."
     )
   
   endif()
