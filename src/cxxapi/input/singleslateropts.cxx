@@ -619,7 +619,7 @@ namespace ChronusQ {
 
     } else if( not X.compare("DEFAULT") ) {
 
-      if ( hamiltonianOptions.OneESpinOrbit ) {
+      if ( hamiltonianOptions.OneESpinOrbit and not isFourCRef) {
 
         hamiltonianOptions.Boettger = true;
         hamiltonianOptions.AtomicMeanField = false;
