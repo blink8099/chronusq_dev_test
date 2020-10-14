@@ -83,10 +83,13 @@ namespace ChronusQ {
       OPTOPT( basisDef = input.getData<std::string>(section+".BASISDEF"); )
 
     // Check for consistency
-    if ( basisName.empty() and basisDef.empty() ){
-      return std::make_shared<BasisSet>();
-    //  CErr("Basis file or specification not found!");
+    if ( basisName.empty() and basisDef.empty() ) {
+      if ( section == "BASIS" )
+        CErr("Basis file or specification not found!");
+      else
+        return std::make_shared<BasisSet>();
     }
+
 
     BASIS_FUNCTION_TYPE bType = REAL_GTO;
     try{

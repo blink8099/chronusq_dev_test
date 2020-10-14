@@ -61,6 +61,10 @@ namespace ChronusQ {
     std::string outFileName, std::string rstFileName,
     std::string scrFileName) {
 
+    // Check to make sure input and output file name are different.
+    if( inFileName == outFileName )
+      CErr("Input file name and output file name cannot be identical.");
+
     int rank = MPIRank();
     int size = MPISize();
 
