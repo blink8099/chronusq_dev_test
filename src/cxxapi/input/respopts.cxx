@@ -250,18 +250,14 @@ namespace ChronusQ {
     bool doPP  = false;
 
 
-    OPTOPT( 
+    std::string jt = "RESIDUE";
 
-      std::string jt = input.getData<std::string>("RESPONSE.TYPE");
+    OPTOPT( jt = input.getData<std::string>("RESPONSE.TYPE"); );
 
-      if( not jt.compare("RESIDUE") )   jobTyp = RESIDUE;
-      else if( not jt.compare("FDR") )  jobTyp = FDR;
-      else if( not jt.compare("MOR") )  doMOR = true;
-      else CErr(jt + " NOT RECOGNIZED RESPONSE.TYPE");
-
-    );
-
-
+    if( not jt.compare("RESIDUE") )   jobTyp = RESIDUE;
+    else if( not jt.compare("FDR") )  jobTyp = FDR;
+    else if( not jt.compare("MOR") )  doMOR = true;
+    else CErr(jt + " NOT RECOGNIZED RESPONSE.TYPE");
 
 
     // Determine propagator

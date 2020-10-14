@@ -147,11 +147,12 @@ namespace ChronusQ {
         nTotalE = std::accumulate(atoms.begin(),atoms.end(),-charge,
                     [&](int c, const Atom &a){ return a.atomicNumber + c; }
                   );
-
-        if((nTotalE % 2) != 0 and (multip % 2) != 0) {
+        
+        if(not ((nTotalE % 2) != 0 xor (multip % 2) != 0) or 
+           multip > nTotalE + 1) {
           std::stringstream ss;
           ss << "Multiplicity = " << multip << " is not compatible with "
-             << "NTotalE = " << nTotalE;
+             << "total electrons = " << nTotalE;
           CErr(ss.str(),std::cout);
         }
 

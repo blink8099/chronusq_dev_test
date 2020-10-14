@@ -152,6 +152,8 @@ namespace ChronusQ {
       
     }
 
+    if ( atoms.size() == 0 )
+      CErr("MOLECULE.GEOM must not be empty and must be indented");
     // Set the Atoms vector in Molecule (calls Molecule::update())
     mol.setAtoms(atoms);
 
