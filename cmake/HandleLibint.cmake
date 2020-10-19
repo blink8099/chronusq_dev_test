@@ -125,6 +125,11 @@ if ( NOT TARGET ChronusQ::Libint2 )
 
     endif()
   
+    install(TARGETS libint2  
+            ARCHIVE DESTINATION  "lib/libint2"
+            LIBRARY DESTINATION  "lib/libint2"
+            INCLUDES DESTINATION "include/libint2")
+    
     add_library ( ChronusQ::Libint2 ALIAS libint2 )
   
   else()
