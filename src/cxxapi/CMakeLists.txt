@@ -44,3 +44,5 @@ endif()
 
 add_custom_target(linkexe ALL
   ${CMAKE_COMMAND} -E create_symlink ${PROJECT_BINARY_DIR}/src/cxxapi/chronusq ${PROJECT_BINARY_DIR}/chronusq )
+
+install(TARGETS chronusq RUNTIME DESTINATION "bin")

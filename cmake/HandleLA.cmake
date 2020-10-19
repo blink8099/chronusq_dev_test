@@ -115,6 +115,8 @@ if( CQ_NEED_OPENBLAS )
         patch < ../patch/f77blas.patch 
     )
 
+    install(DIRECTORY "${OPENBLAS_PREFIX}/include" DESTINATION ".")
+    install(DIRECTORY "${OPENBLAS_PREFIX}/lib"     DESTINATION ".")
 
     list(APPEND CQEX_DEP openblas)
 
@@ -215,6 +217,9 @@ if( CQ_ENABLE_MPI )
           -DMPI_Fortran_COMPILER=${MPI_Fortran_COMPILER}
           -DCMAKE_INSTALL_PREFIX=${SCALAPACK_PREFIX}
       )
+      
+      install(DIRECTORY "${SCALAPACK_PREFIX}/include" DESTINATION ".")
+      install(DIRECTORY "${SCALAPACK_PREFIX}/lib"     DESTINATION ".")
 
       list(APPEND CQEX_DEP libscalapack_build)
 
