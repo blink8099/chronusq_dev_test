@@ -21,6 +21,7 @@
 #   E-Mail: xsli@uw.edu
 #
 add_library(quantum STATIC impl.cxx)
+target_link_libraries ( quantum PUBLIC ChronusQ::Libint2 )
 
 # Append aointegrals to executable link
 list(APPEND CQEX_LINK quantum)

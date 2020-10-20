@@ -25,6 +25,7 @@
 
 #include <chronusq_sys.hpp>
 #include <quantum/base.hpp>
+#include <matrix.hpp>
 
 // Debug print (triggers WaveFunction, etc)
 //#define _QuantumDebug
@@ -60,8 +61,7 @@ namespace ChronusQ {
 
 
     // 1PDM storage
-
-    oper_t_coll onePDM;  ///< 1PDM array (Scalar + Magnetization)
+    std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> onePDM; ///< 1PDM array (Scalar + Magnetization)
 
     // Constructors
       

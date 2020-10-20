@@ -57,20 +57,44 @@ TEST( X2CHF, Hg_SAP_DZP_DKH3_2012_SP  ) {
  
 };
 
-// Zn SAPPORO DZP DKH_2012 SP
-TEST( X2CHF, Zn_SAP_DZP_DKH3_2012_SP  ) {
-
-  CQSCFTEST( "scf/serial/x2c/zn_sap_dz_dkh3_2012_sp", 
-    "zn_sap_dz_dkh3_2012_sp.bin.ref",1e-6 );
- 
-};
-
 // Cd SAPPORO DZP DKH_2012 SP
 TEST( X2CHF, Cd_SAP_DZP_DKH3_2012_SP  ) {
 
   CQSCFTEST( "scf/serial/x2c/cd_sap_dz_dkh3_2012_sp", 
     "cd_sap_dz_dkh3_2012_sp.bin.ref",1e-6 );
  
+};
+
+// Ag2 sto-3g ALH X2C
+TEST( X2CHF, Ag2_sto3g_ALH_X2C ) {
+
+  CQSCFTEST( "scf/serial/x2c/Ag2_sto-3g_ALH",
+    "Ag2_sto-3g_ALH.bin.ref",1e-6 );
+
+};
+
+// Ag2 sto-3g ALU X2C
+TEST( X2CHF, Ag2_sto3g_ALU_X2C ) {
+
+  CQSCFTEST( "scf/serial/x2c/Ag2_sto-3g_ALU",
+    "Ag2_sto-3g_ALU.bin.ref",1e-6 );
+
+};
+
+// AgBr sto-3g DLH X2C
+TEST( X2CHF, AgBr_sto3g_DLH_X2C ) {
+
+  CQSCFTEST( "scf/serial/x2c/AgBr_sto-3g_DLH",
+    "AgBr_sto-3g_DLH.bin.ref",1e-6 );
+
+};
+
+// AgBr sto-3g DLU X2C
+TEST( X2CHF, AgBr_sto3g_DLU_X2C ) {
+
+  CQSCFTEST( "scf/serial/x2c/AgBr_sto-3g_DLU",
+    "AgBr_sto-3g_DLU.bin.ref",1e-6 );
+
 };
 
 #ifdef _CQ_DO_PARTESTS

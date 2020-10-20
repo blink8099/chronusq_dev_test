@@ -27,26 +27,28 @@ namespace ChronusQ {
 
   template<>
   void Gemm(char TRANSA, char TRANSB, int M, int N, int K, double ALPHA,
-    double *A, int LDA, double *B, int LDB, double BETA, double *C, int LDC){
+    const double *A, int LDA, const double *B, int LDB, double BETA, double *C, int LDC){
 #ifdef _CQ_MKL
     dgemm
 #else
     dgemm_
 #endif
-    (&TRANSA,&TRANSB,&M,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
+    (&TRANSA,&TRANSB,&M,&N,&K,&ALPHA,const_cast<double*>(A),&LDA,
+     const_cast<double*>(B),&LDB,&BETA,C,&LDC);
 
   }; // GEMM (real,real,real)
 
 
   template<>
   void Gemm(char TRANSA, char TRANSB, int M, int N, int K, dcomplex ALPHA,
-    dcomplex *A, int LDA, dcomplex *B, int LDB, dcomplex BETA, dcomplex *C, 
+    const dcomplex *A, int LDA, const dcomplex *B, int LDB, dcomplex BETA, dcomplex *C,
     int LDC){
 #ifdef _CQ_MKL
     zgemm(&TRANSA,&TRANSB,&M,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
 #else
     zgemm_(&TRANSA,&TRANSB,&M,&N,&K,reinterpret_cast<double*>(&ALPHA),
-      reinterpret_cast<double*>(A),&LDA,reinterpret_cast<double*>(B),&LDB,
+      const_cast<double*>(reinterpret_cast<const double*>(A)),&LDA,
+      const_cast<double*>(reinterpret_cast<const double*>(B)),&LDB,
       reinterpret_cast<double*>(&BETA),reinterpret_cast<double*>(C),&LDC);
 #endif
 
@@ -55,23 +57,28 @@ namespace ChronusQ {
 
   template<>
   void Gemm(char TRANSA, char TRANSB, int M, int N, int K, dcomplex ALPHA,
-    double *A, int LDA, dcomplex *B, int LDB, dcomplex BETA, dcomplex *C, 
+    const double *A, int LDA, const dcomplex *B, int LDB, dcomplex BETA, dcomplex *C,
     int LDC){
 #ifdef _CQ_MKL
     dzgemm(&TRANSA,&TRANSB,&M,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
 #else
-    assert( (TRANSA == 'N' or TRANSA == 'C') and (TRANSB == 'N' or TRANSB == 'C') );
+    assert( (TRANSA == 'N' or TRANSA == 'T' or TRANSA == 'C')
+            and (TRANSB == 'N' or TRANSB == 'T' or TRANSB == 'C') );
 
     int COLS_A = (TRANSA == 'N') ? K : N;
     int COLS_B = (TRANSB == 'N') ? N : K;
 
     Eigen::Map<
-      Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
+      const Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
     > AMap(A,LDA,COLS_A);
 
     Eigen::Map<
+      const Eigen::Matrix<dcomplex,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
+    > BMap(B,LDB,COLS_B);
+
+    Eigen::Map<
       Eigen::Matrix<dcomplex,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
-    > BMap(B,LDB,COLS_B), CMap(C,LDC,N);
+    > CMap(C,LDC,N);
 
     if(TRANSB == 'N') {
       if(TRANSA == 'N')
@@ -82,7 +89,7 @@ namespace ChronusQ {
         CMap.block(0,0,M,N).noalias() = 
           ALPHA * AMap.block(0,0,K,M).cast<dcomplex>().adjoint() *
           BMap.block(0,0,K,N) + BETA * CMap.block(0,0,M,N);
-    } else {
+    } else if(TRANSB == 'C') {
       if(TRANSA == 'N')
         CMap.block(0,0,M,N).noalias() = 
           ALPHA * AMap.block(0,0,M,K).cast<dcomplex>() *
@@ -91,6 +98,15 @@ namespace ChronusQ {
         CMap.block(0,0,M,N).noalias() = 
           ALPHA * AMap.block(0,0,K,M).cast<dcomplex>().adjoint() *
           BMap.block(0,0,N,K).adjoint() + BETA * CMap.block(0,0,M,N);
+    } else {
+      if(TRANSA == 'N')
+        CMap.block(0,0,M,N).noalias() =
+          ALPHA * AMap.block(0,0,M,K).cast<dcomplex>() *
+          BMap.block(0,0,N,K).transpose() + BETA * CMap.block(0,0,M,N);
+      else
+        CMap.block(0,0,M,N).noalias() =
+          ALPHA * AMap.block(0,0,K,M).cast<dcomplex>().adjoint() *
+          BMap.block(0,0,N,K).transpose() + BETA * CMap.block(0,0,M,N);
     }
 #endif
 

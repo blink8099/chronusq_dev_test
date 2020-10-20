@@ -40,6 +40,7 @@ namespace ChronusQ {
     std::vector<std::string> allowedKeywords = {
       "CHARGE",
       "MULT",
+      "READGEOM",
       "GEOM"
     };
 
@@ -63,7 +64,7 @@ namespace ChronusQ {
    *
    *  \returns Appropriate Molecule object for the input parameters
    */
-  Molecule CQMoleculeOptions(std::ostream &out, CQInputFile &input) {
+  Molecule CQMoleculeOptions(std::ostream &out, CQInputFile &input, std::string &scrName) {
 
     Molecule mol;
     
@@ -79,14 +80,32 @@ namespace ChronusQ {
       //CErr("Unable to set Molecular Spin Multiplicity!", out);
     }
 
-    // Parse Geometry
-    std::string geomStr;
-    try { geomStr = input.getData<std::string>("MOLECULE.GEOM"); }
+    // Parse Geometry Read Options
+    std::string geomReadStr;
+    try { geomReadStr = input.getData<std::string>("MOLECULE.READGEOM"); }
     catch (...) {
-      CErr("Unable to find Molecular Geometry!", out);
+      geomReadStr="INPUTFILE";
     }
 
+    // Parse Geometry
+    std::string geomStr;
+    if( geomReadStr == "INPUTFILE" ){
+      try { geomStr = input.getData<std::string>("MOLECULE.GEOM"); }
+      catch (...) {
+        CErr("Unable to find Molecular Geometry in Input File!", out);
+      }
+    }
 
+    // Parse different files depending on READGEOM
+    if( geomReadStr == "INPUTFILE" ) parseGeomInp(mol,geomStr,out);
+    else if( geomReadStr == "FCHK" ) parseGeomFchk(mol,scrName,out);
+    else CErr("INVALID OPTION FOR READGEOM KEYWORD!");
+
+    return mol; // Return Molecule object (no intermediates)
+
+  }; // CQMoleculeOptions
+
+  void parseGeomInp( Molecule &mol, std::string &geomStr, std::ostream &out ) {
 
     std::istringstream geomStream; geomStream.str(geomStr);
     std::vector<std::string> tokens;
@@ -133,15 +152,133 @@ namespace ChronusQ {
       
     }
 
+    if ( atoms.size() == 0 )
+      CErr("MOLECULE.GEOM must not be empty and must be indented");
     // Set the Atoms vector in Molecule (calls Molecule::update())
     mol.setAtoms(atoms);
 
     // Output Molecule data
     out << mol << std::endl;
 
-    return mol; // Return Molecule object (no intermediates)
+  } // parseGeomInp
 
-  }; // CQMoleculeOptions
+  void parseGeomFchk( Molecule &mol, std::string &fchkName, std::ostream &out ) {
+
+    std::ifstream fchkFile;
+    std::vector<Atom> atoms;
+    fchkFile.open(fchkName);
+
+    if ( fchkFile.good() ){
+      std::cout << "fchkFile found in parseGeomFchk" << "\n";
+    }else{
+      CErr("Could not find fchkFile. Use -s flag.");
+    }
+
+    // Boolean used for fchk reading
+    bool readAtNum=false, readCoord=false;
+    // Counter for atomic coordinates
+    int coordCount=0, atomCount=0;
+
+    // TODO: Add non-default isotopes
+    // Parse fchk file
+    while( not fchkFile.eof() ) {
+
+      std::string line;
+      std::getline(fchkFile,line);
+
+      // Determine position of first and last non-space character
+      size_t firstNonSpace = line.find_first_not_of(" ");
+
+      // Skip blank lines
+      if( firstNonSpace == std::string::npos ) continue;
+
+      // Strip trailing spaces
+      trim_right(line);
+      line =
+         line.substr(firstNonSpace,line.length()-firstNonSpace);
+
+      // Split the line into tokens, trim spaces
+      std::vector<std::string> tokens;
+      split(tokens,line,"   ");
+      for(auto &X : tokens) { trim(X); }
+
+      // Finding atomic number in fchk file
+      if ( tokens.size() > 4 ){
+        if ( tokens[0] == "Atomic" and tokens[1] == "numbers" ){
+          readAtNum = true;
+          continue;
+        }
+      }
+
+      // Ending atomic number in fchk file
+      if ( tokens.size() > 4 ){
+        if ( tokens[0] == "Nuclear" and tokens[1] == "charges" ){
+          readAtNum = false;
+          continue;
+        }
+      }
+
+      // Finding coordinates in fchk file
+      if ( tokens.size() > 4 ){
+        if ( tokens[0] == "Current" and tokens[1] == "cartesian" ){
+          readCoord = true;
+          continue;
+        }
+      }
+
+      // Ending atomic number in fchk file
+      if ( tokens.size() > 5 ){
+        if ( tokens[2] == "symbols" and tokens[3] == "in" ){
+          readCoord = false;
+          continue;
+        }
+      }
+
+      // Read in atomic numbers
+      if ( readAtNum ){
+        for(int i=0; i<tokens.size(); i++){
+
+          auto it =
+          std::find_if(atomicReference.begin(),atomicReference.end(),
+            [&](std::pair<std::string,Atom> st){
+              return st.second.atomicNumber == std::stoi(tokens[i]);}
+             );
+
+          // Atomic symbols are currently the first isotope listed in atomicReference
+          // Trimming everything after the hyphen and passing into defaultIsotope
+          std::string atmSymb = it->first.substr(0,it->first.find("-",0));
+
+          atoms.emplace_back((it == atomicReference.end() ? "X" : defaultIsotope[atmSymb]));
+
+        }
+      } // Read in atomic numbers
+
+      // Read in cartesian coordinates from fchk (in Bohr)
+      if ( readCoord ){
+        for(int i=0; i<tokens.size(); i++){
+
+          atoms[atomCount].coord[coordCount] = std::stod(tokens[i]);
+
+          coordCount = coordCount + 1;
+
+          // Reset for x, y, z
+          if( coordCount == 3 ){
+            coordCount = 0;
+            atomCount = atomCount + 1;
+          }
+
+        }
+      } // Read in cartesian coordinates
+
+    } // End of fchk file parsing
+
+    // Set the Atoms vector in Molecule (calls Molecule::update())
+    mol.setAtoms(atoms);
+
+    // Output Molecule data
+    out << mol << std::endl;
+
+  } // parseGeomFchk
 
 }; // namespace ChronusQ
 

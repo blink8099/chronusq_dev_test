@@ -21,6 +21,7 @@
 #   E-Mail: xsli@uw.edu
 #
 add_library(basisset STATIC reference.cxx basisset.cxx basisset_eval.cxx)
+target_link_libraries ( basisset PUBLIC ChronusQ::Libint2 )
 
 if(TARGET libint)
   add_dependencies(basisset libint)

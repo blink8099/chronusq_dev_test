@@ -24,17 +24,9 @@
 #pragma once
 
 #define SPIN_OPERATOR_ALLOC(NB,X) \
-  /* Always allocate Scalar matricies */ \
-  X.emplace_back(this->memManager.template malloc<MatsT>(NB*NB)); \
-  \
-  /* If 2C or open shell, populate Mz storage */ \
-  if(this->nC > 1 or not this->iCS) \
-    X.emplace_back(this->memManager.template malloc<MatsT>(NB*NB)); \
-  \
-  /* If 2C, populate My / Mx */ \
-  if(this->nC > 1) { \
-    X.emplace_back(this->memManager.template malloc<MatsT>(NB*NB)); \
-    X.emplace_back(this->memManager.template malloc<MatsT>(NB*NB)); \
-  }
-
-
+  if(this->nC > 1) \
+    X = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true); \
+  else if (not this->iCS) \
+    X = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false); \
+  else \
+    X = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false)

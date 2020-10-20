@@ -28,15 +28,12 @@
 #include <memmanager.hpp>
 #include <basisset.hpp>
 #include <fields.hpp>
-#include <aointegrals.hpp>
+#include <integrals.hpp>
 
 namespace ChronusQ {
 
-  struct X2C_TYPE {
-    bool atomic;
-    bool isolateAtom;
-    bool diagonalOnly;
-  };
+  template <typename MatsT, typename IntsT>
+  class AtomicX2C;
 
   /**
    *  \brief The X2C class. A class to compute X2C Core Hamiltonian.
@@ -47,21 +44,23 @@ namespace ChronusQ {
 
     template <typename MatsU, typename IntsU>
     friend class X2C;
+    template <typename MatsU, typename IntsU>
+    friend class AtomicX2C;
 
   protected:
 
-    CQMemManager      &memManager_;        ///< CQMemManager to allocate matricies
-    Molecule           molecule_;          ///< Molecule object for nuclear potential
-    BasisSet           basisSet_;          ///< BasisSet for original basis defintion
-    BasisSet           uncontractedBasis_; ///< BasisSet for uncontracted basis defintion
-    AOIntegrals<IntsT> uncontractedInts_;  ///< AOIntegrals for uncontracted basis
-    size_t             nPrimUse_;          ///< Number of primitives used in p space
+    CQMemManager    &memManager_;        ///< CQMemManager to allocate matricies
+    Molecule         molecule_;          ///< Molecule object for nuclear potential
+    BasisSet         basisSet_;          ///< BasisSet for original basis defintion
+    BasisSet         uncontractedBasis_; ///< BasisSet for uncontracted basis defintion
+    Integrals<IntsT> uncontractedInts_;  ///< AOIntegrals for uncontracted basis
+    size_t           nPrimUse_;          ///< Number of primitives used in p space
 
   public:
 
     // Operator storage
     IntsT*  mapPrim2Cont = nullptr;
-    MatsT*  W  = nullptr; ///< W = (\sigma p) V (\sigma p)
+    std::shared_ptr<SquareMatrix<MatsT>> W  = nullptr; ///< W = (\sigma p) V (\sigma p)
     IntsT*  UK = nullptr; ///< K transformation between p- and R-space
     double* p  = nullptr; ///< p momentum eigens
     MatsT*  X  = nullptr; ///< X = S * L^-1
@@ -86,39 +85,19 @@ namespace ChronusQ {
      *  \param [in] memManager Memory manager for matrix allocation
      *  \param [in] mol        Molecule object for molecular specification
      *  \param [in] basis      The GTO basis for integral evaluation
+     *  \param [in] scalarOnly Flag for scalar relativistic calculation
      */
-    X2C(AOIntegrals<IntsT> &aoints, CQMemManager &mem,
-        const Molecule &mol, const BasisSet &basis) :
-      CoreHBuilder<MatsT,IntsT>(aoints, {true,true,true}),
+    X2C(Integrals<IntsT> &aoints, CQMemManager &mem,
+        const Molecule &mol, const BasisSet &basis, AOIntsOptions aoiOptions) :
+      CoreHBuilder<MatsT,IntsT>(aoints, aoiOptions),
       memManager_(mem),molecule_(mol), basisSet_(basis),
-      uncontractedBasis_(basisSet_.uncontractBasis()),
-      uncontractedInts_(memManager_,molecule_,uncontractedBasis_) {}
-
-    /**
-     * \brief Constructor
-     *
-     *  \param [in] aoints     Reference to the global AOIntegrals
-     */
-    X2C(AOIntegrals<IntsT> &aoints) :
-      X2C(aoints, aoints.memManager(), aoints.molecule(), aoints.basisSet()) {}
+      uncontractedBasis_(basisSet_.uncontractBasis()) {}
 
     // Different type
     template <typename MatsU>
-    X2C(const X2C<MatsU,IntsT> &other, int dummy = 0) :
-      CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
-      molecule_(other.molecule_), basisSet_(other.basisSet_),
-      uncontractedBasis_(other.uncontractedBasis_),
-      uncontractedInts_(other.uncontractedInts_) {
-      CErr("X2C MatsT should always be dcomplex.",std::cout);
-    }
+    X2C(const X2C<MatsU,IntsT> &other, int dummy = 0);
     template <typename MatsU>
-    X2C(X2C<MatsU,IntsT> &&     other, int dummy = 0) :
-      CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
-      molecule_(other.molecule_), basisSet_(other.basisSet_),
-      uncontractedBasis_(other.uncontractedBasis_),
-      uncontractedInts_(other.uncontractedInts_) {
-      CErr("X2C MatsT should always be dcomplex.",std::cout);
-    }
+    X2C(X2C<MatsU,IntsT> &&     other, int dummy = 0);
 
     /**
      *  Destructor.
@@ -131,28 +110,25 @@ namespace ChronusQ {
     // Public Member functions
 
     // Deallocation (see include/x2c/impl.hpp for docs)
-    void dealloc();
+    virtual void dealloc();
 
     // Compute core Hamitlonian
-    void computeU();
-    virtual void computeCoreH(EMPerturbation&, std::vector<MatsT*>&);
+    virtual void computeCoreH(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    virtual void computeX2C(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    virtual void computeU();
+    virtual void computeX2C_UDU(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    virtual void computeX2C_corr(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    void BoettgerScale(std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
 
     // Compute the gradient
     virtual void getGrad() {
       CErr("X2C CoreH gradient NYI",std::cout);
     }
 
-  protected:
-
-    // Compute One-electron integrals
-    virtual void computeAOOneE(EMPerturbation&);
-    virtual void computeX2C(EMPerturbation&, std::vector<MatsT*>&);
-    virtual void computeX2C_UDU(EMPerturbation&, std::vector<MatsT*>&);
-
   };
-
-  template <typename T>
-  void formW(size_t NP, dcomplex *W, size_t LDW, T* pVdotP, size_t LDD, T* pVxPZ,
-    size_t LDZ, T* pVxPY, size_t LDY, T* pVxPX, size_t LDX);
 
 }; // namespace ChronusQ

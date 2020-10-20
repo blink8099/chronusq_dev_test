@@ -30,27 +30,27 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::populationAnalysis() {
 
-    const size_t NB = this->aoints.basisSet().nBasis;
+    const size_t NB = basisSet().nBasis;
     MatsT* SCR  = this->memManager.template malloc<MatsT>(NB*NB);
     MatsT* SCR2 = this->memManager.template malloc<MatsT>(NB*NB);
 
     // Mulliken population analysis
     mullikenCharges.clear();
 
-    Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap,NB,this->onePDM[SCALAR],NB,
-      MatsT(0.),SCR,NB);
+    Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+         this->onePDM->S().pointer(),NB,MatsT(0.),SCR,NB);
 
-    for(auto iAtm = 0; iAtm < this->aoints.molecule().nAtoms; iAtm++) {
+    for(auto iAtm = 0; iAtm < this->molecule().nAtoms; iAtm++) {
 
       size_t iEnd;
-      if( iAtm == this->aoints.molecule().nAtoms-1 )
+      if( iAtm == this->molecule().nAtoms-1 )
         iEnd = NB;
       else
-        iEnd = this->aoints.basisSet().mapCen2BfSt[iAtm+1];
+        iEnd = basisSet().mapCen2BfSt[iAtm+1];
 
-      size_t iSt = this->aoints.basisSet().mapCen2BfSt[iAtm];
+      size_t iSt = basisSet().mapCen2BfSt[iAtm];
 
-      mullikenCharges.emplace_back(this->aoints.molecule().atoms[iAtm].atomicNumber);
+      mullikenCharges.emplace_back(this->molecule().atoms[iAtm].atomicNumber);
       for(auto i = iSt; i < iEnd; i++)
         mullikenCharges.back() -= std::real(SCR[i*(NB+1)]);
     } 
@@ -65,19 +65,19 @@ namespace ChronusQ {
     Gemm('N','C',NB,NB,NB,T(1.),this->aoints.ortho1,NB,SCR2,NB,T(0.),SCR,NB);
 */
 
-    for(auto iAtm = 0; iAtm < this->aoints.molecule().nAtoms; iAtm++) {
+    for(auto iAtm = 0; iAtm < this->molecule().nAtoms; iAtm++) {
 
       size_t iEnd;
-      if( iAtm == this->aoints.molecule().nAtoms-1 )
+      if( iAtm == this->molecule().nAtoms-1 )
         iEnd = NB;
       else
-        iEnd = this->aoints.basisSet().mapCen2BfSt[iAtm+1];
+        iEnd = basisSet().mapCen2BfSt[iAtm+1];
 
-      size_t iSt = this->aoints.basisSet().mapCen2BfSt[iAtm];
+      size_t iSt = basisSet().mapCen2BfSt[iAtm];
 
-      lowdinCharges.emplace_back(this->aoints.molecule().atoms[iAtm].atomicNumber);
+      lowdinCharges.emplace_back(this->molecule().atoms[iAtm].atomicNumber);
       for(auto i = iSt; i < iEnd; i++)
-        lowdinCharges.back() -= std::real(this->onePDMOrtho[SCALAR][i*(NB+1)]);
+        lowdinCharges.back() -= std::real(this->onePDMOrtho->S()(i,i));
     } 
 
 

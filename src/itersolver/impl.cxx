@@ -48,4 +48,7 @@ namespace ChronusQ {
 
   template class GPLHR<double>;
   template class GPLHR<dcomplex>;
+  
+  template class Davidson<double>;
+  template class Davidson<dcomplex>;
 };

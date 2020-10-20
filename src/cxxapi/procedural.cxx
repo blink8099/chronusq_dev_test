@@ -37,7 +37,7 @@
 #include <cerr.hpp>
 #include <molecule.hpp>
 #include <basisset.hpp>
-#include <aointegrals.hpp>
+#include <integrals.hpp>
 #include <singleslater.hpp>
 #include <response.hpp>
 #include <realtime.hpp>
@@ -60,6 +60,10 @@ namespace ChronusQ {
   void RunChronusQ(std::string inFileName,
     std::string outFileName, std::string rstFileName,
     std::string scrFileName) {
+
+    // Check to make sure input and output file name are different.
+    if( inFileName == outFileName )
+      CErr("Input file name and output file name cannot be identical.");
 
     int rank = MPIRank();
     int size = MPISize();
@@ -139,12 +143,13 @@ namespace ChronusQ {
 
 
     // Create Molecule and BasisSet objects
-    Molecule mol(std::move(CQMoleculeOptions(output,input)));
-    BasisSet basis(std::move(CQBasisSetOptions(output,input,mol)));
+    Molecule mol(std::move(CQMoleculeOptions(output,input,scrFileName)));
+    std::shared_ptr<BasisSet> basis = CQBasisSetOptions(output,input,mol,"BASIS");
+    std::shared_ptr<BasisSet> dfbasis = CQBasisSetOptions(output,input,mol,"DFBASIS");
 
+    auto aoints = CQIntsOptions(output,input,*memManager,basis,dfbasis);
 
-    auto aoints = CQIntsOptions(output,input,*memManager,mol,basis);
-    auto ss = CQSingleSlaterOptions(output,input,aoints);
+    auto ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
 
     // EM Perturbation for SCF
     EMPerturbation emPert;
@@ -157,6 +162,8 @@ namespace ChronusQ {
     if( ss->scfControls.guess == READMO or 
         ss->scfControls.guess == READDEN ) 
       rstExists = true;
+    if( ss->scfControls.guess == FCHKMO )
+      ss->fchkFileName = scrFileName;
 
     // Create the restart and scratch files
     SafeFile rstFile(rstFileName, rstExists);
@@ -177,7 +184,12 @@ namespace ChronusQ {
       ss->formCoreH(emPert);
 
       // If INCORE, compute and store the ERIs
-      if(aoints->contrAlg == INCORE) aoints->computeERI(emPert);
+      if(auto p = std::dynamic_pointer_cast<Integrals<double>>(aoints))
+        p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION,
+                              {basis->basisType, false, false, false});
+      else if(auto p = std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints))
+        p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION,
+                              {basis->basisType, false, false, false});
 
       ss->formGuess();
       ss->SCF(emPert);

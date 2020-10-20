@@ -26,30 +26,10 @@
 #include <singleslater.hpp>
 #include <util/preprocessor.hpp>
 #include <quantum/preprocessor.hpp>
-#include <corehbuilder/nonrel.hpp>
-#include <corehbuilder/fourcomp.hpp>
-#include <corehbuilder/x2c.hpp>
-
-// Template for a collective operation on the members of a 
-// SingleSlater object
-  
-
-// FIXME: For copy and move, this only populates the lists, not the
-// explicit pointers
-#define SingleSlater_COLLECTIVE_OP(OP_OP,OP_VEC_OP) \
-  /* Handle Operators */\
-  OP_VEC_OP(MatsT,this,other,memManager,fockMatrix); \
-  OP_VEC_OP(MatsT,this,other,memManager,fockMatrixOrtho); \
-  OP_OP(MatsT,this,other,memManager,coulombMatrix); \
-  OP_VEC_OP(MatsT,this,other,memManager,exchangeMatrix); \
-  OP_VEC_OP(MatsT,this,other,memManager,twoeH);\
-  OP_VEC_OP(MatsT,this,other,memManager,onePDMOrtho);\
-  OP_VEC_OP(MatsT,this,other,memManager,curOnePDM);\
-  OP_VEC_OP(MatsT,this,other,memManager,deltaOnePDM);\
-  OP_OP(MatsT,this,other,memManager,ortho1);\
-  OP_OP(MatsT,this,other,memManager,ortho2);\
-  OP_VEC_OP(MatsT,this,other,memManager,coreH);\
-  OP_VEC_OP(MatsT,this,other,memManager,coreHPerturbed);
+#include <corehbuilder/impl.hpp>
+#include <electronintegrals/squarematrix/impl.hpp>
+#include <electronintegrals/twoeints/impl.hpp>
+#include <fockbuilder/rofock.hpp>
 
 namespace ChronusQ {
 
@@ -69,16 +49,30 @@ namespace ChronusQ {
     WaveFunctionBase(dynamic_cast<const WaveFunctionBase&>(other)),
     SingleSlaterBase(dynamic_cast<const SingleSlaterBase&>(other)),
     WaveFunction<MatsT,IntsT>(dynamic_cast<const WaveFunction<MatsU,IntsT>&>(other)),
+    basisSet_(other.basisSet_),
+    fockMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.fockMatrix)),
+    fockMatrixOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.fockMatrixOrtho)),
+    coulombMatrix(std::make_shared<SquareMatrix<MatsT>>(*other.coulombMatrix)),
+    exchangeMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.exchangeMatrix)),
+    twoeH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.twoeH)),
+    onePDMOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.onePDMOrtho)),
+    curOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.curOnePDM)),
+    deltaOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.deltaOnePDM)),
+    coreH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.coreH)),
+    coreHPerturbed(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.coreHPerturbed)),
+    ERI(ERIContractions<MatsU,IntsT>::template convert<MatsT>(other.ERI)),
     coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
-    fockBuilder(std::make_shared<FockBuilder<MatsT,IntsT>>(*other.fockBuilder)) {
+    fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)) {
+
+    ortho.reserve(2);
+    for (const SquareMatrix<MatsU> &mat : other.ortho)
+      ortho.emplace_back(mat);
 
 #ifdef _SingleSlaterDebug
     std::cout << "SingleSlater<MatsT>::SingleSlater(const SingleSlater<U>&) "
               << "(this = " << this << ", other = " << &other << ")" 
               << std::endl;
 #endif
-
-    SingleSlater_COLLECTIVE_OP(COPY_OTHER_MEMBER_OP, COPY_OTHER_MEMBER_VEC_OP);
 
   }; // SingleSlater<MatsT>::SingleSlater(const SingleSlater<U> &)
 
@@ -102,16 +96,30 @@ namespace ChronusQ {
     WaveFunctionBase(dynamic_cast<WaveFunctionBase&&>(std::move(other))),
     SingleSlaterBase(dynamic_cast<SingleSlaterBase&&>(std::move(other))),
     WaveFunction<MatsT,IntsT>(dynamic_cast<WaveFunction<MatsU,IntsT>&&>(std::move(other))),
+    basisSet_(other.basisSet_),
+    fockMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.fockMatrix))),
+    fockMatrixOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.fockMatrixOrtho))),
+    coulombMatrix(std::make_shared<SquareMatrix<MatsT>>(std::move(*other.coulombMatrix))),
+    exchangeMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.exchangeMatrix))),
+    twoeH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.twoeH))),
+    onePDMOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.onePDMOrtho))),
+    curOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.curOnePDM))),
+    deltaOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.deltaOnePDM))),
+    coreH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.coreH))),
+    coreHPerturbed(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.coreHPerturbed))),
+    ERI(ERIContractions<MatsU,IntsT>::template convert<MatsT>(other.ERI)),
     coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
-    fockBuilder(std::make_shared<FockBuilder<MatsT,IntsT>>(*other.fockBuilder)) {
+    fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)) {
+
+    ortho.reserve(2);
+    for (SquareMatrix<MatsU> &mat : other.ortho)
+      ortho.emplace_back(std::move(mat));
 
 #ifdef _SingleSlaterDebug
     std::cout << "SingleSlater<MatsT>::SingleSlater(SingleSlater<U>&&) "
               << "(this = " << this << ", other = " << &other << ")" 
               << std::endl;
 #endif
-
-    SingleSlater_COLLECTIVE_OP(MOVE_OTHER_MEMBER_OP, MOVE_OTHER_MEMBER_VEC_OP);
 
   }; // SingleSlater<MatsT>::SingleSlater(SingleSlater<U> &&)
 
@@ -135,19 +143,21 @@ namespace ChronusQ {
     std::cout << "SingleSlater::alloc (this = " << this << ")" << std::endl;
 #endif
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
 
     SPIN_OPERATOR_ALLOC(NB,fockMatrix);
     SPIN_OPERATOR_ALLOC(NB,fockMatrixOrtho);
+    SPIN_OPERATOR_ALLOC(NB,onePDMOrtho);
+    SPIN_OPERATOR_ALLOC(NB,coreHPerturbed);
+
+    ortho.reserve(2);
+    ortho.emplace_back(memManager, NB);
+    ortho.emplace_back(memManager, NB);
+
     SPIN_OPERATOR_ALLOC(NB,exchangeMatrix);
     SPIN_OPERATOR_ALLOC(NB,twoeH);
-    SPIN_OPERATOR_ALLOC(NB,onePDMOrtho);
-    //SPIN_OPERATOR_ALLOC(NB,coreH);
-    //SPIN_OPERATOR_ALLOC(NB,coreHPerturbed);
-//    SPIN_OPERATOR_ALLOC(NB,ortho1);
-//    SPIN_OPERATOR_ALLOC(NB,ortho2);
 
-    coulombMatrix = memManager.template malloc<MatsT>(NB*NB);
+    coulombMatrix = std::make_shared<SquareMatrix<MatsT>>(memManager, NB);
 
     SPIN_OPERATOR_ALLOC(NB,curOnePDM);
     SPIN_OPERATOR_ALLOC(NB,deltaOnePDM);
@@ -165,7 +175,20 @@ namespace ChronusQ {
     std::cout << "SingleSlater::dealloc (this = " << this << ")" << std::endl;
 #endif
 
-    SingleSlater_COLLECTIVE_OP(DEALLOC_OP_5, DEALLOC_VEC_OP_5);
+    fockMatrix = nullptr;
+    fockMatrixOrtho = nullptr;
+    onePDMOrtho = nullptr;
+    coreHPerturbed = nullptr;
+
+    ortho.clear();
+
+    exchangeMatrix = nullptr;
+    twoeH = nullptr;
+
+    coulombMatrix = nullptr;
+
+    curOnePDM = nullptr;
+    deltaOnePDM = nullptr;
 
   }; // SingleSlater<MatsT>::dealloc
 
@@ -180,10 +203,10 @@ namespace ChronusQ {
 #include <singleslater/extrap.hpp>    // Extrapolate header
 #include <singleslater/print.hpp>     // Print header
 #include <singleslater/pop.hpp>       // Population analysis
+#include <singleslater/fchk.hpp>      // Fchk-specific header
 
 #include <singleslater/kohnsham/impl.hpp> // KS headers
 #include <singleslater/kohnsham/fxc.hpp> // KS headers
-#include <singleslater/ortho.hpp>
 
 #include <singleslater/hartreefock/scf.hpp> 
 #include <singleslater/kohnsham/scf.hpp>  

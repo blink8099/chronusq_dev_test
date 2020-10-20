@@ -24,9 +24,20 @@
 #include <cxxapi/options.hpp>
 #include <cerr.hpp>
 
-#include <aointegrals/print.hpp>
+#include <electronintegrals/print.hpp>
+#include <electronintegrals/twoeints.hpp>
+#include <electronintegrals/twoeints/incore4indexeri.hpp>
+#include <electronintegrals/twoeints/gtodirecteri.hpp>
+#include <electronintegrals/twoeints/giaodirecteri.hpp>
+#include <electronintegrals/twoeints/incorerieri.hpp>
 
 namespace ChronusQ {
+
+  enum class CONTRACTION_ALGORITHM {
+    DIRECT,
+    INCORE,
+    DENFIT
+  }; ///< 2-e Integral Contraction Algorithm
 
   /**
    *
@@ -38,7 +49,14 @@ namespace ChronusQ {
     // Allowed keywords
     std::vector<std::string> allowedKeywords = {
       "ALG",
-      "SCHWARTZ"
+      "SCHWARTZ",
+      "RI",
+      "CDRI_THRESHOLD",
+      "FINITE_NUCLEI",
+      "DC",
+      "DCB",
+      "SSSS",
+      "GAUGE"
     };
 
     // Specified keywords
@@ -63,39 +81,80 @@ namespace ChronusQ {
    *
    *
    */ 
-  std::shared_ptr<AOIntegralsBase> CQIntsOptions(std::ostream &out, 
-    CQInputFile &input, CQMemManager &mem, Molecule &mol, BasisSet &basis) {
-
-
-
-    std::shared_ptr<AOIntegralsBase> aoi = nullptr;
-
-    if(basis.basisType == REAL_GTO)
-      aoi = std::dynamic_pointer_cast<AOIntegralsBase>(
-          std::make_shared<AOIntegrals<double>>(mem,mol,basis)
-        );
-    else if(basis.basisType == COMPLEX_GIAO)
-      aoi = std::dynamic_pointer_cast<AOIntegralsBase>(
-          std::make_shared<AOIntegrals<dcomplex>>(mem,mol,basis)
-        );
-
-
+  std::shared_ptr<IntegralsBase> CQIntsOptions(std::ostream &out, 
+      CQInputFile &input, CQMemManager &mem,
+      std::shared_ptr<BasisSet> basis, std::shared_ptr<BasisSet> dfbasis) {
 
     // Parse integral algorithm
     std::string ALG = "DIRECT";
     OPTOPT( ALG = input.getData<std::string>("INTS.ALG"); )
     trim(ALG);
 
+    // Control Variables
+    CONTRACTION_ALGORITHM contrAlg = CONTRACTION_ALGORITHM::DIRECT; ///< Alg for 2-body contraction
+    double threshSchwartz = 1e-12; ///< Schwartz screening threshold
+    std::string RI = "FALSE"; ///< RI algorithm
+    double CDRI_thresh = 1e-4; ///< Cholesky RI threshold
+
     if( not ALG.compare("DIRECT") )
-      aoi->contrAlg = CONTRACTION_ALGORITHM::DIRECT;
+      contrAlg = CONTRACTION_ALGORITHM::DIRECT;
     else if( not ALG.compare("INCORE") )
-      aoi->contrAlg = CONTRACTION_ALGORITHM::INCORE;
+      contrAlg = CONTRACTION_ALGORITHM::INCORE;
     else
       CErr(ALG + "not a valid INTS.ALG",out);
 
     // Parse Schwartz threshold
-    OPTOPT( aoi->threshSchwartz = input.getData<double>("INTS.SCHWARTZ"); )
+    OPTOPT( threshSchwartz = input.getData<double>("INTS.SCHWARTZ"); )
 
+    // Parse RI option
+    OPTOPT( RI = input.getData<std::string>("INTS.RI");)
+    trim(RI);
+
+    if( not RI.compare("AUXBASIS") and not RI.compare("CHOLESKY") and not RI.compare("FALSE") )
+      CErr(RI + " not a valid INTS.RI",out);
+
+    if(RI.compare("FALSE") and contrAlg != CONTRACTION_ALGORITHM::INCORE) {
+      contrAlg = CONTRACTION_ALGORITHM::INCORE;
+      std::cout << "Incore ERI algorithm enforced by RI." << std::endl;
+    }
+    if(not RI.compare("AUXBASIS") and dfbasis->nBasis < 1)
+      CErr("Keyword INTS.RI requires a non-empty DFbasis->",std::cout);
+    if(not RI.compare("CHOLESKY"))
+      OPTOPT( CDRI_thresh = input.getData<double>("INTS.CDRI_THRESHOLD"); )
+
+    std::shared_ptr<IntegralsBase> aoi = nullptr;
+
+    if(basis->basisType == REAL_GTO) {
+      std::shared_ptr<Integrals<double>> aoint =
+          std::make_shared<Integrals<double>>();
+      if(not RI.compare("AUXBASIS"))
+        aoint->ERI =
+            std::make_shared<InCoreAuxBasisRIERI<double>>(mem,basis->nBasis,dfbasis);
+      else if (not RI.compare("CHOLESKY"))
+        aoint->ERI =
+            std::make_shared<InCoreCholeskyRIERI<double>>(mem,basis->nBasis,CDRI_thresh);
+      else if (contrAlg == CONTRACTION_ALGORITHM::INCORE)
+        aoint->ERI =
+            std::make_shared<InCore4indexERI<double>>(mem,basis->nBasis);
+      else
+        aoint->ERI =
+            std::make_shared<DirectERI<double>>(mem,*basis,threshSchwartz);
+
+      aoi = std::dynamic_pointer_cast<IntegralsBase>(aoint);
+    } else if(basis->basisType == COMPLEX_GIAO) {
+      std::shared_ptr<Integrals<dcomplex>> giaoint =
+          std::make_shared<Integrals<dcomplex>>();
+      if(RI.compare("FALSE"))
+        CErr("GIAO resolution of identity ERI NYI",std::cout);
+      else if (contrAlg == CONTRACTION_ALGORITHM::INCORE)
+        giaoint->ERI =
+            std::make_shared<InCore4indexERI<dcomplex>>(mem,basis->nBasis);
+      else
+        giaoint->ERI =
+            std::make_shared<DirectERI<dcomplex>>(mem,*basis,threshSchwartz);
+
+      aoi = std::dynamic_pointer_cast<IntegralsBase>(giaoint);
+    }
 
     // Print
     out <<  *aoi << std::endl;

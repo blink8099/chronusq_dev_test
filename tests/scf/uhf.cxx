@@ -54,6 +54,20 @@ TEST( UHF, RbHe_sto3G ) {
 
 };
 
+// KCaKrK sto-3g test for fchk parsing
+TEST( UHF, KCaKrK_sto3G ) {
+
+  CQSCFFCHKTEST( "scf/serial/uhf/KCaKrK_sto-3G", "KCaKrK_sto-3G.bin.ref", "KCaKrK_sto-3G.fchk" );
+
+};
+
+// H atom 3-21g post-scf test
+TEST( UHF, H_321G ) {
+
+  CQSCFTEST( "scf/serial/uhf/H_3-21G", "H_3-21G.bin.ref" );
+
+};
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Li 6-31G(d) test

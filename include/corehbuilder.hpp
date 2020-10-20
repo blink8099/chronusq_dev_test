@@ -25,7 +25,7 @@
 
 #include <fields.hpp>
 #include <singleslater.hpp>
-#include <aointegrals.hpp>
+#include <integrals.hpp>
 
 namespace ChronusQ {
 
@@ -39,8 +39,8 @@ namespace ChronusQ {
     friend class CoreHBuilder;
 
   protected:
-    AOIntegrals<IntsT> &aoints_;
-    OneETerms           oneETerms_; ///< One electron terms to be computed
+    Integrals<IntsT> &aoints_;
+    AOIntsOptions     aoiOptions_; ///< One electron terms to be computed
 
   public:
 
@@ -48,16 +48,16 @@ namespace ChronusQ {
 
     // Disable default constructor
     CoreHBuilder() = delete;
-    CoreHBuilder(AOIntegrals<IntsT> &aoints, OneETerms oneETerms):
-      aoints_(aoints), oneETerms_(oneETerms) {}
+    CoreHBuilder(Integrals<IntsT> &aoints, AOIntsOptions aoiOptions):
+      aoints_(aoints), aoiOptions_(aoiOptions) {}
 
     // Same or Different type
     template <typename MatsU>
     CoreHBuilder(const CoreHBuilder<MatsU,IntsT> &other):
-      aoints_(other.aoints_), oneETerms_(other.oneETerms_) {}
+      aoints_(other.aoints_), aoiOptions_(other.aoiOptions_) {}
     template <typename MatsU>
     CoreHBuilder(CoreHBuilder<MatsU,IntsT> &&other):
-      aoints_(other.aoints_), oneETerms_(other.oneETerms_) {}
+      aoints_(other.aoints_), aoiOptions_(other.aoiOptions_) {}
 
     // Virtual destructor
     virtual ~CoreHBuilder() {}
@@ -66,7 +66,8 @@ namespace ChronusQ {
     // Public member functions
 
     // Compute various core Hamitlonian
-    virtual void computeCoreH(EMPerturbation &, std::vector<MatsT*>&) = 0;
+    virtual void computeCoreH(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>) = 0;
 
     // Compute the gradient
     virtual void getGrad() = 0;

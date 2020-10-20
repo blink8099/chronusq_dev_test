@@ -22,7 +22,7 @@
  *  
  */
 
-
+#include <cxxapi/input.hpp>
 #include <cxxapi/procedural.hpp>
 #include <cxxapi/boilerplate.hpp>
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
   } else { // Variable Argc
 
     int c;
-    while((c = getopt(argc,argv,"i:o:b:z:")) != -1) {
+    while((c = getopt(argc,argv,"i:o:b:z:s:")) != -1) {
       switch(c) {
         case('i'):
           inFileName = optarg;
@@ -75,6 +75,9 @@ int main(int argc, char *argv[]) {
           break;
         case('z'):
           oldRstFileName = optarg;
+          break;
+        case('s'):
+          scrFileName = optarg;
           break;
         default:
           abort();

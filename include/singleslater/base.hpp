@@ -25,7 +25,7 @@
 
 #include <chronusq_sys.hpp>
 #include <wavefunction/base.hpp>
-#include <aointegrals.hpp>
+#include <integrals.hpp>
 #include <fields.hpp>
 #include <util/files.hpp>
 
@@ -46,7 +46,8 @@ namespace ChronusQ {
     SAD,
     RANDOM,
     READMO,
-    READDEN
+    READDEN,
+    FCHKMO
   };
 
   /**
@@ -62,7 +63,8 @@ namespace ChronusQ {
    */
   enum SCF_ALG {
     _CONVENTIONAL_SCF,
-    _NEWTON_RAPHSON_SCF
+    _NEWTON_RAPHSON_SCF,
+    _SKIP_SCF
   };
 
   /**
@@ -111,7 +113,6 @@ namespace ChronusQ {
 
     // Printing
     bool printMOCoeffs = false;
-    bool resetMOCoeffs = false;
 
   }; // SCFControls struct
 
@@ -154,6 +155,9 @@ namespace ChronusQ {
 
     // Save / Restart File
     SafeFile savFile;
+
+    // Fchk File
+    std::string fchkFileName;
        
     // Print Controls
     size_t printLevel; ///< Print Level

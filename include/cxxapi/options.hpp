@@ -28,7 +28,7 @@
 
 #include <molecule.hpp>
 #include <basisset.hpp>
-#include <aointegrals.hpp>
+#include <integrals.hpp>
 #include <singleslater.hpp>
 #include <realtime.hpp>
 #include <response.hpp>
@@ -43,19 +43,26 @@ namespace ChronusQ {
   // See src/cxxapi/input/*opts.cxx for documentation
 
   // Parse the options relating to the Molecule object
-  Molecule CQMoleculeOptions(std::ostream &, CQInputFile &);
+  Molecule CQMoleculeOptions(std::ostream &, CQInputFile &, std::string &);
 
   void CQMOLECULE_VALID(std::ostream&, CQInputFile &);
-  // Parse the options relating to the BasisSet
-  BasisSet CQBasisSetOptions(std::ostream &, CQInputFile &, 
-    Molecule &);
 
-  void CQBASIS_VALID(std::ostream&, CQInputFile &);
+  void parseGeomInp(Molecule &, std::string &, std::ostream &);
+
+  void parseGeomFchk(Molecule &, std::string &, std::ostream &);
+
+  // Parse the options relating to the BasisSet
+  std::shared_ptr<BasisSet> CQBasisSetOptions(std::ostream &, CQInputFile &,
+    Molecule &, std::string);
+
+  void CQBASIS_VALID(std::ostream&, CQInputFile &, std::string);
 
   // Parse the options relating to the SingleSlater 
   // (and variants)
   std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
-    std::ostream &, CQInputFile &, std::shared_ptr<AOIntegralsBase> );
+      std::ostream &, CQInputFile &,
+      CQMemManager &mem, Molecule &mol, BasisSet &basis,
+      std::shared_ptr<IntegralsBase> );
 
   void CQQM_VALID(std::ostream&, CQInputFile &);
   void CQDFTINT_VALID(std::ostream&, CQInputFile &);
@@ -77,8 +84,9 @@ namespace ChronusQ {
   void CQMOR_VALID(std::ostream&, CQInputFile &);
 
   // Parse integral options
-  std::shared_ptr<AOIntegralsBase> CQIntsOptions(std::ostream &, 
-    CQInputFile &, CQMemManager &, Molecule &, BasisSet &); 
+  std::shared_ptr<IntegralsBase> CQIntsOptions(std::ostream &, 
+    CQInputFile &, CQMemManager &,
+    std::shared_ptr<BasisSet>, std::shared_ptr<BasisSet>);
 
   void CQINTS_VALID(std::ostream&, CQInputFile &);
 
@@ -97,7 +105,8 @@ namespace ChronusQ {
   inline void CQINPUT_VALID(std::ostream &out, CQInputFile &input) {
 
     CQMOLECULE_VALID(out,input);
-    CQBASIS_VALID(out,input);
+    CQBASIS_VALID(out,input,"BASIS");
+    CQBASIS_VALID(out,input,"DFBASIS");
     CQINTS_VALID(out,input);
     CQQM_VALID(out,input);
     CQDFTINT_VALID(out,input);

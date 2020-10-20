@@ -26,6 +26,8 @@
 #include <chronusq_sys.hpp>
 #include <quantum.hpp>
 #include <wavefunction/base.hpp>
+#include <integrals.hpp>
+#include <matrix.hpp>
 
 // Debug print triggered by Quantum
   
@@ -46,19 +48,27 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   class WaveFunction : virtual public WaveFunctionBase, public Quantum<MatsT> {
+
+    template <typename MatsU, typename IntsU>
+    friend class WaveFunction;
+
   protected:
 
     // Useful typedefs
     typedef MatsT*               oper_t;
     typedef std::vector<oper_t>  oper_t_coll;
 
+    Molecule &molecule_; ///< A reference of the Molecule
+
   public:
-    
-    AOIntegrals<IntsT> &aoints; ///< AOIntegrals for the evaluation of GTO integrals
+
+    Integrals<IntsT> &aoints; ///< AOIntegrals for the storage of integrals
 
     // Operator storage
-    oper_t  mo1;  ///< Full (nC > 1) / ALPHA (nC == 1) MO coefficient matrix
-    oper_t  mo2;  ///< BETA (nC == 1) MO coefficient matrix
+
+    ///< mo[0] : Full (nC > 1) / ALPHA (nC == 1) MO coefficient matrix
+    ///< mo[1] : BETA (nC == 1) MO coefficient matrix
+    std::vector<SquareMatrix<MatsT>> mo;
     double* eps1; ///< Full (nC > 1) / ALPHA (nC == 1) Fock eigenvalues
     double* eps2; ///< BETA (nC == 1) Fock eigenvalues
 
@@ -74,30 +84,31 @@ namespace ChronusQ {
      *  \param [in] _nC  Number of spin components (1 and 2 are supported)
      *  \param [in] iCS  Whether or not to treat as closed shell
      */ 
-    WaveFunction(MPI_Comm c, AOIntegrals<IntsT> &aoi, size_t _nC, bool iCS) :
-      QuantumBase(c, aoi.memManager(),_nC,iCS),
-      WaveFunctionBase(c, aoi.memManager(),_nC,iCS),
-      Quantum<MatsT>(c, aoi.memManager(),_nC,iCS,aoi.basisSet().nBasis), 
-      mo1(nullptr), mo2(nullptr), eps1(nullptr), eps2(nullptr), aoints(aoi) {
+    WaveFunction(MPI_Comm c, CQMemManager &mem, Molecule &mol, size_t nBasis,
+                 Integrals<IntsT> &aoi, size_t _nC, bool iCS) :
+      QuantumBase(c, mem,_nC,iCS),
+      WaveFunctionBase(c, mem,_nC,iCS),
+      Quantum<MatsT>(c, mem,_nC,iCS,nBasis),
+      molecule_(mol), eps1(nullptr), eps2(nullptr), aoints(aoi) {
 
       // Compute meta data
 
-      this->nO = this->aoints.molecule().nTotalE;
-      this->nV = 2*aoints.basisSet().nBasis - nO;
+      this->nO = molecule_.nTotalE;
+      this->nV = 2*nBasis - nO;
 
       if( this->iCS ) {
         this->nOA = this->nO / 2; this->nOB = this->nO / 2;
         this->nVA = this->nV / 2; this->nVB = this->nV / 2;
       } else {
-        size_t nSingleE = aoints.molecule().multip - 1;
+        size_t nSingleE = molecule_.multip - 1;
         this->nOB = (this->nO - nSingleE) / 2;
         this->nOA = this->nOB + nSingleE;
-        this->nVA = aoints.basisSet().nBasis - this->nOA;
-        this->nVB = aoints.basisSet().nBasis - this->nOB;
+        this->nVA = nBasis - this->nOA;
+        this->nVB = nBasis - this->nOB;
       }
 
       // Allocate internal memory
-      if(aoints.basisSet().nBasis != 0) alloc();
+      if(nBasis != 0) alloc();
 
     };
 
@@ -122,6 +133,7 @@ namespace ChronusQ {
 
 
     // Member functions
+    Molecule& molecule() { return molecule_; }
 
     // Deallocation (see include/wavefunction/impl.hpp for docs)
     void alloc();

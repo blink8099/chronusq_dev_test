@@ -116,7 +116,7 @@ namespace ChronusQ {
 
   
     // GIAO handling
-    if( this->ref_->aoints.basisSet().basisType == COMPLEX_GIAO ) {
+    if( this->ref_->basisSet().basisType == COMPLEX_GIAO ) {
 
       auto remove_op = []( std::vector<ResponseOperator> &ops,
                            ResponseOperator op ) {
@@ -914,7 +914,7 @@ namespace ChronusQ {
 
     // Print memory requirements (ish)
     if( isRoot ) {
-      size_t NB = this->ref_->aoints.basisSet().nBasis;
+      size_t NB = this->ref_->nAlphaOrbital();
       size_t vcSize = N*(nForm + nStore)*sizeof(double);
       size_t aoSize = NB*NB*(nForm + nStore)*sizeof(double);
       size_t parSize = nForm*NB*NB*sizeof(double)*(GetNumThreads()-1);
@@ -1383,47 +1383,49 @@ namespace ChronusQ {
     std::vector<IntsT*> opS;
     std::vector<MatsT*>      opT;
 
-    AOIntegrals<IntsT> &aoi    = this->ref_->aoints;
+    Integrals<IntsT> &aoi    = this->ref_->aoints;
     SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
 
     bool needTrans = true;
     switch (op) {
 
       case LenElectricDipole: 
-        opS = aoi.lenElecDipole;
+        opS = aoi.lenElectric->dipolePointers();
         break;
 
       case LenElectricQuadrupole: 
-        opS = aoi.lenElecQuadrupole;
+        opS = aoi.lenElectric->quadrupolePointers();
         break;
 
       case LenElectricOctupole: 
-        opS = aoi.lenElecOctupole;
+        opS = aoi.lenElectric->octupolePointers();
         break;
 
       case VelElectricDipole: 
-        opS = aoi.velElecDipole;
+        opS = aoi.velElectric->dipolePointers();
         break;
 
       case VelElectricQuadrupole: 
-        opS = aoi.velElecQuadrupole;
+        opS = aoi.velElectric->quadrupolePointers();
         break;
 
       case VelElectricOctupole: 
-        opS = aoi.velElecOctupole;
+        opS = aoi.velElectric->octupolePointers();
         break;
 
       case MagneticDipole: 
-        opS = aoi.magDipole;
+        opS = aoi.magnetic->dipolePointers();
         break;
 
       case MagneticQuadrupole: 
-        opS = aoi.magQuadrupole;
+        opS = aoi.magnetic->quadrupolePointers();
         break;
 
       case Brillouin:
         needTrans = false;
-        opT = ss.fockMO;
+        opT = ss.fockMO.size() > 1 ?
+              std::vector<MatsT*>{ss.fockMO[0].pointer(), ss.fockMO[1].pointer()}
+              : std::vector<MatsT*>{ss.fockMO[0].pointer()};
         break;
 
     }
@@ -1436,7 +1438,7 @@ namespace ChronusQ {
     //std::cerr << opS.size() << ", " << opT.size() << std::endl;
 
     size_t nVec = OperatorSize[op];
-    size_t NB = aoi.basisSet().nBasis;
+    size_t NB = ss.nAlphaOrbital();
     size_t NBC = ss.nC * NB;
 
     int nOAVA = ss.nOA * ss.nVA;
@@ -1459,8 +1461,8 @@ namespace ChronusQ {
 
     for(auto iVec = 0; iVec < nVec; iVec++) {
 
-      MatsT* CMO = this->ref_->mo1;
-      MatsT* CMOB = (ss.nC == 1) ? this->ref_->mo2 : CMO + NB;
+      MatsT* CMO = this->ref_->mo[0].pointer();
+      MatsT* CMOB = (ss.nC == 1) ? this->ref_->mo[1].pointer() : CMO + NB;
 
       MatsT* V = grad + iVec*this->nSingleDim_;
 
@@ -1762,7 +1764,7 @@ namespace ChronusQ {
 
 
     SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
-    const size_t NB   = ss.aoints.basisSet().nBasis;
+    const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -1795,7 +1797,7 @@ namespace ChronusQ {
       U* VY_c = nullptr; 
       if( nVs > 1 ) VY_c = V_arr[1] + iVec * N;
 
-      MatsT* CMO = ss.mo1;
+      MatsT* CMO = ss.mo[0].pointer();
 
 
       // Perform MO -> AO transformation
@@ -1857,15 +1859,14 @@ namespace ChronusQ {
       first += nMatPVec * NB2;
 
 
-      bool eval = true;
-      cList.push_back( { eval, AOS, JAOS, false, COULOMB  } );
-      cList.push_back( { eval, AOS, KAOS, false, EXCHANGE } );
-      cList.push_back( { eval, AOZ, KAOZ, false, EXCHANGE } ); 
+      cList.push_back( { AOS, JAOS, false, COULOMB  } );
+      cList.push_back( { AOS, KAOS, false, EXCHANGE } );
+      cList.push_back( { AOZ, KAOZ, false, EXCHANGE } );
         // FIXME: not for SA
 
       if( ss.nC == 2 ) {
-        cList.push_back( { eval, AOY, KAOY, false, EXCHANGE } );
-        cList.push_back( { eval, AOX, KAOX, false, EXCHANGE } );
+        cList.push_back( { AOY, KAOY, false, EXCHANGE } );
+        cList.push_back( { AOX, KAOX, false, EXCHANGE } );
       }
 
 
@@ -1892,7 +1893,7 @@ namespace ChronusQ {
             if( nVs > 1 ) MOT[a*NB + i] = VY_c[ai];
           }
 
-          CMO = ss.iCS ? ss.mo1 : ss.mo2;
+          CMO = ss.iCS ? ss.mo[0].pointer() : ss.mo[1].pointer();
           
           // Transform BETA (full) MOT -> AO basis
           MOTRANS(CMO,MOT);
@@ -1938,7 +1939,7 @@ namespace ChronusQ {
 
 
     SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
-    const size_t NB   = ss.aoints.basisSet().nBasis;
+    const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -2000,7 +2001,7 @@ namespace ChronusQ {
       else          
         SpinGather(NB,MOT,NBC,K_S,NB,K_Z,NB,K_Y,NB,K_X,NB);
 
-      MatsT* CMO = ss.mo1;
+      MatsT* CMO = ss.mo[0].pointer();
       
       // Transform -> AO basis
       MOTRANS(CMO,MOT);
@@ -2016,7 +2017,7 @@ namespace ChronusQ {
 
         MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(-0.5),K_Z,NB,MOT,NB);
 
-        CMO = ss.iCS ? ss.mo1 : ss.mo2;
+        CMO = ss.iCS ? ss.mo[0].pointer() : ss.mo[1].pointer();
         
         // Transform -> AO basis
         MOTRANS(CMO,MOT);
@@ -2044,7 +2045,7 @@ namespace ChronusQ {
     bool doInv, size_t nVec, size_t N, U* V, U* HV) {
 
     SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
-    const size_t NB   = ss.aoints.basisSet().nBasis;
+    const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -2093,28 +2094,28 @@ namespace ChronusQ {
       if( std::is_same<U,dcomplex>::value and std::is_same<MatsT,double>::value) {
 
         FCMPLX = this->memManager_.template malloc<dcomplex>(NBC2);
-        std::copy_n(ss.fockMO[0],NBC2,FCMPLX);
+        std::copy_n(ss.fockMO[0].pointer(),NBC2,FCMPLX);
 
         if(ss.nC == 1 and not ss.iCS) {
           FBCMPLX = this->memManager_.template malloc<dcomplex>(NBC2);
-          std::copy_n(ss.fockMO[1],NBC2,FBCMPLX);
+          std::copy_n(ss.fockMO[1].pointer(),NBC2,FBCMPLX);
         }
       }
 
       U* Foo = bool(FCMPLX) ? 
-        reinterpret_cast<U*>(FCMPLX) : reinterpret_cast<U*>(ss.fockMO[0]);
+        reinterpret_cast<U*>(FCMPLX) : reinterpret_cast<U*>(ss.fockMO[0].pointer());
       U* Fvv = bool(FCMPLX) ? 
         reinterpret_cast<U*>(FCMPLX + NO*(NBC+1)) : 
-        reinterpret_cast<U*>(ss.fockMO[0] + NO*(NBC+1));
+        reinterpret_cast<U*>(ss.fockMO[0].pointer() + NO*(NBC+1));
 
       U* Foob = nullptr, *Fvvb = nullptr;
 
       if(ss.nC == 1 and not ss.iCS) {
         Foob = bool(FBCMPLX) ? 
-          reinterpret_cast<U*>(FBCMPLX) : reinterpret_cast<U*>(ss.fockMO[1]);
+          reinterpret_cast<U*>(FBCMPLX) : reinterpret_cast<U*>(ss.fockMO[1].pointer());
         Fvvb = bool(FBCMPLX) ? 
           reinterpret_cast<U*>(FBCMPLX + ss.nOB*(NBC+1)) : 
-          reinterpret_cast<U*>(ss.fockMO[1] + ss.nOB*(NBC+1));
+          reinterpret_cast<U*>(ss.fockMO[1].pointer() + ss.nOB*(NBC+1));
       }
 
 

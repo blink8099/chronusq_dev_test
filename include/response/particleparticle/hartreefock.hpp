@@ -55,14 +55,14 @@ namespace ChronusQ {
 /****************************/
 
   
-    size_t NB = ss.aoints.basisSet().nBasis;
+    size_t NB = ss.nAlphaOrbital();
     size_t NO = ss.nOA;
 
     MatsT* MMat = this->memManager_.template malloc<MatsT>(NB*NB);
     MatsT* JMMat = this->memManager_.template malloc<MatsT>(NB*NB);
     MatsT* KMMat = this->memManager_.template malloc<MatsT>(NB*NB);
 
-    MatsT* MO = ss.mo1;
+    MatsT* MO = ss.mo[0].pointer();
 
     size_t indmo1 = NO;
     Gemm('N','C',NB,NB,NB,MatsT(1.),MO + NO*NB,NB,MO + NO*NB,NB,MatsT(0.),MMat,NB);
@@ -72,11 +72,11 @@ namespace ChronusQ {
 
     std::vector<TwoBodyContraction<MatsT>> in = 
       { 
-        { true, MMat,JMMat,true, COULOMB  }, 
-        { true, MMat,KMMat,true, EXCHANGE } 
+        { MMat,JMMat,true, COULOMB  },
+        { MMat,KMMat,true, EXCHANGE }
       };
 
-    ss.aoints.twoBodyContract(c,in);
+    ss.ERI->twoBodyContract(c,in);
 
     MatAdd('N','N',NB,NB,MatsT(1.),JMMat, NB, MatsT(-0.5), KMMat, NB, JMMat, NB);
 
@@ -86,6 +86,8 @@ namespace ChronusQ {
 /****************************/
 #endif
 
+    std::shared_ptr<ERIContractions<U,IntsT>> ERI =
+        ERIContractions<MatsT,IntsT>::template convert<U>(ss.ERI);
 
     for(auto &X : x) {
 
@@ -115,7 +117,7 @@ namespace ChronusQ {
           this->template ppTransitionVecMO2AO<U>(c,scatter,nDo,N,V_c,
             V_c + tdOffSet);
 
-        ss.aoints.twoBodyContract(c,cList); // form G[V]
+        ERI->twoBodyContract(c,cList); // form G[V]
 
 
 

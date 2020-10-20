@@ -1,0 +1,49 @@
+#
+# This file is part of the Chronus Quantum (ChronusQ) software package
+# 
+# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# 
+# Contact the Developers:
+#   E-Mail: xsli@uw.edu
+#
+add_library(electronintegrals STATIC
+transform.cxx
+spatialtospinor.cxx
+aointegrals/aointegrals_onee_drivers.cxx
+aointegrals/aointegrals_onee_engine.cxx
+aointegrals/aointegrals_twoe_drivers.cxx
+aointegrals/aointegrals_twoe_engine.cxx
+aointegrals/aointegrals_twoesp_gto.cxx
+aointegrals/giaointegrals_twoe_drivers.cxx
+aointegrals/giaointegrals_onee_drivers.cxx
+aointegrals/giaointegrals_onee_engine.cxx
+aointegrals/giaointegrals_twoe_engine.cxx
+impl.cxx)
+
+target_link_libraries( electronintegrals PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
+
+if(TARGET libint)
+  add_dependencies(electronintegrals libint)
+endif()
+
+# Append electronintegrals to executable link
+list(APPEND CQEX_LINK electronintegrals)
+set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
+
+if(CQEX_DEP)
+  add_dependencies(electronintegrals ${CQEX_DEP})
+endif()

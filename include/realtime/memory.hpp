@@ -31,13 +31,12 @@ namespace ChronusQ {
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::alloc() {
 
-    size_t OSize = 
-      memManager_.template getSize<dcomplex>(propagator_.onePDM[0]);
+    size_t NB = propagator_.onePDM->dimension();
+    bool hasZ = propagator_.onePDM->hasZ();
+    bool hasXY= propagator_.onePDM->hasXY();
 
-    for(auto i = 0; i < propagator_.onePDM.size(); i++) {
-      DOSav.emplace_back(memManager_.template malloc<dcomplex>(OSize));
-      UH.emplace_back(memManager_.template malloc<dcomplex>(OSize));
-    }
+    DOSav = std::make_shared<PauliSpinorSquareMatrices<dcomplex>>(memManager_, NB, hasXY, hasZ);
+    UH    = std::make_shared<PauliSpinorSquareMatrices<dcomplex>>(memManager_, NB, hasXY, hasZ);
 
   };
 
@@ -45,8 +44,8 @@ namespace ChronusQ {
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::dealloc() {
 
-    for(auto &X : DOSav) memManager_.free(X);
-    for(auto &X : UH)    memManager_.free(X);
+    DOSav = nullptr;
+    UH    = nullptr;
 
   };
 

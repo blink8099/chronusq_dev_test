@@ -32,16 +32,16 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::printFock(std::ostream &out) {
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
 
-    prettyPrintSmart(out,"Fock (AO) Scalar",fockMatrix[SCALAR],NB,NB,NB);
+    prettyPrintSmart(out,"Fock (AO) Scalar",fockMatrix->S().pointer(),NB,NB,NB);
 
-    if( fockMatrix.size() > 1 )
-      prettyPrintSmart(out,"Fock (AO) MZ",fockMatrix[MZ],NB,NB,NB);
+    if( fockMatrix->hasZ() )
+      prettyPrintSmart(out,"Fock (AO) MZ",fockMatrix->Z().pointer(),NB,NB,NB);
 
-    if( fockMatrix.size() > 2 ) {
-      prettyPrintSmart(out,"Fock (AO) MY",fockMatrix[MY],NB,NB,NB);
-      prettyPrintSmart(out,"Fock (AO) MX",fockMatrix[MX],NB,NB,NB);
+    if( fockMatrix->hasXY() ) {
+      prettyPrintSmart(out,"Fock (AO) MY",fockMatrix->Y().pointer(),NB,NB,NB);
+      prettyPrintSmart(out,"Fock (AO) MX",fockMatrix->X().pointer(),NB,NB,NB);
     }
 
 
@@ -50,16 +50,16 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::print1PDMOrtho(std::ostream &out) {
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
 
-    prettyPrintSmart(out,"1PDM (Ortho) Scalar",onePDMOrtho[SCALAR],NB,NB,NB);
+    prettyPrintSmart(out,"1PDM (Ortho) Scalar",onePDMOrtho->S().pointer(),NB,NB,NB);
 
-    if( onePDMOrtho.size() > 1 )
-      prettyPrintSmart(out,"1PDM (Ortho) MZ",onePDMOrtho[MZ],NB,NB,NB);
+    if( onePDMOrtho->hasZ() )
+      prettyPrintSmart(out,"1PDM (Ortho) MZ",onePDMOrtho->Z().pointer(),NB,NB,NB);
 
-    if( onePDMOrtho.size() > 2 ) {
-      prettyPrintSmart(out,"1PDM (Ortho) MY",onePDMOrtho[MY],NB,NB,NB);
-      prettyPrintSmart(out,"1PDM (Ortho) MX",onePDMOrtho[MX],NB,NB,NB);
+    if( onePDMOrtho->hasXY() ) {
+      prettyPrintSmart(out,"1PDM (Ortho) MY",onePDMOrtho->Y().pointer(),NB,NB,NB);
+      prettyPrintSmart(out,"1PDM (Ortho) MX",onePDMOrtho->X().pointer(),NB,NB,NB);
     }
 
 
@@ -68,18 +68,15 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::printGD(std::ostream &out) {
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
 
-    prettyPrintSmart(out,"GD (AO) Scalar",twoeH[SCALAR],NB,NB,NB);
-
-    if( twoeH.size() > 1 )
-      prettyPrintSmart(out,"GD (AO) MZ",twoeH[MZ],NB,NB,NB);
-
-    if( twoeH.size() > 2 ) {
-      prettyPrintSmart(out,"GD (AO) MY",twoeH[MY],NB,NB,NB);
-      prettyPrintSmart(out,"GD (AO) MX",twoeH[MX],NB,NB,NB);
+    prettyPrintSmart(out,"GD (AO) Scalar",twoeH->S().pointer(),NB,NB,NB);
+    if (twoeH->hasZ())
+      prettyPrintSmart(out,"GD (AO) MZ",twoeH->Z().pointer(),NB,NB,NB);
+    if (twoeH->hasXY()) {
+      prettyPrintSmart(out,"GD (AO) MY",twoeH->Y().pointer(),NB,NB,NB);
+      prettyPrintSmart(out,"GD (AO) MX",twoeH->X().pointer(),NB,NB,NB);
     }
-
 
   }; // SingleSlater<T>::printGD
 
@@ -87,9 +84,9 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::printJ(std::ostream &out) {
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
 
-    prettyPrintSmart(out,"J (AO) Scalar",coulombMatrix,NB,NB,NB);
+    prettyPrintSmart(out,"J (AO) Scalar",coulombMatrix->pointer(),NB,NB,NB);
 
 
   }; // SingleSlater<T>::printJ
@@ -98,18 +95,15 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::printK(std::ostream &out) {
 
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
 
-    prettyPrintSmart(out,"K (AO) Scalar",exchangeMatrix[SCALAR],NB,NB,NB);
-
-    if( exchangeMatrix.size() > 1 )
-      prettyPrintSmart(out,"K (AO) MZ",exchangeMatrix[MZ],NB,NB,NB);
-
-    if( exchangeMatrix.size() > 2 ) {
-      prettyPrintSmart(out,"K (AO) MY",exchangeMatrix[MY],NB,NB,NB);
-      prettyPrintSmart(out,"K (AO) MX",exchangeMatrix[MX],NB,NB,NB);
+    prettyPrintSmart(out,"K (AO) Scalar",exchangeMatrix->S().pointer(),NB,NB,NB);
+    if (exchangeMatrix->hasZ())
+      prettyPrintSmart(out,"K (AO) MZ",exchangeMatrix->Z().pointer(),NB,NB,NB);
+    if (exchangeMatrix->hasXY()) {
+      prettyPrintSmart(out,"K (AO) MY",exchangeMatrix->Y().pointer(),NB,NB,NB);
+      prettyPrintSmart(out,"K (AO) MX",exchangeMatrix->X().pointer(),NB,NB,NB);
     }
-
 
   }; // SingleSlater<T>::printK
 
@@ -125,7 +119,7 @@ namespace ChronusQ {
 
     out << std::right << bannerMid << std::endl;
 
-    Molecule & mol = this->aoints.molecule();
+    Molecule & mol = this->molecule();
     for(auto iAtm = 0; iAtm < mol.nAtoms; iAtm++) {
 
       // Get symbol
@@ -373,7 +367,7 @@ namespace ChronusQ {
         << "/ Eh\n" << bannerTop << "\n";
 
     size_t NO = (this->nC == 1 ? this->nOA : this->nO);
-    for(auto i = 0ul; i < this->nC * this->aoints.basisSet().nBasis; i++) {
+    for(auto i = 0ul; i < this->nC * this->nAlphaOrbital(); i++) {
 
       if( i == 0 )
         out << "Occupied:\n";
@@ -392,11 +386,11 @@ namespace ChronusQ {
     if( this->nC == 1 and not this->iCS ) {
       out << "\n\nOrbital Eigenenergies (Beta) / Eh\n" << bannerTop << "\n";
 
-      for(auto i = 0ul; i < this->aoints.basisSet().nBasis; i++) {
+      for(auto i = 0ul; i < this->nBetaOrbital(); i++) {
 
         if( i == 0 )
           out << "Occupied:\n";
-        else if( i == this->nOB )
+        if( i == this->nOB )
           out << "\n\nVirtual:\n";
 
         out << std::setw(13) << this->eps2[i];
@@ -421,7 +415,7 @@ namespace ChronusQ {
 
 
     // Pretty MO print
-    size_t NB = this->aoints.basisSet().nBasis;
+    size_t NB = this->nAlphaOrbital();
     size_t NOrb = NB * this->nC;
 
     std::function<double(MatsT)> printOp1 = [](MatsT x) { return std::real(x); };
@@ -441,14 +435,14 @@ namespace ChronusQ {
     if( std::is_same<MatsT,dcomplex>::value ) 
       out << " Magnitude";
 
-    prettyMOPrint(out,NB,NOrb,this->eps1,this->mo1,NOrb,
-        this->aoints.molecule(),this->aoints.basisSet(),printOp1);
+    prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer(),NOrb,
+        this->molecule(),basisSet(),printOp1);
 
 
     if( std::is_same<MatsT,dcomplex>::value ) {
       out << "\n\nCanonical Molecular Orbital Coefficients (Alpha) Phase"; 
-      prettyMOPrint(out,NB,NOrb,this->eps1,this->mo1,NOrb,
-          this->aoints.molecule(),this->aoints.basisSet(),printOp2);
+      prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer(),NOrb,
+          this->molecule(),basisSet(),printOp2);
     }
 
 
@@ -464,21 +458,21 @@ namespace ChronusQ {
         out << " Magnitude";
 
       if( this->nC == 1 )
-        prettyMOPrint(out,NB,NOrb,this->eps2,this->mo2,NOrb,
-            this->aoints.molecule(),this->aoints.basisSet(),printOp1);
+        prettyMOPrint(out,NB,NOrb,this->eps2,this->mo[1].pointer(),NOrb,
+            this->molecule(),basisSet(),printOp1);
       else
-        prettyMOPrint(out,NB,NOrb,this->eps1,this->mo1 + NB,NOrb,
-            this->aoints.molecule(),this->aoints.basisSet(),printOp1);
+        prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + NB,NOrb,
+            this->molecule(),basisSet(),printOp1);
 
       if( std::is_same<MatsT,dcomplex>::value ) {
         out << "\n\nCanonical Molecular Orbital Coefficients (Beta) Phase"; 
 
         if( this->nC == 1 )
-          prettyMOPrint(out,NB,NOrb,this->eps2,this->mo2,NOrb,
-              this->aoints.molecule(),this->aoints.basisSet(),printOp2);
+          prettyMOPrint(out,NB,NOrb,this->eps2,this->mo[1].pointer(),NOrb,
+              this->molecule(),basisSet(),printOp2);
         else
-          prettyMOPrint(out,NB,NOrb,this->eps1,this->mo1 + NB,NOrb,
-              this->aoints.molecule(),this->aoints.basisSet(),printOp2);
+          prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + NB,NOrb,
+              this->molecule(),basisSet(),printOp2);
       }
 
     }

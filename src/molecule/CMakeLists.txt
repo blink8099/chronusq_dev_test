@@ -21,6 +21,7 @@
 #   E-Mail: xsli@uw.edu
 #
 add_library(molecule STATIC molecule.cxx)
+target_link_libraries ( molecule PUBLIC ChronusQ::Libint2 )
 
 # Append molecule to executable link
 list(APPEND CQEX_LINK molecule)

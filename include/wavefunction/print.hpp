@@ -31,18 +31,18 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void WaveFunction<MatsT,IntsT>::printMO(std::ostream &out) {
 
-    size_t NB = aoints.basisSet().nBasis * this->nC;
+    size_t NB = nAlphaOrbital() * this->nC;
    
-    prettyPrintSmart(std::cout,"MO 1",mo1,NB,NB,NB);
-    if( mo2 != nullptr )
-      prettyPrintSmart(std::cout,"MO 2",mo2,NB,NB,NB);
+    prettyPrintSmart(std::cout,"MO 1",mo[0].pointer(),NB,NB,NB);
+    if( mo.size() > 1 )
+      prettyPrintSmart(std::cout,"MO 2",mo[1].pointer(),NB,NB,NB);
 
   }; // WaveFunction<T,MatsT,IntsT>::printMO
 
   template <typename MatsT, typename IntsT>
   void WaveFunction<MatsT,IntsT>::printEPS(std::ostream &out) {
 
-    size_t NB = aoints.basisSet().nBasis * this->nC;
+    size_t NB = nAlphaOrbital() * this->nC;
    
     prettyPrintSmart(std::cout,"EPS 1",eps1,NB,NB,NB);
     if( eps2 != nullptr )

@@ -21,7 +21,7 @@
 #   E-Mail: xsli@uw.edu
 #
 add_library(wavefunction STATIC impl.cxx)
-target_link_libraries( wavefunction PUBLIC ChronusQ::HDF5 )
+target_link_libraries( wavefunction PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
 
 # Append aointegrals to executable link
 list(APPEND CQEX_LINK wavefunction)

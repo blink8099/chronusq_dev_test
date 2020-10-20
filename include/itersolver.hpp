@@ -506,6 +506,125 @@ namespace ChronusQ {
 
 
 
+  // Davidson
+  template <typename _F>
+  class Davidson : public IterDiagonalizer<_F> {
+
+    bool DoLeftEigVec   = false;
+   
+    // Energy specific options 
+    bool EnergySpecific = false;
+    size_t nHighERoots  = 0; 
+    size_t  nLowERoots  = 0; 
+    double EnergyRef    = 0.; 
+    bool adaptiveERef   = false; // use loweset eigenvalues at current iteration
+
+    double   *RelRes  = nullptr;
+    _F       *Guess   = nullptr;
+    dcomplex *EigForT = nullptr; // Eigenvalues can be used for preconditioner 
+
+    // creating double(dcomplex) operator to accomodate the
+    // complex eigenvalue to real arithmetric 
+    _F dcomplexTo_F(dcomplex &a) { return * reinterpret_cast<_F*>(&a);}
+
+  protected:
+    
+  public:
+
+    size_t m = 50;
+    size_t whenSc = 2;
+    size_t kG = 3;
+
+    using LinearTrans_t = typename IterDiagonalizer<_F>::LinearTrans_t;
+    using Shift_t       = typename IterDiagonalizer<_F>::Shift_t;
+
+    Davidson(
+      MPI_Comm c, 
+      CQMemManager &mem, 
+      const size_t N,
+      const size_t MAXMACROITER,
+      const size_t MAXMICROITER,
+      double conv, 
+      size_t nR, 
+      const LinearTrans_t &linearTrans, 
+      const LinearTrans_t &preNoShift, 
+      const Shift_t &shiftVec = Shift_t()):
+      IterDiagonalizer<_F>(c,mem,N,m*nR,MAXMACROITER,MAXMICROITER,conv,nR,nR*kG,
+          linearTrans,preNoShift,shiftVec){ } 
+    
+    ~Davidson() { 
+    
+      if( RelRes  ) this->memManager_.free(RelRes);
+      if( EigForT ) this->memManager_.free(EigForT);
+      if( Guess   ) this->memManager_.free(Guess);
+
+    }
+
+    void setM(size_t __m) {
+      m = __m;
+      this->mSS_ = m*this->nRoots_;
+    }
+    
+    void setkG(size_t __kG) {
+      kG = __kG;
+      this->nGuess_ = kG*this->nRoots_;
+    }
+
+    void setWhenSc(size_t __WhenSc) { whenSc = __WhenSc;}
+    
+    void alloc() {
+
+      IterDiagonalizer<_F>::alloc();
+
+      // NO MPI
+      ROOT_ONLY(this->comm_);
+
+
+      // Allocate Davidson specific Memory
+      this->RelRes  = this->memManager_.template malloc<double>(this->nGuess_);
+      this->EigForT = this->memManager_.template malloc<dcomplex>(this->nGuess_);
+
+    }
+
+    bool runMicro();
+
+    void restart();
+    
+    void useEnergySpecific(size_t nHER, double energyThd, double ERef) {
+      assert (this->nRoots_ >= nHER);
+      assert (energyThd > 0);
+      
+      this->EnergySpecific = true;
+      this->nHighERoots    = nHER;
+      this->nLowERoots     = this->nRoots_ - nHER;
+      this->EnergyRef      = ERef;
+    }
+
+    void useEnergySpecific(size_t nHER, double energyThd) {
+      this->adaptiveERef = true;
+      this->useEnergySpecific(nHER, energyThd, 0.);
+    }
+
+    void doLeftEigenvector() {this->DoLeftEigVec = true; }
+    
+    void setGuess(size_t nGuess, std::function<void(size_t,_F*,size_t)> func) {
+
+      if( nGuess != this->nGuess_ ) 
+        CErr("Davison Requires nGuess = nGuess_",std::cout);
+
+      // NO MPI
+      ROOT_ONLY(this->comm_);
+
+      Guess = this->memManager_.template malloc<_F>(nGuess * this->N_);
+
+      func(nGuess, Guess, this->N_);
+
+    }
+
+
+  }; // Davidson 
+
+
   template <typename _F>
   class GMRES : public IterLinearSolver<_F> {
 
@@ -582,7 +701,7 @@ namespace ChronusQ {
 
   };
 
-
+  
 
 };
 

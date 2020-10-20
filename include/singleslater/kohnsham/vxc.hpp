@@ -146,9 +146,9 @@ namespace ChronusQ {
 
 #if VXC_DEBUG_LEVEL > 3
     prettyPrintSmart(std::cerr,"Scalar Den   ",Scalar,NPts,1, NPts);
-    if( this->onePDM.size() > 1 ) 
+    if( this->onePDM->hasZ() )
       prettyPrintSmart(std::cerr,"Mz     Den   ",Mz,NPts,1, NPts);
-    if( this->onePDM.size() > 2 ) { 
+    if( this->onePDM->hasXY() ) {
       prettyPrintSmart(std::cerr,"My     Den   ",My,NPts,1, NPts);
       prettyPrintSmart(std::cerr,"Mx     Den   ",Mx,NPts,1, NPts);
     }
@@ -156,12 +156,12 @@ namespace ChronusQ {
       prettyPrintSmart(std::cerr,"Scalar DenX   ",dndX,NPts,1, NPts);
       prettyPrintSmart(std::cerr,"Scalar DenY   ",dndY,NPts,1, NPts);
       prettyPrintSmart(std::cerr,"Scalar DenZ   ",dndZ,NPts,1, NPts);
-      if( this->onePDM.size() > 1 ) { 
+      if( this->onePDM->hasZ() ) {
         prettyPrintSmart(std::cerr,"Mz DenX   ",dMzdX,NPts,1, NPts);
         prettyPrintSmart(std::cerr,"Mz DenY   ",dMzdY,NPts,1, NPts);
         prettyPrintSmart(std::cerr,"Mz DenZ   ",dMzdZ,NPts,1, NPts);
       }
-      if( this->onePDM.size() > 2 ) { 
+      if( this->onePDM->hasXY() ) {
         prettyPrintSmart(std::cerr,"My DenX   ",dMydX,NPts,1, NPts);
         prettyPrintSmart(std::cerr,"My DenY   ",dMydY,NPts,1, NPts);
         prettyPrintSmart(std::cerr,"My DenZ   ",dMydZ,NPts,1, NPts);
@@ -189,7 +189,7 @@ namespace ChronusQ {
     AXPY(NPts,0.5,Scalar,1,uMinus,2);
 
     bool skipMz = false;
-    if( this->onePDM.size() == 2 ) {
+    if( this->onePDM->hasZ() and not this->onePDM->hasXY() ) {
     // UKS
 #if VXC_DEBUG_LEVEL < 3
       double MaxDenZ = *std::max_element(Mz,Mz+NPts);
@@ -202,7 +202,7 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL >= 3
       if(skipMz) std::cerr << "Skypped Mz " << std::endl;
 #endif
-    }  else if ( this->onePDM.size() > 2) {
+    }  else if ( this->onePDM->hasXY()) {
       std::fill_n(Msmall,NPts,0.);
     // 2C
     // 2C See J. Chem. Theory Comput. 2017, 13, 2591-2603  
@@ -251,7 +251,7 @@ namespace ChronusQ {
         gammaColl[3*iPt+2] = gammaColl[3*iPt];
       }
 
-      if( this->onePDM.size() == 2 ) {
+      if( this->onePDM->hasZ() and not this->onePDM->hasXY() ) {
       // UKS
         for(auto iPt = 0; iPt < NPts; iPt++) {
           if( not skipMz ) {
@@ -269,7 +269,7 @@ namespace ChronusQ {
           }
         } // loop pts
 
-      }  else if ( this->onePDM.size() > 2) {
+      }  else if ( this->onePDM->hasXY()) {
       // 2C See J. Chem. Theory Comput. 2017, 13, 2591-2603  
         double tmpnMx, tmpnMy, tmpnMz;
         double tmpSign, inner, inner2;
@@ -511,7 +511,7 @@ namespace ChronusQ {
       AXPY(NPts,1.,VgammaEval+1,3,ZgammaVar1,1);
       AXPY(NPts,1.,VgammaEval+2,3,ZgammaVar1,1);
 
-      if( this->onePDM.size() > 1 ) {
+      if( this->onePDM->hasZ() ) {
         AXPY(NPts,1.,VgammaEval,3   ,ZgammaVar2,1);
         AXPY(NPts,-1.,VgammaEval+2,3,ZgammaVar2,1);
       }
@@ -592,7 +592,7 @@ namespace ChronusQ {
 
     memset(ZMAT,0,IOff*sizeof(double));
 
-    if( this->onePDM.size() <= 2 ) {
+    if( not this->onePDM->hasXY() ) {
       for(auto iPt = 0; iPt < NPts; iPt++) { 
       // LDA part -> Eq. 15 and 16 (see constructZVars docs for the missing factor of 0.5)
         Fg = weights[iPt] * ZrhoVar1[iPt];
@@ -605,15 +605,15 @@ namespace ChronusQ {
       // GGA part -> Eq. 15 and 17 (see constructZVars docs for the missing factor of 2)
         if( isGGA ) {
           FgX = weights[iPt] * ZgammaVar1[iPt] * GDenS[iPt];
-          if( this->onePDM.size() > 1 ) 
+          if( this->onePDM->hasZ() )
             FgX += weights[iPt] * ZgammaVar2[iPt] * GDenZ[iPt];
 
           FgY = weights[iPt] * ZgammaVar1[iPt] * GDenS[iPt + NPts];
-          if( this->onePDM.size() > 1 ) 
+          if( this->onePDM->hasZ() )
             FgY += weights[iPt] * ZgammaVar2[iPt] * GDenZ[iPt + NPts];
 
           FgZ = weights[iPt] * ZgammaVar1[iPt] * GDenS[iPt + 2*NPts];
-          if( this->onePDM.size() > 1 ) 
+          if( this->onePDM->hasZ() )
             FgZ += weights[iPt] * ZgammaVar2[iPt] * GDenZ[iPt + 2*NPts];
 
 #if VXC_DEBUG_LEVEL < 3
@@ -842,7 +842,7 @@ namespace ChronusQ {
     // MPI Communicator for numerical integration
     // *** Assumes that MPI will be done only across atoms in integration
 
-    size_t nAtoms = this->aoints.molecule().nAtoms;
+    size_t nAtoms = this->molecule().nAtoms;
     int color = ((mpiSize < nAtoms) or 
                  (mpiRank < nAtoms)) ? 1 : MPI_UNDEFINED;
                                                             
@@ -876,7 +876,7 @@ namespace ChronusQ {
       // Turn off LA threads
       SetLAThreads(1);
   
-      BasisSet &basis = this->aoints.basisSet();
+      BasisSet &basis = this->basisSet();
       size_t NB     = basis.nBasis;
       size_t NB2    = NB*NB;
       size_t NTNB2  = nthreads * NB2;
@@ -887,9 +887,10 @@ namespace ChronusQ {
   
       std::vector<std::vector<double*>> integrateVXC;
       double* intVXC_RAW = (nthreads == 1) ? nullptr :
-        this->memManager.template malloc<double>(VXC.size() * NTNB2);
+        this->memManager.template malloc<double>(VXC->nComponent() * NTNB2);
   
-      for(auto k = 0; k < VXC.size(); k++) {
+      std::vector<double*> VXC_SZYX = VXC->SZYXPointers();
+      for(auto k = 0; k < VXC_SZYX.size(); k++) {
         integrateVXC.emplace_back();
 
         if( nthreads != 1 ) 
@@ -899,7 +900,7 @@ namespace ChronusQ {
             );
 
         else 
-          integrateVXC.back().emplace_back(VXC[k]);
+          integrateVXC.back().emplace_back(VXC_SZYX[k]);
 
       }
       
@@ -936,10 +937,10 @@ namespace ChronusQ {
       bool   *Msmall;
       DenS = this->memManager.template malloc<double>(NTNPPB);
 
-      if( this->onePDM.size() > 1 )
+      if( this->onePDM->hasZ() )
         DenZ = this->memManager.template malloc<double>(NTNPPB);
 
-      if( this->onePDM.size() > 2 ) {
+      if( this->onePDM->hasXY() ) {
         DenY = this->memManager.template malloc<double>(NTNPPB);
         DenX = this->memManager.template malloc<double>(NTNPPB);
 
@@ -966,10 +967,10 @@ namespace ChronusQ {
         ZgammaVar1 = this->memManager.template malloc<double>(NTNPPB);
         ZgammaVar2 = this->memManager.template malloc<double>(NTNPPB);
 
-        if( this->onePDM.size() > 1 )
+        if( this->onePDM->hasZ() )
           GDenZ = this->memManager.template malloc<double>(3*NTNPPB);
 
-        if( this->onePDM.size() > 2 ) {
+        if( this->onePDM->hasXY() ) {
           GDenY = this->memManager.template malloc<double>(3*NTNPPB);
           GDenX = this->memManager.template malloc<double>(3*NTNPPB);
           HScratch = this->memManager.template malloc<double>(3*NTNPPB);
@@ -991,19 +992,17 @@ namespace ChronusQ {
  
       // ZMatrix
       double *ZMAT = this->memManager.template malloc<double>(NTNPPB*NB);
- 
-      // Decide if we need to allocate space for real part of the 
+
+      // Decide if we need to allocate space for real part of the
       // densities and copy over the real parts
-      std::vector<double*> Re1PDM;
-      for(auto i = 0; i < this->onePDM.size(); i++) {
-        if( std::is_same<MatsT,double>::value )
-          Re1PDM.push_back(reinterpret_cast<double*>(this->onePDM[i]));
-        else {
-          Re1PDM.push_back(this->memManager.template malloc<double>(NB2));
-          GetMatRE('N',NB,NB,1.,this->onePDM[i],NB,Re1PDM.back(),NB);
-        }
-      }
- 
+      std::shared_ptr<PauliSpinorSquareMatrices<double>> Re1PDM;
+      if (std::is_same<MatsT,double>::value)
+        Re1PDM = std::dynamic_pointer_cast<PauliSpinorSquareMatrices<double>>(
+            this->onePDM);
+      else
+        Re1PDM = std::make_shared<PauliSpinorSquareMatrices<double>>(
+            this->onePDM->real_part());
+
 
       // -------------------------------------------------------------//
       // End allocating Memory
@@ -1088,10 +1087,10 @@ namespace ChronusQ {
         bool   * Msmall_loc   = Msmall       +   TIDNPPB;
         double * HScratch_loc = HScratch     + 3*TIDNPPB;
 
-        // This evaluates the V variables for all components 
+        // This evaluates the V variables for all components
         // (Scalar, MZ (UKS) and Mx, MY (2 Comp))
         evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
-          SCRATCHNBNB_loc, SCRATCHNBNP_loc, Re1PDM[SCALAR], DenS_loc, 
+          SCRATCHNBNB_loc, SCRATCHNBNP_loc, Re1PDM->S().pointer(), DenS_loc,
           GDenS_loc, GDenS_loc + NPts, GDenS_loc + 2*NPts, BasisEval);
 
 #if VXC_DEBUG_LEVEL < 3
@@ -1100,17 +1099,17 @@ namespace ChronusQ {
         if (MaxDenS_loc < epsScreen) { return; }
 #endif
 
-        if( this->onePDM.size() > 1 )
+        if( this->onePDM->hasZ() )
           evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
-            SCRATCHNBNB_loc ,SCRATCHNBNP_loc, Re1PDM[MZ], DenZ_loc, 
+            SCRATCHNBNB_loc ,SCRATCHNBNP_loc, Re1PDM->Z().pointer(), DenZ_loc,
             GDenZ_loc, GDenZ_loc + NPts, GDenZ_loc + 2*NPts, BasisEval);
 
-        if( this->onePDM.size() > 2 ) {
+        if( this->onePDM->hasXY() ) {
           evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
-            SCRATCHNBNB_loc ,SCRATCHNBNP_loc, Re1PDM[MY], DenY_loc, 
+            SCRATCHNBNB_loc ,SCRATCHNBNP_loc, Re1PDM->Y().pointer(), DenY_loc,
             GDenY_loc, GDenY_loc + NPts, GDenY_loc + 2*NPts, BasisEval);
           evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
-            SCRATCHNBNB_loc ,SCRATCHNBNP_loc, Re1PDM[MX], DenX_loc, 
+            SCRATCHNBNB_loc ,SCRATCHNBNP_loc, Re1PDM->X().pointer(), DenX_loc,
             GDenX_loc, GDenX_loc + NPts, GDenX_loc + 2*NPts, BasisEval);
         }
 
@@ -1278,7 +1277,7 @@ namespace ChronusQ {
             BasisEval + iPt*NB,NB, 1.,tmpS,NB);
 #endif
 
-        if( this->onePDM.size() == 1 ) return;
+        if( not this->onePDM->hasZ() ) return;
 
         //
         // ---------------   UKS or 2C ------------- Mz ---------------
@@ -1325,7 +1324,7 @@ namespace ChronusQ {
  
 
 
-        if( this->onePDM.size() <= 2 ) return;
+        if( not this->onePDM->hasXY() ) return;
 
         //
         // ---------------  2C ------------- My ----------------------
@@ -1413,7 +1412,7 @@ namespace ChronusQ {
 
       // Create the BeckeIntegrator object
       BeckeIntegrator<EulerMac> 
-        integrator(intComm,this->memManager,this->aoints.molecule(),basis,
+        integrator(intComm,this->memManager,this->molecule(),basis,
         EulerMac(intParam.nRad), intParam.nAng, intParam.nRadPerBatch,
           (isGGA ? GRADIENT : NOGRAD), intParam.epsilon);
 
@@ -1429,15 +1428,15 @@ namespace ChronusQ {
       // Finishing up the VXC
       // factor in the 4 pi (Lebedev) and built the upper triagolar part
       // since we create only the lower triangular. For all components
-      for(auto k = 0; k < VXC.size(); k++) {
+      for(auto k = 0; k < VXC_SZYX.size(); k++) {
         if( nthreads == 1 )
-          Scale(NB2,4*M_PI,VXC[k],1);
+          Scale(NB2,4*M_PI,VXC_SZYX[k],1);
         else
           for(auto ithread = 0; ithread < nthreads; ithread++)
-            MatAdd('N','N',NB,NB,((ithread == 0) ? 0. : 1.),VXC[k],NB,
-              4*M_PI,integrateVXC[k][ithread],NB, VXC[k],NB);
+            MatAdd('N','N',NB,NB,((ithread == 0) ? 0. : 1.),VXC_SZYX[k],NB,
+              4*M_PI,integrateVXC[k][ithread],NB, VXC_SZYX[k],NB);
         
-        HerMat('L',NB,VXC[k],NB);
+        HerMat('L',NB,VXC_SZYX[k],NB);
       }
 
       for(auto &X : integrateXCEnergy)
@@ -1451,7 +1450,7 @@ namespace ChronusQ {
       double* mpiScr;
       if( mpiRank == 0 ) mpiScr = this->memManager.template malloc<double>(NB*NB);
 
-      for(auto &V : VXC) {
+      for(auto &V : VXC_SZYX) {
 
         mxx::reduce(V,NB*NB,mpiScr,0,std::plus<double>(),intComm);
 
@@ -1506,7 +1505,7 @@ namespace ChronusQ {
         prettyPrintSmart(std::cerr,"Numerical Mz VXC",
           integrateVXC[MZ][0],NB,NB,NB);
 
-        if( this->onePDM.size() > 2 ) {
+        if( this->onePDM->hasXY() ) {
           prettyPrintSmart(std::cerr,"onePDM My",this->onePDM[MY],
             NB,NB,NB);
           prettyPrintSmart(std::cerr,"Numerical My VXC",
@@ -1528,12 +1527,12 @@ namespace ChronusQ {
         this->memManager.free(ZgammaVar1,ZgammaVar2,GDenS,U_gamma,
           dVU_gamma);
 
-      if( this->onePDM.size() > 1 ) {
+      if( this->onePDM->hasZ() ) {
         this->memManager.free(DenZ);
         if( isGGA )  this->memManager.free(GDenZ);
       }
 
-      if( this->onePDM.size() > 2 ) {
+      if( this->onePDM->hasXY() ) {
         this->memManager.free(DenX,DenY,Mnorm,KScratch,Msmall);
         if( isGGA )  this->memManager.free(GDenX,GDenY,HScratch);
       }
@@ -1546,16 +1545,14 @@ namespace ChronusQ {
 
       if( nthreads != 1 ) this->memManager.free(intVXC_RAW);
 
-      if( not std::is_same<MatsT,double>::value )
-        for(auto &X : Re1PDM) this->memManager.free(X);
-
+      Re1PDM = nullptr;
       // ------------------------------------------------------------- //
       // End freeing the memory
 
 
 #if VXC_DEBUG_LEVEL >= 1
      // TIMING
-     double d_batch = this->aoints.molecule().nAtoms * 
+     double d_batch = this->molecule().nAtoms * 
                         intParam.nRad / intParam.nRadPerBatch;
 
      std::chrono::duration<double> durMem = botMem - topMem;

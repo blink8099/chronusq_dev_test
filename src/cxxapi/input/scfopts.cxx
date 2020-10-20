@@ -76,10 +76,10 @@ namespace ChronusQ {
     //   OPTOPT( restart |= input.getData<bool>("RESP.RESTART"); )
 
     if ( restart ) {
-      out << "  *** RESTART requested -- SCF.GUESS set to READMO ***";
+      out << "  *** RESTART requested -- SCF.GUESS set to READMO and SCF.ALG set to SKIP ***";
       out << std::endl;
       ss.scfControls.guess = READMO;
-      ss.scfControls.resetMOCoeffs = true;
+      ss.scfControls.scfAlg = _SKIP_SCF;
     }
 
   }
@@ -134,6 +134,8 @@ namespace ChronusQ {
         ss.scfControls.guess = READMO;
       else if( not guessString.compare("READDEN") )
         ss.scfControls.guess = READDEN;
+      else if( not guessString.compare("FCHKMO") )
+        ss.scfControls.guess = FCHKMO;
       else
         CErr("Unrecognized entry for SCF.GUESS");
     )
@@ -147,6 +149,9 @@ namespace ChronusQ {
           ss.scfControls.scfAlg = _CONVENTIONAL_SCF;
         else if( not algString.compare("NR") )
           ss.scfControls.scfAlg = _NEWTON_RAPHSON_SCF;
+        else if( not algString.compare("SKIP") )
+          ss.scfControls.scfAlg = _SKIP_SCF;
+        else CErr("Unrecognized entry for SCF.ALG!");
 
     )
 

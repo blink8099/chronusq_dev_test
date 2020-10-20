@@ -30,7 +30,7 @@ typedef enum CBLAS_ORDER     {CblasRowMajor=101, CblasColMajor=102} CBLAS_ORDER;
 namespace ChronusQ {
 
   template<>
-  double InnerProd(int N, double *X, int INCX, double *Y, int INCY) {
+  double InnerProd(int N, const double *X, int INCX, const double *Y, int INCY) {
     
 #ifdef _CQ_MKL
     return ddot(&N,X,&INCX,Y,&INCY);
@@ -47,78 +47,83 @@ namespace ChronusQ {
   }; // InnerProd real = (real,real)
 
 
+  template<typename _F1, typename _F2, typename _ShiftF>
+  void AXPY(int N, _ShiftF alpha, const _F1 *X, int INCX, _F2 *Y, int INCY) {
+    for (size_t i = 0; i < N; i++)
+      Y[i*INCY] += alpha * X[i*INCX];
+  };
+
   template<>
-  void AXPY(int N, double alpha, double *X, int INCX, double *Y, int INCY) {
+  void AXPY(int N, double alpha, const double *X, int INCX, double *Y, int INCY) {
 #ifdef _CQ_MKL
     daxpy
 #else
     daxpy_
 #endif 
-      (&N,&alpha,X,&INCX,Y,&INCY);
-  }; // AXPY (real,real)
+      (&N,&alpha,const_cast<double*>(X),&INCX,Y,&INCY);
+  }; // AXPY (real,real,real)
 
   template<>
-  void AXPY(int N, dcomplex alpha, dcomplex *X, int INCX, dcomplex *Y, int INCY) {
+  void AXPY(int N, dcomplex alpha, const dcomplex *X, int INCX, dcomplex *Y, int INCY) {
 #ifdef _CQ_MKL
     zaxpy(&N,&alpha,X,&INCX,Y,&INCY);
 #else
-    zaxpy_(&N,reinterpret_cast<double*>(&alpha),reinterpret_cast<double*>(X),
-      &INCX,reinterpret_cast<double*>(Y),&INCY);
+    zaxpy_(&N,reinterpret_cast<double*>(&alpha),
+           reinterpret_cast<double*>(const_cast<dcomplex*>(X)),
+           &INCX,reinterpret_cast<double*>(Y),&INCY);
 #endif 
       
-  }; // AXPY (complex,complex)
+  }; // AXPY (complex,complex,complex)
 
 
   template<>
-  void AXPY(int N, double alpha, dcomplex *X, int INCX, dcomplex *Y, int INCY) {
+  void AXPY(int N, double alpha, const dcomplex *X, int INCX, dcomplex *Y, int INCY) {
     AXPY(N,dcomplex(alpha),X,INCX,Y,INCY);
-  }; // AXPY (complex,real)
+  }; // AXPY (complex,complex,real)
+
+  template void AXPY(int N, double alpha, const double *X, int INCX, dcomplex *Y, int INCY);
+  template void AXPY(int N, dcomplex alpha, const double *X, int INCX, dcomplex *Y, int INCY);
 
 
   template<>
-  dcomplex InnerProd(int N, double *X, int INCX, double *Y, int INCY) {
+  dcomplex InnerProd(int N, const double *X, int INCX, const double *Y, int INCY) {
     return dcomplex(InnerProd<double>(N,X,INCX,Y,INCY));
   }; // InnerProd complex = (real,real)
-
-
 
 
   /**
    *  \warning Discards imaginary part of inner product
    */ 
   template<>
-  double InnerProd(int N, dcomplex *X, int INCX, double *Y, int INCY) {
+  double InnerProd(int N, const dcomplex *X, int INCX, const double *Y, int INCY) {
     INCX *= 2;
     return
 #ifdef _CQ_MKL
-      ddot
+      ddot(&N,reinterpret_cast<const double*>(X),&INCX,Y,&INCY);
 #else
-      ddot_
-#endif 
-        (&N,reinterpret_cast<double*>(X),&INCX,Y,&INCY);
+      ddot_(&N,reinterpret_cast<double*>(const_cast<dcomplex*>(X)),&INCX,const_cast<double*>(Y),&INCY);
+#endif
   }; // InnerProd real = (complex,real)
 
 
 
 
   template<>
-  dcomplex InnerProd(int N, dcomplex *X, int INCX, double *Y, int INCY) {
+  dcomplex InnerProd(int N, const dcomplex *X, int INCX, const double *Y, int INCY) {
     INCX *= 2;
     double re =
 #ifdef _CQ_MKL
-      ddot
+      ddot(&N,reinterpret_cast<const double*>(X),&INCX,Y,&INCY);
 #else
-      ddot_
-#endif 
-        (&N,reinterpret_cast<double*>(X),&INCX,Y,&INCY);
+      ddot_(&N,reinterpret_cast<double*>(const_cast<dcomplex*>(X)),&INCX,const_cast<double*>(Y),&INCY);
+#endif
 
     double im = -
 #ifdef _CQ_MKL
-      ddot
+      ddot(&N,reinterpret_cast<const double*>(X) + 1,&INCX,Y,&INCY);
 #else
-      ddot_
-#endif 
-        (&N,reinterpret_cast<double*>(X) + 1,&INCX,Y,&INCY);
+      ddot_(&N,reinterpret_cast<double*>(const_cast<dcomplex*>(X)) + 1,&INCX,const_cast<double*>(Y),&INCY);
+#endif
 
     return dcomplex(re,im);
   }; // InnerProd complex = (complex,real)
@@ -152,14 +157,14 @@ namespace ChronusQ {
 
 
   template<>
-  dcomplex InnerProd(int N, dcomplex *X, int INCX, dcomplex *Y, int INCY) {
+  dcomplex InnerProd(int N, const dcomplex *X, int INCX, const dcomplex *Y, int INCY) {
 #ifdef _CQ_MKL
       dcomplex res;
       zdotc(&res,&N,X,&INCX,Y,&INCY);
       return res;
 #else
-      auto res = zdotc_(&N,reinterpret_cast<double*>(X),&INCX,
-                           reinterpret_cast<double*>(Y),&INCY);
+      auto res = zdotc_(&N,reinterpret_cast<double*>(const_cast<dcomplex*>(X)),&INCX,
+                           reinterpret_cast<double*>(const_cast<dcomplex*>(Y)),&INCY);
       return *reinterpret_cast<dcomplex*>(&res);
 #endif
   }; // InnerProd complex = (complex,complex)
@@ -171,12 +176,12 @@ namespace ChronusQ {
    *  \warning Discards imaginary part of inner product
    */ 
   template<>
-  double InnerProd(int N, dcomplex *X, int INCX, dcomplex *Y, int INCY) {
+  double InnerProd(int N, const dcomplex *X, int INCX, const dcomplex *Y, int INCY) {
 #ifdef _CQ_MKL
       return std::real(InnerProd<dcomplex>(N,X,INCX,Y,INCY));
 #else
-      auto res = zdotc_(&N,reinterpret_cast<double*>(X),&INCX,
-        reinterpret_cast<double*>(Y),&INCY);
+      auto res = zdotc_(&N,reinterpret_cast<double*>(const_cast<dcomplex*>(X)),&INCX,
+        reinterpret_cast<double*>(const_cast<dcomplex*>(Y)),&INCY);
       return std::real(*reinterpret_cast<dcomplex*>(&res));
 #endif
   }; // InnerProd real = (complex,complex)

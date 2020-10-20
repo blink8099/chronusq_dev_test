@@ -48,7 +48,7 @@ constexpr long double PRINT_SMALL = 1e-10;
  *  \param [in]     printWidth Field with of a matrix column
  */
 template <typename T>
-void prettyPrintSmartBase(std::ostream& out, T* A, const size_t M, 
+void prettyPrintSmartBase(std::ostream& out, const T* A, const size_t M,
   const size_t N, const size_t LDA, const size_t colStride = 1, 
   const size_t list = 5, const size_t printWidth = 16) {
 
@@ -96,7 +96,7 @@ void prettyPrintSmartBase(std::ostream& out, T* A, const size_t M,
 template <typename T, 
           typename std::enable_if<
                      std::is_same<T,double>::value,int>::type = 0>
-void prettyPrintSmart(std::ostream& out, std::string str, T* A, 
+void prettyPrintSmart(std::ostream& out, std::string str, const T* A,
   const size_t M, const size_t N, const size_t LDA, const size_t colStride = 1, 
   const size_t list = 5, const size_t printWidth = 16) {
 
@@ -126,7 +126,7 @@ void prettyPrintSmart(std::ostream& out, std::string str, T* A,
 template <typename T, 
           typename std::enable_if<
                      std::is_same<T,dcomplex>::value,int>::type = 0>
-void prettyPrintSmart(std::ostream& out, std::string str, T* A, 
+void prettyPrintSmart(std::ostream& out, std::string str, const T* A,
   const size_t M, const size_t N, const size_t LDA, const size_t colStride = 1, 
   const size_t list = 5, const size_t printWidth = 16) {
 
@@ -134,12 +134,12 @@ void prettyPrintSmart(std::ostream& out, std::string str, T* A,
   out.fill(' ');
 
   out << std::endl << "Re[" << str + "]: " << std::endl;
-  prettyPrintSmartBase(out,reinterpret_cast<double*>(A),M,N,2*LDA,2*colStride,
-    list,printWidth);
+  prettyPrintSmartBase(out,reinterpret_cast<const double*>(A),
+                       M,N,2*LDA,2*colStride,list,printWidth);
 
   out << std::endl << "Im[" << str + "]: " << std::endl;
-  prettyPrintSmartBase(out,reinterpret_cast<double*>(A)+1,M,N,2*LDA,2*colStride,
-    list,printWidth);
+  prettyPrintSmartBase(out,reinterpret_cast<const double*>(A)+1,
+                       M,N,2*LDA,2*colStride,list,printWidth);
 
 }; // prettyPrintSmart (T = dcomplex)
 
@@ -148,7 +148,7 @@ void prettyPrintSmart(std::ostream& out, std::string str, T* A,
 template <typename T, 
           typename std::enable_if<
                      std::is_same<T,double>::value,int>::type = 0>
-void mathematicaPrint(std::ostream& out, std::string str, T* A, 
+void mathematicaPrint(std::ostream& out, std::string str, const T* A,
   const size_t M, const size_t N, const size_t LDA, 
   const size_t colStride = 1) { 
 
@@ -172,7 +172,7 @@ void mathematicaPrint(std::ostream& out, std::string str, T* A,
 template <typename T, 
           typename std::enable_if<
                      std::is_same<T,dcomplex>::value,int>::type = 0>
-void mathematicaPrint(std::ostream& out, std::string str, T* A, 
+void mathematicaPrint(std::ostream& out, std::string str, const T* A,
   const size_t M, const size_t N, const size_t LDA,
   const size_t colStride = 1) { 
 

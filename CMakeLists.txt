@@ -20,19 +20,48 @@
 # Contact the Developers:
 #   E-Mail: xsli@uw.edu
 #
-cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
-project(ChronusQ CXX C Fortran)
-set(ChronusQ_VERSION_MAJOR 0)
-set(ChronusQ_VERSION_MINOR 3)
-set(ChronusQ_VERSION_PATCH 3)
+
+cmake_minimum_required(VERSION 3.11...3.14 FATAL_ERROR)
 
 
+project(ChronusQ
+    VERSION 0.4.0
+    DESCRIPTION
+    "Chronus Quantum is an ab initio computational chemistry \
+software package that focuses on explicitly time-dependent and unconventional \
+post-SCF quantum mechanical methods."
+    LANGUAGES CXX C Fortran)
+
+
+# -----------------------------------------------------------------------------
 # Options
+# -----------------------------------------------------------------------------
+
 option(CQ_ENABLE_MPI       "Enable MPI parallelism"          OFF)
 option(ENABLE_COVERAGE     "Enable coverage and profiling"   OFF)
 option(CQ_LINALG_USESYSTEM "Use System defaults for LA libs" OFF)
 option(CQ_EXTERNAL_OPENMP  "Force linking to an external OpenMP library" OFF)
 
+
+# Libint building options
+set(BUILD_LIBINT_TYPES NONE ALLOW FORCE)
+set(CQ_BUILD_LIBINT_TYPE ALLOW CACHE STRING "Disable, enable, or force CQ to build libint")
+set_property(CACHE CQ_BUILD_LIBINT_TYPE PROPERTY STRINGS ${BUILD_LIBINT_TYPES})
+
+if ( NOT CQ_BUILD_LIBINT_TYPE IN_LIST BUILD_LIBINT_TYPES )
+  message ( FATAL_ERROR "CQ_BUILD_LIBINT_TYPE must be one of ${BUILD_LIBINT_TYPES}" )
+endif()
+
+
+# Whether to build in external or build directory
+option(CQ_EXTERNAL_IN_BUILD_DIR "Build external dependencies in the build directory" OFF)
+
+if ( NOT FETCHCONTENT_BASE_DIR AND NOT CQ_EXTERNAL_IN_BUILD_DIR )
+  set ( FETCHCONTENT_BASE_DIR "${PROJECT_SOURCE_DIR}/external"
+        CACHE STRING "" FORCE )
+endif()
+
+# -----------------------------------------------------------------------------
 
 # Add specified paths to CMAKE_PREFIX_PATH
 if( MPI_PREFIX )
@@ -112,7 +141,7 @@ include(HandleLA)
 message( "ChronusQ Dependencies" )
 
 
-include(FindLibint)
+include(HandleLibint)
 include(FindLibXC)
 
 set(CQEX_LINK ${CQ_EXT_LINK} )

@@ -46,8 +46,8 @@ namespace ChronusQ {
     }
 
     // Orthonormalize the rest of the matrix using GS
-    size_t iOrtho = Mold + 1;
-    for(auto k = Mold + 1; k < (Mold + Mnew); k++) {
+    size_t iOrtho = (Mold == 0) ? Mold + 1: Mold;
+    for(auto k = iOrtho; k < (Mold + Mnew); k++) {
 
       F* V_c = V + k      * LDV;
       F* V_p = V + iOrtho * LDV;

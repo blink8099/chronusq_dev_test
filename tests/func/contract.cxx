@@ -34,7 +34,8 @@
 #include <cerr.hpp>
 #include <molecule.hpp>
 #include <basisset.hpp>
-#include <aointegrals.hpp>
+#include <integrals.hpp>
+#include <electronintegrals/twoeints/gtodirecteri.hpp>
 
 #include <cqlinalg/blasext.hpp>
 
@@ -111,31 +112,32 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   
   // Memory
   auto memManager = CQMiscOptions(std::cout,input); 
+  // Dummy scrName since READGEOM=INPUTFILE
+  std::string scrName;
   
   // Molecule and BasisSet
-  Molecule mol(std::move(CQMoleculeOptions(std::cout,input))); 
-  BasisSet basis(std::move(CQBasisSetOptions(std::cout,input,mol))); 
+  Molecule mol(std::move(CQMoleculeOptions(std::cout,input,scrName)));
+  std::shared_ptr<BasisSet> basis = CQBasisSetOptions(std::cout,input,mol,"BASIS");
 
   // AOIntegrals object
-  AOIntegrals<double> aoints(*memManager,mol,basis); 
+  Integrals<double> aoints;
+  aoints.ERI =
+      std::make_shared<DirectERI<double>>(*memManager,*basis,1e-12);
   
   // Scratch memory
-  size_t NB = basis.nBasis; 
+  size_t NB = basis->nBasis;
   FIELD *SX  = memManager->malloc<FIELD>(NB*NB); 
   FIELD *SX2 = memManager->malloc<FIELD>(NB*NB); 
   FIELD *Rand = memManager->malloc<FIELD>(NB*NB); 
 
   // Set up direct contraction
   std::vector<TwoBodyContraction<FIELD>> cont = 
-    { { true, Rand, SX, (HER == HERMETIAN), type  } };
+    { { Rand, SX, (HER == HERMETIAN), type  } };
   std::fill_n(SX,NB*NB,0.); // zero out scratch space
   
   EMPerturbation pert; // Dummy perturbation
 
 #ifdef _CQ_GENERATE_TESTS
-
-  // Compute ERI tensor
-  aoints.computeERI(pert); 
 
   // Generate random "X" matrix
   std::random_device r; 
@@ -153,7 +155,8 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   refFile.safeWriteData(storage + "/X",Rand,{NB,NB});
   
   // Perform incore ERI contraction and write result to disk
-  aoints.twoBodyContractIncore(MPI_COMM_WORLD,cont);
+  GTODirectERIContraction<FIELD,double> ERI(*aoints.ERI);
+  ERI.twoBodyContract(MPI_COMM_WORLD,true,cont,pert);
   refFile.safeWriteData(storage + "/AX",SX,{NB,NB});
 
 #else
@@ -163,7 +166,8 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   refFile.readData(storage + "/AX",SX2);
   
   // Form G[X] directly
-  aoints.twoBodyContractDirect(MPI_COMM_WORLD,true,cont,pert);
+  GTODirectERIContraction<FIELD,double> ERI(*aoints.ERI);
+  ERI.twoBodyContract(MPI_COMM_WORLD,true,cont,pert);
   
   // Compare with reference result
   double maxDiff(0.);

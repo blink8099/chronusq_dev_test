@@ -27,6 +27,13 @@
 #include <corehbuilder.hpp>
 #include <corehbuilder/nonrel.hpp>
 #include <corehbuilder/x2c.hpp>
+#include <corehbuilder/x2c/atomic.hpp>
+#include <fockbuilder/rofock.hpp>
+#include <electronintegrals/twoeints.hpp>
+#include <electronintegrals/twoeints/gtodirecteri.hpp>
+#include <electronintegrals/twoeints/incore4indexeri.hpp>
+#include <electronintegrals/twoeints/giaodirecteri.hpp>
+#include <electronintegrals/twoeints/incorerieri.hpp>
 
 namespace ChronusQ {
 
@@ -97,8 +104,9 @@ namespace ChronusQ {
    *
    */ 
   std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
-    std::ostream &out, CQInputFile &input, 
-    std::shared_ptr<AOIntegralsBase> aoints) {
+    std::ostream &out, CQInputFile &input,
+    CQMemManager &mem, Molecule &mol, BasisSet &basis,
+    std::shared_ptr<IntegralsBase> aoints) {
 
     out << "  *** Parsing QM.REFERENCE options ***\n";
 
@@ -146,15 +154,15 @@ namespace ChronusQ {
     std::vector<std::string> rawRefs(KSRefs);
     rawRefs.insert(rawRefs.begin(),"HF");
 
-    // Construct R/U/G/X2C reference keywords
-    std::vector<std::string> RRefs, URefs, GRefs, X2CRefs;
+    // Construct R/U/RO/G/X2C reference keywords
+    std::vector<std::string> RRefs, URefs, RORefs, GRefs, X2CRefs;
     for(auto &f : rawRefs) {
       RRefs.emplace_back( "R" + f );
       URefs.emplace_back( "U" + f );
       GRefs.emplace_back( "G" + f );
       X2CRefs.emplace_back( "X2C" + f );
     }
-
+    RORefs.emplace_back( "ROHF" );
 
     // This is the reference string to be parsed
     std::string refString = tokens.back();
@@ -167,14 +175,16 @@ namespace ChronusQ {
       std::find(RRefs.begin(),RRefs.end(),refString) != RRefs.end();
     bool isURef   = 
       std::find(URefs.begin(),URefs.end(),refString) != URefs.end();
+    bool isRORef  =
+      std::find(RORefs.begin(),RORefs.end(),refString) != RORefs.end();
     bool isGRef   = 
       std::find(GRefs.begin(),GRefs.end(),refString) != GRefs.end();
     bool isX2CRef = 
       std::find(X2CRefs.begin(),X2CRefs.end(),refString) != X2CRefs.end();
 
     // Throw an error if not a valid reference keyword
-    if( not isRawRef and not isRRef and not isURef and not isGRef and 
-        not isX2CRef )
+    if( not isRawRef and not isRRef and not isURef and not isRORef and 
+        not isGRef and not isX2CRef )
       CErr(refString + " is not a valid QM.REFERENCE",out);
 
     // Cleanup the reference string
@@ -317,7 +327,7 @@ namespace ChronusQ {
     // Raw reference
     if( isRawRef ) {
       out << "  *** Auto-determination of reference: " << refString << " -> ";
-      iCS = aoints->molecule().multip == 1;
+      iCS = mol.multip == 1;
 
       if(iCS) out << "R" << refString;
       else    out << "U" << refString;
@@ -325,18 +335,18 @@ namespace ChronusQ {
       out << " ***" << std::endl;
       
     } else if( isRRef )
-      if( aoints->molecule().multip != 1 )
+      if( mol.multip != 1 )
         CErr("Spin-Restricted Reference only valid for singlet spin multiplicities",out);
       else
         iCS = true;
-    else if( isURef )
+    else if( isURef  or isRORef )
       iCS = false;
     else if( isGRef or isX2CRef ) {
       iCS = false; nC = 2;
     }
 
     // Sanity Checks
-    bool isGIAO = aoints->basisSet().basisType == COMPLEX_GIAO;
+    bool isGIAO = basis.basisType == COMPLEX_GIAO;
 
     if( nC == 2 and not RCflag.compare("REAL") )
       CErr("Real + Two-Component not valid",out);
@@ -408,10 +418,10 @@ namespace ChronusQ {
 
 
   #define KS_LIST(T) \
-    funcName,funcList,MPI_COMM_WORLD,intParam,dynamic_cast<AOIntegrals<T>&>(*aoints),nC,iCS
+    funcName,funcList,MPI_COMM_WORLD,intParam,mem,mol,basis,dynamic_cast<Integrals<T>&>(*aoints),nC,iCS
 
   #define HF_LIST(T) \
-    MPI_COMM_WORLD,dynamic_cast<AOIntegrals<T>&>(*aoints),nC,iCS
+    MPI_COMM_WORLD,mem,mol,basis,dynamic_cast<Integrals<T>&>(*aoints),nC,iCS
 
 
     // Construct the SS object
@@ -421,6 +431,11 @@ namespace ChronusQ {
       if( isKSRef )
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<KohnSham<double,double>>( KS_LIST(double) )
+          );
+      else if(isRORef)
+        ss = std::dynamic_pointer_cast<SingleSlaterBase>(
+            std::make_shared<HartreeFock<double,double>>(
+            "Real Restricted Open-shell Hartree-Fock", "R-ROHF", HF_LIST(double) )
           );
       else if(not isGIAO)
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
@@ -446,6 +461,11 @@ namespace ChronusQ {
               "Exact Two Component","X2C-",HF_LIST(double)
             )
           );
+      else if(isRORef)
+        ss = std::dynamic_pointer_cast<SingleSlaterBase>(
+            std::make_shared<HartreeFock<dcomplex,double>>(
+            "Complex Restricted Open-shell Hartree-Fock", "C-ROHF", HF_LIST(double) )
+          );
       else
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<HartreeFock<dcomplex,double>>( HF_LIST(double) )
@@ -467,6 +487,11 @@ namespace ChronusQ {
               "Exact Two Component","X2C-",HF_LIST(dcomplex)
             )
           );
+      else if(isRORef)
+        ss = std::dynamic_pointer_cast<SingleSlaterBase>(
+            std::make_shared<HartreeFock<dcomplex,dcomplex>>(
+            "Complex Restricted Open-shell Hartree-Fock", "C-ROHF", HF_LIST(dcomplex) )
+          );
       else
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<HartreeFock<dcomplex,dcomplex>>( HF_LIST(dcomplex) )
@@ -476,48 +501,156 @@ namespace ChronusQ {
 
 
 
-
-    if( isX2CRef ) {
-      std::string x2c_str = "FULL";
-      X2C_TYPE x2ctype = {false,false,false};
-      OPTOPT( x2c_str = input.getData<std::string>("QM.X2CTYPE")  );
-      trim(x2c_str);
-
-      if( not x2c_str.compare("FULL") )
-        x2ctype = {false,false,false};
-      else if( not x2c_str.compare("ALU") )
-        x2ctype = {true,true,false};
-      else if( not x2c_str.compare("DLU") )
-        x2ctype = {true,false,false};
-      else if( not x2c_str.compare("AMLH") )
-        x2ctype = {true,true,true};
-      else if( not x2c_str.compare("DLH") )
-        x2ctype = {true,false,true};
+    // Parse X2C option
+    std::string x2c_str;
+    bool atomic = false;
+    ATOMIC_X2C_TYPE x2ctype = {false,false};
+    bool scalarOnly = false;
+    OPTOPT( x2c_str = input.getData<std::string>("QM.X2CTYPE")  );
+    trim(x2c_str);
+    split(tokens,x2c_str);
+    for(auto &X : tokens) {
+      trim(X);
+      if( not X.compare("FULL") ) {
+        atomic = false;
+        x2ctype = {false,false};
+      } else if( not X.compare("ALH") ) {
+        atomic = true;
+        x2ctype = {true,true};
+      } else if( not X.compare("ALU") ) {
+        atomic = true;
+        x2ctype = {true,false};
+      } else if( not X.compare("DLH") ) {
+        atomic = true;
+        x2ctype = {false,true};
+      } else if( not X.compare("DLU") ) {
+        atomic = true;
+        x2ctype = {false,false};
+      } else if( not X.compare("SO") )
+        scalarOnly = false;
+      else if( not X.compare("SCALAR") )
+        scalarOnly = true;
       else
-        CErr(x2c_str + " not a valid QM.X2CTYPE",out);
+        CErr(X + " not a valid QM.X2CTYPE",out);
+    }
 
+
+    // Parse Finite Width Nuclei
+    AOIntsOptions aoiOptions{basis.basisType,false,false,false,false,false,false,false};
+    std::string finiteCore = "DEFAULT";
+    OPTOPT( finiteCore = input.getData<std::string>("INTS.FINITE_NUCLEI"); )
+    trim(finiteCore);
+    if( not finiteCore.compare("TRUE") )
+      aoiOptions.finiteWidthNuc = true;
+    else if( not finiteCore.compare("FALSE") )
+      aoiOptions.finiteWidthNuc = false;
+    else if( not finiteCore.compare("DEFAULT") )
+      aoiOptions.finiteWidthNuc = isX2CRef or scalarOnly;
+    else
+      CErr(finiteCore + " not a valid INTS.ALG",out);
+    OPTOPT( aoiOptions.DiracCoulomb = input.getData<bool>("INTS.DC") )
+    OPTOPT( aoiOptions.SSSS = input.getData<bool>("INTS.SSSS") )
+    OPTOPT( aoiOptions.Gaunt = input.getData<bool>("INTS.DCB") )
+    OPTOPT( aoiOptions.Gauge = input.getData<bool>("INTS.GAUGE") )
+    if(aoiOptions.Gaunt) aoiOptions.DiracCoulomb = true;
+
+
+    // Construct CoreHBuilder
+    if( isX2CRef or scalarOnly ) {
+      aoiOptions.OneEScalarRelativity = true;
+      aoiOptions.OneESpinOrbit = not scalarOnly;
       if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
-        p->coreHBuilder = std::make_shared<X2C<dcomplex,double>>(
-          *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+        if (atomic)
+          p->coreHBuilder = std::make_shared<AtomicX2C<dcomplex,double>>(
+              *std::dynamic_pointer_cast<Integrals<double>>(aoints),
+              mem, mol, basis, aoiOptions, x2ctype);
+        else
+          p->coreHBuilder = std::make_shared<X2C<dcomplex,double>>(
+              *std::dynamic_pointer_cast<Integrals<double>>(aoints),
+              mem, mol, basis, aoiOptions);
+        p->fockBuilder = std::make_shared<FockBuilder<dcomplex,double>>();
+      } else if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
+        if (scalarOnly) {
+          if (atomic)
+            p->coreHBuilder = std::make_shared<AtomicX2C<double,double>>(
+                *std::dynamic_pointer_cast<Integrals<double>>(aoints),
+                mem, mol, basis, aoiOptions, x2ctype);
+          else
+            p->coreHBuilder = std::make_shared<X2C<double,double>>(
+                *std::dynamic_pointer_cast<Integrals<double>>(aoints),
+                mem, mol, basis, aoiOptions);
+          p->fockBuilder = std::make_shared<FockBuilder<double,double>>();
+        } else
+          CErr("SOX2C + Real WFN is not a valid option",std::cout);
       } else if (std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
         CErr("X2C + Complex Ints NYI",std::cout);
       } else {
-        CErr("X2C + Real WFN is not a valid option",std::cout);
+        CErr("Complex INT + Real WFN is not a valid option",std::cout);
       }
     } else {
       if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
         p->coreHBuilder = std::make_shared<NRCoreH<double,double>>(
-          *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+            *std::dynamic_pointer_cast<Integrals<double>>(aoints), aoiOptions);
+        if(isRORef) p->fockBuilder = std::make_shared<ROFock<double,double>>();
+        else p->fockBuilder = std::make_shared<FockBuilder<double,double>>();
       } else if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
         p->coreHBuilder = std::make_shared<NRCoreH<dcomplex,double>>(
-          *std::dynamic_pointer_cast<AOIntegrals<double>>(aoints));
+            *std::dynamic_pointer_cast<Integrals<double>>(aoints), aoiOptions);
+        if(isRORef) p->fockBuilder = std::make_shared<ROFock<dcomplex,double>>();
+        else p->fockBuilder = std::make_shared<FockBuilder<dcomplex,double>>();
       } else if (auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
         p->coreHBuilder = std::make_shared<NRCoreH<dcomplex,dcomplex>>(
-          *std::dynamic_pointer_cast<AOIntegrals<dcomplex>>(aoints));
+            *std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints), aoiOptions);
+        if(isRORef) p->fockBuilder = std::make_shared<ROFock<dcomplex,dcomplex>>();
+        else p->fockBuilder = std::make_shared<FockBuilder<dcomplex,dcomplex>>();
       } else {
         CErr("Complex INT + Real WFN is not a valid option",std::cout);
       }
     }
+
+
+
+    // Construct ERIContractions
+    if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
+      std::shared_ptr<TwoEInts<double>> ERI =
+          std::dynamic_pointer_cast<Integrals<double>>(aoints)->ERI;
+      if (auto eri_typed = std::dynamic_pointer_cast<DirectERI<double>>(ERI)) {
+        p->ERI = std::make_shared<GTODirectERIContraction<double,double>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<InCoreRIERI<double>>(ERI)) {
+        p->ERI = std::make_shared<InCoreRIERIContraction<double,double>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexERI<double>>(ERI)) {
+        p->ERI = std::make_shared<InCore4indexERIContraction<double,double>>(*eri_typed);
+      } else {
+        CErr("Invalid ERInts type for Wavefunction<double,double>",std::cout);
+      }
+    } else if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
+      std::shared_ptr<TwoEInts<double>> ERI =
+          std::dynamic_pointer_cast<Integrals<double>>(aoints)->ERI;
+      if (auto eri_typed = std::dynamic_pointer_cast<DirectERI<double>>(ERI)) {
+        p->ERI = std::make_shared<GTODirectERIContraction<dcomplex,double>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<InCoreRIERI<double>>(ERI)) {
+        p->ERI = std::make_shared<InCoreRIERIContraction<dcomplex,double>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexERI<double>>(ERI)) {
+        p->ERI = std::make_shared<InCore4indexERIContraction<dcomplex,double>>(*eri_typed);
+      } else {
+        CErr("Invalid ERInts type for Wavefunction<dcomplex,double>",std::cout);
+      }
+    } else if (auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
+      std::shared_ptr<TwoEInts<dcomplex>> ERI =
+          std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints)->ERI;
+      if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexERI<dcomplex>>(ERI)) {
+        p->ERI = std::make_shared<InCore4indexERIContraction<dcomplex,dcomplex>>(*eri_typed);
+      } else if (auto eri_typed = std::dynamic_pointer_cast<DirectERI<dcomplex>>(ERI)) {
+        p->ERI = std::make_shared<GIAODirectERIContraction>(*eri_typed);
+      } else {
+        CErr("Invalid ERInts type for Wavefunction<dcomplex,dcomplex>",std::cout);
+      }
+    } else {
+      CErr("Complex INT + Real WFN is not a valid option",std::cout);
+    }
+
+
+
 
 
 

@@ -33,16 +33,16 @@ namespace ChronusQ {
   template <typename MatsT>
   void Quantum<MatsT>::print1PDM(std::ostream &out) {
 
-    size_t NB = std::sqrt(memManager.template getSize<MatsT>(onePDM[0]));
+    size_t NB = onePDM->dimension();
 
-    prettyPrintSmart(out,"1PDM (AO) Scalar",onePDM[SCALAR],NB,NB,NB);
+    prettyPrintSmart(out,"1PDM (AO) Scalar",onePDM->S().pointer(),NB,NB,NB);
 
-    if( onePDM.size() > 1 )
-      prettyPrintSmart(out,"1PDM (AO) MZ",onePDM[MZ],NB,NB,NB);
+    if( onePDM->hasZ() )
+      prettyPrintSmart(out,"1PDM (AO) MZ",onePDM->Z().pointer(),NB,NB,NB);
 
-    if( onePDM.size() > 2 ) {
-      prettyPrintSmart(out,"1PDM (AO) MY",onePDM[MY],NB,NB,NB);
-      prettyPrintSmart(out,"1PDM (AO) MX",onePDM[MX],NB,NB,NB);
+    if( onePDM->hasXY() ) {
+      prettyPrintSmart(out,"1PDM (AO) MY",onePDM->Y().pointer(),NB,NB,NB);
+      prettyPrintSmart(out,"1PDM (AO) MX",onePDM->X().pointer(),NB,NB,NB);
     }
 
   }; // Quantum<T>::print1PDM

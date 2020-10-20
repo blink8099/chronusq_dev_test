@@ -40,7 +40,7 @@ namespace ChronusQ {
 
     // Disable default constructor
     FourComponent() = delete;
-    FourComponent(AOIntegrals<IntsT> &aoints):
+    FourComponent(Integrals<IntsT> &aoints):
       CoreHBuilder<MatsT,IntsT>(aoints, {true,true,true}) {}
 
     // Same or Different type
@@ -57,7 +57,8 @@ namespace ChronusQ {
     // Public member functions
 
     // Compute core Hamitlonian
-    virtual void computeCoreH(EMPerturbation &, std::vector<MatsT*>&) {
+    virtual void computeCoreH(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>) {
       CErr("4C NYI",std::cout);
     }
 

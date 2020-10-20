@@ -31,7 +31,6 @@
 #define X2C_COLLECTIVE_OP(OP_OP,OP_VEC_OP) \
   /* Handle Operators */\
   OP_OP(IntsT,this,other,memManager_,mapPrim2Cont);\
-  OP_OP(MatsT,this,other,memManager_,W);\
   OP_OP(IntsT,this,other,memManager_,UK);\
   OP_OP(double,this,other,memManager_,p);\
   OP_OP(MatsT,this,other,memManager_,X);\
@@ -44,23 +43,35 @@ namespace ChronusQ {
 
   template <typename MatsT, typename IntsT>
   X2C<MatsT,IntsT>::X2C(const X2C<MatsT,IntsT> &other) :
+    X2C(other,0) {}
+
+  template <typename MatsT, typename IntsT>
+  X2C<MatsT,IntsT>::X2C(X2C<MatsT,IntsT> &&other) :
+    X2C(std::move(other),0) {}
+
+  template <typename MatsT, typename IntsT>
+  template <typename MatsU>
+  X2C<MatsT,IntsT>::X2C(const X2C<MatsU,IntsT> &other, int dummy) :
     CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
     molecule_(other.molecule_), basisSet_(other.basisSet_),
     uncontractedBasis_(other.uncontractedBasis_),
     uncontractedInts_(other.uncontractedInts_),
-    nPrimUse_(other.nPrimUse_) {
+    nPrimUse_(other.nPrimUse_),
+    W(other.W ? std::make_shared<SquareMatrix<MatsT>>(*other.W) : nullptr) {
 
     X2C_COLLECTIVE_OP(COPY_OTHER_MEMBER_OP, COPY_OTHER_MEMBER_VEC_OP)
 
   }
 
   template <typename MatsT, typename IntsT>
-  X2C<MatsT,IntsT>::X2C(X2C<MatsT,IntsT> &&other) :
+  template <typename MatsU>
+  X2C<MatsT,IntsT>::X2C(X2C<MatsU,IntsT> &&other, int dummy) :
     CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
     molecule_(other.molecule_), basisSet_(other.basisSet_),
     uncontractedBasis_(other.uncontractedBasis_),
     uncontractedInts_(other.uncontractedInts_),
-    nPrimUse_(other.nPrimUse_) {
+    nPrimUse_(other.nPrimUse_),
+    W(other.W ? std::make_shared<SquareMatrix<MatsT>>(*other.W) : nullptr) {
 
     X2C_COLLECTIVE_OP(MOVE_OTHER_MEMBER_OP, MOVE_OTHER_MEMBER_VEC_OP)
 

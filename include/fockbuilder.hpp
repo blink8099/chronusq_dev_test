@@ -59,9 +59,12 @@ namespace ChronusQ {
     // Compute the gradient
     virtual void getGrad() {}
 
+    // Pointer convertor
+    template <typename MatsU>
+    static std::shared_ptr<FockBuilder<MatsU,IntsT>>
+    convert(const std::shared_ptr<FockBuilder<MatsT,IntsT>>&);
+
+
   };
 
 }
-
-// Include header for implementation
-#include <fockbuilder/impl.hpp>

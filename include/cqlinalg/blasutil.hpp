@@ -30,14 +30,42 @@ namespace ChronusQ {
 
 
   // Spin Scatter a matrix
-  template <typename _F>
-  void SpinScatter(size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
-    _F *AZ, size_t LDAZ, _F *AY, size_t LDAY, _F *AX, size_t LDAX);
+  template <typename _F1, typename _F2>
+  void SpinScatter(size_t N, const _F1 *A, size_t LDA, _F2 *AS, size_t LDAS,
+      _F2 *AZ, size_t LDAZ, _F2 *AY, size_t LDAY, _F2 *AX, size_t LDAX,
+      bool zeroABBA = false, bool BBeqAA = false);
+
+  // Spin Scatter a matrix
+  template <typename _F1, typename _F2>
+  void SpinScatter(size_t M, size_t N, const _F1 *A, size_t LDA, _F2 *AS, size_t LDAS,
+      _F2 *AZ, size_t LDAZ, _F2 *AY, size_t LDAY, _F2 *AX, size_t LDAX,
+      bool zeroABBA = false, bool BBeqAA = false);
+
+  // Spin Scatter matrix blocks
+  template <typename _F1, typename _F2>
+  void SpinScatter(size_t M, size_t N, const _F1 *AA, size_t LDAA, const _F1 *AB, size_t LDAB,
+      const _F1 *BA, size_t LDBA, const _F1 *BB, size_t LDBB, _F2 *AS, size_t LDAS,
+      _F2 *AZ, size_t LDAZ, _F2 *AY, size_t LDAY, _F2 *AX, size_t LDAX,
+      bool zeroABBA = false, bool BBeqAA = false);
 
   // Spin Gather a matrix
-  template <typename _F>
-  void SpinGather(size_t N, _F *A, size_t LDA, _F *AS, size_t LDAS,
-    _F *AZ, size_t LDAZ, _F *AY, size_t LDAY, _F *AX, size_t LDAX);
+  template <typename _F1, typename _F2>
+  void SpinGather(size_t N, _F1 *A, size_t LDA, const _F2 *AS, size_t LDAS,
+      const _F2 *AZ, size_t LDAZ, const _F2 *AY, size_t LDAY, const _F2 *AX, size_t LDAX,
+      bool zeroXY = false, bool zeroZ = false);
+
+  // Spin Gather a matrix
+  template <typename _F1, typename _F2>
+  void SpinGather(size_t M, size_t N, _F1 *A, size_t LDA, const _F2 *AS, size_t LDAS,
+      const _F2 *AZ, size_t LDAZ, const _F2 *AY, size_t LDAY, const _F2 *AX, size_t LDAX,
+      bool zeroXY = false, bool zeroZ = false);
+
+  // Spin Gather a matrix
+  template <typename _F1, typename _F2>
+  void SpinGather(size_t M, size_t N, _F1 *AA, size_t LDAA, _F1 *AB, size_t LDAB,
+      _F1 *BA, size_t LDBA, _F1 *BB, size_t LDBB, const _F2 *AS, size_t LDAS,
+      const _F2 *AZ, size_t LDAZ, const _F2 *AY, size_t LDAY, const _F2 *AX, size_t LDAX,
+      bool zeroXY = false, bool zeroZ = false);
 
 
 
@@ -45,37 +73,42 @@ namespace ChronusQ {
 
   // B = ALPHA * OP(A)
   template <typename _F1, typename _F2, typename _FScale>
-  void SetMat(char TRANS, size_t M, size_t N, _FScale ALPHA, _F1 *A, size_t LDA,
+  void SetMat(char TRANS, size_t M, size_t N, _FScale ALPHA, const _F1 *A, size_t LDA,
     size_t SA, _F2 *B, size_t LDB, size_t SB);
 
   template <typename _F1, typename _F2, typename _FScale>
-  void SetMat(char TRANS, size_t M, size_t N, _FScale ALPHA, _F1 *A, size_t LDA,
+  void SetMat(char TRANS, size_t M, size_t N, _FScale ALPHA, const _F1 *A, size_t LDA,
     _F2 *B, size_t LDB) {
 
-    SetMat(TRANS,M,N,_F1(ALPHA),A,LDA,1,B,LDB,1);
+    SetMat(TRANS,M,N,ALPHA,A,LDA,1,B,LDB,1);
 
   }
 
 
   // RE(B) = ALPHA * OP(A)
   template <typename _F>
-  void SetMatRE(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void SetMatRE(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, _F *B, size_t LDB);
 
   // IM(B) = ALPHA * OP(A)
   template <typename _F>
-  void SetMatIM(char TRANS, size_t M, size_t N, double ALPHA, double *A, 
+  void SetMatIM(char TRANS, size_t M, size_t N, double ALPHA, const double *A,
     size_t LDA, _F *B, size_t LDB);
 
   // B = ALPHA * OP(RE(A))
   template <typename _F>
-  void GetMatRE(char TRANS, size_t M, size_t N, double ALPHA, _F *A, 
+  void GetMatRE(char TRANS, size_t M, size_t N, double ALPHA, const _F *A,
     size_t LDA, double *B, size_t LDB);
 
   // B = ALPHA * OP(IM(A))
   template <typename _F>
-  void GetMatIM(char TRANS, size_t M, size_t N, double ALPHA, _F *A, 
+  void GetMatIM(char TRANS, size_t M, size_t N, double ALPHA, const _F *A,
     size_t LDA, double *B, size_t LDB);
+
+  // A2c = [ A  0 ]
+  //       [ 0  A ]
+  template <typename _F1, typename _F2>
+  void SetMatDiag(size_t M, size_t N, const _F1 *A, size_t LDA, _F2 *A2c, size_t LD2c);
 
 
 

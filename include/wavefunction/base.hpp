@@ -25,7 +25,6 @@
 
 #include <chronusq_sys.hpp>
 #include <quantum/base.hpp>
-#include <aointegrals.hpp>
 
 namespace ChronusQ {
 
@@ -70,6 +69,9 @@ namespace ChronusQ {
      */ 
     WaveFunctionBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS) : 
       QuantumBase(c, mem,_nC,iCS) { }; // WaveFunctionBase ctor 
+
+    size_t nAlphaOrbital() const { return nOA + nVA; }
+    size_t nBetaOrbital() const { return nOB + nVB; }
 
     // Print Functions
     virtual void printMO(std::ostream&)  = 0;

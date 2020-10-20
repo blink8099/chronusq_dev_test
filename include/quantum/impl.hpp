@@ -26,15 +26,7 @@
 #include <quantum.hpp>
 #include <util/preprocessor.hpp>
 #include <quantum/preprocessor.hpp>
-
-// Template for a collective operation on the members of a 
-// Quantum object
-  
-#define Quantum_COLLECTIVE_OP(OP_MEMBER,OP_VEC_OP) \
-  /* Handle densities */\
-  OP_VEC_OP(MatsT,this,other,memManager,onePDM); 
-
-
+#include <matrix.hpp>
 
 namespace ChronusQ {
 
@@ -49,14 +41,13 @@ namespace ChronusQ {
   template <typename MatsT>
   template <typename MatsU>
   Quantum<MatsT>::Quantum(const Quantum<MatsU> &other, int dummy) : 
-    QuantumBase(dynamic_cast<const QuantumBase&>(other)) {
+      QuantumBase(dynamic_cast<const QuantumBase&>(other)),
+      onePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.onePDM)){
 
     #ifdef _QuantumDebug
     std::cout << "Quantum<T>::Quantum(const Quantum<U>&) (this = " << this 
               << ", other = " << &other << ")" << std::endl;
     #endif
-
-    Quantum_COLLECTIVE_OP(COPY_OTHER_MEMBER,COPY_OTHER_MEMBER_VEC_OP);
 
   }; // Quantum<T>::Quantum(const Quantum<U> &)
     
@@ -74,14 +65,13 @@ namespace ChronusQ {
   template <typename MatsT>
   template <typename MatsU>
   Quantum<MatsT>::Quantum(Quantum<MatsU> &&other, int dummy) : 
-    QuantumBase(dynamic_cast<QuantumBase&&>(std::move(other))) {
+    QuantumBase(dynamic_cast<QuantumBase&&>(std::move(other))),
+    onePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.onePDM))) {
 
     #ifdef _QuantumDebug
     std::cout << "Quantum<T>::Quantum(Quantum<U>&&) (this = " << this 
               << ", other = " << &other << ")" << std::endl;
     #endif
-
-    Quantum_COLLECTIVE_OP(MOVE_OTHER_MEMBER,MOVE_OTHER_MEMBER_VEC_OP);
 
   }; // Quantum<T>::Quantum(Quantum<U> &&)
 
@@ -121,8 +111,7 @@ namespace ChronusQ {
     std::cout << "Quantum::dealloc (this = " << this << ")" << std::endl;
     #endif
 
-    // Deallocate the 1PDM
-    DEALLOC_VEC_OP(memManager,onePDM);
+    onePDM = nullptr;
 
   }; // Quantum<T>::dealloc
 

@@ -109,7 +109,7 @@ namespace ChronusQ {
     bool inputDef;
     bool forceCart;
 
-    size_t nBasis;      ///< Number of CGTO basis functions
+    size_t nBasis = 0;  ///< Number of CGTO basis functions
     size_t nPrimitive;  ///< Number of primitive GTO functions
     size_t nShell;      ///< Number of CGTO basis shells
     size_t maxPrim;     ///< Max primitive dimension of basis
@@ -133,7 +133,7 @@ namespace ChronusQ {
     std::vector<size_t> mapCen2BfSt; ///< Map Cen # -> Starting BF #
 
     // Disable default constructor
-    BasisSet() = delete;
+    BasisSet() { };
 
 
     // Path / Molecule constructor.
@@ -204,26 +204,25 @@ namespace ChronusQ {
   // Basis set keyword map
   static std::unordered_map<std::string,std::string> 
     basisKeyword = {
-    {  "STO-3G"         , "sto3g.gbs"                     },
-    {  "STO-6G"         , "sto6g.gbs"                     },
-    {  "3-21G"          , "3-21g.gbs"                     },
-    {  "4-31G"          , "4-31g.gbs"                     },
-    {  "6-31G"          , "6-31g.gbs"                     },
-    {  "6-31G(D)"       , "6-31g*.gbs"                    },
-    {  "6-31++G(D)"     , "6-31++g*.gbs"                  },
-    {  "6-311G"         , "6-311g.gbs"                    },
-    {  "6-311+G(D)"     , "6-311+g*.gbs"                  },
-    {  "6-311+G(D,P)"   , "6-311+g**.gbs"                 },
-    {  "6-311+G(2D,P)"  , "6-311+g_2d_p.gbs"              },
-    {  "CC-PVDZ"        , "cc-pvdz.gbs"                   },
-    {  "CC-PVTZ"        , "cc-pvtz.gbs"                   },
-    {  "CC-PVQZ"        , "cc-pvqz.gbs"                   },
-    {  "CC-PV5Z"        , "cc-pv5z.gbs"                   },
-    {  "CC-PV6Z"        , "cc-pv6z.gbs"                   },
-//  {  "CC-PVDZ-RI"     , "cc-pvdz_ri.gbs"                },
-    {  "DEF2-SVP"       , "def2-svp.gbs"                  },
-    {  "DEF2-SVPD"      , "def2-svpd.gbs"                 },
-    {  "DEF2-TZVP"      , "def2-tzvp.gbs"                 },
+    {  "STO-3G"         , "sto3g.gbs"                                },
+    {  "STO-6G"         , "sto6g.gbs"                                },
+    {  "3-21G"          , "3-21g.gbs"                                },
+    {  "4-31G"          , "4-31g.gbs"                                },
+    {  "6-31G"          , "6-31g.gbs"                                },
+    {  "6-31G(D)"       , "6-31g*.gbs"                               },
+    {  "6-31++G(D)"     , "6-31++g*.gbs"                             },
+    {  "6-311G"         , "6-311g.gbs"                               },
+    {  "6-311+G(D)"     , "6-311+g*.gbs"                             },
+    {  "6-311+G(D,P)"   , "6-311+g**.gbs"                            },
+    {  "6-311+G(2D,P)"  , "6-311+g_2d_p.gbs"                         },
+    {  "CC-PVDZ"        , "cc-pvdz.gbs"                              },
+    {  "CC-PVTZ"        , "cc-pvtz.gbs"                              },
+    {  "CC-PVQZ"        , "cc-pvqz.gbs"                              },
+    {  "CC-PV5Z"        , "cc-pv5z.gbs"                              },
+    {  "CC-PV6Z"        , "cc-pv6z.gbs"                              },
+    {  "DEF2-SVP"                  , "def2-svp.gbs"                  },
+    {  "DEF2-SVPD"                 , "def2-svpd.gbs"                 },
+    {  "DEF2-TZVP"                 , "def2-tzvp.gbs"                 },
     {  "SAPPORO-DKH3-DZP-2012-ALL" , "sapporo-dkh3-dzp-2012_all.gbs" },
     {  "SAPPORO-DKH3-DZP-2012-NO"  , "sapporo-dkh3-dzp-2012_no.gbs"  },
     {  "SAPPORO-DKH3-DZP-2012-SP"  , "sapporo-dkh3-dzp-2012_sp.gbs"  },
@@ -259,7 +258,44 @@ namespace ChronusQ {
     {  "SAPPORO-TZP-2012-SP"       , "sapporo-tzp-2012_sp.gbs"       },
     {  "SAPPORO-TZP-ALL"           , "sapporo-tzp_all.gbs"           },
     {  "SAPPORO-TZP-NO"            , "sapporo-tzp_no.gbs"            },
-    {  "SAPPORO-TZP-SP"            , "sapporo-tzp_sp.gbs"            }
+    {  "SAPPORO-TZP-SP"            , "sapporo-tzp_sp.gbs"            },
+    {  "CC-PV5Z-JKFIT"             , "cc-pv5z-jkfit.gbs"             },
+    {  "CC-PV5Z-RIFIT"             , "cc-pv5z-rifit.gbs"             },
+    {  "CC-PV6Z-RIFIT"             , "cc-pv6z-rifit.gbs"             },
+    {  "CC-PVDZ-RIFIT"             , "cc-pvdz-rifit.gbs"             },
+    {  "CC-PVQZ-JKFIT"             , "cc-pvqz-jkfit.gbs"             },
+    {  "CC-PVQZ-RIFIT"             , "cc-pvqz-rifit.gbs"             },
+    {  "CC-PVTZ-JKFIT"             , "cc-pvtz-jkfit.gbs"             },
+    {  "CC-PVTZ-RIFIT"             , "cc-pvtz-rifit.gbs"             },
+    {  "CC-PWCV5Z-RIFIT"           , "cc-pwcv5z-rifit.gbs"           },
+    {  "CC-PWCVDZ-RIFIT"           , "cc-pwcvdz-rifit.gbs"           },
+    {  "CC-PWCVQZ-RIFIT"           , "cc-pwcvqz-rifit.gbs"           },
+    {  "CC-PWCVTZ-RIFIT"           , "cc-pwcvtz-rifit.gbs"           },
+    {  "AUG-CC-PV5Z-RIFIT"         , "aug-cc-pv5z-rifit.gbs"         },
+    {  "AUG-CC-PV6Z-RIFIT"         , "aug-cc-pv6z-rifit.gbs"         },
+    {  "AUG-CC-PVDZ-RIFIT"         , "aug-cc-pvdz-rifit.gbs"         },
+    {  "AUG-CC-PVQZ-RIFIT"         , "aug-cc-pvqz-rifit.gbs"         },
+    {  "AUG-CC-PVTZ-RIFIT"         , "aug-cc-pvtz-rifit.gbs"         },
+    {  "AUG-CC-PWCV5Z-RIFIT"       , "aug-cc-pwcv5z-rifit.gbs"       },
+    {  "AUG-CC-PWCVDZ-RIFIT"       , "aug-cc-pwcvdz-rifit.gbs"       },
+    {  "AUG-CC-PWCVQZ-RIFIT"       , "aug-cc-pwcvqz-rifit.gbs"       },
+    {  "AUG-CC-PWCVTZ-RIFIT"       , "aug-cc-pwcvtz-rifit.gbs"       },
+    {  "DEF2-QZVP-RIFIT"           , "def2-qzvp-rifit.gbs"           },
+    {  "DEF2-QZVPP-RIFIT"          , "def2-qzvpp-rifit.gbs"          },
+    {  "DEF2-QZVPPD-RIFIT"         , "def2-qzvppd-rifit.gbs"         },
+    {  "DEF2-SVP-RIFIT"            , "def2-svp-rifit.gbs"            },
+    {  "DEF2-SVPD-RIFIT"           , "def2-svpd-rifit.gbs"           },
+    {  "DEF2-TZVP-RIFIT"           , "def2-tzvp-rifit.gbs"           },
+    {  "DEF2-TZVPD-RIFIT"          , "def2-tzvpd-rifit.gbs"          },
+    {  "DEF2-TZVPP-RIFIT"          , "def2-tzvpp-rifit.gbs"          },
+    {  "DEF2-TZVPPD-RIFIT"         , "def2-tzvppd-rifit.gbs"         },
+    {  "DEF2-UNIVERSAL-JFIT"       , "def2-universal-jfit.gbs"       },
+    {  "DEF2-UNIVERSAL-JKFIT"      , "def2-universal-jkfit.gbs"      },
+    {  "SARC2-QZV-DKH2-JKFIT"      , "sarc2-qzv-dkh2-jkfit.gbs"      },
+    {  "SARC2-QZV-ZORA-JKFIT"      , "sarc2-qzv-zora-jkfit.gbs"      },
+    {  "SARC2-QZVP-DKH2-JKFIT"     , "sarc2-qzvp-dkh2-jkfit.gbs"     },
+    {  "SARC2-QZVP-ZORA-JKFIT"     , "sarc2-qzvp-zora-jkfit.gbs"     },
+    {  "X2C-JFIT"                  , "x2c-jfit.gbs"                  }
   };
 
 

@@ -30,17 +30,38 @@
 
 namespace ChronusQ {
 
+  // MatAdd helper macros
+  #define MATN
+
+  #define MATR \
+    .conjugate()
+
+  #define MATT \
+    .transpose()
+
+  #define MATC \
+    .adjoint()
+  
+  #define MAT_OP(OP, X) \
+    X.block(0,0,M,N) MAT ## OP .template cast<_F3>()
+
+  #define TRY_MAT_ADD(OPA, OPB) \
+    if ( TRANSA == #OPA[0] and TRANSB == #OPB[0] ) \
+       CMap.block(0,0,M,N).noalias() = \
+         ALPHA * MAT_OP(OPA, AMap) + BETA * MAT_OP(OPB, BMap);
+
   // MatAdd generic template
   template <typename _F1, typename _F2, typename _F3, typename _FScale1, 
     typename _FScale2>
-  void MatAdd(char TRANSA, char TRANSB, size_t M, size_t N, _FScale1 ALPHA, 
-    _F1 *A, size_t LDA, _FScale2 BETA, _F2 *B, size_t LDB, _F3 *C, size_t LDC){
+  void MatAdd(char TRANSA, char TRANSB, size_t M, size_t N,
+              _FScale1 ALPHA, const _F1 *A, size_t LDA, _FScale2 BETA,
+              const _F2 *B, size_t LDB, _F3 *C, size_t LDC){
 
     if( TRANSA == 'N' and TRANSB == 'N' ) {
       #pragma omp parallel
       {
-        _F1 *locA = A;
-        _F2 *locB = B;
+        const _F1 *locA = A;
+        const _F2 *locB = B;
         _F3 *locC = C;
         #pragma omp for
         for(int j = 0; j < N; j++) {
@@ -56,55 +77,44 @@ namespace ChronusQ {
 
       assert( M == N );
       if( TRANSA != 'N' ) 
-        assert( reinterpret_cast<void*>(A) != reinterpret_cast<void*>(C) );
+        assert( reinterpret_cast<const void*>(A) != reinterpret_cast<void*>(C) );
       if( TRANSB != 'N' )
-        assert( reinterpret_cast<void*>(B) != reinterpret_cast<void*>(C) );
+        assert( reinterpret_cast<const void*>(B) != reinterpret_cast<void*>(C) );
 
-      Eigen::Map< Eigen::Matrix<_F1,
+      Eigen::Map< const Eigen::Matrix<_F1,
           Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor> > AMap(A,LDA,N);
-      Eigen::Map< Eigen::Matrix<_F2,
+      Eigen::Map< const Eigen::Matrix<_F2,
           Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor> > BMap(B,LDB,N);
       Eigen::Map< Eigen::Matrix<_F3,
           Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor> > CMap(C,LDC,N);
 
-      if( TRANSA == 'C' and TRANSB == 'N' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).adjoint().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).template cast<_F3>();
-      else if( TRANSA == 'N' and TRANSB == 'C' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).adjoint().template cast<_F3>();
-      else if( TRANSA == 'C' and TRANSB == 'C' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).adjoint().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).adjoint().template cast<_F3>();
-      else if( TRANSA == 'R' and TRANSB == 'N' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).conjugate().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).template cast<_F3>();
-      else if( TRANSA == 'N' and TRANSB == 'R' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).conjugate().template cast<_F3>();
-      else if( TRANSA == 'R' and TRANSB == 'R' )
-        CMap.block(0,0,M,N).noalias() = 
-          ALPHA * AMap.block(0,0,M,N).conjugate().template cast<_F3>() +
-          BETA  * BMap.block(0,0,M,N).conjugate().template cast<_F3>();
+      // Try all different combinations
+      TRY_MAT_ADD(N, C)
+      else TRY_MAT_ADD(C, N)
+      else TRY_MAT_ADD(C, C)
+      else TRY_MAT_ADD(N, T)
+      else TRY_MAT_ADD(T, N)
+      else TRY_MAT_ADD(T, T)
+      else TRY_MAT_ADD(C, T)
+      else TRY_MAT_ADD(T, C)
+      else TRY_MAT_ADD(R, N)
+      else TRY_MAT_ADD(N, R)
+      else TRY_MAT_ADD(R, R)
+      else TRY_MAT_ADD(R, C)
+      else TRY_MAT_ADD(C, R)
+      else TRY_MAT_ADD(R, T)
+      else TRY_MAT_ADD(T, R)
 
     }
 
   }; // MatAdd generic template
 
-  template void MatAdd( char, char, size_t, size_t, dcomplex, dcomplex*, 
-    size_t, dcomplex, double*, size_t, dcomplex*, size_t);
-
 #ifdef _CQ_MKL
 
   template<>
   void MatAdd(char TRANSA, char TRANSB, size_t M, size_t N, double ALPHA, 
-    double *A, size_t LDA, double BETA, double *B, size_t LDB, double *C, 
-    size_t LDC) {
+    const double *A, size_t LDA, double BETA, const double *B, size_t LDB,
+    double *C, size_t LDC) {
 
       mkl_domatadd('C',TRANSA,TRANSB,M,N,ALPHA,A,LDA,BETA,B,LDB,C,LDC);
 
@@ -112,7 +122,7 @@ namespace ChronusQ {
 
   template<>
   void MatAdd(char TRANSA, char TRANSB, size_t M, size_t N, dcomplex ALPHA, 
-    dcomplex *A, size_t LDA, dcomplex BETA, dcomplex *B, size_t LDB, 
+    const dcomplex *A, size_t LDA, dcomplex BETA, const dcomplex *B, size_t LDB,
     dcomplex *C, size_t LDC) {
 
       mkl_zomatadd('C',TRANSA,TRANSB,M,N,ALPHA,A,LDA,BETA,B,LDB,C,LDC);
@@ -121,13 +131,70 @@ namespace ChronusQ {
 
 #else
 
-  template void MatAdd( char, char, size_t, size_t, dcomplex, dcomplex*, 
-    size_t, dcomplex, dcomplex*, size_t, dcomplex*, size_t);
+  template void MatAdd( char, char, size_t, size_t, dcomplex, const dcomplex*,
+    size_t, dcomplex, const dcomplex*, size_t, dcomplex*, size_t);
 
-  template void MatAdd( char, char, size_t, size_t, double, double*, 
-    size_t, double, double*, size_t, double*, size_t);
+  template void MatAdd( char, char, size_t, size_t, double, const double*,
+    size_t, double, const double*, size_t, double*, size_t);
 
 #endif
+
+  template<>
+  void MatAdd(char TRANSA, char TRANSB, size_t M, size_t N, double ALPHA,
+      const dcomplex *A, size_t LDA, double BETA, const dcomplex *B, size_t LDB,
+      dcomplex *C, size_t LDC) {
+    MatAdd(TRANSA,TRANSB,M,N,dcomplex(ALPHA),A,LDA,dcomplex(BETA),B,LDB,C,LDC);
+  }
+
+  template<>
+  void MatAdd(char TRANSA, char TRANSB, size_t M, size_t N, dcomplex ALPHA,
+      const dcomplex *A, size_t LDA, double BETA, const dcomplex *B, size_t LDB,
+      dcomplex *C, size_t LDC) {
+    MatAdd(TRANSA,TRANSB,M,N,ALPHA,A,LDA,dcomplex(BETA),B,LDB,C,LDC);
+  }
+
+  template<>
+  void MatAdd(char TRANSA, char TRANSB, size_t M, size_t N, double ALPHA,
+      const dcomplex *A, size_t LDA, dcomplex BETA, const dcomplex *B, size_t LDB,
+      dcomplex *C, size_t LDC) {
+    MatAdd(TRANSA,TRANSB,M,N,dcomplex(ALPHA),A,LDA,BETA,B,LDB,C,LDC);
+  }
+
+  template void MatAdd( char, char, size_t, size_t, double, const dcomplex*,
+    size_t, double, const double*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, double, const dcomplex*,
+    size_t, dcomplex, const double*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, dcomplex, const dcomplex*,
+    size_t, double, const double*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, dcomplex, const dcomplex*,
+    size_t, dcomplex, const double*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, double, const double*,
+    size_t, double, const dcomplex*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, dcomplex, const double*,
+    size_t, double, const dcomplex*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, double, const double*,
+    size_t, dcomplex, const dcomplex*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, dcomplex, const double*,
+    size_t, dcomplex, const dcomplex*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, double, const double*,
+    size_t, double, const double*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, double, const double*,
+    size_t, dcomplex, const double*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, dcomplex, const double*,
+    size_t, double, const double*, size_t, dcomplex*, size_t);
+
+  template void MatAdd( char, char, size_t, size_t, dcomplex, const double*,
+    size_t, dcomplex, const double*, size_t, dcomplex*, size_t);
 
 
   // Generic IMatCopy template

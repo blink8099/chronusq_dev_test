@@ -80,7 +80,7 @@ namespace ChronusQ {
     bool isGGA_; ///< Whether or not the XC kernel is within the GGA
     double XCEnergy; ///< Exchange-correlation energy
 
-    std::vector<double*> VXC; ///< VXC terms
+    std::shared_ptr<PauliSpinorSquareMatrices<double>> VXC; ///< VXC terms
 
     // Current Timings
     double VXCDur;
@@ -90,10 +90,12 @@ namespace ChronusQ {
     template <typename... Args>
     KohnSham(std::string funcName,
       std::vector<std::shared_ptr<DFTFunctional>> funclist,
-      MPI_Comm c, IntegrationParam ip, 
-      AOIntegrals<IntsT> &aoi, Args... args) : 
-      SingleSlater<MatsT,IntsT>(c, aoi,args...), WaveFunctionBase(c, aoi.memManager(),args...),
-      QuantumBase(c, aoi.memManager(),args...), isGGA_(false),
+      MPI_Comm c, IntegrationParam ip,
+      CQMemManager &mem, Molecule &mol, BasisSet &basis,
+      Integrals<IntsT> &aoi, Args... args) : 
+      SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
+      WaveFunctionBase(c,mem,args...),
+      QuantumBase(c,mem,args...), isGGA_(false),
       functionals(std::move(funclist)),intParam(ip){ 
 
       // Append HF tags to reference names
@@ -110,12 +112,13 @@ namespace ChronusQ {
         this->refShortName_ += "G" + funcName;
       }
 
-      for(auto i = 0; i < this->onePDM.size(); i++)
-        VXC.emplace_back(
-          this->memManager.template malloc<double>(
-            this->memManager.template getSize<MatsT>(this->onePDM[i])
-          )
-        );
+      size_t NB = this->basisSet().nBasis;
+      if(this->nC > 1)
+        VXC = std::make_shared<PauliSpinorSquareMatrices<double>>(this->memManager, NB, true);
+      else if (not this->iCS)
+        VXC = std::make_shared<PauliSpinorSquareMatrices<double>>(this->memManager, NB, false);
+      else
+        VXC = std::make_shared<PauliSpinorSquareMatrices<double>>(this->memManager, NB, false, false);
 
 
     }; // KohnSham constructor
@@ -125,20 +128,23 @@ namespace ChronusQ {
     KohnSham(std::string rL, std::string rS, std::string funcName,
       std::vector<std::shared_ptr<DFTFunctional>> funclist,
       MPI_Comm c, IntegrationParam ip, 
-      AOIntegrals<IntsT> &aoi, Args... args) : 
-      SingleSlater<MatsT,IntsT>(c, aoi,args...), WaveFunctionBase(c, aoi.memManager(),args...),
-      QuantumBase(c, aoi.memManager(),args...), isGGA_(false),
+      CQMemManager &mem, Molecule &mol, BasisSet &basis,
+      Integrals<IntsT> &aoi, Args... args) : 
+      SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
+      WaveFunctionBase(c,mem,args...),
+      QuantumBase(c,mem,args...), isGGA_(false),
       functionals(std::move(funclist)),intParam(ip) { 
 
       this->refLongName_  += rL + " " + funcName;
       this->refShortName_ += rS + funcName;
 
-      for(auto i = 0; i < this->onePDM.size(); i++)
-        VXC.emplace_back(
-          this->memManager.template malloc<double>(
-            this->memManager.template getSize<MatsT>(this->onePDM[i])
-          )
-        );
+      size_t NB = this->basisSet().nBasis;
+      if(this->nC > 1)
+        VXC = std::make_shared<PauliSpinorSquareMatrices<double>>(this->memManager, NB, true);
+      else if (not this->iCS)
+        VXC = std::make_shared<PauliSpinorSquareMatrices<double>>(this->memManager, NB, false);
+      else
+        VXC = std::make_shared<PauliSpinorSquareMatrices<double>>(this->memManager, NB, false, false);
 
 
     }; // KohnSham constructor
@@ -170,10 +176,7 @@ namespace ChronusQ {
       ROOT_ONLY(this->comm);
 
       // Add VXC in Fock matrix
-      size_t NB = this->aoints.basisSet().nBasis;
-      for(auto i = 0ul; i < this->fockMatrix.size(); i++)
-        MatAdd('N','N', NB, NB, MatsT(1.), this->fockMatrix[i], NB, MatsT(1.), VXC[i], NB,
-          this->fockMatrix[i], NB);
+      *this->fockMatrix += *VXC;
 
     }; // formFock
 
