@@ -29,6 +29,7 @@
       - Enforce multiplicity consistent with number of electrons
       - Ensure input file is not the same as output file
       - Error on unspecified BASIS input section
+  <br>
 
   - 2020-07-17 0.3.3 (BETA)
     - Support multiplicities up to element Es for SAD guess
