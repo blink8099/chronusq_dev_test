@@ -9,6 +9,27 @@
 
   FORMAT: YYYY-MM-DD
 
+  - 2020-10-20 0.4.0 (BETA)
+    - Added Functionality:
+      - Add Resolution of identity (RI) approximation for all methods
+      - Add Restricted Open shell Hartree Fock (ROHF) wavefunction optimization
+      - Accept Gaussian formatted checkpoint files as an initial guess
+      - Add SKIP option to SCF.ALG for post-SCF methods
+      - Add Peterson correlation consistent relativistic bases
+      - Add examples of input and output to documentation
+    - Internal Refactoring:
+      - Change AOIntegrals class to Integrals to support RI and AO/MO bases
+      - Rework documentation through wiki
+      - Add transpose to GEMM and MatAdd
+      - Improve CMake discovery of Libint
+      - Update README and author list
+    - Bugfixes:
+      - Fail on bad input to RESPONSE.TYPE input section
+      - Error on empty MOLECULE.GEOM input section
+      - Enforce multiplicity consistent with number of electrons
+      - Ensure input file is not the same as output file
+      - Error on unspecified BASIS input section
+
   - 2020-07-17 0.3.3 (BETA)
     - Support multiplicities up to element Es for SAD guess
     - Fix incorrect multiplicities for elements S, P, and Mn in SAD guess
@@ -21,6 +42,7 @@
     - Fix simultaneous file read failure from GPLHR_MPI tests
     - Fix include guards
     - Bump OpenBLAS -> v0.3.9
+  <br>
 
   - 2020-04-25 0.3.2 (BETA)
     - Add ability to read user specified basis from input file or path to file
@@ -29,6 +51,7 @@
     - Make compatible with compilation on Mac with the default compilers
     - Fix sign error in DFT gradient evaluation
     - Add templates for issue and merge requests
+  <br>
 
   - 2020-03-12 0.3.1 (BETA)
     - Add ability to restart interrupted RT jobs
@@ -37,12 +60,14 @@
     - Fix CXXBLACS linking error for MPI builds
     - Add MPI build into continuous integration
     - Fix bug in reading basis sets using Fortran float notation
+  <br>
 
   - 2019-05-06 0.3.0 (BETA)
     - Implementation of Explicit Magnus 2nd order step in RT module
     - Default parameter changes in GPLHR and SCF
     - CI through GitLab
     - Clang 9+ compatible
+  <br>
 
   - 2018-11-28 0.2.1 (BETA)
     - Removed Boost depedency
@@ -57,7 +82,7 @@
     - Direct GIAO Fock builds in RT module
     - Bump Libint -> 2.5.0-beta
     - Bump CMake  -> 3.11
-
+  <br>
 
   - 2018-07-13 0.2.0 (BETA)
     - Full integration of GIAO basis set into SCF and RT modules
@@ -75,7 +100,7 @@
     - Bump Libxc  -> 4.0.4
     - Added support for coverage checks (CQ_ENABLE_COVERAGE)
     - Various logic checks / bug fixes
-  
+  <br>
 
   - 2017-09-01: 0.1.0 (BETA)
     - Complete overhaul of ChronusQ development stream (new repo)
