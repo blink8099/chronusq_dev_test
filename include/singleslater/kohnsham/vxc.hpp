@@ -142,6 +142,7 @@ namespace ChronusQ {
     double *dMxdX, double *dMxdY, double *dMxdZ, 
     double *Mnorm, double *Kx, double *Ky, double *Kz, 
     double *Hx, double *Hy, double *Hz,
+    double *DSDMnormv, double *signMDv,
     bool *Msmall, double *nColl, double *gammaColl){
 
 #if VXC_DEBUG_LEVEL > 3
@@ -292,7 +293,10 @@ namespace ChronusQ {
           tmpSign  += tmpnMy * My[iPt];
           tmpSign  += tmpnMz * Mz[iPt];
           if ( std::signbit(tmpSign) ) signMD = -1.;
-          //std::cerr <<"Sig " << tmpSign << " " << std::signbit(tmpSign) << " " << signMD <<std::endl;
+
+          // Save the value of signMD if signMD is not null pointer
+          if (  signMDv ) signMDv[iPt] = signMD;
+
           inner  = 
                (dMxdX[iPt]*dMxdX[iPt] + dMxdY[iPt]*dMxdY[iPt] + dMxdZ[iPt]*dMxdZ[iPt]);
           inner += 
@@ -324,13 +328,16 @@ namespace ChronusQ {
           gammaColl[3*iPt]   += inner2;
           gammaColl[3*iPt+2] -= inner2;
 
+          // If DSDMnormv is not nullptr, save the value 
+          if ( DSDMnormv ) {
+            DSDMnormv[iPt] = DSDMnorm;
+          } 
 
         } // loop pts
       } // 2C 
     } //GGA 
 
   }; //KohnSham<MatsT,IntsT>::mkAuxVar
-
 
   /**
    *  \brief evaluates the V (Den, GDENX, GDENY and GDENZ)
@@ -1129,6 +1136,7 @@ namespace ChronusQ {
           Mnorm_loc, 
           KScratch_loc, KScratch_loc + NPts, KScratch_loc + 2* NPts,
           HScratch_loc, HScratch_loc + NPts, HScratch_loc + 2* NPts,
+          nullptr, nullptr, 
           Msmall_loc,U_n_loc,U_gamma_loc
         );
 

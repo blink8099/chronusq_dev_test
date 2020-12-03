@@ -243,6 +243,7 @@ namespace ChronusQ {
       double *dmzdX, double *dmzdY, double *dmzdZ, 
       double *Mnorm, double *Kx, double *Ky, double *Kz, 
       double *Hx, double *Hy, double *Hz,
+      double *DSDMnorm, double *signMD,  
       bool* Msmall, double *nColl, double *gammaColl );
 
     void loadVXCder(size_t NPts, double *Den, double *sigma, double *EpsEval, double*VRhoEval, 
@@ -254,6 +255,12 @@ namespace ChronusQ {
 
     // FXC Terms
       
+    template <typename U>
+    void evalTransDen(SHELL_EVAL_TYPE typ, size_t NPts,size_t NBE, size_t NB, 
+      std::vector<std::pair<size_t,size_t>> &subMatCut, U *SCR1,
+      U *SCR2, U *DENMAT, U *Den, U *GDenX, U *GDenY, U *GDenZ,
+      U *BasisScr);
+
     void loadFXCder(size_t NPts, double *Den, double *sigma, double *EpsEval, double *VRhoEval, 
       double *V2RhoEval, double *VsigmaEval, double *V2sigmaEval, double *V2RhosigmaEval, 
       double *EpsSCR, double *VRhoSCR, double *VsigmaSCR, double *V2RhoEvalSCR, double *V2sigmaEvalSCR,
@@ -269,12 +276,50 @@ namespace ChronusQ {
       U *ZrhoVar1, U *ZgammaVar1, U *ZgammaVar2, U *ZgammaVar3, U *ZgammaVar4);
 
     template <typename U>
+    void constructZVarsFXC(DENSITY_TYPE denTyp, bool isGGA, size_t NPts, 
+      double* GDenS, double* GDenZ, double* GDenY, double* GDenX,
+      bool * Msmall, double *Mnorm, 
+      double *Kx, double *Ky, double *Kz, 
+      double *Hx, double *Hy, double *Hz,
+      U* TS, U* TZ, U* TY, U* TX,
+      U* GTS, U* GTZ, U* GTY, U* GTX,
+      U* gPTss, U* gPTsz, U* gPTsy, U* gPTsx, U* gPTzz, 
+      U* gPTyy, U* gPTxx,  
+      double *VrhoEval, double *VsigmaEval, 
+      double *V2rhoEval, double *V2sigmaEval, double *V2RhosigmaEval, 
+      U *ZrhoVar1, U *ZgammaVar1, U *ZgammaVar2, U *ZgammaVar3, U *ZgammaVar4);
+
+    template <typename U>
     void formZ_fxc(DENSITY_TYPE denType, bool isGGA, size_t NPts, size_t NBE, size_t IOff,
       double epsScreen, std::vector<double> &weights,
       U *ZrhoVar1, U *ZgammaVar1, U *ZgammaVar2, U *ZgammaVar3, U *ZgammaVar4,
       double* GDenS, double* GDenZ, double* GDenY, double* GDenX, U* GTS, U* GTZ, U* GTY, U* GTX,
       double *BasisScr, U* ZMAT);
 
+    // GTO-based TDDFT
+    template <typename U>
+    void formZ_fxc(DENSITY_TYPE denType, bool isGGA, size_t NPts, size_t NBE, size_t IOff,
+      double epsScreen, std::vector<double> &weights,
+      U *ZrhoVar1, U *ZgammaVar1, U *ZgammaVar2, U *ZgammaVar3, U *ZgammaVar4,
+      bool * Msmall, double *Mnorm, 
+      double* DSDMnorm, double* signMD, 
+      double* GDenS, double* GDenZ, double* GDenY, double* GDenX, 
+      double *Kx, double *Ky, double *Kz, 
+      double *Hx, double *Hy, double *Hz,
+      U* GTS, U* GTZ, U* GTY, U* GTX,
+      U* gPTss, U* gPTsz, U* gPTsy, U* gPTsx, U* gPTzz, 
+      U* gPTyy, U* gPTxx,  
+      double *BasisScr, U* ZMAT);
+
+    // Calculate gPTss,sx,sy,sz 
+    template <typename U>
+    void mkgPTVar( 
+      size_t NPts, 
+      double* GDenS, double* GDenZ, double* GDenY, double* GDenX, 
+      U* GTS, U* GTZ, U* GTY, U* GTX,
+      U* gPTss, U* gPTsz, U* gPTsy, U* gPTsx, U* gPTzz, 
+      U* gPTyy, U* gPTxx  
+      );
 
 
     template <typename U>
