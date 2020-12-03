@@ -149,28 +149,6 @@ namespace ChronusQ {
   }; // TRMM (complex,complex,complex)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   /*
    *  performs one of the symmetric rank 2k operations
    *  C := alpha*A*B' + alpha*B*A' + beta*C
@@ -184,6 +162,35 @@ namespace ChronusQ {
 #endif
       (&UPLO,&TRANS,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
   }; // DSYR2K
+
+  /*
+   *  performs one of the symmetric rank 2k operations
+   *  C := alpha*A*B' + alpha*B*A' + beta*C
+   */
+  template <>
+  void SYR2K(char UPLO,char TRANS,int N,int K,double ALPHA,double *A,
+    int LDA,double *B,int LDB,double BETA, double *C,int LDC){
+#ifdef _CQ_MKL
+    dsyr2k
+#else
+    dsyr2k_
+#endif
+      (&UPLO,&TRANS,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
+  }; // SYR2K
+
+  template <>
+  void SYR2K(char UPLO,char TRANS,int N,int K,dcomplex ALPHA,dcomplex *A,
+    int LDA,dcomplex *B,int LDB,dcomplex BETA, dcomplex *C,int LDC){
+#ifdef _CQ_MKL
+    zsyr2k(&UPLO,&TRANS,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
+#else
+    zsyr2k_(&UPLO,&TRANS,&N,&K,reinterpret_cast<double*>(&ALPHA),
+      reinterpret_cast<double*>(A),&LDA,reinterpret_cast<double*>(B),&LDB,
+      reinterpret_cast<double*>(&BETA),reinterpret_cast<double*>(C),&LDC);
+#endif
+      
+  }; // SYR2K
+
 
 
 }; // namespace ChronusQ

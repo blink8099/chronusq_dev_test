@@ -65,6 +65,11 @@ namespace ChronusQ {
    void DSYR2K(char UPLO,char TRANS,int N,int K,double alpha,double *A,
         int LDA,double *B,int LDB,double beta, double *C,int LDC);
 
+   template <typename _F>
+   void SYR2K(char UPLO,char TRANS,int N,int K,_F alpha,_F *A,
+        int LDA,_F *B,int LDB,_F beta, _F *C,int LDC);
+
+
 }; // namespace ChronusQ
 
 
