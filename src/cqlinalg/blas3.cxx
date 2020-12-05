@@ -46,10 +46,14 @@ namespace ChronusQ {
 #ifdef _CQ_MKL
     zgemm(&TRANSA,&TRANSB,&M,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
 #else
+#ifdef CQ_HAS_TA
+    zgemm_(&TRANSA,&TRANSB,&M,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
+#else
     zgemm_(&TRANSA,&TRANSB,&M,&N,&K,reinterpret_cast<double*>(&ALPHA),
       const_cast<double*>(reinterpret_cast<const double*>(A)),&LDA,
       const_cast<double*>(reinterpret_cast<const double*>(B)),&LDB,
       reinterpret_cast<double*>(&BETA),reinterpret_cast<double*>(C),&LDC);
+#endif
 #endif
 
   }; // GEMM (complex,complex,complex)
@@ -65,7 +69,7 @@ namespace ChronusQ {
     assert( (TRANSA == 'N' or TRANSA == 'T' or TRANSA == 'C')
             and (TRANSB == 'N' or TRANSB == 'T' or TRANSB == 'C') );
 
-    int COLS_A = (TRANSA == 'N') ? K : N;
+    int COLS_A = (TRANSA == 'N') ? K : M;
     int COLS_B = (TRANSB == 'N') ? N : K;
 
     Eigen::Map<
@@ -141,8 +145,12 @@ namespace ChronusQ {
 #ifdef _CQ_MKL
     ztrmm(&SIDE,&UPLO,&TRANSA,&DIAG,&M,&N,&ALPHA,A,&LDA,B,&LDB);
 #else
+#ifdef CQ_HAS_TA
+    ztrmm_(&SIDE,&UPLO,&TRANSA,&DIAG,&M,&N,&ALPHA,A,&LDA,B,&LDB);
+#else
     ztrmm_(&SIDE,&UPLO,&TRANSA,&DIAG,&M,&N,reinterpret_cast<double*>(&ALPHA),
       reinterpret_cast<double*>(A),&LDA,reinterpret_cast<double*>(B),&LDB);
+#endif
 #endif
     
 

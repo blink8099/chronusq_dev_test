@@ -20,27 +20,17 @@
 # Contact the Developers:
 #   E-Mail: xsli@uw.edu
 #
-add_subdirectory(cqlinalg)
-add_subdirectory(matrix)
-add_subdirectory(grid)
-add_subdirectory(molecule)
-add_subdirectory(basisset)
-add_subdirectory(electronintegrals)
-add_subdirectory(quantum)
-add_subdirectory(wavefunction)
-add_subdirectory(x2c)
-add_subdirectory(singleslater)
-add_subdirectory(realtime)
-add_subdirectory(itersolver)
-add_subdirectory(response)
-add_subdirectory(coupledcluster)  
+if(CQ_HAS_TA)
+  add_library(coupledcluster STATIC impl.cxx) 
+  target_link_libraries( coupledcluster PUBLIC ChronusQ::HDF5 ChronusQ::Libint2)
+  
+  # Append coupledcluster to executable link
+  list(APPEND CQEX_LINK coupledcluster)
+  set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
+  
+  if(CQEX_DEP)
+    add_dependencies(coupledcluster ${CQEX_DEP})
+  endif()
+endif()
 
-
-
-
-
-
-list(REVERSE CQEX_LINK)
-add_subdirectory(cxxapi)
-
-set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
+ 

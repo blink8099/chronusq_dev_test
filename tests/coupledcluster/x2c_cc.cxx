@@ -22,38 +22,17 @@
  *  
  */
 
+#include "coupledcluster.hpp"
 
-// #pragma once
-// The Configured Options and Settings for ChronusQ 
-    
+// Water sto3g X2C-CCSD
+TEST( X2C_CCSD, Water_STO3G_X2C_CCSD) {
+  CQCCTEST("coupledcluster/ccsd/water_sto3g_x2c_ccsd",
+    "water_sto3g_x2c_ccsd.bin.ref");
+  
+}
 
-
-
-// Version Information
-#define ChronusQ_VERSION_MAJOR "@ChronusQ_VERSION_MAJOR@"
-#define ChronusQ_VERSION_MINOR "@ChronusQ_VERSION_MINOR@"
-#define ChronusQ_VERSION_PATCH "@ChronusQ_VERSION_PATCH@"
-
-// AUTHOR file path
-#define ChronusQ_AUTHOR_LIST "@AUTHOR_PATH@"
-
-// Basis Path
-#define BASIS_PATH "@BASIS_PATH@"
-
-
-// MKL
-#cmakedefine _CQ_MKL
-
-// MPI / ScaLAPACK / BLACS
-#cmakedefine CQ_ENABLE_MPI
-#cmakedefine CQ_HAS_TA
-/*
-// Add a fatal preprocessor error if less than ICC 17.0.4
-#ifdef __INTEL_COMPILER
-  #if __INTEL_COMPILER < 1704
-    #error ChronusQ MUST be compiled with ICC 17.0.4+
-  #endif
-#endif
-*/
-
+TEST( GHF_CCSD, Water_STO3G_X2C_CCSD) {
+  CQCCTEST("coupledcluster/ccsd/water_sto3g_ghf_ccsd",
+    "water_sto3g_ghf_ccsd.bin.ref");
+}
 

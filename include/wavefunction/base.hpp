@@ -72,7 +72,7 @@ namespace ChronusQ {
 
     size_t nAlphaOrbital() const { return nOA + nVA; }
     size_t nBetaOrbital() const { return nOB + nVB; }
-
+    size_t nOrbital() const { return nO + nV;}
     // Print Functions
     virtual void printMO(std::ostream&)  = 0;
     virtual void printEPS(std::ostream&) = 0;

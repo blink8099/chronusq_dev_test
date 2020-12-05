@@ -67,11 +67,15 @@ namespace ChronusQ {
   void AXPY(int N, dcomplex alpha, const dcomplex *X, int INCX, dcomplex *Y, int INCY) {
 #ifdef _CQ_MKL
     zaxpy(&N,&alpha,X,&INCX,Y,&INCY);
+#else 
+#ifdef CQ_HAS_TA
+      zaxpy_(&N,&alpha,X,&INCX,Y,&INCY);
 #else
     zaxpy_(&N,reinterpret_cast<double*>(&alpha),
            reinterpret_cast<double*>(const_cast<dcomplex*>(X)),
            &INCX,reinterpret_cast<double*>(Y),&INCY);
 #endif 
+#endif
       
   }; // AXPY (complex,complex,complex)
 
@@ -163,9 +167,13 @@ namespace ChronusQ {
       zdotc(&res,&N,X,&INCX,Y,&INCY);
       return res;
 #else
+#ifdef CQ_HAS_TA
+      return zdotc_(&N,X,&INCX,Y,&INCY);
+#else
       auto res = zdotc_(&N,reinterpret_cast<double*>(const_cast<dcomplex*>(X)),&INCX,
                            reinterpret_cast<double*>(const_cast<dcomplex*>(Y)),&INCY);
       return *reinterpret_cast<dcomplex*>(&res);
+#endif
 #endif
   }; // InnerProd complex = (complex,complex)
 
@@ -180,9 +188,13 @@ namespace ChronusQ {
 #ifdef _CQ_MKL
       return std::real(InnerProd<dcomplex>(N,X,INCX,Y,INCY));
 #else
+#ifdef CQ_HAS_TA
+      return std::real(InnerProd<dcomplex>(N,X,INCX,Y,INCY));
+#else
       auto res = zdotc_(&N,reinterpret_cast<double*>(const_cast<dcomplex*>(X)),&INCX,
         reinterpret_cast<double*>(const_cast<dcomplex*>(Y)),&INCY);
       return std::real(*reinterpret_cast<dcomplex*>(&res));
+#endif
 #endif
   }; // InnerProd real = (complex,complex)
 
@@ -195,7 +207,6 @@ namespace ChronusQ {
     dswap_
 #endif
       (&N,X,&INCX,Y,&INCY);
-
   }; // Swap (double)
 
   template <>
@@ -275,8 +286,12 @@ namespace ChronusQ {
 #ifdef _CQ_MKL
       zscal(&N,&ALPHA,X,&INCX);
 #else
+#ifdef CQ_HAS_TA
+      zscal_(&N,&ALPHA,X,&INCX);
+#else
       zscal_(&N,reinterpret_cast<double*>(&ALPHA),reinterpret_cast<double*>(X),
         &INCX);
+#endif
 #endif
       
 

@@ -34,6 +34,7 @@
 
 // Use stupid but bullet proof incore contraction for debug
 //#define _BULLET_PROOF_INCORE
+//#define _REPORT_INTEGRAL_TIMINGS
 
 namespace ChronusQ {
 

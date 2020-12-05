@@ -30,3 +30,7 @@ set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 if( TARGET openblas )
   add_dependencies( quantum openblas ) 
 endif()
+
+if(CQEX_DEP)
+  add_dependencies(quantum ${CQEX_DEP})
+endif()

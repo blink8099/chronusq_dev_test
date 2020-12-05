@@ -31,6 +31,10 @@
 #include <util/threads.hpp>
 #include <H5Cpp.h>
 
+#ifdef CQ_HAS_TA
+  #include <tiledarray.h>
+#endif
+
 namespace ChronusQ {
 
   void generateFmTTable();
@@ -69,6 +73,7 @@ namespace ChronusQ {
     MPI_Init(NULL,NULL);
   #endif
 #endif
+
     
 
     H5::Exception::dontPrint();

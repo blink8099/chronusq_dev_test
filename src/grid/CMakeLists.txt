@@ -29,3 +29,7 @@ set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 if ( TARGET mxx )
   add_dependencies( grid mxx )
 endif()
+
+if(CQEX_DEP)
+  add_dependencies(grid ${CQEX_DEP})
+endif()

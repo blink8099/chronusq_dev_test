@@ -38,3 +38,5 @@ add_subdirectory(scf)
 add_subdirectory(rt)
 add_subdirectory(resp)
 add_subdirectory(func)
+add_subdirectory(coupledcluster)
+
