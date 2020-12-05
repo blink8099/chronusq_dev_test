@@ -29,6 +29,11 @@ target_link_libraries ( cqlinalg PUBLIC ChronusQ::Libint2 )
 list(APPEND CQEX_LINK cqlinalg)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
+if(CQEX_DEP)
+  add_dependencies(cqlinalg ${CQEX_DEP})
+endif()
+
 if( TARGET openblas )
   add_dependencies( cqlinalg openblas ) 
 endif()
+

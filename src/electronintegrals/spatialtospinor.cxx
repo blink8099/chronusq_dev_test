@@ -103,7 +103,7 @@ namespace ChronusQ {
     else
       return scalar().matrix().template spatialToSpinBlock<double>();
   }
-
+ 
   template InCore4indexERI<double> InCore4indexERI<double>::spatialToSpinBlock() const;
   template InCore4indexERI<dcomplex> InCore4indexERI<double>::spatialToSpinBlock() const;
   template InCore4indexERI<dcomplex> InCore4indexERI<dcomplex>::spatialToSpinBlock() const;

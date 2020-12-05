@@ -27,6 +27,7 @@ target_link_libraries ( itersolver PUBLIC ChronusQ::Libint2 )
 list(APPEND CQEX_LINK itersolver)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
+
 if(CQEX_DEP)
   add_dependencies(itersolver ${CQEX_DEP})
 endif()

@@ -20,27 +20,33 @@
 # Contact the Developers:
 #   E-Mail: xsli@uw.edu
 #
-add_subdirectory(cqlinalg)
-add_subdirectory(matrix)
-add_subdirectory(grid)
-add_subdirectory(molecule)
-add_subdirectory(basisset)
-add_subdirectory(electronintegrals)
-add_subdirectory(quantum)
-add_subdirectory(wavefunction)
-add_subdirectory(x2c)
-add_subdirectory(singleslater)
-add_subdirectory(realtime)
-add_subdirectory(itersolver)
-add_subdirectory(response)
-add_subdirectory(coupledcluster)  
+if(CQ_HAS_TA)
+# Directories for Coupled-Cluster tests
+set(CC_TEST_SOURCE_ROOT "${TEST_ROOT}/coupledcluster" )
+set(CC_TEST_BINARY_ROOT "${TEST_BINARY_ROOT}/coupledcluster" )
 
 
+# Set up compilation of Coupled-Cluster test exe
+add_executable(cctest ../ut.cxx x2c_cc.cxx)
 
 
+target_include_directories(cctest PUBLIC ${CC_TEST_SOURCE_ROOT} 
+  ${TEST_BINARY_ROOT})
+target_link_libraries(cctest PUBLIC ${CQEX_LINK})
+target_link_libraries(cctest PUBLIC ChronusQ::gtest)
 
 
-list(REVERSE CQEX_LINK)
-add_subdirectory(cxxapi)
+if(CQEX_DEP)
+  add_dependencies(cctest ${CQEX_DEP})
+endif()
 
-set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
+
+file(MAKE_DIRECTORY ${CC_TEST_BINARY_ROOT}/ccsd)
+
+include( CQTestGeneration )
+
+
+add_cq_test( X2C_CCSD cctest "X2C_CCSD*" )
+add_cq_test( GHF_CCSD cctest "GHF_CCSD*" )
+endif()
+

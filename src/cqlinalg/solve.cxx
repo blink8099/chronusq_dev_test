@@ -75,9 +75,8 @@ namespace ChronusQ {
     ztrsm(&SIDE,&UPLO,&TRANS,&DIAG,&M,&N,&ALPHA,A,&LDA,B,&LDB);
 #else
     ztrsm_(&SIDE,&UPLO,&TRANS,&DIAG,&M,&N,reinterpret_cast<double*>(&ALPHA),
-      reinterpret_cast<double*>(A),&LDA,reinterpret_cast<double*>(B),&LDB);
+      reinterpret_cast<double*>(A),&LDA,reinterpret_cast<double*>(B),&LDB);  
 #endif
-
   }; // TriLinSolve (complex)
 
 

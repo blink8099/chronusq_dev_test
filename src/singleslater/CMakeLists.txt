@@ -27,6 +27,7 @@ target_link_libraries( singleslater PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
 list(APPEND CQEX_LINK singleslater)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
+
 if(CQEX_DEP)
   add_dependencies(singleslater ${CQEX_DEP})
 endif()

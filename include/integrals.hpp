@@ -55,7 +55,7 @@ namespace ChronusQ {
     // Default copy and move ctors
     IntegralsBase( const IntegralsBase & ) = default;
     IntegralsBase( IntegralsBase && )      = default;
-
+    IntegralsBase& operator=(const IntegralsBase&) = default;
     // Remove default ctor
     IntegralsBase() = default;
 
@@ -110,6 +110,7 @@ namespace ChronusQ {
 
     Integrals(const Integrals &) = default; // Copy constructor
     Integrals(Integrals &&)      = default; // Move constructor
+    Integrals& operator=(const Integrals&) = default;
 
     // Destructor.
     ~Integrals() {}
@@ -128,7 +129,7 @@ namespace ChronusQ {
     dcomplex, double>::type> transform(
         const std::vector<OPERATOR>&, const std::vector<std::string>&,
         char TRANS, const MatsT* T, int NT, int LDT) const;
-    
+
   }; // class Integrals
 
 

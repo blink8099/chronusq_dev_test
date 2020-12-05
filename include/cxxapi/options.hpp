@@ -32,6 +32,9 @@
 #include <singleslater.hpp>
 #include <realtime.hpp>
 #include <response.hpp>
+#include <coupledcluster.hpp>
+
+
 
 // Preprocessor directive to aid the digestion of optional 
 // input arguments
@@ -96,6 +99,16 @@ namespace ChronusQ {
 
   void CQSCF_VALID(std::ostream&, CQInputFile &);
 
+  // Parse CC options
+#ifdef CQ_HAS_TA
+  std::shared_ptr<CCBase> CQCCOptions(std::ostream &, 
+     CQInputFile &, std::shared_ptr<SingleSlaterBase> &);
+#endif  
+  void CQCC_VALID(std::ostream &, CQInputFile &);
+
+
+
+
   std::shared_ptr<CQMemManager> CQMiscOptions(std::ostream &,
     CQInputFile &);
 
@@ -115,6 +128,7 @@ namespace ChronusQ {
     CQRESPONSE_VALID(out,input);
     CQMOR_VALID(out,input);
     CQMISC_VALID(out,input);
+    CQCC_VALID(out,input);
 
   }
 
