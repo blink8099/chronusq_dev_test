@@ -1,6 +1,22 @@
 stages:
     - build
 
+build_docker_images:
+    stage: build
+    only:
+        - master
+        - docker 
+    before_script:
+        - docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD
+    script:
+        - export CQ_VERSION=$(grep "project(ChronusQ" -A 7 CMakeLists.txt | grep "VERSION" | sed 's/ \+VERSION //')
+        - docker build -t uwligroup/chronusq:$CQ_VERSION .
+        - docker push uwligroup/chronusq:$CQ_VERSION
+        - docker tag uwligroup/chronusq:$CQ_VERSION uwligroup/chronusq:latest
+        - docker push uwligroup/chronusq:latest
+    after_script:
+        - docker logout
+
 build_intel:
     stage: build
     artifacts:
