@@ -272,8 +272,7 @@ namespace ChronusQ {
   
   
   
-  
-  
+
       /*++++++++++++++++++++++++++++++++++++++++++++*/
       /* Start of Dirac-Coulomb (SS|SS) Contraction */
       /*++++++++++++++++++++++++++++++++++++++++++++*/
@@ -445,7 +444,6 @@ namespace ChronusQ {
       /*------------------------------------------*/
       /*   End of Dirac-Coulomb (LL|SS) / (SS|LL) */
       /*------------------------------------------*/
-  
   
       auto durERIDC = tock(topERIDC);
 //      std::cout << "Dirac-Coulomb duration   = " << durERIDC << std::endl;
@@ -1578,18 +1576,18 @@ namespace ChronusQ {
         relERICon.twoBodyContract3Index(ss.comm, contractDCLL);
     
         // Add Dirac-Coulomb contributions  to the LLLL block
-        MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C, 
-		MatsT(1.0), ss.coulombMatrix->pointer(), NB2C, 
-		ss.coulombMatrix->pointer(), NB2C);
-        MatAdd('N','N', NB1C, NB1C, iscale, Scr2, NB1C, 
-		MatsT(1.0), ss.coulombMatrix->pointer(), NB2C, 
-		ss.coulombMatrix->pointer(), NB2C);
-        MatAdd('N','N', NB1C, NB1C, iscale, Scr3, NB1C, 
-		MatsT(1.0), ss.coulombMatrix->pointer(), NB2C, 
-		ss.coulombMatrix->pointer(), NB2C);
-        MatAdd('N','N', NB1C, NB1C, iscale, Scr4, NB1C, 
-		MatsT(1.0), ss.coulombMatrix->pointer(), NB2C, 
-		ss.coulombMatrix->pointer(), NB2C);
+//        MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C, 
+//		MatsT(1.0), ss.coulombMatrix->pointer(), NB2C, 
+//		ss.coulombMatrix->pointer(), NB2C);
+//        MatAdd('N','N', NB1C, NB1C, iscale, Scr2, NB1C, 
+//		MatsT(1.0), ss.coulombMatrix->pointer(), NB2C, 
+//		ss.coulombMatrix->pointer(), NB2C);
+//        MatAdd('N','N', NB1C, NB1C, iscale, Scr3, NB1C, 
+//		MatsT(1.0), ss.coulombMatrix->pointer(), NB2C, 
+//		ss.coulombMatrix->pointer(), NB2C);
+//        MatAdd('N','N', NB1C, NB1C, iscale, Scr4, NB1C, 
+//		MatsT(1.0), ss.coulombMatrix->pointer(), NB2C, 
+//		ss.coulombMatrix->pointer(), NB2C);
         for(auto i=0; i<NB1C; i++){
           ss.coulombMatrix->pointer()[bf1+i*NB2C] += scale*Scr1[i] + iscale*Scr2[i] + iscale*Scr3[i] + iscale*Scr4[i];
         }
@@ -1613,7 +1611,6 @@ namespace ChronusQ {
     
     
     
-    
         /*++++++++++++++++++++++++++++++++++++++++++++*/
         /* Start of Dirac-Coulomb (SS|SS) Contraction */
         /*++++++++++++++++++++++++++++++++++++++++++++*/
@@ -1630,10 +1627,10 @@ namespace ChronusQ {
         // Store SS block into 2C spin scattered matrices 
         // These scaling factors were modified to take into account the issue of storing the 
         // Coulomb portion in the exchange matrix, this will be fixed later
-        SetMat('N', NB1C, NB1C, MatsT(scale),       Scr1, NB1C, ss.coulombMatrix->pointer()+SS,      NB2C);
-        SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr2, NB1C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
-        SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr3, NB1C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
-        SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr4, NB1C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
+        //SetMat('N', NB1C, NB1C, MatsT(scale),       Scr1, NB1C, ss.coulombMatrix->pointer()+SS,      NB2C);
+        //SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr2, NB1C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
+        //SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr3, NB1C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
+        //SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr4, NB1C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
     
         for(auto i=0; i<NB1C; i++){
           ss.coulombMatrix->pointer()[SS+bf1+i*NB2C]      +=       scale*Scr1[i];

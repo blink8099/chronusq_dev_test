@@ -1490,7 +1490,7 @@ namespace ChronusQ {
 
 
     auto durERIDCB = tock(topERIDCB);
-    std::cout << "Libint-ERI4-Dirac-Coulomb-Breit duration   = " << durERIDCB << std::endl;
+    //std::cout << "Libint-ERI4-Dirac-Coulomb-Breit duration   = " << durERIDCB << std::endl;
 
   }  // computeERI3Index
 
