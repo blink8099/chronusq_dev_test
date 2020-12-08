@@ -102,7 +102,10 @@ if( CQ_NEED_OPENBLAS )
       message( STATUS "---> Allowing OpenBLAS to determine CPU TARGET" )
       set(OPENBLAS_BUILD_COMMAND make -j2)
     endif()
-
+    If(OPENBLAS_DYNAMIC_ARCH)
+      message(" Turn On Dynamic_ARCH for OpenBlas")
+      set(OPENBLAS_BUILD_COMMAND ${OPENBLAS_BUILD_COMMAND} DYNAMIC_ARCH=1)
+    endif()
     ExternalProject_Add(openblas
       PREFIX ${OPENBLAS_PREFIX}
       GIT_REPOSITORY "https://github.com/xianyi/OpenBLAS.git"
