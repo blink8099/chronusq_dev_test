@@ -29,7 +29,9 @@ set(RESP_TEST_BINARY_ROOT "${TEST_BINARY_ROOT}/resp" )
 # Set up compilation of RESP test exe
 add_executable(resptest ../ut.cxx rres.cxx rfdr.cxx rmor.cxx
   rres_lda.cxx rres_gga.cxx rres_hgga.cxx rpp.cxx upp.cxx gpp.cxx
-  misc.cxx)
+  ures_hf.cxx ures_lsda.cxx ures_gga.cxx ures_hgga.cxx 
+  gres_hf.cxx gres_lsda.cxx gres_gga.cxx gres_hgga.cxx 
+  x2cres_hf.cxx x2cres_lsda.cxx x2cres_gga.cxx x2cres_hgga.cxx misc.cxx)
 
 target_include_directories(resptest PUBLIC ${RESP_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
@@ -43,13 +45,21 @@ endif()
 # Generate directories
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/rresp)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/rresp_ks)
-#file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/uresp)
-#file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/gresp)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/uresp_hf)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/uresp_ks)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/gresp_hf)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/gresp_ks)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/x2cresp_hf)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/x2cresp_ks)
 
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/rresp)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/rresp_ks)
-#file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/uresp)
-#file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/gresp)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/uresp_hf)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/uresp_ks)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/gresp_hf)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/gresp_ks)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/x2cresp_hf)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/x2cresp_ks)
 
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/rmor)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/rmor_ks)
@@ -69,18 +79,26 @@ file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/misc)
 
 include( CQTestGeneration )
 
-add_cq_test( RHF_RESIDUE    resptest "RHF_RESIDUE.*"    )
-add_cq_test( RKS_RESIDUE    resptest "RKS_RESIDUE.*"    )
-add_cq_test( RHF_PP_RESIDUE resptest "RHF_PP_RESIDUE.*" )
-add_cq_test( UHF_PP_RESIDUE resptest "UHF_PP_RESIDUE.*" )
-
-add_cq_test( RHF_FDR    resptest "RHF_FDR.*"    )
-
-add_cq_test( RHF_DFDR   resptest "RHF_DFDR.*"   )
-
-add_cq_test( RHF_MOR    resptest "RHF_MOR.*"    )
-
-add_cq_test( MISC_RESP  resptest "MISC_RESP.*"  )
+add_cq_test( RHF_RESIDUE       resptest "RHF_RESIDUE.*"      )
+add_cq_test( RKS_RESIDUE       resptest "RKS_RESIDUE.*"      )
+add_cq_test( UHF_RESIDUE       resptest "UHF_RESIDUE.*"      )
+add_cq_test( ULSDA_RESIDUE     resptest "ULSDA_RESIDUE.*"    )
+add_cq_test( UGGA_RESIDUE      resptest "UGGA_RESIDUE.*"     )
+add_cq_test( UHGGA_RESIDUE     resptest "UHGGA_RESIDUE.*"    )
+add_cq_test( GHF_RESIDUE       resptest "GHF_RESIDUE.*"      )
+add_cq_test( GLSDA_RESIDUE     resptest "GLSDA_RESIDUE.*"    )
+add_cq_test( GGGA_RESIDUE      resptest "GGGA_RESIDUE.*"     )
+add_cq_test( GHGGA_RESIDUE     resptest "GHGGA_RESIDUE.*"    )
+add_cq_test( X2CHF_RESIDUE     resptest "X2CHF_RESIDUE.*"    )
+add_cq_test( X2CLSDA_RESIDUE   resptest "X2CLSDA_RESIDUE.*"  )
+add_cq_test( X2CGGA_RESIDUE    resptest "X2CGGA_RESIDUE.*"   )
+add_cq_test( X2CHGGA_RESIDUE   resptest "X2CHGGA_RESIDUE.*"  )
+add_cq_test( RHF_PP_RESIDUE    resptest "RHF_PP_RESIDUE.*"   )
+add_cq_test( UHF_PP_RESIDUE    resptest "UHF_PP_RESIDUE.*"   )
+add_cq_test( RHF_FDR           resptest "RHF_FDR.*"          )
+add_cq_test( RHF_DFDR          resptest "RHF_DFDR.*"         )
+add_cq_test( RHF_MOR           resptest "RHF_MOR.*"          )
+add_cq_test( MISC_RESP         resptest "MISC_RESP.*"        )
 
 
 
@@ -88,6 +106,7 @@ if( CQ_ENABLE_MPI )
 
   add_cq_mpi_test( RHF_RESIDUE_MPI  2  resptest "RHF_RESIDUE.*" )
   add_cq_mpi_test( RKS_RESIDUE_MPI  2  resptest "RKS_RESIDUE.*" )
+  add_cq_mpi_test( GHGGA_RESIDUE_MPI  2  resptest "GHGGA_RESIDUE_MPI.*" )
 
   add_cq_mpi_test( RHF_FDR_MPI  2  resptest "RHF_FDR.*"  )
   add_cq_mpi_test( RHF_DFDR_MPI 2  resptest "RHF_DFDR.*" )

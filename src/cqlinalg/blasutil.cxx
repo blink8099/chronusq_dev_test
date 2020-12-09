@@ -566,6 +566,11 @@ namespace ChronusQ {
     std::vector<std::pair<size_t,size_t>> &SubMatCut);
 
   template 
+  void SubMatSet(size_t M, size_t N, size_t MSub, size_t NSub, dcomplex *ABig, 
+    size_t LDAB, dcomplex *ASmall, size_t LDAS, 
+    std::vector<std::pair<size_t,size_t>> &SubMatCut);
+
+  template 
   void SubMatGet(size_t M, size_t N, size_t MSub, size_t NSub, double *ABig, 
     size_t LDAB, double *ASmall, size_t LDAS, 
     std::vector<std::pair<size_t,size_t>> &SubMatCut);

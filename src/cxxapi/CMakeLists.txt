@@ -22,10 +22,15 @@
 #
 
 set(INPUT_SRC input/parse.cxx)
+
 set(OPT_SRC input/molopts.cxx input/basisopts.cxx 
-  input/singleslateropts.cxx input/scfopts.cxx input/rtopts.cxx
-  input/intsopts.cxx input/miscopts.cxx input/respopts.cxx 
-  procedural.cxx)
+    input/singleslateropts.cxx input/scfopts.cxx input/rtopts.cxx
+    input/intsopts.cxx input/miscopts.cxx input/respopts.cxx 
+    input/coupledclusteropts.cxx
+    procedural.cxx)
+
+
+
 add_library(cxxcq STATIC ${INPUT_SRC} ${OPT_SRC})
 target_link_libraries( cxxcq PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
 

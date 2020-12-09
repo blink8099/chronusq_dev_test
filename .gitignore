@@ -16,6 +16,8 @@ external/libxc/lib
 external/libxc/share
 external/libxc/src
 external/libxc/tmp
+external/tiledarray/
 doc
 *.*.swp
 *~
+

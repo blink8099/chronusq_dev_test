@@ -9,6 +9,14 @@
 
   FORMAT: YYYY-MM-DD
 
+  - 2020-12-08 0.5.0 (BETA)
+    - Added Functionality:
+      - Add Relativistic (X2C) Coupled Cluster Singles and Doubles (MPI only)
+      - Add Linear Response for two component DFT (X2C/GKS)
+    - Internal Refactoring:
+      - Change CI pipelines to build and deploy Docker images to Docker Hub
+  <br>
+
   - 2020-10-20 0.4.0 (BETA)
     - Added Functionality:
       - Add Resolution of identity (RI) approximation for all methods

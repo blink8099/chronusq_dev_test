@@ -173,7 +173,9 @@ namespace ChronusQ {
                     transInts.pointer(),false);
     return transInts;
   }
-
+  
+  template InCore4indexERI<double> InCore4indexERI<double>::transform(char TRANS, const double* T, int NT, int LDT) const;
+  template InCore4indexERI<dcomplex> InCore4indexERI<double>::transform(char TRANS, const dcomplex* T, int NT, int LDT) const;
   /**
    *  \brief B(L, p, q) = T(mu, p)^H @ B(L, mu, nu) @ T(nu, q)
    *
@@ -302,6 +304,9 @@ namespace ChronusQ {
     subsetTransform(TRANS,T,LDT,{{0,NT},{0,NT}},transInts.pointer(),false);
     return transInts;
   }
+
+  template InCoreRIERI<double> InCoreRIERI<double>::transform(char TRANS, const double* T, int NT, int LDT) const;
+  template InCoreRIERI<dcomplex> InCoreRIERI<double>::transform(char TRANS, const dcomplex* T, int NT, int LDT) const;
 
 #define IF_TRANSFORM_INTS(EI) \
   if (tID == typeid(EI<double>))\

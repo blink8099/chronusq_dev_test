@@ -90,26 +90,6 @@ namespace ChronusQ {
 
     } 
 
-
-    // No 2C + TDDFT
-    if( input.containsData("QM.REFERENCE") ) {
-
-      std::string ref = input.getData<std::string>("QM.REFERENCE");
-
-      bool isKS  = not (ref.find("HF") != std::string::npos);
-      bool isX2C = ref.find("X2C") != std::string::npos;
-      bool isG   = ref.find("G") != std::string::npos;
-
-      bool is2C = isX2C or isG;
-
-      if( is2C )
-        CErr("RESPONSE + 2C not allowed");      
-
-      if( is2C and isKS )
-        CErr("RESPONSE + KS + 2C not allowed");      
-
-    }
-
 #if 0
     // No MPI + Full Residue
     if( MPISize(MPI_COMM_WORLD) > 1 ) {

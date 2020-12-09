@@ -33,6 +33,10 @@ add_subdirectory(singleslater)
 add_subdirectory(realtime)
 add_subdirectory(itersolver)
 add_subdirectory(response)
+add_subdirectory(coupledcluster)  
+
+
+
 
 
 

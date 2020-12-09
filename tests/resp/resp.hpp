@@ -58,10 +58,49 @@ static void CQRESPTEST( std::string in, std::string ref ) {
 };
 
 
+static void CQRESPREFTEST( std::string in, std::string ref ) {
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+#ifdef _CQ_GENERATE_TESTS
+
+  // Assumes user added bin to RESP_TEST_REF
+  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
+    RESP_TEST_REF + ref, TEST_OUT + in + ".scr");
+
+#else
+
+  std::ifstream  src(RESP_TEST_REF + ref, std::ios::binary);
+  std::ofstream  dst(TEST_OUT + in + ".bin", std::ios::binary);
+  dst << src.rdbuf();
+  dst.flush();
+
+  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
+    TEST_OUT + in + ".bin",TEST_OUT + in + ".scr");
+
+#endif
 
 
+};
+
+static void CQRESPFCHKTEST( std::string in, std::string ref, std::string fchk ) {
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+#ifdef _CQ_GENERATE_TESTS
+
+  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
+    RESP_TEST_REF + ref, RESP_TEST_REF + fchk);
+
+#else
+
+  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
+    TEST_OUT + in + ".bin", RESP_TEST_REF + fchk);
+
+#endif
 
 
+};
 
 
 static void CQRESTEST( bool checkProp, std::string in, std::string ref, 
@@ -702,5 +741,385 @@ static void CQMORTEST( bool checkLHerOps, bool checkLAntiHerOps,
 
 }
 
+
+static void CQCRESTEST( bool checkProp, std::string in, std::string ref, 
+    bool runCQ = true, double tol = 1e-06, bool readBin = false, std::string fchk="no" ) {
+
+  if( runCQ ){ 
+    if( readBin ) CQRESPREFTEST(in,ref);
+    else if(fchk != "no") CQRESPFCHKTEST(in,ref,fchk);
+    else CQRESPTEST(in,ref);
+  }
+  if( MPIRank() != 0 ) return;
+
+#ifndef _CQ_GENERATE_TESTS
+
+  SafeFile refFile(RESP_TEST_REF + ref,true);
+  SafeFile resFile(TEST_OUT + in + ".bin",true);
+   
+  std::vector<double> xDummy, yDummy; 
+
+  // Get DEMIN from RESFILE
+  double DEMIN = 0;
+  resFile.readData("/RESP/RESIDUE/DEMIN", &DEMIN);
+
+  // See if RESFILE is full problem
+  int isFull;
+  resFile.readData("/RESP/DOFULL", &isFull);
+
+  // Check eigenvalues
+  std::cerr << "PERFORMING EIGENVALUE TEST\n";
+
+  auto evDim     = resFile.getDims("/RESP/RESIDUE/EIGENVALUES");
+  auto evDim_ref = refFile.getDims("/RESP/RESIDUE/EIGENVALUES");
+
+  xDummy.clear(); yDummy.clear();
+  xDummy.resize(evDim[0]); yDummy.resize(evDim_ref[0]);
+  
+
+  resFile.readData("/RESP/RESIDUE/EIGENVALUES",&xDummy[0]);
+  refFile.readData("/RESP/RESIDUE/EIGENVALUES",&yDummy[0]);
+
+
+  // Find where DEMIN cuts off
+  size_t eigOff = isFull ? 0 : 
+    std::distance( 
+      yDummy.begin(),
+      std::find_if(yDummy.begin(), yDummy.end(), 
+        [&](double x){ return x > DEMIN; })
+    );
+
+
+  if( eigOff )
+    std::cerr << "  * EIGENVALUE OFFSET = " << eigOff << std::endl; 
+  
+
+
+  for(auto i = 0; i < evDim[0]; i++)
+    EXPECT_NEAR( xDummy[i], yDummy[i + eigOff], tol ) <<
+      "EIGENVALUE TEST FAILED IO = " << i;
+
+  if( not checkProp ) return;
+
+  // Check Osc Strength
+  std::cerr << "PERFORMING OSC STRENGTH TEST\n";
+
+  auto oscDim     = resFile.getDims("/RESP/RESIDUE/OSC_STRENGTH");
+  auto oscDim_ref = refFile.getDims("/RESP/RESIDUE/OSC_STRENGTH");
+
+  xDummy.clear(); yDummy.clear();
+  xDummy.resize(oscDim[0]); yDummy.resize(oscDim_ref[0]);
+  
+  resFile.readData("/RESP/RESIDUE/OSC_STRENGTH",&xDummy[0]);
+  refFile.readData("/RESP/RESIDUE/OSC_STRENGTH",&yDummy[0]);
+
+  for(auto i = 0; i < oscDim[0]; i++)
+    EXPECT_NEAR( xDummy[i], yDummy[i + eigOff], tol ) <<
+      "OSC STRENGTH TEST FAILED IO = " << i;
+
+  // Since properties are complex
+  std::vector<dcomplex> xDummyC, yDummyC; 
+  dcomplex tolC(tol,tol); 
+   
+
+  // Check TDipole (Length)
+  std::cerr << "PERFORMING TDIPOLE (LENGTH) TEST\n";
+
+  auto tDipoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_LENGTH");
+  auto tDipoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_LENGTH");
+  ASSERT_EQ(tDipoleDim.size(),2);
+
+  xDummyC.clear(); yDummyC.clear();
+  xDummyC.resize(tDipoleDim[0]*tDipoleDim[1]); 
+  yDummyC.resize(tDipoleDim_ref[0]*tDipoleDim_ref[1]); 
+  
+  resFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_LENGTH",&xDummyC[0]);
+  refFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_LENGTH",&yDummyC[0]);
+
+  for(auto i = 0; i < tDipoleDim[0]; i++) {
+
+    EXPECT_NEAR( std::abs(xDummyC[3*i]), std::abs(yDummyC[3*(i + eigOff)]), std::abs(tolC) ) <<
+      "TDIPOLE (LENGTH,X) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[3*i+1]), std::abs(yDummyC[3*(i + eigOff)+1]), std::abs(tolC) ) <<
+      "TDIPOLE (LENGTH,Y) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[3*i+2]), std::abs(yDummyC[3*(i + eigOff)+2]), std::abs(tolC) ) <<
+      "TDIPOLE (LENGTH,Z) TEST FAILED IO = " << i;
+
+  }
+
+  // Check TDipole (Velocity)
+  std::cerr << "PERFORMING TDIPOLE (VELOCITY) TEST\n";
+
+  tDipoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_VELOCITY");
+  tDipoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_VELOCITY");
+  ASSERT_EQ(tDipoleDim.size(), 2);
+
+  xDummyC.clear(); yDummyC.clear();
+  xDummyC.resize(tDipoleDim[0]*tDipoleDim[1]); 
+  yDummyC.resize(tDipoleDim_ref[0]*tDipoleDim_ref[1]); 
+  
+  resFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_VELOCITY",&xDummyC[0]);
+  refFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_DIPOLE_VELOCITY",&yDummyC[0]);
+
+  for(auto i = 0; i < tDipoleDim[0]; i++) {
+
+    EXPECT_NEAR( std::abs(xDummyC[3*i]), std::abs(yDummyC[3*(i + eigOff)]), std::abs(tolC) ) <<
+      "TDIPOLE (VELOCITY,X) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[3*i+1]), std::abs(yDummyC[3*(i + eigOff)+1]), std::abs(tolC) ) <<
+      "TDIPOLE (VELOCITY,Y) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[3*i+2]), std::abs(yDummyC[3*(i + eigOff)+2]), std::abs(tolC) ) <<
+      "TDIPOLE (VELOCITY,Z) TEST FAILED IO = " << i;
+
+  }
+
+  // Check TQuadrupole (Length)
+  std::cerr << "PERFORMING TQUADRUPOLE (LENGTH) TEST\n";
+
+  auto tQuadrupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_LENGTH");
+  auto tQuadrupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_LENGTH");
+  ASSERT_EQ(tQuadrupoleDim.size(), 2);
+
+  xDummyC.clear(); yDummyC.clear();
+  xDummyC.resize(tQuadrupoleDim[0]*tQuadrupoleDim[1]); 
+  yDummyC.resize(tQuadrupoleDim_ref[0]*tQuadrupoleDim_ref[1]); 
+  
+  resFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_LENGTH",&xDummyC[0]);
+  refFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_LENGTH",&yDummyC[0]);
+
+  for(auto i = 0; i < tQuadrupoleDim[0]; i++) {
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i]), std::abs(yDummyC[6*(i + eigOff)]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (LENGTH,XX) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+1]), std::abs(yDummyC[6*(i + eigOff)+1]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (LENGTH,XY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+2]), std::abs(yDummyC[6*(i + eigOff)+2]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (LENGTH,XZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+3]), std::abs(yDummyC[6*(i + eigOff)+3]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (LENGTH,YY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+4]), std::abs(yDummyC[6*(i + eigOff)+4]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (LENGTH,YZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+5]), std::abs(yDummyC[6*(i + eigOff)+5]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (LENGTH,ZZ) TEST FAILED IO = " << i;
+
+  }
+
+
+  // Check TQuadrupole (Velocity)
+  std::cerr << "PERFORMING TQUADRUPOLE (VELOCITY) TEST\n";
+
+  tQuadrupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_VELOCITY");
+  tQuadrupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_VELOCITY");
+  ASSERT_EQ(tQuadrupoleDim.size(), 2);
+
+  xDummyC.clear(); yDummyC.clear();
+  xDummyC.resize(tQuadrupoleDim[0]*tQuadrupoleDim[1]); 
+  yDummyC.resize(tQuadrupoleDim_ref[0]*tQuadrupoleDim_ref[1]); 
+  
+  resFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_VELOCITY",&xDummyC[0]);
+  refFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_QUADRUPOLE_VELOCITY",&yDummyC[0]);
+
+  for(auto i = 0; i < tQuadrupoleDim[0]; i++) {
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i]), std::abs(yDummyC[6*(i + eigOff)]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (VELOCITY,XX) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+1]), std::abs(yDummyC[6*(i + eigOff)+1]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (VELOCITY,XY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+2]), std::abs(yDummyC[6*(i + eigOff)+2]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (VELOCITY,XZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+3]), std::abs(yDummyC[6*(i + eigOff)+3]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (VELOCITY,YY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+4]), std::abs(yDummyC[6*(i + eigOff)+4]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (VELOCITY,YZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+5]), std::abs(yDummyC[6*(i + eigOff)+5]), std::abs(tolC) ) <<
+      "TQUADRUPOLE (VELOCITY,ZZ) TEST FAILED IO = " << i;
+
+  }
+
+
+
+
+  // Check TOctupole (Length)
+  std::cerr << "PERFORMING TOCTUPOLE (LENGTH) TEST\n";
+
+  auto tOctupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_LENGTH");
+  auto tOctupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_LENGTH");
+  ASSERT_EQ(tOctupoleDim.size(), 2);
+
+  xDummyC.clear(); yDummyC.clear();
+  xDummyC.resize(tOctupoleDim[0]*tOctupoleDim[1]); 
+  yDummyC.resize(tOctupoleDim_ref[0]*tOctupoleDim_ref[1]); 
+  
+  resFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_LENGTH",&xDummyC[0]);
+  refFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_LENGTH",&yDummyC[0]);
+
+  for(auto i = 0; i < tOctupoleDim[0]; i++) {
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i]), std::abs(yDummyC[10*(i + eigOff)]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,XXX) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+1]), std::abs(yDummyC[10*(i + eigOff)+1]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,XXY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+2]), std::abs(yDummyC[10*(i + eigOff)+2]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,XXZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+3]), std::abs(yDummyC[10*(i + eigOff)+3]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,XYY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+4]), std::abs(yDummyC[10*(i + eigOff)+4]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,XYZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+5]), std::abs(yDummyC[10*(i + eigOff)+5]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,XZZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+6]), std::abs(yDummyC[10*(i + eigOff)+6]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,YYY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+7]), std::abs(yDummyC[10*(i + eigOff)+7]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,YYZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+8]), std::abs(yDummyC[10*(i + eigOff)+8]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,YZZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+9]), std::abs(yDummyC[10*(i + eigOff)+9]), std::abs(tolC) ) <<
+      "TOCTUPOLE (LENGTH,ZZZ) TEST FAILED IO = " << i;
+
+  }
+
+
+
+  // Check TOctupole (Velocity)
+  std::cerr << "PERFORMING TOCTUPOLE (VELOCITY) TEST\n";
+
+  tOctupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_VELOCITY");
+  tOctupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_VELOCITY");
+  ASSERT_EQ(tOctupoleDim.size(), 2);
+
+  xDummyC.clear(); yDummyC.clear();
+  xDummyC.resize(tOctupoleDim[0]*tOctupoleDim[1]); 
+  yDummyC.resize(tOctupoleDim_ref[0]*tOctupoleDim_ref[1]); 
+  
+  resFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_VELOCITY",&xDummyC[0]);
+  refFile.readData("/RESP/RESIDUE/TRANSITION_ELECTRIC_OCTUPOLE_VELOCITY",&yDummyC[0]);
+
+  for(auto i = 0; i < tOctupoleDim[0]; i++) {
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i]), std::abs(yDummyC[10*(i + eigOff)]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,XXX) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+1]), std::abs(yDummyC[10*(i + eigOff)+1]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,XXY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+2]), std::abs(yDummyC[10*(i + eigOff)+2]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,XXZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+3]), std::abs(yDummyC[10*(i + eigOff)+3]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,XYY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+4]), std::abs(yDummyC[10*(i + eigOff)+4]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,XYZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+5]), std::abs(yDummyC[10*(i + eigOff)+5]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,XZZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+6]), std::abs(yDummyC[10*(i + eigOff)+6]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,YYY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+7]), std::abs(yDummyC[10*(i + eigOff)+7]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,YYZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+8]), std::abs(yDummyC[10*(i + eigOff)+8]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,YZZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[10*i+9]), std::abs(yDummyC[10*(i + eigOff)+9]), std::abs(tolC) ) <<
+      "TOCTUPOLE (VELOCITY,ZZZ) TEST FAILED IO = " << i;
+
+  }
+
+
+
+
+
+
+  // Check TMagDipole
+  std::cerr << "PERFORMING T-MAGDIPOLE TEST\n";
+
+  auto tMagDipoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_MAGNETIC_DIPOLE");
+  auto tMagDipoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_MAGNETIC_DIPOLE");
+  ASSERT_EQ(tMagDipoleDim.size(), 2);
+
+  xDummyC.clear(); yDummyC.clear();
+  xDummyC.resize(tMagDipoleDim[0]*tMagDipoleDim[1]); 
+  yDummyC.resize(tMagDipoleDim_ref[0]*tMagDipoleDim_ref[1]); 
+  
+  resFile.readData("/RESP/RESIDUE/TRANSITION_MAGNETIC_DIPOLE",&xDummyC[0]);
+  refFile.readData("/RESP/RESIDUE/TRANSITION_MAGNETIC_DIPOLE",&yDummyC[0]);
+
+  for(auto i = 0; i < tMagDipoleDim[0]; i++) {
+
+    EXPECT_NEAR( std::abs(xDummyC[3*i]), std::abs(yDummyC[3*(i + eigOff)]), std::abs(tolC) ) <<
+      "TMAGDIPOLE (X) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[3*i+1]), std::abs(yDummyC[3*(i + eigOff)+1]), std::abs(tolC) ) <<
+      "TMAGDIPOLE (Y) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[3*i+2]), std::abs(yDummyC[3*(i + eigOff)+2]), std::abs(tolC) ) <<
+      "TMAGDIPOLE (Z) TEST FAILED IO = " << i;
+
+  }
+
+
+  // Check TMagQuadrupole (Length)
+  std::cerr << "PERFORMING T-MAGQUADRUPOLE TEST\n";
+
+  auto tMagQuadrupoleDim     = resFile.getDims("/RESP/RESIDUE/TRANSITION_MAGNETIC_QUADRUPOLE");
+  auto tMagQuadrupoleDim_ref = refFile.getDims("/RESP/RESIDUE/TRANSITION_MAGNETIC_QUADRUPOLE");
+  ASSERT_EQ(tMagQuadrupoleDim.size(), 2);
+
+  xDummyC.clear(); yDummyC.clear();
+  xDummyC.resize(tMagQuadrupoleDim[0]*tMagQuadrupoleDim[1]); 
+  yDummyC.resize(tMagQuadrupoleDim_ref[0]*tMagQuadrupoleDim_ref[1]); 
+  
+  resFile.readData("/RESP/RESIDUE/TRANSITION_MAGNETIC_QUADRUPOLE",&xDummyC[0]);
+  refFile.readData("/RESP/RESIDUE/TRANSITION_MAGNETIC_QUADRUPOLE",&yDummyC[0]);
+
+  for(auto i = 0; i < tMagQuadrupoleDim[0]; i++) {
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i]), std::abs(yDummyC[6*(i + eigOff)]), std::abs(tolC) ) <<
+      "TMAGQUADRUPOLE (XX) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+1]), std::abs(yDummyC[6*(i + eigOff)+1]), std::abs(tolC) ) <<
+      "TMAGQUADRUPOLE (XY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+2]), std::abs(yDummyC[6*(i + eigOff)+2]), std::abs(tolC) ) <<
+      "TMAGQUADRUPOLE (XZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+3]), std::abs(yDummyC[6*(i + eigOff)+3]), std::abs(tolC) ) <<
+      "TMAGQUADRUPOLE (YY) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+4]), std::abs(yDummyC[6*(i + eigOff)+4]), std::abs(tolC) ) <<
+      "TMAGQUADRUPOLE (YZ) TEST FAILED IO = " << i;
+
+    EXPECT_NEAR( std::abs(xDummyC[6*i+5]), std::abs(yDummyC[6*(i + eigOff)+5]), std::abs(tolC) ) <<
+      "TMAGQUADRUPOLE (ZZ) TEST FAILED IO = " << i;
+
+  }
+#endif
+
+};
 
 

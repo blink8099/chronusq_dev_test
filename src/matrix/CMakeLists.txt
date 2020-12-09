@@ -36,3 +36,8 @@ set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 if(CQEX_DEP)
   add_dependencies(matrix ${CQEX_DEP})
 endif()
+
+if( TARGET openblas )
+  add_dependencies( matrix openblas ) 
+ 
+endif()

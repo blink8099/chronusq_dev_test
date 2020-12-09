@@ -27,6 +27,11 @@ target_link_libraries( wavefunction PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
 list(APPEND CQEX_LINK wavefunction)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
+
 if( TARGET openblas )
   add_dependencies( wavefunction openblas ) 
+endif()
+
+if(CQEX_DEP)
+  add_dependencies(wavefunction ${CQEX_DEP})
 endif()

@@ -46,10 +46,14 @@ namespace ChronusQ {
 #ifdef _CQ_MKL
     zgemm(&TRANSA,&TRANSB,&M,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
 #else
+#ifdef CQ_HAS_TA
+    zgemm_(&TRANSA,&TRANSB,&M,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
+#else
     zgemm_(&TRANSA,&TRANSB,&M,&N,&K,reinterpret_cast<double*>(&ALPHA),
       const_cast<double*>(reinterpret_cast<const double*>(A)),&LDA,
       const_cast<double*>(reinterpret_cast<const double*>(B)),&LDB,
       reinterpret_cast<double*>(&BETA),reinterpret_cast<double*>(C),&LDC);
+#endif
 #endif
 
   }; // GEMM (complex,complex,complex)
@@ -65,7 +69,7 @@ namespace ChronusQ {
     assert( (TRANSA == 'N' or TRANSA == 'T' or TRANSA == 'C')
             and (TRANSB == 'N' or TRANSB == 'T' or TRANSB == 'C') );
 
-    int COLS_A = (TRANSA == 'N') ? K : N;
+    int COLS_A = (TRANSA == 'N') ? K : M;
     int COLS_B = (TRANSB == 'N') ? N : K;
 
     Eigen::Map<
@@ -141,34 +145,16 @@ namespace ChronusQ {
 #ifdef _CQ_MKL
     ztrmm(&SIDE,&UPLO,&TRANSA,&DIAG,&M,&N,&ALPHA,A,&LDA,B,&LDB);
 #else
+#ifdef CQ_HAS_TA
+    ztrmm_(&SIDE,&UPLO,&TRANSA,&DIAG,&M,&N,&ALPHA,A,&LDA,B,&LDB);
+#else
     ztrmm_(&SIDE,&UPLO,&TRANSA,&DIAG,&M,&N,reinterpret_cast<double*>(&ALPHA),
       reinterpret_cast<double*>(A),&LDA,reinterpret_cast<double*>(B),&LDB);
+#endif
 #endif
     
 
   }; // TRMM (complex,complex,complex)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
   /*
@@ -184,6 +170,35 @@ namespace ChronusQ {
 #endif
       (&UPLO,&TRANS,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
   }; // DSYR2K
+
+  /*
+   *  performs one of the symmetric rank 2k operations
+   *  C := alpha*A*B' + alpha*B*A' + beta*C
+   */
+  template <>
+  void SYR2K(char UPLO,char TRANS,int N,int K,double ALPHA,double *A,
+    int LDA,double *B,int LDB,double BETA, double *C,int LDC){
+#ifdef _CQ_MKL
+    dsyr2k
+#else
+    dsyr2k_
+#endif
+      (&UPLO,&TRANS,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
+  }; // SYR2K
+
+  template <>
+  void SYR2K(char UPLO,char TRANS,int N,int K,dcomplex ALPHA,dcomplex *A,
+    int LDA,dcomplex *B,int LDB,dcomplex BETA, dcomplex *C,int LDC){
+#ifdef _CQ_MKL
+    zsyr2k(&UPLO,&TRANS,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
+#else
+    zsyr2k_(&UPLO,&TRANS,&N,&K,reinterpret_cast<double*>(&ALPHA),
+      reinterpret_cast<double*>(A),&LDA,reinterpret_cast<double*>(B),&LDB,
+      reinterpret_cast<double*>(&BETA),reinterpret_cast<double*>(C),&LDC);
+#endif
+      
+  }; // SYR2K
+
 
 
 }; // namespace ChronusQ

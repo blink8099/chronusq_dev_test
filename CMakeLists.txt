@@ -25,7 +25,7 @@ cmake_minimum_required(VERSION 3.11...3.14 FATAL_ERROR)
 
 
 project(ChronusQ
-    VERSION 0.4.0
+    VERSION 0.5.0
     DESCRIPTION
     "Chronus Quantum is an ab initio computational chemistry \
 software package that focuses on explicitly time-dependent and unconventional \
@@ -41,6 +41,7 @@ option(CQ_ENABLE_MPI       "Enable MPI parallelism"          OFF)
 option(ENABLE_COVERAGE     "Enable coverage and profiling"   OFF)
 option(CQ_LINALG_USESYSTEM "Use System defaults for LA libs" OFF)
 option(CQ_EXTERNAL_OPENMP  "Force linking to an external OpenMP library" OFF)
+option(CQ_ENABLE_TA  "Enable TA"  OFF)
 
 
 # Libint building options
@@ -159,7 +160,16 @@ list(APPEND CQEX_LINK ChronusQ::HDF5 )
 message( "\n\n" )
 
 
-
+if( CQ_ENABLE_TA )
+  if(NOT CQ_ENABLE_MPI)
+    message(FATAL_ERROR "TiledArray must be compiled with mpi!")
+  endif()
+  message("Enable TiledArray")
+  include(FindTiledArray)
+  set( CQ_HAS_TA ON )
+else()
+  message("TiledArray will not be compiled, Coupled-Cluster will be disabled.")
+endif()
 
 # Compiling with coverage report
 if(ENABLE_COVERAGE)

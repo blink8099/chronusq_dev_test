@@ -42,6 +42,7 @@
 #include <response.hpp>
 #include <realtime.hpp>
 #include <itersolver.hpp>
+#include <coupledcluster.hpp>
 
 #include <cqlinalg/blasext.hpp>
 #include <cqlinalg/eig.hpp>
@@ -179,7 +180,7 @@ namespace ChronusQ {
 
 
     if( not jobType.compare("SCF") or not jobType.compare("RT") or 
-        not jobType.compare("RESP") ) {
+        not jobType.compare("RESP") or not jobType.compare("CC") ) {
 
       ss->formCoreH(emPert);
 
@@ -217,6 +218,16 @@ namespace ChronusQ {
 
     }
 
+    
+    if( not jobType.compare("CC")){  
+      #ifdef CQ_HAS_TA
+        auto cc = CQCCOptions(output, input, ss);
+        cc->run(); 
+      #else
+        CErr("TiledArray must be compiled to use Coupled-Cluster code!");
+      #endif
+    }
+     
     // Output CQ footer
     CQOutputFooter(output);
 

@@ -27,6 +27,11 @@ target_link_libraries ( molecule PUBLIC ChronusQ::Libint2 )
 list(APPEND CQEX_LINK molecule)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
+
 if ( TARGET mxx )
   add_dependencies( molecule mxx )
+endif()
+
+if(CQEX_DEP)
+  add_dependencies(molecule ${CQEX_DEP})
 endif()

@@ -18,7 +18,26 @@ time-dependent and post-SCF quantum mechanical methods.
 Installation
 ------------
 
-### Prerequisites
+### Docker Quickstart
+
+ChronusQ is now available as a Docker image so you can quickly and easily test
+it on your system! To do so, install
+[Docker desktop](https://www.docker.com/get-started) and pull the latest
+ChronusQ image:
+```
+docker pull uwligroup/chronusq
+```
+
+You can then run it on an input file by invoking `docker run`:
+```
+docker run -v ${PWD}:/home/chronusq uwligroup/chronusq <inputfile> 
+```
+
+For more details about using the Docker image, see the
+[getting ChronusQ](../../wikis/getting-chronusq#docker-image) and
+[running ChronusQ](../../wikis/running-chronusq#docker-image) wiki pages.
+
+### Prerequisites for compilation
 
 - C++14 compiler 
 - C compiler (for LibXC)
@@ -27,7 +46,7 @@ Installation
 - [HDF5](https://support.hdfgroup.org/HDF5/)
 - [Eigen3](http://eigen.tuxfamily.org)
 
-### Quickstart
+### Quick compilation
 
 If you have all the prerequisites above, all you need to do is:
 
@@ -42,8 +61,10 @@ To install, you then run
 cmake --build . --target install
 ```
 
-For more details on installation requirements, and running ChronusQ, see the [getting ChronusQ](../../wikis/compilation)
-and [running ChronusQ](../../wikis/Running-ChronusQ) wiki pages.
+For more details on installation requirements, and running ChronusQ, see the
+[getting ChronusQ](../../wikis/getting-chronusq#compilation-from-source)
+and [running ChronusQ](../../wikis/Running-ChronusQ#compiled-from-source)
+wiki pages.
 
 
 Citing ChronusQ
