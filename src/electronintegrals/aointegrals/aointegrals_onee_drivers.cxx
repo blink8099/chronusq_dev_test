@@ -22,7 +22,7 @@
  *  
  */
 
-#include <integrals.hpp>
+#include <integrals/impl.hpp>
 #include <electronintegrals/inhouseaointegral.hpp>
 #include <cqlinalg.hpp>
 #include <cqlinalg/svd.hpp>
@@ -33,8 +33,6 @@
 #include <Eigen/Sparse>
 #include <Eigen/Dense>
 #include <Eigen/Core>
-
-#include <electronintegrals/aooneeints.hpp>
 
 // Debug directives
 //#define _DEBUGORTHO
@@ -83,13 +81,13 @@ namespace ChronusQ {
    */ 
   template <>
   void OneEInts<dcomplex>::OneEDriverLibint(libint2::Operator op,
-      Molecule &mol, shell_set& shells, std::vector<dcomplex*> mats) {
+      Molecule &mol, shell_set& shells, std::vector<dcomplex*> mats, size_t deriv) {
     CErr("Only real GTOs are allowed",std::cout);
   };
 
   template <>
   void OneEInts<double>::OneEDriverLibint(libint2::Operator op,
-      Molecule &mol, shell_set& shells, std::vector<double*> mats) {
+      Molecule &mol, shell_set& shells, std::vector<double*> mats, size_t deriv) {
 
     // Determine the number of basis functions for the passed shell set
     size_t NB = std::accumulate(shells.begin(),shells.end(),0,
@@ -122,7 +120,7 @@ namespace ChronusQ {
     std::vector<libint2::Engine> engines(nthreads);
 
     // Initialize the first engine for the integral evaluation
-    engines[0] = libint2::Engine(op,maxPrim,maxL,0);
+    engines[0] = libint2::Engine(op,maxPrim,maxL,deriv);
     engines[0].set_precision(0.0);
 
 
@@ -465,10 +463,41 @@ namespace ChronusQ {
 
   };
 
+  template<>
+  void GradInts<OneEInts,double>::computeAOInts(BasisSet& basis,
+    Molecule& mol, EMPerturbation&, OPERATOR op, const AOIntsOptions& options)
+  {
+
+    // TODO
+
+  };
+
+  template<>
+  void GradInts<MultipoleInts, double>::computeAOInts(BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const AOIntsOptions&) {
+
+    CErr("Gradient integrals for multipole operators not yet implemented!");
+
+  };
+
+  template<>
+  void GradInts<OneERelInts, double>::computeAOInts(BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const AOIntsOptions&) {
+
+    CErr("Gradient integrals for relativistic operators not yet implemented!");
+
+  };
+
   template void Integrals<double>::computeAOOneE(
       CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,
       const std::vector<std::pair<OPERATOR,size_t>>&,
       const AOIntsOptions&);
+
+  template void Integrals<double>::computeGradInts(
+      CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,
+      const std::vector<std::pair<OPERATOR,size_t>>&,
+      const AOIntsOptions&);
+
 
 }; // namespace ChronusQ
 

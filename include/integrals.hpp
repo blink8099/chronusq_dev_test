@@ -26,9 +26,10 @@
 #include <chronusq_sys.hpp>
 #include <util/files.hpp>
 #include <fields.hpp>
+#include <electronintegrals/gradints.hpp>
+#include <electronintegrals/multipoleints.hpp>
 #include <electronintegrals/oneeints.hpp>
 #include <electronintegrals/twoeints.hpp>
-#include <electronintegrals/multipoleints.hpp>
 
 namespace ChronusQ {
 
@@ -64,6 +65,10 @@ namespace ChronusQ {
         BasisSet &basis, EMPerturbation&,
         const std::vector<std::pair<OPERATOR,size_t>>&,
         const AOIntsOptions&) = 0;
+
+    virtual void computeGradInts(CQMemManager&, Molecule&, BasisSet&,
+        EMPerturbation&, const std::vector<std::pair<OPERATOR,size_t>>&, const
+        AOIntsOptions&) = 0;
 
     // Print (see src/aointegrals/print.cxx for docs)
     template <typename G> 
@@ -102,6 +107,13 @@ namespace ChronusQ {
     // 2-e storage
     std::shared_ptr<TwoEInts<IntsT>> ERI = nullptr;
 
+    // Gradient storage
+    std::shared_ptr<GradInts<OneEInts,IntsT>> gradOverlap = nullptr;
+    std::shared_ptr<GradInts<OneEInts,IntsT>> gradKinetic = nullptr;
+    std::shared_ptr<GradInts<OneEInts,IntsT>> gradPotential = nullptr;
+
+    std::shared_ptr<GradInts<TwoEInts,IntsT>> gradERI = nullptr;
+
     // miscellaneous storage
     std::map<std::string, std::shared_ptr<ElectronIntegrals>> misc;
 
@@ -120,6 +132,10 @@ namespace ChronusQ {
         BasisSet &basis, EMPerturbation&,
         const std::vector<std::pair<OPERATOR,size_t>>&,
         const AOIntsOptions&);
+
+    virtual void computeGradInts(CQMemManager&, Molecule&, BasisSet&,
+        EMPerturbation&, const std::vector<std::pair<OPERATOR,size_t>>&, const
+        AOIntsOptions&);
 
     template <typename MatsT>
     Integrals<typename std::conditional<

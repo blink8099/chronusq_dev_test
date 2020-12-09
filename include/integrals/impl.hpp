@@ -22,6 +22,7 @@
  *
  */
 #pragma once
+
 #include <integrals.hpp>
 #include <electronintegrals/twoeints/incore4indexeri.hpp>
 #include <electronintegrals/twoeints/incorerieri.hpp>
@@ -160,5 +161,61 @@ namespace ChronusQ {
       }
 
   }; // AOIntegrals<IntsT>::computeAOOneE
+
+
+
+  // Computes the integrals necessary for the gradients
+  template <typename IntsT>
+  void Integrals<IntsT>::computeGradInts(CQMemManager &mem,
+      Molecule &mol, BasisSet &basis, EMPerturbation &emPert,
+      const std::vector<std::pair<OPERATOR,size_t>> &ops,
+      const AOIntsOptions &options) {
+
+    size_t NB = basis.nBasis;
+    size_t NAt = mol.nAtoms;
+
+    for ( auto& op: ops ) {
+
+      switch (op.first) {
+
+        case OVERLAP:
+          gradOverlap = std::make_shared<GradInts<OneEInts,IntsT>>(mem, NB,
+                                                                   NAt);
+          gradOverlap->computeAOInts(basis, mol, emPert, op.first, options);
+          // TODO: Write code to save gradient integrals to binary file
+          //   Should be toggleable with default off to keep binary file to 
+          //   reasonable size.
+          break;
+
+        case KINETIC:
+          gradKinetic = std::make_shared<GradInts<OneEInts,IntsT>>(mem, NB,
+                                                                   NAt);
+          gradKinetic->computeAOInts(basis, mol, emPert, op.first, options);
+          break;
+
+        case NUCLEAR_POTENTIAL:
+          if ( options.OneEScalarRelativity )
+            CErr("Relativistic gradients not yet implemented!");
+          else
+            gradPotential = std::make_shared<GradInts<OneEInts,IntsT>>(mem, NB,
+                                                                       NAt);
+          gradPotential->computeAOInts(basis, mol, emPert, op.first, options);
+          break;
+
+        case MAGNETIC_MULTIPOLE:
+        case LEN_ELECTRIC_MULTIPOLE:
+        case VEL_ELECTRIC_MULTIPOLE:
+          CErr("Gradients of multipoles are not yet implemented");
+          break;
+
+        case ELECTRON_REPULSION:
+          CErr("FIXME Andrew!!!");
+          break;
+      }
+
+    }
+
+  }; // AOIntegrals<IntsT>::computeGradInts
+
 
 }; // namespace ChronusQ

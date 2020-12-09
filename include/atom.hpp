@@ -40,6 +40,9 @@ namespace ChronusQ {
 
     std::array<double,3> coord; ///< X,Y,Z coordinates
 
+    std::array<double,3> velocity{{0.,0.,0.}}; ///< X,Y,Z velocity
+    std::array<double,3> force{{0.,0.,0.}};    ///< X,Y,Z force
+
 
     /**
      *  Coordinate array constructor (Default)
