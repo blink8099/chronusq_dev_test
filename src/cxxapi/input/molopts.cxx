@@ -118,38 +118,61 @@ namespace ChronusQ {
 
       if( tokens.size() == 0 ) continue;
 
-      std::string atmSymb = tokens[0];
+      if( tokens.size() != 4 ) CErr("Error in geometry reader. A line should have 4 entries: Atom Symbol, x, y, z");
 
+      for( auto i=0; i<tokens.size(); i++ )
+        if( tokens[i].find("NAN") != std::string::npos or tokens[i].find("INF") != std::string::npos ) CErr("Invalid entry for GEOM!");
+
+      std::string atmSymbSCR = tokens[0];
+      std::string atmSymb, nucPart;
+
+      // Parsing first entry of GEOM line
+      // Working right to left, starting with nuclear charge
+      if( atmSymbSCR.find("(") != std::string::npos ){
+
+        atmSymb = atmSymbSCR.substr(0, atmSymbSCR.find("(", 0));
+        nucPart = atmSymbSCR.substr(atmSymbSCR.find("(")+1,atmSymbSCR.find(")")-atmSymbSCR.find("(")-1);
+
+      } else { atmSymb = atmSymbSCR; }
+
+      // Checking if atom specified by symbol or number
       bool hasDig = std::any_of(atmSymb.begin(),atmSymb.end(),
-        [&](char a) {return std::isdigit(a,loc); });
+        [&](char a) { return std::isdigit(a,loc); });
       bool hasAlpha = std::any_of(atmSymb.begin(),atmSymb.end(),
-        [&](char a) {return std::isalpha(a,loc); });
+        [&](char a) { return std::isalpha(a,loc); });
 
-      
-      bool isAtNum   = hasDig   and not hasAlpha;
-      bool isComIso  = hasAlpha and not hasDig  ;
-      bool isSpecIso = hasDig   and     hasAlpha;
+      // Parsing hyphen for isotopes
+      if( atmSymb.find("-") != std::string::npos ){
 
+        atoms.emplace_back(atmSymb);
 
+      // After isotope there should only be a atomic number or symbol left
+      } else if( hasDig ){
 
-      if( isAtNum ) {
-
-        auto it = 
+        auto it =
         std::find_if(atomicReference.begin(),atomicReference.end(),
-          [&](std::pair<std::string,Atom> st){ 
+          [&](std::pair<std::string,Atom> st){
             return st.second.atomicNumber == std::stoi(atmSymb);}
            );
 
-        atoms.emplace_back((it == atomicReference.end() ? "X" : defaultIsotope[it->first]));
+        std::string parseAtmSymb = it->first.substr(0,it->first.find("-",0));
+        atoms.emplace_back((it == atomicReference.end() ? "X" : defaultIsotope[parseAtmSymb]));
 
-        
-      } else atoms.emplace_back(isComIso ? defaultIsotope[atmSymb] : atmSymb);
-      
+      } else if( hasAlpha ){
+
+        atoms.emplace_back(defaultIsotope[atmSymb]);
+
+      }
+
+      // Update nuclear charge if user specified it
+      if( !nucPart.empty() ) atoms.back().nucCharge = std::stod(nucPart);
+
+      // Update atom with geometry specification
       // Convert to Bohr
       atoms.back().coord[0] = std::stod(tokens[1]) / AngPerBohr;
       atoms.back().coord[1] = std::stod(tokens[2]) / AngPerBohr;
       atoms.back().coord[2] = std::stod(tokens[3]) / AngPerBohr;
-      
+
     }
 
     if ( atoms.size() == 0 )

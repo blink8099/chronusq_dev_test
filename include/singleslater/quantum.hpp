@@ -204,7 +204,7 @@ namespace ChronusQ {
 
     // Nuclear contributions to the dipoles
     for(auto &atom : this->molecule().atoms)
-      MatAdd('N','N',3,1,1.,&this->elecDipole[0],3,double(atom.atomicNumber),
+      MatAdd('N','N',3,1,1.,&this->elecDipole[0],3,atom.nucCharge,
         &atom.coord[0],3,&this->elecDipole[0],3);
 
     // Electric contribution to the quadrupoles
@@ -222,7 +222,7 @@ namespace ChronusQ {
     for(size_t iXYZ = 0; iXYZ < 3; iXYZ++)
     for(size_t jXYZ = 0; jXYZ < 3; jXYZ++) 
       this->elecQuadrupole[iXYZ][jXYZ] +=
-        atom.atomicNumber * atom.coord[iXYZ] * atom.coord[jXYZ];
+        atom.nucCharge * atom.coord[iXYZ] * atom.coord[jXYZ];
 
     // Electric contribution to the octupoles
     for(size_t iXYZ = 0, iX = 0; iXYZ < 3; iXYZ++)
@@ -250,7 +250,7 @@ namespace ChronusQ {
     for(size_t jXYZ = 0; jXYZ < 3; jXYZ++)
     for(size_t kXYZ = 0; kXYZ < 3; kXYZ++)
       this->elecOctupole[iXYZ][jXYZ][kXYZ] +=
-        atom.atomicNumber * atom.coord[iXYZ] * atom.coord[jXYZ] *
+        atom.nucCharge * atom.coord[iXYZ] * atom.coord[jXYZ] *
         atom.coord[kXYZ];
   };
 

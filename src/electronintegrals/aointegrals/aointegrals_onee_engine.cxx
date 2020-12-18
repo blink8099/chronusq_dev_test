@@ -967,7 +967,7 @@ namespace ChronusQ {
           
             SlC += shell1.contr[0].coeff[pripair.p1]* 
               shell2.contr[0].coeff[pripair.p2]* 
-              atom.atomicNumber  
+              atom.nucCharge
               * Slabmu(nucShell,pripair,shell1,shell2,OneixAC,OneixBC,
               shell1.contr[0].l,lA,shell2.contr[0].l,lB,mu,0,iAtom,molecule) ;
    
@@ -1045,7 +1045,7 @@ namespace ChronusQ {
           auto norm = shell1.contr[0].coeff[pripair.p1]* 
                       shell2.contr[0].coeff[pripair.p2];
   
-          pVpC += atom.atomicNumber * norm *
+          pVpC += atom.nucCharge * norm *
                  pVpab(nucShell,pripair,shell1,shell2,shell1.contr[0].l,lA,
                        shell2.contr[0].l,lB,0,iAtom,molecule);
           iAtom++;
@@ -2185,7 +2185,7 @@ namespace ChronusQ {
           if ( !useFiniteWidthNuclei ) {
             auto ssV = 2.0*sqrt(1.0/(pripair.one_over_gamma*M_PI))*norm*ssS;
   
-            tmpVal += atom.atomicNumber * ssV * tmpFmT[0];
+            tmpVal += atom.nucCharge * ssV * tmpFmT[0];
 //std::cout<<"tmpFmT "<<tmpFmT[0]<<std::endl;
   // std::cerr<<"actual"<<std::endl;
           }
@@ -2193,7 +2193,7 @@ namespace ChronusQ {
   //          tmpVal += (static_cast<double>(mc->atomZ[iAtom]))*math.two*sqrt(rho/math.pi)*ijSP->ss[iPP]*tmpFmT[0];
             auto ssV = 2.0*sqrt(rho/M_PI)*norm*ssS;
  
-            tmpVal += atom.atomicNumber * ssV * tmpFmT[0];
+            tmpVal += atom.nucCharge * ssV * tmpFmT[0];
 
 //std::cout<<"tmpFmT "<<tmpFmT[0]<<std::endl;
 //  std::cerr<<"no finite nuclei"<<std::endl;
@@ -2208,7 +2208,7 @@ namespace ChronusQ {
           if ( !useFiniteWidthNuclei ) {
             auto ssV = 2.0*sqrt(1.0/(pripair.one_over_gamma*M_PI))*norm*ssS;  
    
-            tmpVal += atom.atomicNumber * ssV * vRRVa0(nucShell,pripair,shell1,
+            tmpVal += atom.nucCharge * ssV * vRRVa0(nucShell,pripair,shell1,
                                                       tmpFmT,PC,0,LA,lA,iAtom);
   //std::cerr<<"actual"<<std::endl;
   
@@ -2216,7 +2216,7 @@ namespace ChronusQ {
   //          tmpVal += mc->atomZ[iAtom]*math.two*sqrt(rho/math.pi)*ijSP->ss[iPP]*RealGTOIntEngine::vRRVa0(ijSP,tmpFmT,PC,0,LA,lA,iPP,iAtom);
 
             auto ssV = 2.0*sqrt(rho/M_PI)*norm*ssS;
-            tmpVal += atom.atomicNumber * ssV * vRRVa0(nucShell,pripair,shell1,
+            tmpVal += atom.nucCharge * ssV * vRRVa0(nucShell,pripair,shell1,
                                                        tmpFmT,PC,0,LA,lA,iAtom);
 
 //  std::cerr<<"no finite nuclei"<<std::endl;

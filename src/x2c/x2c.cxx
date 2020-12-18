@@ -51,7 +51,7 @@ namespace ChronusQ {
       size_t L1 = this->basisSet_.shells[s1].contr[0].l;
       if ( L1 == 0 ) continue;
 
-      size_t Z1 = this->molecule_.atoms[this->basisSet_.mapSh2Cen[s1]].atomicNumber;
+      auto Z1 = this->molecule_.atoms[this->basisSet_.mapSh2Cen[s1]].nucCharge;
 
 
     for(auto s2(0ul), j(0ul); s2 < this->basisSet_.nShell; s2++, j+=n2) {
@@ -60,7 +60,7 @@ namespace ChronusQ {
       size_t L2 = this->basisSet_.shells[s2].contr[0].l;
       if ( L2 == 0 ) continue;
 
-      size_t Z2 = this->molecule_.atoms[this->basisSet_.mapSh2Cen[s2]].atomicNumber;
+      auto Z2 = this->molecule_.atoms[this->basisSet_.mapSh2Cen[s2]].nucCharge;
 
       MatsT fudgeFactor = -1 * std::sqrt(
         Ql[L1] * Ql[L2] /
