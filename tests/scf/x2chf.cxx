@@ -97,6 +97,13 @@ TEST( X2CHF, AgBr_sto3g_DLU_X2C ) {
 
 };
 
+// Ne(Z=10.5)He(Z=1.5)H(Z=0.5) sto-3g test
+TEST( X2CHF, NeHeH_fracZ_sto3G ) {
+
+  CQSCFTEST( "scf/serial/x2c/NeHeH_fracZ_x2chf_sto-3G", "NeHeH_fracZ_x2chf_sto-3G.bin.ref" );
+
+};
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-311+G(d,p) (Spherical) test

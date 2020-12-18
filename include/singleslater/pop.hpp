@@ -50,7 +50,7 @@ namespace ChronusQ {
 
       size_t iSt = basisSet().mapCen2BfSt[iAtm];
 
-      mullikenCharges.emplace_back(this->molecule().atoms[iAtm].atomicNumber);
+      mullikenCharges.emplace_back(this->molecule().atoms[iAtm].nucCharge);
       for(auto i = iSt; i < iEnd; i++)
         mullikenCharges.back() -= std::real(SCR[i*(NB+1)]);
     } 
@@ -75,7 +75,7 @@ namespace ChronusQ {
 
       size_t iSt = basisSet().mapCen2BfSt[iAtm];
 
-      lowdinCharges.emplace_back(this->molecule().atoms[iAtm].atomicNumber);
+      lowdinCharges.emplace_back(this->molecule().atoms[iAtm].nucCharge);
       for(auto i = iSt; i < iEnd; i++)
         lowdinCharges.back() -= std::real(this->onePDMOrtho->S()(i,i));
     } 

@@ -32,6 +32,20 @@ TEST( RHF, Water_631Gd ) {
  
 };
 
+// NeHe sto-3g (specifying atoms by atomic number) test
+TEST( RHF, NeHe_RHF_STO3G_ATNUM ) {
+
+  CQSCFTEST( "scf/serial/rhf/NeHe_rhf_sto-3g_atNum", "NeHe_rhf_sto-3g_atNum.bin.ref" );
+ 
+};
+
+// NeHe sto-3g (specifying atoms by default isotope) test
+TEST( RHF, NeHe_RHF_STO3G_ISO ) {
+
+  CQSCFTEST( "scf/serial/rhf/NeHe_rhf_sto-3g_iso", "NeHe_rhf_sto-3g_iso.bin.ref" );
+ 
+};
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-31G(d) test

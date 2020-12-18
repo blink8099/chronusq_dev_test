@@ -1845,7 +1845,7 @@ std::cout<<"T value "<<std::setprecision(12)<<(shell1.alpha[pripair.p1]+shell2.a
           if ( !useFiniteWidthNuclei ) {
             auto ssV = 2.0*sqrt(1.0/(pripair.one_over_gamma*M_PI))*ssS;
   
-            tmpVal += static_cast<dcomplex>( atom.atomicNumber ) * ssV // * tmpFmT[0];
+            tmpVal += static_cast<dcomplex>( atom.nucCharge ) * ssV // * tmpFmT[0];
                     * compvRRVa0(nucShell,pripair,shell1,K,tmpFmT,PC,0,LA,lA,iAtom);
 
 //std::cout<<"tmpFmT "<<tmpFmT[0]<<std::endl;
@@ -1873,7 +1873,7 @@ std::cout<<"T value "<<std::setprecision(12)<<(shell1.alpha[pripair.p1]+shell2.a
           if ( !useFiniteWidthNuclei ) {
             auto ssV = 2.0*sqrt(1.0/(pripair.one_over_gamma*M_PI))*ssS;  
    
-            tmpVal += static_cast<dcomplex>( atom.atomicNumber ) * ssV 
+            tmpVal += static_cast<dcomplex>( atom.nucCharge ) * ssV 
                       * compvRRVa0(nucShell,pripair,shell1,K,tmpFmT,PC,0,LA,lA,iAtom);
   //std::cerr<<"actual"<<std::endl;
   

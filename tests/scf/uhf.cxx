@@ -68,6 +68,13 @@ TEST( UHF, H_321G ) {
 
 };
 
+// Ne(Z=10.5)He(Z=1.5)H(Z=0.5) sto-3g test
+TEST( UHF, NeHeH_fracZ_sto3G ) {
+
+  CQSCFTEST( "scf/serial/uhf/NeHeH_fracZ_uhf_sto-3G", "NeHeH_fracZ_uhf_sto-3G.bin.ref" );
+
+};
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Li 6-31G(d) test

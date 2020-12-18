@@ -130,7 +130,7 @@ namespace ChronusQ {
     if(op == libint2::Operator::nuclear){
       std::vector<std::pair<double,std::array<double,3>>> q;
       for(auto &atom : mol.atoms)
-        q.push_back( { static_cast<double>(atom.atomicNumber), atom.coord } );
+        q.push_back( { atom.nucCharge, atom.coord } );
 
       engines[0].set_params(q);
     }
