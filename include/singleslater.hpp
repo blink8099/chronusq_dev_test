@@ -201,6 +201,7 @@ namespace ChronusQ {
     void computeEnergy();
     void computeMultipole(EMPerturbation &);
     void computeSpin();
+    virtual std::vector<double> getEnergySummary();
 
     // Compute various core Hamitlonian
     void formCoreH(EMPerturbation&); // Compute the CH

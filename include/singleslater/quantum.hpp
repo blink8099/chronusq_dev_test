@@ -195,6 +195,13 @@ namespace ChronusQ {
   }; // SingleSlater<T>::computeEnergy
 
   template <typename MatsT, typename IntsT>
+  std::vector<double> SingleSlater<MatsT,IntsT>::getEnergySummary() {
+    std::vector<double> result = QuantumBase::getEnergySummary();
+    result.push_back(this->molecule().nucRepEnergy);
+    return result;
+  };
+
+  template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::computeMultipole(EMPerturbation &pert) {
 
     ROOT_ONLY(comm);

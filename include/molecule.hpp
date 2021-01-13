@@ -122,6 +122,36 @@ namespace ChronusQ {
       update();
     }
 
+    /**
+     *  \brief Update Molecule member data
+     *
+     *  Populates or repopulates the member data for a Molecule
+     *  object.
+     */ 
+    inline void update() {
+
+      // Compute the total number of 
+      nTotalE = std::accumulate(atoms.begin(),atoms.end(),-charge,
+                  [&](int c, const Atom &a){ return a.atomicNumber + c; }
+                );
+      
+      if(not ((nTotalE % 2) != 0 xor (multip % 2) != 0) or 
+         multip > nTotalE + 1) {
+        std::stringstream ss;
+        ss << "Multiplicity = " << multip << " is not compatible with "
+           << "total electrons = " << nTotalE;
+        CErr(ss.str(),std::cout);
+      }
+
+      computeRIJ();
+      computeNNRep();
+      computeNNX();
+      computeCOM();
+      computeCOC();
+      computeMOI();
+      computeCDist();
+
+    }
 
     private:
 
@@ -135,36 +165,6 @@ namespace ChronusQ {
       void computeMOI();
       void computeCDist();
 
-      /**
-       *  \brief Update Molecule member data
-       *
-       *  Populates or repopulates the member data for a Molecule
-       *  object.
-       */ 
-      inline void update() {
-
-        // Compute the total number of 
-        nTotalE = std::accumulate(atoms.begin(),atoms.end(),-charge,
-                    [&](int c, const Atom &a){ return a.atomicNumber + c; }
-                  );
-        
-        if(not ((nTotalE % 2) != 0 xor (multip % 2) != 0) or 
-           multip > nTotalE + 1) {
-          std::stringstream ss;
-          ss << "Multiplicity = " << multip << " is not compatible with "
-             << "total electrons = " << nTotalE;
-          CErr(ss.str(),std::cout);
-        }
-
-        computeRIJ();
-        computeNNRep();
-        computeNNX();
-        computeCOM();
-        computeCOC();
-        computeMOI();
-        computeCDist();
-
-      }
   }; // Molecule struct
 
 }; // namespace ChronusQ

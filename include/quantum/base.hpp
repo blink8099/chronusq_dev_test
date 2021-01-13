@@ -164,6 +164,10 @@ namespace ChronusQ {
 
     };
 
+
+    virtual std::vector<double> getEnergySummary() {
+      return {totalEnergy, OBEnergy, MBEnergy};
+    }
    
     virtual void computeMultipole(EMPerturbation &) = 0;
     virtual void computeSpin() = 0;

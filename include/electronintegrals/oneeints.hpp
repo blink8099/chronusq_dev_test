@@ -152,7 +152,7 @@ namespace ChronusQ {
     }
 
     static void OneEDriverLibint(libint2::Operator, Molecule&,
-        std::vector<libint2::Shell>&, std::vector<IntsT*>, size_t deriv=0);
+        BasisSet&, std::vector<IntsT*>, size_t deriv=0);
     template <size_t NOPER, bool SYMM, typename F>
     static void OneEDriverLocal(const F&,
         std::vector<libint2::Shell>&, std::vector<IntsT*>);

@@ -42,6 +42,7 @@
 #include <response.hpp>
 #include <realtime.hpp>
 #include <itersolver.hpp>
+#include <findiff/geomgrad.hpp>
 
 #include <cqlinalg/blasext.hpp>
 #include <cqlinalg/eig.hpp>
@@ -195,6 +196,46 @@ namespace ChronusQ {
       ss->SCF(emPert);
     }
 
+    std::cout << "Energy: " << ss->totalEnergy;
+    std::cout << "OneE Energy: " << ss->OBEnergy;
+    std::cout << "TwoE Energy: " << ss->MBEnergy;
+
+    // Numerical gradient
+    size_t acc = 16;
+    if ( acc != 0 ) {
+      NumGradient grad(input, ss, basis);
+      grad.intGrad<double>(acc);
+    }
+
+    aoints->computeGradInts(*memManager, mol, *basis, emPert, {{OVERLAP,1},
+        {KINETIC,1}, {NUCLEAR_POTENTIAL,1}}, {basis->basisType, false, false,
+        false});
+
+    auto casted = std::dynamic_pointer_cast<Integrals<double>>(aoints);
+    auto NB = basis->nBasis;
+    for ( auto i = 0, idx = 0; i < mol.atoms.size(); i++ ) {
+      for ( auto xyz = 0; xyz < 3; xyz++, idx++ ) {
+        std::cout << "  Atom " << i << ", Cart " << xyz << std::endl;
+        prettyPrintSmart(std::cout, "Analytic Overlap Gradient",
+          (*casted->gradOverlap)[idx].pointer(), NB, NB, NB);
+      }
+    }
+
+    for ( auto i = 0, idx = 0; i < mol.atoms.size(); i++ ) {
+      for ( auto xyz = 0; xyz < 3; xyz++, idx++ ) {
+        std::cout << "  Atom " << i << ", Cart " << xyz << std::endl;
+        prettyPrintSmart(std::cout, "Analytic Kinetic Gradient",
+          (*casted->gradKinetic)[idx].pointer(), NB, NB, NB);
+      }
+    }
+
+    for ( auto i = 0, idx = 0; i < mol.atoms.size(); i++ ) {
+      for ( auto xyz = 0; xyz < 3; xyz++, idx++ ) {
+        std::cout << "  Atom " << i << ", Cart " << xyz << std::endl;
+        prettyPrintSmart(std::cout, "Analytic Potential Gradient",
+          (*casted->gradPotential)[idx].pointer(), NB, NB, NB);
+      }
+    }
 
     if( not jobType.compare("RT") ) {
 
