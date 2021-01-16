@@ -1327,7 +1327,7 @@ namespace ChronusQ {
   
   
       auto durERIDG = tock(topERIDG);
-//      std::cout << "Gaunt duration   = " << durERIDG << std::endl;
+      std::cout << "Gaunt duration   = " << durERIDG << std::endl;
   
     } //GAUNT
 

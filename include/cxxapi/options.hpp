@@ -88,7 +88,7 @@ namespace ChronusQ {
 
   // Parse integral options
   std::shared_ptr<IntegralsBase> CQIntsOptions(std::ostream &, 
-    CQInputFile &, CQMemManager &,
+    CQInputFile &, CQMemManager &, Molecule &,
     std::shared_ptr<BasisSet>, std::shared_ptr<BasisSet>);
 
   void CQINTS_VALID(std::ostream&, CQInputFile &);

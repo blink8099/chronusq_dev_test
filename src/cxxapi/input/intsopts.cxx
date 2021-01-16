@@ -86,7 +86,7 @@ namespace ChronusQ {
    *
    */ 
   std::shared_ptr<IntegralsBase> CQIntsOptions(std::ostream &out, 
-      CQInputFile &input, CQMemManager &mem,
+      CQInputFile &input, CQMemManager &mem, Molecule &mol,
       std::shared_ptr<BasisSet> basis, std::shared_ptr<BasisSet> dfbasis) {
 
     // Parse integral algorithm
@@ -142,7 +142,7 @@ namespace ChronusQ {
             std::make_shared<InCore4indexERI<double>>(mem,basis->nBasis);
       else
         aoint->ERI =
-            std::make_shared<DirectERI<double>>(mem,*basis,threshSchwartz);
+            std::make_shared<DirectERI<double>>(mem,*basis,mol,threshSchwartz);
 
       aoi = std::dynamic_pointer_cast<IntegralsBase>(aoint);
     } else if(basis->basisType == COMPLEX_GIAO) {
@@ -155,7 +155,7 @@ namespace ChronusQ {
             std::make_shared<InCore4indexERI<dcomplex>>(mem,basis->nBasis);
       else
         giaoint->ERI =
-            std::make_shared<DirectERI<dcomplex>>(mem,*basis,threshSchwartz);
+            std::make_shared<DirectERI<dcomplex>>(mem,*basis,mol,threshSchwartz);
 
       aoi = std::dynamic_pointer_cast<IntegralsBase>(giaoint);
     }

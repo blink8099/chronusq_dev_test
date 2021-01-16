@@ -148,7 +148,7 @@ namespace ChronusQ {
     std::shared_ptr<BasisSet> basis = CQBasisSetOptions(output,input,mol,"BASIS");
     std::shared_ptr<BasisSet> dfbasis = CQBasisSetOptions(output,input,mol,"DFBASIS");
 
-    auto aoints = CQIntsOptions(output,input,*memManager,basis,dfbasis);
+    auto aoints = CQIntsOptions(output,input,*memManager,mol,basis,dfbasis);
 
     HamiltonianOptions hamiltonianOptions;
 

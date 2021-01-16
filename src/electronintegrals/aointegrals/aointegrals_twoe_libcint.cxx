@@ -621,7 +621,6 @@ namespace ChronusQ {
           for(i = 0ul, bf1 = bf1_s ; i < n1; ++i, bf1++) {
   
 #ifdef __DEBUGERI__
-  
             std::cout << std::scientific << std::setprecision(16);
             std::cout <<"Libcint ∇A∙∇C(ij|kl)"<<std::endl;
   	    std::cout<<buff[AxCx*nQuad+ijkl]<<std::endl;

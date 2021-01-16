@@ -240,21 +240,59 @@ namespace ChronusQ {
       // pre compute all the shellpair data
 //      auto pair_to_use = genShellPairs(shells,std::log(std::numeric_limits<double>::lowest()));
     
-    size_t n1,n2;
     // Loop over unique shell pairs
+
+
+
+    auto start  = tick();
+
+    // Determine the number of OpenMP threads
+    int nthreads = GetNumThreads();
+    #pragma omp parallel  
+    {
+    int thread_id = GetThreadID();
+
+    size_t n1,n2;
     for(size_t s1(0), bf1_s(0), s12(0); s1 < shells.size(); bf1_s+=n1, s1++){ 
       n1 = shells[s1].size(); // Size of Shell 1
     for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++, s12++) {
       n2 = shells[s2].size(); // Size of Shell 2
+
+
+        // Round Robbin work distribution
+        #ifdef _OPENMP
+        if( s12 % nthreads != thread_id ) continue;
+        #endif
+
 
       libint2::ShellPair pair_to_use;
       pair_to_use.init(shells[s1],shells[s2],-1000);
 
       auto buff = obFunc(pair_to_use, shells[s1],shells[s2]);
 
+/*
+#pragma omp critical
+{
+      std::cout<<"s1= "<<s1<<" s2 = "<<s2<<std::endl;
+      for ( int elements = 0 ; elements < buff[0].size() ; elements++ ) {
+        std::cout<<"buff["<<elements<<"]= "<<buff[0][elements]<<std::endl;
+      } 
+}  // critical 
+*/
       assert(buff.size() == NOPER);
 
+ /*     
       // Place integral blocks into their respective matricies
+      for ( int iidx = 0 ; iidx < n1 ; iidx++ ) {
+        for ( int jidx = 0 ; jidx < n2 ; jidx++ ) {
+          for ( int icomp = 0 ; icomp < NOPER ; icomp++ ) {
+            mats[icomp][(iidx+bf1_s)*NB+bf2_s+jidx] = buff[icomp][iidx*n2+jidx];
+            std::cout<<"iidx+bf1_s= "<<iidx+bf1_s<<"  bf2_s+jidx= "<<bf2_s+jidx<<" elements = "<<iidx*n2+jidx<<" value "<<buff[icomp][iidx*n2+jidx]<<mats[icomp][(iidx+bf1_s)*NB+bf2_s+jidx]<<std::endl;
+          }
+        }
+      }
+*/
+
       for(auto iMat = 0; iMat < buff.size(); iMat++){
         Eigen::Map<
           const Eigen::Matrix<
@@ -266,10 +304,13 @@ namespace ChronusQ {
         matMaps[iMat].block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
       }
 
+
     } // Loop over s2 <= s1
     } // Loop over s1
-
-
+    }   // omp
+ 
+    double end = tock(start);
+    std::cout<<"onee driver time= "<<end<<std::endl;
 
     // Symmetrize the matricies 
     // XXX: USES EIGEN
@@ -467,6 +508,10 @@ namespace ChronusQ {
                   pair,sh1,sh2,mol);
               }, basis.shells, SOXYZPointers());
     }
+//SS print start
+//prettyPrintSmart(std::cout,"_potential ",_potential[0],NB,NB,NB);
+//prettyPrintSmart(std::cout,"_PVdP ",_PVdP[0],NB,NB,NB);
+//SS print end
 
   };
 
