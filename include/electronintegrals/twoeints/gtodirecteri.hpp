@@ -168,6 +168,11 @@ namespace ChronusQ {
         const bool,
         std::vector<TwoBodyContraction<MatsT>>&) const;
 
+    void direct4CScaffold(
+        MPI_Comm,
+        const bool,
+        std::vector<TwoBodyContraction<MatsT>>&) const;
+
     void directScaffold(
         MPI_Comm,
         const bool,

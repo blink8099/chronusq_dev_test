@@ -332,6 +332,7 @@ namespace ChronusQ {
         const auto& buff = engines[thread_id].results();
 
         if(&buff == nullptr) continue;
+
         // Place shell quartet into persistent storage with
         // permutational symmetry
         for(i = 0ul, bf1 = bf1_s, ijkl = 0ul ; i < n1; ++i, bf1++) 
@@ -880,13 +881,13 @@ namespace ChronusQ {
     for(auto k = 0ul; k < NB; k++)
     for(auto l = 0ul; l < NB; l++){
       std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
-      std::cout << scalar()(i, j, k, l);
+      std::cout << (*this)[0](i, j, k, l);
       std::cout << "   ";
-      std::cout << SOX()(i, j, k, l);
+      std::cout << (*this)[1](i, j, k, l);
       std::cout << "   ";
-      std::cout << SOY()(i, j, k, l);
+      std::cout << (*this)[2](i, j, k, l);
       std::cout << "   ";
-      std::cout << SOZ()(i, j, k, l) << std::endl;
+      std::cout << (*this)[3](i, j, k, l) << std::endl;
     };
 
     std::cout << "ERI04-07: ∇B∙∇C(ab|cd)  ∇Bx∇C(ab|cd)-X  ∇Bx∇C(ab|cd)-Y  ∇Bx∇C(ab|cd)-Z" << std::endl;

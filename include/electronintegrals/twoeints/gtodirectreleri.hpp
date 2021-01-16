@@ -53,11 +53,18 @@ namespace ChronusQ {
     // Computation interfaces
     virtual void twoBodyContract(
         MPI_Comm comm,
-        const bool,
+        const bool screen,
         std::vector<TwoBodyContraction<MatsT>> &list,
         EMPerturbation&) const {
-      twoBodyContract3Index(comm, list);
+      directScaffold(comm, screen, list);
+//      twoBodyContract3Index(comm, list);
     }
+
+    void directScaffold(
+        MPI_Comm,
+        const bool,
+        std::vector<TwoBodyContraction<MatsT>>&) const;
+
 
     void twoBodyContract3Index(
         MPI_Comm,

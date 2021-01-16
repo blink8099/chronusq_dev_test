@@ -44,7 +44,8 @@ namespace ChronusQ {
     if( std::dynamic_pointer_cast<InCore4indexRelERIContraction<MatsT,IntsT>>(ss.ERI) )
       formGDInCore(ss, pert, increment, xHFX);
     else if( std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.ERI) )
-      formGD3Index(ss, pert, increment, xHFX);
+      formGDDirect(ss, pert, increment, xHFX);
+      //formGD3Index(ss, pert, increment, xHFX);
     else
       CErr("Unsupported ERIContraction type.");
 
@@ -149,6 +150,21 @@ namespace ChronusQ {
     prettyPrintSmart(std::cout, "1PDM[MZ]", contract1PDM.Z().pointer(), NB2C, NB2C, NB2C);
 #endif
 
+#if 0
+    std::fill_n(contract1PDMLL.S().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLL.X().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLL.Y().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLL.Z().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMSS.S().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMSS.X().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMSS.Y().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMSS.Z().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLS.S().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLS.X().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLS.Y().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLS.Z().pointer(),NB1C2,1.0);
+#endif
+
     if(not increment) {
       ss.coulombMatrix->clear();
       ss.exchangeMatrix->clear();
@@ -236,9 +252,9 @@ namespace ChronusQ {
 
       std::vector<TwoBodyContraction<MatsT>> contractDCLL =
         { {contract1PDMSS.S().pointer(), Scr1, true, COULOMB, relERI[0].pointer(), 1},
-          {contract1PDMSS.X().pointer(), Scr2, true, COULOMB, relERI[1].pointer(),    1},
-          {contract1PDMSS.Y().pointer(), Scr3, true, COULOMB, relERI[2].pointer(),    1},
-          {contract1PDMSS.Z().pointer(), Scr4, true, COULOMB, relERI[3].pointer(),    1} };
+          {contract1PDMSS.X().pointer(), Scr2, true, COULOMB, relERI[1].pointer(), 1},
+          {contract1PDMSS.Y().pointer(), Scr3, true, COULOMB, relERI[2].pointer(), 1},
+          {contract1PDMSS.Z().pointer(), Scr4, true, COULOMB, relERI[3].pointer(), 1} };
   
       // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
       ss.ERI->twoBodyContract(ss.comm, contractDCLL);
@@ -319,10 +335,10 @@ namespace ChronusQ {
       /*++++++++++++++++++++++++++++++++++++++++++*/
   
       std::vector<TwoBodyContraction<MatsT>> contractLSScalar =
-        { {contract1PDMLS.S().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(),1},
-          {contract1PDMLS.X().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(),   1},
-          {contract1PDMLS.Y().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(),   1},
-          {contract1PDMLS.Z().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(),   1} };
+        { {contract1PDMLS.S().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), 1},
+          {contract1PDMLS.X().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), 1},
+          {contract1PDMLS.Y().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), 1},
+          {contract1PDMLS.Z().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), 1} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractLSScalar);
@@ -345,9 +361,9 @@ namespace ChronusQ {
   
       std::vector<TwoBodyContraction<MatsT>> contractLSMX =
         { {contract1PDMLS.X().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), 1},
-          {contract1PDMLS.S().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(),    1},
-          {contract1PDMLS.Z().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(),    1},
-          {contract1PDMLS.Y().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(),    1} };
+          {contract1PDMLS.S().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), 1},
+          {contract1PDMLS.Z().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), 1},
+          {contract1PDMLS.Y().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), 1} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractLSMX);
@@ -402,14 +418,10 @@ namespace ChronusQ {
   
   
       std::vector<TwoBodyContraction<MatsT>> contractLSMZ =
-        { {contract1PDMLS.Z().pointer(), Scr1, true,
-      EXCHANGE, relERI[0].pointer(), 1},
-          {contract1PDMLS.Y().pointer(), Scr2, true,
-      EXCHANGE, relERI[1].pointer(),    1},
-          {contract1PDMLS.X().pointer(), Scr3, true,
-      EXCHANGE, relERI[2].pointer(),    1},
-          {contract1PDMLS.S().pointer(), Scr4, true,
-      EXCHANGE, relERI[3].pointer(),    1} };
+        { {contract1PDMLS.Z().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), 1},
+          {contract1PDMLS.Y().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), 1},
+          {contract1PDMLS.X().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), 1},
+          {contract1PDMLS.S().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), 1} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractLSMZ);
@@ -432,7 +444,7 @@ namespace ChronusQ {
   
 #ifdef _PRINT_MATRICES
   
-      std::cout<<"After LLSS|SSLL"<<std::endl;
+      std::cout<<"After Dirac-Coulomb"<<std::endl;
       prettyPrintSmart(std::cout, "COULOMB",    ss.coulombMatrix->pointer(),      NB2C, NB2C, NB2C);
       prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
       prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
@@ -1355,9 +1367,9 @@ namespace ChronusQ {
 #ifdef _PRINT_MATRICES
 
     prettyPrintSmart(std::cout,"twoeH MS",ss.twoeH->S().pointer(),NB2C,NB2C,NB2C);
-    prettyPrintSmart(std::cout,"twoeH MZ",ss.twoeH->Z().pointer(),NB2C,NB2C,NB2C);
-    prettyPrintSmart(std::cout,"twoeH MY",ss.twoeH->Y().pointer(),NB2C,NB2C,NB2C);
     prettyPrintSmart(std::cout,"twoeH MX",ss.twoeH->X().pointer(),NB2C,NB2C,NB2C);
+    prettyPrintSmart(std::cout,"twoeH MY",ss.twoeH->Y().pointer(),NB2C,NB2C,NB2C);
+    prettyPrintSmart(std::cout,"twoeH MZ",ss.twoeH->Z().pointer(),NB2C,NB2C,NB2C);
 
 
     MatsT* TEMP_GATHER1 = mem.malloc<MatsT>(NB4C2);
@@ -2407,6 +2419,361 @@ namespace ChronusQ {
 
 
   }; // FourCompFock<MatsT, IntsT>::formGD3Index
+
+
+
+  /**   
+   *  \brief Forms the 4C Fock matrix using AO-direct
+   */
+  template <typename MatsT, typename IntsT>
+  void FourCompFock<MatsT,IntsT>::formGDDirect(SingleSlater<MatsT,IntsT> &ss,
+    EMPerturbation &pert, bool increment, double xHFX) {
+
+    CQMemManager &mem = ss.memManager;
+    GTODirectRelERIContraction<MatsT,IntsT> &relERICon =
+        *std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.ERI);
+
+    // Decide list of onePDMs to use
+    PauliSpinorSquareMatrices<MatsT> &contract1PDM
+        = increment ? *ss.deltaOnePDM : *ss.onePDM;
+
+    size_t NB1C  = ss.basisSet().nBasis;
+    size_t NB2C  = 2 * ss.basisSet().nBasis;
+    size_t NB4C  = 4 * ss.basisSet().nBasis;
+    size_t NB1C2 = NB1C*NB1C;
+    size_t NB1C4 = NB1C*NB1C*NB1C*NB1C;
+    size_t NB1C3 = NB1C*NB1C*NB1C;
+    size_t NB2C2 = NB2C*NB2C;
+    size_t NB4C2 = NB4C*NB4C;
+
+    size_t SS = NB2C*NB1C+NB1C;
+    size_t LS = NB2C*NB1C;
+    size_t SL = NB1C;
+
+    auto MS = SCALAR;
+
+    size_t mpiRank   = MPIRank(ss.comm);
+    bool   isNotRoot = mpiRank != 0;
+
+    PauliSpinorSquareMatrices<MatsT> exchangeMatrixLL(mem, NB1C);
+    PauliSpinorSquareMatrices<MatsT> contract1PDMLL(mem, NB1C);
+    PauliSpinorSquareMatrices<MatsT> contract1PDMSS(mem, NB1C);
+    PauliSpinorSquareMatrices<MatsT> contract1PDMLS(mem, NB1C);
+    PauliSpinorSquareMatrices<MatsT> contract1PDMSL(mem, NB1C);
+
+    MatsT* ScrLLMS = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrLLMX = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrLLMY = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrLLMZ = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrSSMS = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrSSMX = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrSSMY = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrSSMZ = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrLSMS = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrLSMX = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrLSMY = mem.malloc<MatsT>(NB1C2);
+    MatsT* ScrLSMZ = mem.malloc<MatsT>(NB1C2);
+    memset(ScrLLMS,0.,NB1C2*sizeof(MatsT));
+    memset(ScrLLMX,0.,NB1C2*sizeof(MatsT));
+    memset(ScrLLMY,0.,NB1C2*sizeof(MatsT));
+    memset(ScrLLMZ,0.,NB1C2*sizeof(MatsT));
+    memset(ScrSSMS,0.,NB1C2*sizeof(MatsT));
+    memset(ScrSSMX,0.,NB1C2*sizeof(MatsT));
+    memset(ScrSSMY,0.,NB1C2*sizeof(MatsT));
+    memset(ScrSSMZ,0.,NB1C2*sizeof(MatsT));
+    memset(ScrLSMS,0.,NB1C2*sizeof(MatsT));
+    memset(ScrLSMX,0.,NB1C2*sizeof(MatsT));
+    memset(ScrLSMY,0.,NB1C2*sizeof(MatsT));
+    memset(ScrLSMZ,0.,NB1C2*sizeof(MatsT));
+
+
+    // Compute 1/(2mc)^2
+    //dcomplex scale = 1.;
+    //dcomplex iscale = dcomplex(0.0, 1.0);
+    dcomplex scale = 1./(4*SpeedOfLight*SpeedOfLight);
+    dcomplex iscale = dcomplex(0.0, 1./(4*SpeedOfLight*SpeedOfLight));
+
+    for(size_t i = 0; i < contract1PDM.nComponent(); i++) {
+      PAULI_SPINOR_COMPS c = static_cast<PAULI_SPINOR_COMPS>(i);
+      SetMat('N', NB1C, NB1C, MatsT(1.), contract1PDM[c].pointer(),    NB2C,
+             contract1PDMLL[c].pointer(), NB1C);
+      SetMat('N', NB1C, NB1C, MatsT(1.), contract1PDM[c].pointer()+SS, NB2C,
+             contract1PDMSS[c].pointer(), NB1C);
+      SetMat('N', NB1C, NB1C, MatsT(1.), contract1PDM[c].pointer()+LS, NB2C,
+             contract1PDMLS[c].pointer(), NB1C);
+      SetMat('N', NB1C, NB1C, MatsT(1.), contract1PDM[c].pointer()+SL, NB2C,
+             contract1PDMSL[c].pointer(), NB1C);
+    }
+
+#ifdef _PRINT_MATRICES
+    prettyPrintSmart(std::cout, "1PDM[MS]", contract1PDM.S().pointer(), NB2C, NB2C, NB2C);
+    prettyPrintSmart(std::cout, "1PDM[MX]", contract1PDM.X().pointer(), NB2C, NB2C, NB2C);
+    prettyPrintSmart(std::cout, "1PDM[MY]", contract1PDM.Y().pointer(), NB2C, NB2C, NB2C);
+    prettyPrintSmart(std::cout, "1PDM[MZ]", contract1PDM.Z().pointer(), NB2C, NB2C, NB2C);
+#endif
+
+#if 0
+    std::fill_n(contract1PDMLL.S().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLL.X().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLL.Y().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLL.Z().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMSS.S().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMSS.X().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMSS.Y().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMSS.Z().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLS.S().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLS.X().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLS.Y().pointer(),NB1C2,1.0);
+    std::fill_n(contract1PDMLS.Z().pointer(),NB1C2,1.0);
+#endif
+
+    if(not increment) {
+      ss.coulombMatrix->clear();
+      ss.exchangeMatrix->clear();
+    };
+
+
+    /**********************************************/
+    /*                                            */
+    /*              DIRECT COULOMB     	          */
+    /*                                            */
+    /**********************************************/
+
+
+    if(this->hamiltonianOptions_.NonRelCoulomb) { // DIRECT_COULOMB
+
+      auto topNonRelCoulomb = tick();
+
+      /*+++++++++++++++++++++++++++++++++++++++++++++*/
+      /* Start of Direct Coulomb (LL|LL) Contraction */
+      /*+++++++++++++++++++++++++++++++++++++++++++++*/
+  
+      std::vector<TwoBodyContraction<MatsT>> contractLL =
+        { {contract1PDMLL.S().pointer(), ScrLLMS, true, COULOMB} };
+  
+      // Determine how many (if any) exchange terms to calculate
+      if( std::abs(xHFX) > 1e-12 ) {
+        exchangeMatrixLL.clear();
+        for(size_t i = 0; i < ss.exchangeMatrix->nComponent(); i++) {
+  
+          PAULI_SPINOR_COMPS c = static_cast<PAULI_SPINOR_COMPS>(i);
+          contractLL.push_back(
+            {contract1PDMLL[c].pointer(), exchangeMatrixLL[c].pointer(), true, EXCHANGE}
+          );
+        }
+      }
+  
+      // Zero out K[i]
+      if(not increment) ss.exchangeMatrix->clear();
+  
+      // Call the contraction engine to do the assembly of direct Coulomb LLLL
+      GTODirectERIContraction<MatsT,IntsT>(ss.ERI->ints()).twoBodyContract(ss.comm, true, contractLL, pert);
+  
+  
+      /* Store LL block into 2C spin scattered matrices */
+      // Assemble 4C coulombMatrix
+      SetMat('N', NB1C, NB1C, MatsT(1.), ScrLLMS, NB1C, ss.coulombMatrix->pointer(), NB2C);
+  
+      // Assemble 4C exchangeMatrix 
+      for(auto i = 0; i < ss.exchangeMatrix->nComponent();i++){
+        PAULI_SPINOR_COMPS c = static_cast<PAULI_SPINOR_COMPS>(i);
+        SetMat('N', NB1C, NB1C, MatsT(1.), exchangeMatrixLL[c].pointer(), NB1C,
+               (*ss.exchangeMatrix)[c].pointer(), NB2C);
+      }
+
+      /*---------------------------------------------*/
+      /*   End of Direct Coulomb (LL|LL) Contraction */
+      /*---------------------------------------------*/
+
+      // Print out NonRelCoulomb duration 
+      auto durNonRelCoulomb = tock(topNonRelCoulomb);
+//      std::cout << "Non-relativistic Coulomb duration = " << durNonRelCoulomb << std::endl;
+
+    } // DIRECT_COULOMB
+
+
+    /**********************************************/
+    /*                                            */
+    /*              DIRAC-COULOMB    	            */
+    /*                                            */
+    /**********************************************/
+
+    if(this->hamiltonianOptions_.DiracCoulomb) { // DIRAC_COULOMB
+  
+      /*++++++++++++++++++++++++++++++++++++++++++++*/
+      /* Start of Dirac-Coulomb (LL|LL) Contraction */
+      /*++++++++++++++++++++++++++++++++++++++++++++*/
+
+      // 12 density matrices upon input stored as
+      // LL(MS,MX,MY,MZ), SS(MS,MX,MY,MZ), LS(MS,MX,MY,MZ)
+      //
+      // 12 contrated matrices upon output stored as
+      // LL(MS,MX,MY,MZ), SS(MS,MX,MY,MZ), LS(MS,MX,MY,MZ)
+      //
+   
+      std::vector<TwoBodyContraction<MatsT>> contractDCLL =
+        { {contract1PDMLL.S().pointer(), ScrLLMS, true, COULOMB},
+          {contract1PDMLL.X().pointer(), ScrLLMX, true, COULOMB},
+          {contract1PDMLL.Y().pointer(), ScrLLMY, true, COULOMB},
+          {contract1PDMLL.Z().pointer(), ScrLLMZ, true, COULOMB},
+          {contract1PDMSS.S().pointer(), ScrSSMS, true, COULOMB},
+          {contract1PDMSS.X().pointer(), ScrSSMX, true, COULOMB},
+          {contract1PDMSS.Y().pointer(), ScrSSMY, true, COULOMB},
+          {contract1PDMSS.Z().pointer(), ScrSSMZ, true, COULOMB},
+          {contract1PDMLS.S().pointer(), ScrLSMS, true, COULOMB},
+          {contract1PDMLS.X().pointer(), ScrLSMX, true, COULOMB},
+          {contract1PDMLS.Y().pointer(), ScrLSMY, true, COULOMB},
+          {contract1PDMLS.Z().pointer(), ScrLSMZ, true, COULOMB} };
+    
+      // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
+      relERICon.twoBodyContract(ss.comm, true, contractDCLL,pert);
+
+      // All terms go into ss.exchange
+      // Add Dirac-Coulomb contributions to the LLLL block
+      MatAdd('N','N', NB1C, NB1C, scale, ScrLLMS, NB1C, MatsT(1.0), 
+//		      ss.exchangeMatrix->S().pointer(), NB2C,
+//		      ss.exchangeMatrix->S().pointer(), NB2C);
+		      ss.coulombMatrix->pointer(), NB2C,
+		      ss.coulombMatrix->pointer(), NB2C);
+
+#ifdef _PRINT_MATRICES
+
+      std::cout<<"After LLLL"<<std::endl;
+      prettyPrintSmart(std::cout, "COULOMB",    ss.coulombMatrix->pointer(),      NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
+
+#endif
+ 
+      // Add Dirac-Coulomb contributions to the SSSS block
+      MatAdd('N','N', NB1C, NB1C, scale, ScrSSMS, NB1C, MatsT(1.0), 
+//		      ss.exchangeMatrix->S().pointer()+SS, NB2C,
+//		      ss.exchangeMatrix->S().pointer()+SS, NB2C);
+		      ss.coulombMatrix->pointer()+SS, NB2C,
+		      ss.coulombMatrix->pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, MatsT(-2.0*scale), ScrSSMX, NB1C, MatsT(1.0), 
+		      ss.exchangeMatrix->X().pointer()+SS, NB2C,
+		      ss.exchangeMatrix->X().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, MatsT(-2.0*scale), ScrSSMY, NB1C, MatsT(1.0), 
+		      ss.exchangeMatrix->Y().pointer()+SS, NB2C,
+		      ss.exchangeMatrix->Y().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, MatsT(-2.0*scale), ScrSSMZ, NB1C, MatsT(1.0), 
+		      ss.exchangeMatrix->Z().pointer()+SS, NB2C,
+		      ss.exchangeMatrix->Z().pointer()+SS, NB2C);
+
+#ifdef _PRINT_MATRICES
+
+      std::cout<<"After SSSS"<<std::endl;
+      prettyPrintSmart(std::cout, "COULOMB",    ss.coulombMatrix->pointer(),      NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
+
+#endif
+
+      // Add Dirac-Coulomb contributions to the LLSS block
+      MatAdd('N','N', NB1C, NB1C, -scale, ScrLSMS, NB1C, MatsT(1.0), 
+		      ss.exchangeMatrix->S().pointer()+LS, NB2C,
+		      ss.exchangeMatrix->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -scale, ScrLSMX, NB1C, MatsT(1.0), 
+		      ss.exchangeMatrix->X().pointer()+LS, NB2C,
+		      ss.exchangeMatrix->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -scale, ScrLSMY, NB1C, MatsT(1.0), 
+		      ss.exchangeMatrix->Y().pointer()+LS, NB2C,
+		      ss.exchangeMatrix->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -scale, ScrLSMZ, NB1C, MatsT(1.0), 
+		      ss.exchangeMatrix->Z().pointer()+LS, NB2C,
+		      ss.exchangeMatrix->Z().pointer()+LS, NB2C);
+#ifdef _PRINT_MATRICES
+    
+      std::cout<<"After Dirac-Coulomb"<<std::endl;
+      prettyPrintSmart(std::cout, "COULOMB",    ss.coulombMatrix->pointer(),      NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
+    
+#endif //_PRINT_MATRICES
+    
+    
+    } //_DIRAC_COULOMB
+  
+
+
+
+    /*******************************/
+    /* Final Assembly of 4C Matrix */
+    /*******************************/
+    ROOT_ONLY(ss.comm);
+
+    // Copy LS to SL part of the exchangeMatrix[MS]
+    SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+SL, NB2C);
+    // Copy LS to SL part of the exchangeMatrix[MX]
+    SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+SL, NB2C);
+    // Copy LS to SL part of the exchangeMatrix[MY]
+    SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+SL, NB2C);
+    // Copy LS to SL part of the exchangeMatrix[MZ]
+    SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+SL, NB2C);
+
+    // Form GD: G[D] = 2.0*J[D] - K[D]
+    if( std::abs(xHFX) > 1e-12 ) {
+      *ss.twoeH = -xHFX * *ss.exchangeMatrix;
+    } else {
+      ss.twoeH->clear();
+    }
+    // G[D] += 2*J[D]
+    *ss.twoeH += 2.0 * *ss.coulombMatrix;
+
+
+    mem.free(ScrLLMS);
+    mem.free(ScrLLMX);
+    mem.free(ScrLLMY);
+    mem.free(ScrLLMZ);
+    mem.free(ScrSSMS);
+    mem.free(ScrSSMX);
+    mem.free(ScrSSMY);
+    mem.free(ScrSSMZ);
+    mem.free(ScrLSMS);
+    mem.free(ScrLSMX);
+    mem.free(ScrLSMY);
+    mem.free(ScrLSMZ);
+
+
+#ifdef _PRINT_MATRICES
+
+    prettyPrintSmart(std::cout,"twoeH MS",ss.twoeH->S().pointer(),NB2C,NB2C,NB2C);
+    prettyPrintSmart(std::cout,"twoeH MX",ss.twoeH->X().pointer(),NB2C,NB2C,NB2C);
+    prettyPrintSmart(std::cout,"twoeH MY",ss.twoeH->Y().pointer(),NB2C,NB2C,NB2C);
+    prettyPrintSmart(std::cout,"twoeH MZ",ss.twoeH->Z().pointer(),NB2C,NB2C,NB2C);
+
+
+    MatsT* TEMP_GATHER1 = mem.malloc<MatsT>(NB4C2);
+    MatsT* TEMP_GATHER2 = mem.malloc<MatsT>(NB4C2);
+
+    memset(TEMP_GATHER1,0.,NB4C2*sizeof(MatsT));
+    memset(TEMP_GATHER2,0.,NB4C2*sizeof(MatsT));
+
+    std::cout << std::scientific << std::setprecision(16);
+    SpinGather(NB2C,TEMP_GATHER1,NB4C,contract1PDM.S().pointer(),NB2C,contract1PDM.Z().pointer(),NB2C,contract1PDM.Y().pointer(),NB2C,contract1PDM.X().pointer(),NB2C);
+    prettyPrintSmart(std::cout,"density Gather",TEMP_GATHER1,NB4C,NB4C,NB4C,1,12,16);
+
+
+    SpinGather(NB2C,TEMP_GATHER2,NB4C,ss.twoeH->S().pointer(),NB2C,ss.twoeH->Z().pointer(),NB2C,ss.twoeH->Y().pointer(),NB2C,ss.twoeH->X().pointer(),NB2C);
+    prettyPrintSmart(std::cout,"twoeH Gather",TEMP_GATHER2,NB4C,NB4C,NB4C,1,12,16);
+
+    SpinGather(NB2C,TEMP_GATHER1,NB4C,ss.coreH->S().pointer(),NB2C,ss.coreH->Z().pointer(),NB2C,ss.coreH->Y().pointer(),NB2C,ss.coreH->X().pointer(),NB2C);
+    prettyPrintSmart(std::cout,"coreH Gather",TEMP_GATHER1,NB4C,NB4C,NB4C,1,12,16);
+ 
+    mem.free(TEMP_GATHER1);
+    mem.free(TEMP_GATHER2);
+
+#endif //_PRINT_MATRICES
+
+
+  }; // FourCompFock<MatsT, IntsT>::formGD3Direct
 
 
   template <typename MatsT, typename IntsT>

@@ -334,7 +334,7 @@ namespace ChronusQ {
       for(auto k = 0; k < NB; ++k)
       for(auto l = 0; l < NB; ++l) {
 
-        C.AX[m + n*NB] += C.ERI4[k + n*NB + m*NB2 + l*NB3] * C.X[l + k*NB];
+        C.AX[m + l*NB] += C.ERI4[k + l*NB + m*NB2 + n*NB3] * C.X[n + k*NB];
 
       }
 

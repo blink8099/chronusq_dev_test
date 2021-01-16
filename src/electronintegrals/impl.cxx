@@ -26,6 +26,7 @@
 #include <electronintegrals/contract/incore.hpp>
 #include <electronintegrals/contract/direct.hpp>
 #include <electronintegrals/contract/direct3index.hpp>
+#include <electronintegrals/contract/direct4C.hpp>
 #include <electronintegrals/oneeints/relativisticints.hpp>
 
 
