@@ -45,7 +45,6 @@ if ( NOT CQ_BUILD_LIBINT_TYPE STREQUAL "FORCE" )
       add_library ( ChronusQ::Libint2 ALIAS Libint2::int2 )
     endif()
 
-
   # Otherwise create dummy target
   elseif ( DEFINED Libint2_ROOT )
 
@@ -110,7 +109,7 @@ if ( NOT TARGET ChronusQ::Libint2 )
       Libint2
       PREFIX ${CUSTOM_LIBINT_PREFIX}
       GIT_REPOSITORY "https://urania.chem.washington.edu/chronusq/libint-cq.git"
-      GIT_TAG "2.7.0-beta.5"
+      GIT_TAG "2.7.0-beta.6"
     )
   
     FetchContent_GetProperties ( Libint2 )
@@ -142,7 +141,6 @@ CQ_ALLOW_BUILD_LIBINT on."
   endif()
 
 endif()
-
 
 list(APPEND CQ_EXT_LINK ChronusQ::Libint2)
 

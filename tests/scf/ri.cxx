@@ -71,7 +71,7 @@ TEST( RI_X2CHF, cd_sap_dz_dkh3_2012_sp_x2c_jfit ) {
 
   CQSCFTEST( "scf/serial/ri_x2c/cd_sap-dz-dkh3-2012-sp_x2c-jfit",
              "cd_sap-dz-dkh3-2012-sp_x2c-jfit.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
@@ -80,7 +80,7 @@ TEST( RI_X2CHF, hg_sap_dz_dkh3_2012_sp_x2c_jfit ) {
 
   CQSCFTEST( "scf/serial/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c-jfit",
              "hg_sap-dz-dkh3-2012-sp_x2c-jfit.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
@@ -89,7 +89,7 @@ TEST( RI_X2CKS, hg_sap_dz_dkh3_2012_sp_x2c_jfit_b3lyp ) {
 
   CQSCFTEST( "scf/serial/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c-jfit_b3lyp",
              "hg_sap-dz-dkh3-2012-sp_x2c-jfit_b3lyp.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
@@ -140,7 +140,7 @@ TEST( RI_X2CHF, PAR_cd_sap_dz_dkh3_2012_sp_x2c_jfit ) {
 
   CQSCFTEST( "scf/parallel/ri_x2c/cd_sap-dz-dkh3-2012-sp_x2c-jfit",
              "cd_sap-dz-dkh3-2012-sp_x2c-jfit.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
@@ -149,7 +149,7 @@ TEST( RI_X2CHF, PAR_hg_sap_dz_dkh3_2012_sp_x2c_jfit ) {
 
   CQSCFTEST( "scf/parallel/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c-jfit",
              "hg_sap-dz-dkh3-2012-sp_x2c-jfit.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
@@ -158,7 +158,7 @@ TEST( RI_X2CKS, PAR_hg_sap_dz_dkh3_2012_sp_x2c_jfit_b3lyp ) {
 
   CQSCFTEST( "scf/parallel/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c-jfit_b3lyp",
              "hg_sap-dz-dkh3-2012-sp_x2c-jfit_b3lyp.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
