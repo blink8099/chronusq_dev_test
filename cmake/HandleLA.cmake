@@ -91,7 +91,7 @@ if( CQ_NEED_OPENBLAS )
   set( OPENBLAS_PREFIX      ${PROJECT_SOURCE_DIR}/external/openblas )
   set( OPENBLAS_INCLUDEDIR  ${OPENBLAS_PREFIX}/include )
   set( OPENBLAS_LIBDIR      ${OPENBLAS_PREFIX}/lib )
-
+  set( OPENBLAS_LAPACK_SRC      ${OPENBLAS_PREFIX}/src/openblas/lapack-netlib/SRC/ )
   if( NOT EXISTS "${OPENBLAS_INCLUDEDIR}/f77blas.h" )
 
 
@@ -110,12 +110,17 @@ if( CQ_NEED_OPENBLAS )
       PREFIX ${OPENBLAS_PREFIX}
       GIT_REPOSITORY "https://github.com/xianyi/OpenBLAS.git"
       GIT_TAG "v0.3.9"
-      CONFIGURE_COMMAND echo 'No OpenBLAS Configure Command'
+      CONFIGURE_COMMAND cd ${OPENBLAS_LAPACK_SRC}
+        && patch < ${OPENBLAS_PREFIX}/patch/chgeqz.patch
+        && patch < ${OPENBLAS_PREFIX}/patch/zhgeqz.patch
+
       BUILD_COMMAND ${OPENBLAS_BUILD_COMMAND}
       BUILD_IN_SOURCE 1
-      INSTALL_COMMAND make install PREFIX=${OPENBLAS_PREFIX} &&
-        cd ${OPENBLAS_INCLUDEDIR} && patch < ../patch/lapack.patch &&
-        patch < ../patch/f77blas.patch 
+      INSTALL_COMMAND make install PREFIX=${OPENBLAS_PREFIX}
+        && cd ${OPENBLAS_INCLUDEDIR}
+        && patch < ${OPENBLAS_PREFIX}/patch/lapack.patch
+        && patch < ${OPENBLAS_PREFIX}/patch/f77blas.patch
+
     )
 
     install(DIRECTORY "${OPENBLAS_PREFIX}/include" DESTINATION ".")

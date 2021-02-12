@@ -74,7 +74,6 @@ if ( NOT CQ_BUILD_LIBINT_TYPE STREQUAL "FORCE" )
 
     endif() 
 
-
   # Otherwise create dummy target
   elseif ( DEFINED Libint2_ROOT )
 
@@ -175,11 +174,12 @@ if ( NOT TARGET ChronusQ::Libint2 )
       set ( CMAKE_POLICY_DEFAULT_CMP0074 NEW )
 
   
-      FetchContent_Declare (
-        Libint2
-        GIT_REPOSITORY "https://urania.chem.washington.edu/chronusq/libint-cq.git"
-        GIT_TAG "2.7.0-beta.5"
-      )
+    FetchContent_Declare (
+      Libint2
+      PREFIX ${CUSTOM_LIBINT_PREFIX}
+      GIT_REPOSITORY "https://urania.chem.washington.edu/chronusq/libint-cq.git"
+      GIT_TAG "2.7.0-beta.6"
+    )
   
       FetchContent_GetProperties ( Libint2 )
 
@@ -213,7 +213,6 @@ CQ_BUILD_LIBINT to ALLOW or FORCE."
 
 endif()
 
-
-list ( APPEND CQ_EXT_LINK ChronusQ::Libint2 )
+list(APPEND CQ_EXT_LINK ChronusQ::Libint2)
 
 message ( " == End Libint ==\n" )

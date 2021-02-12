@@ -84,12 +84,4 @@ TEST( RHF, Water_631Gd_InputBasis ) {
  
 };
 
-// Li 6-31G(d) input basis 
-TEST( UHF, Li_631Gd_InputBasis ) {
-
-  CQSCFTEST( "scf/serial/uhf/li_6-31Gd_inBasis", "li_6-31Gd.bin.ref", 1e-7,                                                 
-              true, true, true, true, true, true);
- 
-};
-
 #endif
