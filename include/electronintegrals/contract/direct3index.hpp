@@ -76,16 +76,6 @@ namespace ChronusQ {
     auto durIncore = tock(topIncore);
 
 
-#ifdef _REPORT_INTEGRAL_TIMINGS
-    std::string intType;
-    if( C.contType == COULOMB ){
-      intType = "J";
-      std::cout << intType + "incore contraction took " << durIncore << " s\n";
-    } else if ( C.contType == EXCHANGE ) {
-      intType = "K";
-      std::cout << intType + " incore contraction took " << durIncore << " s\n";
-    }
-#endif
   }; // GTODirectRelERIContraction::twoBodyContractIncore
 
 

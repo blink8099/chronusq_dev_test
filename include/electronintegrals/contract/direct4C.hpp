@@ -1150,8 +1150,10 @@ namespace ChronusQ {
 
     dcomplex iscale = dcomplex(0.0, 1.0);
 
+#ifdef _REPORT_INTEGRAL_TIMINGS
     std::cout<<"Using Libcint "<<std::endl;
     auto topDirect = tick();
+#endif
 
     #pragma omp parallel
     {
@@ -2096,14 +2098,15 @@ namespace ChronusQ {
     }; // OpenMP context
 
 
+#ifdef _REPORT_INTEGRAL_TIMINGS
     size_t nIntSkip = std::accumulate(nSkip.begin(),nSkip.end(),0);
     std::cout << "Screened " << nIntSkip << std::endl;
 
     auto durDirect = tock(topDirect);
-    std::cout << "Direct Contraction took " <<  durDirect << " s\n"; 
+    std::cout << "Dirac-Coulomb AO Direct Contraction took " <<  durDirect << " s\n"; 
 
     std::cout << std::endl;
-
+#endif
 
     if (nThreads>1)
     for( auto iMat = 0; iMat < nMat;  iMat++ ) 

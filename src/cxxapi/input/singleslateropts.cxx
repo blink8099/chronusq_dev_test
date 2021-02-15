@@ -687,7 +687,7 @@ namespace ChronusQ {
     OPTOPT( hamiltonianOptions.DiracCoulomb = input.getData<bool>("INTS.DIRACCOULOMB") )
     OPTOPT( hamiltonianOptions.DiracCoulomb = input.getData<bool>("INTS.DC") )
     OPTOPT( hamiltonianOptions.DiracCoulombSSSS = input.getData<bool>("INTS.SSSS") )
-    OPTOPT( hamiltonianOptions.NonRelCoulomb = input.getData<bool>("INTS.NONRELCOULOMB") )
+    OPTOPT( hamiltonianOptions.BareCoulomb = input.getData<bool>("INTS.BARECOULOMB") )
     OPTOPT( hamiltonianOptions.Gauge = input.getData<bool>("INTS.GAUGE") )
     OPTOPT( hamiltonianOptions.Gaunt = input.getData<bool>("INTS.GAUNT") )
 
@@ -702,7 +702,7 @@ namespace ChronusQ {
 
     if (not isFourCRef) {
 
-      hamiltonianOptions.NonRelCoulomb = false;
+      hamiltonianOptions.BareCoulomb = false;
       hamiltonianOptions.DiracCoulomb = false;
       hamiltonianOptions.DiracCoulombSSSS = false;
       hamiltonianOptions.Gaunt = false;
@@ -814,7 +814,7 @@ namespace ChronusQ {
     // Construct ERIContractions
     if(isFourCRef) {
 
-      size_t nERI4DCB = 0; // Nonrelativistic Coulomb
+      size_t nERI4DCB = 0; // Bare-Coulomb
       if( hamiltonianOptions.Gaunt ) nERI4DCB = 23; // Dirac-Coulomb-Gaunt
       else if( hamiltonianOptions.DiracCoulomb ) nERI4DCB = 4; // Dirac-Coulomb
 
@@ -999,8 +999,8 @@ namespace ChronusQ {
 
     out << "  " << std::setw(fieldNameWidth) << "Four-Component Options:" << std::endl;
     out << bannerMid << std::endl;
-    out << "  " << std::setw(fieldNameWidth) << "Non-relativistic Coulomb Term:"
-        << (options.NonRelCoulomb ? "On" : "Off") << std::endl;
+    out << "  " << std::setw(fieldNameWidth) << "Bare Coulomb Term:"
+        << (options.BareCoulomb ? "On" : "Off") << std::endl;
     out << "  " << std::setw(fieldNameWidth) << "Dirac Coulomb Term:"
         << (options.DiracCoulomb ? "On" : "Off") << std::endl;
     out << "  " << std::setw(fieldNameWidth) << "Dirac Coulomb SSSS Term:"

@@ -178,9 +178,9 @@ namespace ChronusQ {
     /*                                            */
     /**********************************************/
 
-    if(this->hamiltonianOptions_.NonRelCoulomb) { // DIRECT_COULOMB
+    if(this->hamiltonianOptions_.BareCoulomb) { // DIRECT_COULOMB
 
-      auto topNonRelCoulomb = tick();
+      auto topBareCoulomb = tick();
   
       /*+++++++++++++++++++++++++++++++++++++++++++++*/
       /* Start of Direct Coulomb (LL|LL) Contraction */
@@ -220,9 +220,9 @@ namespace ChronusQ {
       /*   End of Direct Coulomb (LL|LL) Contraction */
       /*---------------------------------------------*/
 
-      // Print out NonRelCoulomb duration 
-      auto durNonRelCoulomb = tock(topNonRelCoulomb);
-//      std::cout << "Non-relativistic Coulomb duration = " << durNonRelCoulomb << std::endl;
+      // Print out BareCoulomb duration 
+      auto durBareCoulomb = tock(topBareCoulomb);
+//      std::cout << "Non-relativistic Coulomb duration = " << durBareCoulomb << std::endl;
  
     } // DIRECT_COULOMB
 
@@ -1492,9 +1492,9 @@ namespace ChronusQ {
     /**********************************************/
 
 
-    if(this->hamiltonianOptions_.NonRelCoulomb) { // DIRECT_COULOMB
+    if(this->hamiltonianOptions_.BareCoulomb) { // DIRECT_COULOMB
 
-      auto topNonRelCoulomb = tick();
+      auto topBareCoulomb = tick();
 
       /*+++++++++++++++++++++++++++++++++++++++++++++*/
       /* Start of Direct Coulomb (LL|LL) Contraction */
@@ -1537,9 +1537,9 @@ namespace ChronusQ {
       /*   End of Direct Coulomb (LL|LL) Contraction */
       /*---------------------------------------------*/
 
-      // Print out NonRelCoulomb duration 
-      auto durNonRelCoulomb = tock(topNonRelCoulomb);
-//      std::cout << "Non-relativistic Coulomb duration = " << durNonRelCoulomb << std::endl;
+      // Print out BareCoulomb duration 
+      auto durBareCoulomb = tock(topBareCoulomb);
+//      std::cout << "Non-relativistic Coulomb duration = " << durBareCoulomb << std::endl;
 
     } // DIRECT_COULOMB
 
@@ -2523,9 +2523,9 @@ namespace ChronusQ {
     /**********************************************/
 
 
-    if(this->hamiltonianOptions_.NonRelCoulomb) { // DIRECT_COULOMB
+    if(this->hamiltonianOptions_.BareCoulomb) { // DIRECT_COULOMB
 
-      auto topNonRelCoulomb = tick();
+      auto topBareCoulomb = tick();
 
       /*+++++++++++++++++++++++++++++++++++++++++++++*/
       /* Start of Direct Coulomb (LL|LL) Contraction */
@@ -2568,9 +2568,9 @@ namespace ChronusQ {
       /*   End of Direct Coulomb (LL|LL) Contraction */
       /*---------------------------------------------*/
 
-      // Print out NonRelCoulomb duration 
-      auto durNonRelCoulomb = tock(topNonRelCoulomb);
-//      std::cout << "Non-relativistic Coulomb duration = " << durNonRelCoulomb << std::endl;
+      // Print out BareCoulomb duration 
+      auto durBareCoulomb = tock(topBareCoulomb);
+//      std::cout << "Non-relativistic Coulomb duration = " << durBareCoulomb << std::endl;
 
     } // DIRECT_COULOMB
 

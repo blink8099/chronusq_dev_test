@@ -24,9 +24,18 @@
 #pragma once
 #include <basisset.hpp>
 
+
 namespace ChronusQ {
 
+  enum KineticBalance {RKBPauli, RKBSpinor, UKBScalar};
+
   struct HamiltonianOptions {
+
+    // Number of components
+    size_t nComponents = 1; // 1, 2, or 4
+
+    // Time-reversal symmetry
+    bool KramersSymmetry = false; // Whether or not to use the Kramers' symmetry
 
     // Integral Options
     BASIS_FUNCTION_TYPE basisType = REAL_GTO; //GTO or GIAO
@@ -44,7 +53,8 @@ namespace ChronusQ {
     bool AtomicMeanField = false; // Use atomic mean field two-electron spin-orbit
 
     // Four-Component Options
-    bool NonRelCoulomb = true; // Do non-relativistic Coulomb only
+    KineticBalance kineticBalance = RKBPauli; // Choose the kinetic-balance condition; currently, only RKBPauli is implemented
+    bool BareCoulomb = true; // Do bare Coulomb only in Restricted-Kinetic balance (RKB)
     bool DiracCoulomb = true; // Dirac-Coulomb without SSSS
     bool DiracCoulombSSSS = false; // SSSS to Dirac-Coulomb
     bool Gaunt = false; // Gaunt
