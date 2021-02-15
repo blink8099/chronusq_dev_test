@@ -25,15 +25,6 @@
 #include "scf.hpp"
 
 
-
-// Li 6-31G(d) test
-TEST( UHF, Li_631Gd ) {
-
-  CQSCFTEST( "scf/serial/uhf/li_6-31Gd", "li_6-31Gd.bin.ref", 1e-7,
-              true, true, true, true, true, true); 
-
-};
-
 // O2 6-31G(d) test
 TEST( UHF, O2_631Gd ) {
 
@@ -78,14 +69,6 @@ TEST( UHF, NeHeH_fracZ_sto3G ) {
 };
 
 #ifdef _CQ_DO_PARTESTS
-
-// SMP Li 6-31G(d) test
-TEST( UHF, PAR_Li_631Gd ) {
-
-  CQSCFTEST( "scf/parallel/uhf/li_6-31Gd", "li_6-31Gd.bin.ref", 1e-7,
-              true, true, true, true, true, true);
-
-};
 
 // SMP O2 6-31G(d) test
 TEST( UHF, PAR_O2_631Gd ) {
