@@ -228,8 +228,9 @@ namespace ChronusQ {
         
         Eigen::Map< Eigen::Matrix<_F,
             Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor> > AMap1(A,LDB,M);
-      
-        AMap1 = ANew;
+        
+        if( TRANS == 'C' or TRANS == 'T' )
+          AMap1 = ANew;
 
       }
 
