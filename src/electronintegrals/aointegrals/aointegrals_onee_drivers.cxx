@@ -310,7 +310,7 @@ namespace ChronusQ {
     }   // omp
  
     double end = tock(start);
-    std::cout<<"onee driver time= "<<end<<std::endl;
+    //std::cout<<"onee driver time= "<<end<<std::endl;
 
     // Symmetrize the matricies 
     // XXX: USES EIGEN

@@ -773,7 +773,7 @@ namespace ChronusQ {
       }; // omp region
   
       auto durERIGaunt = tock(topERIGaunt);
-      std::cout << "Libcint-ERI-Gaunt duration   = " << durERIGaunt << std::endl;
+      //std::cout << "Libcint-ERI-Gaunt duration   = " << durERIGaunt << std::endl;
   
       memManager_.free(buffAll);
   

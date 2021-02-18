@@ -170,7 +170,7 @@ namespace ChronusQ {
     formGD(ss,pert,increment,xHFX);
 
     ss.GDDur = tock(GDStart); // G[D] Duraction
-    std::cout <<"formGD time = "<<ss.GDDur <<std::endl;
+    //std::cout <<"formGD time = "<<ss.GDDur <<std::endl;
 
     ROOT_ONLY(ss.comm);
 
