@@ -17,6 +17,7 @@ damp = false
 
 [INTS]
 alg = incore
+libcint = true
 Gaunt = true
 
 [MISC]

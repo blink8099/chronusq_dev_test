@@ -18,6 +18,7 @@ damp = false
 
 [INTS]
 alg = incore
+libcint = true
 FiniteNuclei = true
 
 [MISC]
