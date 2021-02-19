@@ -366,13 +366,17 @@ namespace ChronusQ {
       ss->scfControls.dampError = 1e-4;
       ss->scfControls.nKeep     = 8;
 
-      HamiltonianOptions hamiltonianOptions{basisType};
-      hamiltonianOptions.OneEScalarRelativity = true;
+      HamiltonianOptions hamiltonianOptions;
+      hamiltonianOptions.basisType = basisType;
+
+      // NR Guess
+      hamiltonianOptions.OneEScalarRelativity = false;
       hamiltonianOptions.OneESpinOrbit = false;
-//      ss->coreHBuilder = std::make_shared<NRCoreH<MatsT,IntsT>>(
-//          ss->aoints, hamiltonianOptions);
-      ss->coreHBuilder = std::make_shared<X2C<MatsT,IntsT>>(
-          ss->aoints, memManager, atom, basis, hamiltonianOptions);
+
+      ss->coreHBuilder = std::make_shared<NRCoreH<MatsT,IntsT>>(
+          ss->aoints, hamiltonianOptions);
+//      ss->coreHBuilder = std::make_shared<X2C<MatsT,IntsT>>(
+//          ss->aoints, memManager, atom, basis, hamiltonianOptions);
       ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>(
           hamiltonianOptions);
 
