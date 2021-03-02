@@ -48,15 +48,19 @@ namespace ChronusQ {
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::formFock(bool increment, double t) {
 
-    // Get perturbation for the current time and build a Fock matrix
-    EMPerturbation pert_t = pert.getPert(curState.xTime);
+    ProgramTimer::timeOp("Form Fock", [&]() {
 
-    // Add on the SCF Perturbation
-    if ( intScheme.includeSCFField )
-      for( auto& field : scfPert.fields )
-        pert_t.addField( field );
+      // Get perturbation for the current time and build a Fock matrix
+      EMPerturbation pert_t = pert.getPert(curState.xTime);
 
-    propagator_.formFock(pert_t,increment);
+      // Add on the SCF Perturbation
+      if ( intScheme.includeSCFField )
+        for( auto& field : scfPert.fields )
+          pert_t.addField( field );
+
+      propagator_.formFock(pert_t,increment);
+
+    });
 
   };
 

@@ -37,6 +37,8 @@ namespace ChronusQ {
    */ 
   void SingleSlaterBase::SCF(EMPerturbation &pert) {
 
+    ProgramTimer::tick("SCF Total");
+
     SCFInit();
 
     // Initialize type independent parameters
@@ -65,11 +67,14 @@ namespace ChronusQ {
     for( scfConv.nSCFIter = 0; scfConv.nSCFIter < scfControls.maxSCFIter; 
          scfConv.nSCFIter++) {
 
+
       // Save current state of the wave function (method specific)
       saveCurrentState();
 
       // Exit loop on convergence
       if(isConverged) break;
+
+      ProgramTimer::tick("SCF Iter");
 
       // Get new orbtials and densities from current state: 
       //   C/D(k) -> C/D(k + 1)
@@ -80,6 +85,8 @@ namespace ChronusQ {
 
       // Print out iteration information
       if( printLevel > 0 and (MPIRank(comm) == 0)) printSCFProg(std::cout);
+
+      ProgramTimer::tock("SCF Iter");
 
     }; // Iteration loop
 
@@ -112,6 +119,8 @@ namespace ChronusQ {
       this->printSpin(std::cout);
       this->printMiscProperties(std::cout);
     }
+
+    ProgramTimer::tock("SCF Total");
     
   }; // SingleSlaterBase::SCF()
 

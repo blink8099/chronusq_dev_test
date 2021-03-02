@@ -24,7 +24,6 @@
 #pragma once
 
 #include <fockbuilder/rofock.hpp>
-#include <util/time.hpp>
 #include <cqlinalg.hpp>
 
 namespace ChronusQ {

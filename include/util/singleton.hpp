@@ -21,44 +21,33 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
+
 #pragma once
 
-#include <chronusq_sys.hpp>
+#include <memory>
 
 namespace ChronusQ {
 
-#ifndef CQ_ENABLE_MPI
-  using time_point = std::chrono::high_resolution_clock::time_point;
-#else
-  using time_point = double;
-#endif
+  // T must have a default constructor
+  //   (Concepts _should_ let us enforce this, eventually)
+  // Can be inherited into other singletons, but be sure this is really what
+  //   you want
+  template <typename T>
+  class Singleton {
 
+    protected:
 
-  static inline time_point tick() {
+    Singleton(){};
+    static std::unique_ptr<T> instance_;
 
-#ifndef CQ_ENABLE_MPI
-    return std::chrono::high_resolution_clock::now();
-#else
-    return MPI_Wtime();
-#endif
+    public:
 
-  }
+    static T* instance() {
+      if ( !instance_ ) instance_ = std::make_unique<T>();
+      return instance_.get();
+    }
 
-  static inline double tock(const time_point& pt) {
+  };
+  template <typename T> std::unique_ptr<T> Singleton<T>::instance_;
 
-    time_point now = tick();
-
-#ifndef CQ_ENABLE_MPI
-    return std::chrono::duration<double>(now - pt).count();
-#else
-    return (now - pt);
-#endif
-
-  }
-
-
-
-
-
-}; // namespace ChronusQ
-
+} // namespace ChronusQ

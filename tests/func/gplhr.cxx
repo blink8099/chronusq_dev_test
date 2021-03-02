@@ -27,6 +27,7 @@
 #include <memmanager.hpp>
 #include <itersolver.hpp>
 #include <util/files.hpp>
+#include <util/timer.hpp>
 
 #include <util/matout.hpp>
 #include <cqlinalg/factorization.hpp>
@@ -185,6 +186,8 @@ void GPLHR_TEST(size_t nRoots, size_t m, dcomplex sigma,
 #ifndef _CQ_GENERATE_TESTS
 
 
+  size_t nThreads = omp_get_num_threads();
+  ProgramTimer::initialize("GPLHR test", nThreads);
   GPLHR<EigT> gplhr(MPI_COMM_WORLD,mem,N,300,conver,nRoots,
     func,PC);
 

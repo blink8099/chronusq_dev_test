@@ -25,8 +25,9 @@
 
 #include <chronusq_sys.hpp>
 
-#include <util/typedefs.hpp>
 #include <util/mpi.hpp>
+#include <util/timer.hpp>
+#include <util/typedefs.hpp>
 
 #include <memmanager.hpp>
 #include <cqlinalg/blas1.hpp>
@@ -175,10 +176,14 @@ namespace ChronusQ {
 
       ROOT_ONLY(comm);
 
+      ProgramTimer::tick("Compute Properties");
+
       computeMultipole(pert);
       computeEnergy(pert);
       computeSpin();
       methodSpecificProperties();
+
+      ProgramTimer::tock("Compute Properties");
 
     };
     

@@ -29,6 +29,7 @@
 #include <cqlinalg/factorization.hpp>
 
 #include <util/threads.hpp>
+#include <util/timer.hpp>
 
 namespace ChronusQ {
 
@@ -867,7 +868,7 @@ namespace ChronusQ {
     
     if( isRoot ) std::cout << "\n  * FORMING FULL MATRIX\n";
     
-    auto topFull = tick();
+    ProgramTimer::tick("Full Hessian Form");
 
     this->nSingleDim_ = this->getNSingleDim(this->genSettings.doTDA);
     size_t N = this->nSingleDim_;
@@ -965,49 +966,48 @@ namespace ChronusQ {
 
 
     // Perform contraction directly
-    auto topContract = tick();
     RC_coll<MatsT> cList(1);
     cList.back().nVec = nForm;
     cList.back().N    = N;
     cList.back().X    = V;
     cList.back().AX   = HV;
 
-    formLinearTrans_direct(matComm,cList,FULL);
-
-    auto durContract = tock(topContract);
+    ProgramTimer::timeOp("Hessian Contraction", [&](){
+      formLinearTrans_direct(matComm,cList,FULL);
+    });
 
 
     this->memManager_.free(V); // Free up some memory
 
-    auto topTrans = tick();
-    if( not this->genSettings.doTDA ) {
+    ProgramTimer::timeOp("Hessian Transform", [&](){
+      if( not this->genSettings.doTDA ) {
 
 
-      if( this->doAPB_AMB ) {
+        if( this->doAPB_AMB ) {
 
-        if( HV ) this->blockTransform(N/2 ,nForm, 1., HV, N, HV+N/2, N);
+          if( HV ) this->blockTransform(N/2 ,nForm, 1., HV, N, HV+N/2, N);
 
-      } else if( not this->genSettings.formMatDist  and isRootMatComm ) {
+        } else if( not this->genSettings.formMatDist  and isRootMatComm ) {
 
-        MatsT fact = incMet ? -1. : 1.;
-        // Place upper right "B"
-        SetMat('R',N/2,N/2,fact,HV + (N/2),N,HV + N*(N/2),N);
+          MatsT fact = incMet ? -1. : 1.;
+          // Place upper right "B"
+          SetMat('R',N/2,N/2,fact,HV + (N/2),N,HV + N*(N/2),N);
 
-        // Place lower right "-Conj(A)"
-        SetMat('R',N/2,N/2,fact,HV,N,HV + (N+1)*(N/2),N);
+          // Place lower right "-Conj(A)"
+          SetMat('R',N/2,N/2,fact,HV,N,HV + (N+1)*(N/2),N);
 
-        // Negate the bottom half
-        // SetMat('N',N/2,N,T(-1.),HV + (N/2),N,HV + (N/2),N);
+          // Negate the bottom half
+          // SetMat('N',N/2,N,T(-1.),HV + (N/2),N,HV + (N/2),N);
+
+        }
 
       }
 
-    }
-
-    double durTrans = tock(topTrans);
+    });
   
 
 
-    auto topDist = tick();
+    ProgramTimer::tick("Hessian Distribute");
 #ifdef CQ_ENABLE_MPI
     if( isDist ) {
 
@@ -1087,8 +1087,7 @@ namespace ChronusQ {
     } else 
 #endif
       this->fullMatrix_ = HV;
-
-    double durDist = tock(topDist);
+    ProgramTimer::tock("Hessian Distribute");
 
     //if( isDist ) CErr();
 
@@ -1101,17 +1100,26 @@ namespace ChronusQ {
 
     }
 
-    double durFull =  tock(topFull);
+    ProgramTimer::tock("Full Hessian Form");
     if( isRoot ) {
 
+      CQSecond durFull = ProgramTimer::getDurationTotal<CQSecond>(
+        "Full Hessian Form");
+      CQSecond durContract = ProgramTimer::getDurationTotal<CQSecond>(
+        "Hessian Contraction");
+      CQSecond durTrans = ProgramTimer::getDurationTotal<CQSecond>(
+        "Hessian Transform");
+      CQSecond durDist = ProgramTimer::getDurationTotal<CQSecond>(
+        "Hessian Distribute");
+
       std::cout << "  * TIMINGS\n";
-      std::cout << "    * TOTAL     " << durFull << " s\n";
-      std::cout << "    * CONTRACT  " << durContract << " s\n";
+      std::cout << "    * TOTAL     " << durFull.count() << " s\n";
+      std::cout << "    * CONTRACT  " << durContract.count() << " s\n";
       if( not this->genSettings.doTDA )
-        std::cout << "    * TRANS     " << durTrans << " s\n";
+        std::cout << "    * TRANS     " << durTrans.count() << " s\n";
 #ifdef CQ_ENABLE_MPI
       if( isDist )
-        std::cout << "    * DIST      " << durDist << " s\n";
+        std::cout << "    * DIST      " << durDist.count() << " s\n";
 #endif
 
       std::cout << "\n";

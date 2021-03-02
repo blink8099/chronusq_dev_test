@@ -24,7 +24,7 @@
 #pragma once
 
 #include <fockbuilder.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <cqlinalg.hpp>
 #include <matrix.hpp>
 #include <electronintegrals/twoeints/incorerieri.hpp>

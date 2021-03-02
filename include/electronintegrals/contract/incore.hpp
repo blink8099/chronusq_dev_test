@@ -25,7 +25,7 @@
 
 #include <integrals.hpp>
 #include <util/matout.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/threads.hpp>
 #include <cqlinalg/blas3.hpp>
 #include <cqlinalg/blasext.hpp>
@@ -72,39 +72,24 @@ namespace ChronusQ {
         CErr("InCoreRIERIContraction expect a InCoreRIERI reference.");
       }
 
-    auto topIncore = tick();
+    ProgramTimer::timeOp("Contraction Total", [&](){
 
-    // Loop over matricies to contract with
-    for(auto &C : list) {
+      // Loop over matricies to contract with
+      for(auto &C : list) {
 
-      // Coulomb-type (34,12) ERI contraction
-      // AX(mn) = (mn | kl) X(kl)
-      if( C.contType == TWOBODY_CONTRACTION_TYPE::COULOMB ) {
-        JContract(comm,C);
-      // Exchange-type (23,12) ERI contraction
-      // AX(mn) = (mk |ln) X(kl)
-      } else if( C.contType == TWOBODY_CONTRACTION_TYPE::EXCHANGE ) {
-        KContract(comm,C);
-      }
+        // Coulomb-type (34,12) ERI contraction
+        // AX(mn) = (mn | kl) X(kl)
+        if( C.contType == TWOBODY_CONTRACTION_TYPE::COULOMB ) {
+          JContract(comm,C);
+        // Exchange-type (23,12) ERI contraction
+        // AX(mn) = (mk |ln) X(kl)
+        } else if( C.contType == TWOBODY_CONTRACTION_TYPE::EXCHANGE ) {
+          KContract(comm,C);
+        }
 
-      auto durIncore = tock(topIncore);
-      #ifdef _REPORT_INTEGRAL_TIMINGS
-      std::string intType;
-      if(typeid(*this) == typeid(InCoreRIERIContraction<MatsT,IntsT>))
-        intType = "RI-";
-      else
-        intType = "";
-      if( C.contType == COULOMB ){
-        intType += "J";
-        std::cout << intType + " incore contraction took " << durIncore << " s\n";
-      } else if ( C.contType == EXCHANGE ) {
-        intType += "K";
-        std::cout << intType + " incore contraction took " << durIncore << " s\n";
-      }
-      topIncore = tick();
-      #endif
+      } // loop over matricies
 
-    } // loop over matricies
+    });
 
   } // InCore4indexERIContraction::twoBodyContract
 
@@ -116,6 +101,8 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void InCore4indexERIContraction<MatsT, IntsT>::JContract(
       MPI_Comm, TwoBodyContraction<MatsT> &C) const {
+
+    ProgramTimer::tick("J Contract");
 
     InCore4indexERI<IntsT> &eri4I =
         dynamic_cast<InCore4indexERI<IntsT>&>(this->ints_);
@@ -191,12 +178,16 @@ namespace ChronusQ {
 
     }
 
+    ProgramTimer::tock("J Contract");
+
   }; // InCore4indexERIContraction::JContract
 
 
   template <typename MatsT, typename IntsT>
   void InCore4indexERIContraction<MatsT, IntsT>::KContract(
       MPI_Comm, TwoBodyContraction<MatsT> &C) const {
+
+    ProgramTimer::tick("K Contract");
  
     InCore4indexERI<IntsT> &eri4I =
         dynamic_cast<InCore4indexERI<IntsT>&>(this->ints_);
@@ -227,6 +218,8 @@ namespace ChronusQ {
     SetLAThreads(LAThreads);
 
     #endif
+
+    ProgramTimer::tock("K Contract");
 
   }; // InCore4indexERIContraction::KContract
 
