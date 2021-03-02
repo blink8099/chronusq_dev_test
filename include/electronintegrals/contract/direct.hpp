@@ -33,7 +33,7 @@
 
 #include <util/threads.hpp>
 #include <util/mpi.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/math.hpp>
 
 #include <electronintegrals/twoeints/gtodirecteri.hpp>
@@ -1402,6 +1402,11 @@ namespace ChronusQ {
     MPI_Comm comm, const bool screen,
     std::vector<TwoBodyContraction<MatsT>> &matList) const {
 
+    size_t parentId(0);
+    size_t callLevel(0);
+    parentId = ProgramTimer::tick("Contract Total");
+    callLevel = ProgramTimer::getCallLevel();
+
     DirectERI<IntsT> &eri =
         dynamic_cast<DirectERI<IntsT>&>(this->ints_);
     CQMemManager& memManager_ = eri.memManager();
@@ -1573,6 +1578,8 @@ namespace ChronusQ {
     #pragma omp parallel
     {
 
+    ProgramTimer::setContext(parentId, callLevel);
+
     // Set up thread local storage
 
     // SMP info
@@ -1707,6 +1714,9 @@ namespace ChronusQ {
         double s1234_deg = s12_deg * s34_deg * s12_34_deg;
 
 #endif
+#ifdef _REPORT_INTEGRAL_TIMINGS
+        ProgramTimer::tick("Direct Int Form");
+#endif
 
 #if 1
         // Evaluate ERI for shell quartet (s1 s2 | s3 s4)
@@ -1721,6 +1731,9 @@ namespace ChronusQ {
 #endif
         );
 #endif
+#ifdef _REPORT_INTEGRAL_TIMINGS
+        ProgramTimer::tock("Direct Int Form");
+#endif
 
         // Libint2 internal screening
         const double *buff = buf_vec[0];
@@ -1731,6 +1744,10 @@ namespace ChronusQ {
 
 // Flag to turn contraction on and off
 #if 1
+#ifdef _REPORT_INTEGRAL_TIMINGS
+        ProgramTimer::tick("Direct Den Contract");
+#endif
+
         // Scale the buffer by the degeneracy factor and store
         // in infBuffer
         std::transform(buff,buff + n1*n2*n3*n4,intBuffer_loc,
@@ -1880,10 +1897,13 @@ namespace ChronusQ {
 
         } // iMat loop
 
+#ifdef _REPORT_INTEGRAL_TIMINGS
+        ProgramTimer::tock("Direct Den Contract");
 #endif
 
 #endif
 
+#endif
       } // loop s4
       } // loop s3
 
@@ -1992,6 +2012,8 @@ namespace ChronusQ {
 
     // Turn threads for LA back on
     SetLAThreads(LAThreads);
+
+    ProgramTimer::tock("Contract Total");
 
   }
 

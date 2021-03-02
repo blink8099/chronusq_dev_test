@@ -24,7 +24,6 @@
 #pragma once
 
 #include <electronintegrals/twoeints.hpp>
-#include <util/time.hpp>
 #include <cxxapi/output.hpp>
 
 namespace ChronusQ {

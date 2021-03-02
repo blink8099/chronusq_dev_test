@@ -24,7 +24,7 @@
 #pragma once
 
 #include <itersolver.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/matout.hpp>
 #include <cqlinalg/factorization.hpp>
 #include <cqlinalg/blas3.hpp>
@@ -306,9 +306,7 @@ namespace ChronusQ {
     // ****************************
     for( iter = 0; iter < this->maxMicroIter_; iter++ ) {
 
-
-      auto GPLHRSt = tick();
-
+      ProgramTimer::tick("Diagonalize Iter");
 
       if( isRoot ) {
 
@@ -643,9 +641,13 @@ namespace ChronusQ {
 
 
 
-      double GPLHRdur = tock(GPLHRSt);
+      ProgramTimer::tock("Diagonalize Iter");
+
 
       if( isRoot ) {
+
+        auto GPLHRdur = ProgramTimer::getDurationTotal<CQSecond>(
+          "Diagonalize Iter").count();
 
         double perLT = LTdur * 100 / GPLHRdur;
 

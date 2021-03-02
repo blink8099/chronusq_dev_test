@@ -25,7 +25,7 @@
 
 #include <itersolver.hpp>
 
-#include <util/time.hpp>
+#include <util/timer.hpp>
 
 namespace ChronusQ {
 
@@ -119,6 +119,8 @@ namespace ChronusQ {
 
 
     for(iMicro = 0; iMicro < maxMicroIter; iMicro++) {
+
+      ProgramTimer::tick("Lin Solve Iter");
 
       auto topMicro = tick();
 
@@ -376,6 +378,8 @@ namespace ChronusQ {
 
       // Broadcast the convergence result to all the mpi processes
       if(MPISize(this->comm_) > 1) MPIBCast(isConverged,0,this->comm_);
+
+      ProgramTimer::tock("Lin Solve Iter");
 
     } // Micro iterations
 

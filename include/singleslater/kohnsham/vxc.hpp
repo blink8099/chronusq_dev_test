@@ -833,6 +833,7 @@ namespace ChronusQ {
     // TIMING 
     auto topMem = std::chrono::high_resolution_clock::now();
 #endif
+    ProgramTimer::tick("Form VXC");
 
     assert( intParam.nRad % intParam.nRadPerBatch == 0 );
 
@@ -1592,6 +1593,8 @@ namespace ChronusQ {
     } // Valid intComm
 
     MPI_Barrier(this->comm); // Syncronize the MPI processes
+
+    ProgramTimer::tock("Form VXC");
 
   }; // KohnSham::formVXC
 

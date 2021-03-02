@@ -25,7 +25,7 @@
 #define __INCLUDED_DAVIDSON_HPP__
 
 #include <itersolver.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/matout.hpp>
 #include <cqlinalg/factorization.hpp>
 #include <cqlinalg/blas3.hpp>

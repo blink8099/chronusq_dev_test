@@ -101,6 +101,10 @@ namespace ChronusQ {
 
   }; // CQOutputFooter
 
+
+  // Specific method for printing sections of relevance to CQ
+  void printTimerSummary(std::ostream& out);
+
 };
 
 

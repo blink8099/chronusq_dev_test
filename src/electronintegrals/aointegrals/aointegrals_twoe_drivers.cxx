@@ -24,7 +24,7 @@
 
 #include <cqlinalg.hpp>
 #include <cqlinalg/blasutil.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/matout.hpp>
 #include <electronintegrals/twoeints/incore4indexeri.hpp>
 #include <electronintegrals/twoeints/incorerieri.hpp>
@@ -50,6 +50,8 @@ namespace ChronusQ {
   template <>
   void InCore4indexERI<double>::computeAOInts(BasisSet &basisSet, Molecule&,
       EMPerturbation&, OPERATOR op, const AOIntsOptions &options) {
+
+    ProgramTimer::tick("Incore 2e Ints");
 
     if (op != ELECTRON_REPULSION)
       CErr("Only Electron repulsion integrals in InCore4indexERI<double>",std::cout);
@@ -88,13 +90,6 @@ namespace ChronusQ {
     //
 #endif
 
-#ifndef __IN_HOUSE_INT__
-    std::cout<<"Using Libint "<<std::endl;
-#else
-    std::cout<<"Using In-house Integral Engine "<<std::endl;
-#endif
-
-    auto libint_start = std::chrono::high_resolution_clock::now();
     #pragma omp parallel
     {
       int thread_id = GetThreadID();
@@ -148,7 +143,9 @@ namespace ChronusQ {
           basisSet.shells[s4]
         );
         const auto *buff =  buf_vec[0] ;
-        if(buff == nullptr) continue;
+        if(buff == nullptr) {
+          continue;
+        }
 #else
         auto buff  = RealGTOIntEngine::BottomupHGP(pair1_to_use,pair2_to_use,
           basisSet_.shells[s1],
@@ -218,9 +215,7 @@ namespace ChronusQ {
       }; // s1
     }; // omp region
 
-    auto libint_stop = std::chrono::high_resolution_clock::now();
-    auto libint_duration = std::chrono::duration_cast<std::chrono::milliseconds>(libint_stop - libint_start);
-    std::cout << "Libint duration   = " << libint_duration.count() << std::endl;
+    ProgramTimer::tock();
 
     // Debug output of the ERIs
 #ifdef __DEBUGERI__
@@ -332,7 +327,6 @@ namespace ChronusQ {
     if (options.basisType != REAL_GTO)
       CErr("Only Real GTOs are allowed in InCoreAuxBasisRIERI<double>",std::cout);
 
-    std::cout<<"Using Libint-RI "<<std::endl;
     auto topLibintRI = tick();
 
     // Determine the number of OpenMP threads
@@ -589,12 +583,6 @@ namespace ChronusQ {
 
     // Copy over the engines to other threads if need be
     for(size_t i = 1; i < nthreads; i++) engines[i] = engines[0];
-
-#ifndef __IN_HOUSE_INT__
-    std::cout<<"Using Libint "<<std::endl;
-#else
-    std::cout<<"Using In-house Integral Engine "<<std::endl;
-#endif
 
     auto topDiag = tick();
 #ifdef CHOLESKY_BUILD_4INDEX

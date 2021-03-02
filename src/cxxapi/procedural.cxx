@@ -28,10 +28,11 @@
 #include <cxxapi/boilerplate.hpp>
 #include <cxxapi/procedural.hpp>
 
-#include <util/matout.hpp>
-#include <util/threads.hpp>
-#include <util/mpi.hpp>
 #include <util/files.hpp>
+#include <util/matout.hpp>
+#include <util/mpi.hpp>
+#include <util/threads.hpp>
+#include <util/timer.hpp>
 
 #include <memmanager.hpp>
 #include <cerr.hpp>
@@ -185,12 +186,7 @@ namespace ChronusQ {
       ss->formCoreH(emPert);
 
       // If INCORE, compute and store the ERIs
-      if(auto p = std::dynamic_pointer_cast<Integrals<double>>(aoints))
-        p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION,
-                              {basis->basisType, false, false, false});
-      else if(auto p = std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints))
-        p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION,
-                              {basis->basisType, false, false, false});
+      aoints->computeAOTwoE(*basis, mol, emPert);
 
       ss->formGuess();
       ss->SCF(emPert);
@@ -227,6 +223,9 @@ namespace ChronusQ {
         CErr("TiledArray must be compiled to use Coupled-Cluster code!");
       #endif
     }
+
+    ProgramTimer::tock("Chronus Quantum");
+    printTimerSummary(std::cout);
      
     // Output CQ footer
     CQOutputFooter(output);
