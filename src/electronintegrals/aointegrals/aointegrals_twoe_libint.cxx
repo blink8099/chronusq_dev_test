@@ -28,7 +28,7 @@
 #include <libint2/engine.h>
 #include <cqlinalg.hpp>
 #include <cqlinalg/blasutil.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/matout.hpp>
 
 #include <util/threads.hpp>

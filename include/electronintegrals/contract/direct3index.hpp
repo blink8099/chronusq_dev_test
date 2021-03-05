@@ -25,7 +25,7 @@
 
 #include <electronintegrals/twoeints/gtodirectreleri.hpp>
 #include <util/matout.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/threads.hpp>
 #include <cqlinalg/blas3.hpp>
 #include <cqlinalg/blasext.hpp>

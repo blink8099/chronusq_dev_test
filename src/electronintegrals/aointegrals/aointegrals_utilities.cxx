@@ -24,7 +24,7 @@
 
 #include <cqlinalg.hpp>
 #include <cqlinalg/blasutil.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/matout.hpp>
 #include <electronintegrals/twoeints/incore4indexeri.hpp>
 #include <electronintegrals/twoeints/incorerieri.hpp>

@@ -51,6 +51,7 @@ namespace ChronusQ {
   struct IntegralsBase {
     
     SafeFile savFile; ///< Hard storage of integrals
+    HamiltonianOptions options_;
 
     // Default copy and move ctors
     IntegralsBase( const IntegralsBase & ) = default;
@@ -127,7 +128,7 @@ namespace ChronusQ {
     virtual void computeAOTwoE(BasisSet& basis, Molecule& mol,
       EMPerturbation& emPert) {
       ERI->computeAOInts(basis, mol, emPert, ELECTRON_REPULSION,
-                         {basis.basisType, false, false, false});
+                         options_);
     }
 
     template <typename MatsT>

@@ -65,7 +65,7 @@ namespace ChronusQ {
   std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
       std::ostream &, CQInputFile &,
       CQMemManager &mem, Molecule &mol, BasisSet &basis,
-      std::shared_ptr<IntegralsBase>, HamiltonianOptions &hamiltonianOptions );
+      std::shared_ptr<IntegralsBase> );
 
   void CQQM_VALID(std::ostream&, CQInputFile &);
   void CQDFTINT_VALID(std::ostream&, CQInputFile &);

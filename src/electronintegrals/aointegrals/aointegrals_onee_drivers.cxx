@@ -29,6 +29,7 @@
 #include <cqlinalg/blasutil.hpp>
 #include <physcon.hpp>
 #include <util/matout.hpp>
+#include <util/timer.hpp>
 #include <util/threads.hpp>
 #include <Eigen/Sparse>
 #include <Eigen/Dense>

@@ -33,7 +33,7 @@
 
 #include <util/threads.hpp>
 #include <util/mpi.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/math.hpp>
 
 #include <electronintegrals/twoeints/gtodirectreleri.hpp>

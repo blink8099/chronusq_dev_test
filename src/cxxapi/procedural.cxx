@@ -151,10 +151,7 @@ namespace ChronusQ {
 
     auto aoints = CQIntsOptions(output,input,*memManager,mol,basis,dfbasis);
 
-    HamiltonianOptions hamiltonianOptions;
-
-    auto ss = CQSingleSlaterOptions(
-        output,input,*memManager,mol,*basis,aoints,hamiltonianOptions);
+    auto ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
 
     // EM Perturbation for SCF
     EMPerturbation emPert;
@@ -188,12 +185,11 @@ namespace ChronusQ {
       ss->formCoreH(emPert);
 
       // If INCORE, compute and store the ERIs
-      if(auto p = std::dynamic_pointer_cast<Integrals<double>>(aoints))
-        p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION,
-                              hamiltonianOptions);
-      else if(auto p = std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints))
-        p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION,
-                              hamiltonianOptions);
+      aoints->computeAOTwoE(*basis, mol, emPert);
+      //if(auto p = std::dynamic_pointer_cast<Integrals<double>>(aoints))
+      //  p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION, aoints->options_);
+      //else if(auto p = std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints))
+      //  p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION, aoints->options_);
 
       ss->formGuess();
       ss->SCF(emPert);

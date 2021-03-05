@@ -113,10 +113,12 @@ namespace ChronusQ {
   std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
     std::ostream &out, CQInputFile &input,
     CQMemManager &mem, Molecule &mol, BasisSet &basis,
-    std::shared_ptr<IntegralsBase> aoints,
-    HamiltonianOptions &hamiltonianOptions) {
+    std::shared_ptr<IntegralsBase> aoints) {
 
     out << "  *** Parsing QM.REFERENCE options ***\n";
+
+    // Initialize HamiltonianOptions
+    HamiltonianOptions hamiltonianOptions;
 
     // Attempt to find reference
     std::string reference;
@@ -710,7 +712,8 @@ namespace ChronusQ {
 
     }
 
-
+    // update IntegralsBase options
+    aoints->options_ = hamiltonianOptions;
 
     // Construct CoreHBuilder
     if( isFourCRef ) {
