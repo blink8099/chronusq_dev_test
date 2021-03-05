@@ -28,10 +28,11 @@
 #include <cxxapi/boilerplate.hpp>
 #include <cxxapi/procedural.hpp>
 
-#include <util/matout.hpp>
-#include <util/threads.hpp>
-#include <util/mpi.hpp>
 #include <util/files.hpp>
+#include <util/matout.hpp>
+#include <util/mpi.hpp>
+#include <util/threads.hpp>
+#include <util/timer.hpp>
 
 #include <memmanager.hpp>
 #include <cerr.hpp>
@@ -229,6 +230,9 @@ namespace ChronusQ {
         CErr("TiledArray must be compiled to use Coupled-Cluster code!");
       #endif
     }
+
+    ProgramTimer::tock("Chronus Quantum");
+    printTimerSummary(std::cout);
      
     // Output CQ footer
     CQOutputFooter(output);

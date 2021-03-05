@@ -27,7 +27,7 @@
 #include <singleslater.hpp>
 #include <basisset/basisset_util.hpp>
 #include <cqlinalg/blasext.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <dft.hpp>
 
 // KS_DEBUG_LEVEL == 1 - Timing
@@ -169,9 +169,7 @@ namespace ChronusQ {
 
       SingleSlater<MatsT,IntsT>::formFock(pert,increment,functionals.back()->xHFX);
 
-      auto VXCStart = tick();
       formVXC();
-      VXCDur = tock(VXCStart);
 
       ROOT_ONLY(this->comm);
 

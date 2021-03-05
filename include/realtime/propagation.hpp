@@ -31,6 +31,7 @@
 #include <matrix.hpp>
 
 #include <util/matout.hpp>
+#include <util/timer.hpp>
 #include <unsupported/Eigen/MatrixFunctions>
 
 template <size_t N, typename T>
@@ -47,6 +48,8 @@ namespace ChronusQ {
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::doPropagation() {
+
+    ProgramTimer::tick("Real Time Total");
 
     printRTHeader();
 
@@ -65,6 +68,8 @@ namespace ChronusQ {
          curState.iStep = intScheme.restoreStep; 
          curState.xTime <= (intScheme.tMax + intScheme.deltaT/4); 
          curState.xTime += intScheme.deltaT, curState.iStep++ ) {
+
+      ProgramTimer::tick("Real Time Iter");
 
       // Perturbation for the current time
       EMPerturbation pert_t = pert.getPert(curState.xTime);
@@ -226,7 +231,12 @@ namespace ChronusQ {
 
       }  // End 2nd order magnus
 
+      ProgramTimer::tock("Real Time Iter");
+
     } // Time loop
+
+
+    ProgramTimer::tock("Real Time Total");
 
   //mathematicaPrint(std::cerr,"Dipole-X",&data.ElecDipole[0][0],
   //  curState.iStep,1,curState.iStep,3);
@@ -246,6 +256,8 @@ namespace ChronusQ {
    */ 
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::formPropagator() {
+
+    ProgramTimer::tick("Propagator Formation");
 
     size_t NB = propagator_.nAlphaOrbital();
 
@@ -292,6 +304,7 @@ namespace ChronusQ {
 
     }
 
+    ProgramTimer::tock("Propagator Formation");
 #if 0
 
     prettyPrintSmart(std::cout,"UH Scalar",UH->S().pointer(),NB,NB,NB);
@@ -307,6 +320,8 @@ namespace ChronusQ {
   
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::propagateWFN() {
+
+    ProgramTimer::tick("Propagate WFN");
 
     size_t NB = propagator_.nAlphaOrbital();
     size_t NC = propagator_.nC;
@@ -403,6 +418,8 @@ namespace ChronusQ {
     propagator_.ortho2aoDen();
 
     memManager_.free(SCR,SCR1);
+
+    ProgramTimer::tock("Propagate WFN");
 
   }; // RealTime::propagatorWFN
 

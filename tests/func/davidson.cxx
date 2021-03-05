@@ -27,6 +27,7 @@
 #include <memmanager.hpp>
 #include <itersolver.hpp>
 #include <util/files.hpp>
+#include <util/timer.hpp>
 
 #include <util/matout.hpp>
 #include <cqlinalg/factorization.hpp>
@@ -168,6 +169,8 @@ void DAVIDSON_TEST(size_t nRoots, size_t m, size_t kG,
 
 #ifndef _CQ_GENERATE_TESTS
 
+  size_t nThreads = omp_get_num_threads();
+  ProgramTimer::initialize("Davidson test", nThreads);
   Davidson<EigT> davidson(MPI_COMM_WORLD,mem,N,5,128,conver,nRoots,
     func,PC);
 

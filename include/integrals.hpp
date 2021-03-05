@@ -65,6 +65,8 @@ namespace ChronusQ {
         const std::vector<std::pair<OPERATOR,size_t>>&,
         const HamiltonianOptions&) = 0;
 
+    virtual void computeAOTwoE(BasisSet&, Molecule&, EMPerturbation&) = 0;
+
     // Print (see src/aointegrals/print.cxx for docs)
     template <typename G> 
       friend std::ostream & operator<<(std::ostream &, const IntegralsBase& );
@@ -121,6 +123,12 @@ namespace ChronusQ {
         BasisSet &basis, EMPerturbation&,
         const std::vector<std::pair<OPERATOR,size_t>>&,
         const HamiltonianOptions&);
+
+    virtual void computeAOTwoE(BasisSet& basis, Molecule& mol,
+      EMPerturbation& emPert) {
+      ERI->computeAOInts(basis, mol, emPert, ELECTRON_REPULSION,
+                         {basis.basisType, false, false, false});
+    }
 
     template <typename MatsT>
     Integrals<typename std::conditional<

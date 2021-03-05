@@ -29,6 +29,7 @@
 #include <cqlinalg/factorization.hpp>
 
 #include <util/threads.hpp>
+#include <util/timer.hpp>
 
 
 namespace ChronusQ {
@@ -49,6 +50,8 @@ namespace ChronusQ {
 
     std::shared_ptr<ERIContractions<U,IntsT>> ERI =
         ERIContractions<MatsT,IntsT>::template convert<U>(ks.ERI);
+
+    ProgramTimer::tick("Direct Hessian Contract");
 
     for(auto &X : x) {
 
@@ -105,6 +108,8 @@ namespace ChronusQ {
         SetMat('N', N/2, nVec, U(-1.), X.AX + (N/2), N, X.AX + (N/2), N);
 
     } // loop over groups of vectors
+
+    ProgramTimer::tock("Direct Hessian Contract");
 
   };
 

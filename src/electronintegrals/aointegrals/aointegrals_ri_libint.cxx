@@ -24,7 +24,7 @@
 
 #include <cqlinalg.hpp>
 #include <cqlinalg/blasutil.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/matout.hpp>
 #include <electronintegrals/twoeints/incore4indexeri.hpp>
 #include <electronintegrals/twoeints/incorerieri.hpp>
@@ -48,6 +48,7 @@ namespace ChronusQ {
       EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
     CErr("Only real GTOs are allowed",std::cout);
   };
+
   template <>
   void InCoreAuxBasisRIERI<double>::computeAOInts(BasisSet &basisSet, Molecule&,
       EMPerturbation&, OPERATOR op, const HamiltonianOptions &options) {
@@ -57,7 +58,6 @@ namespace ChronusQ {
     if (options.basisType != REAL_GTO)
       CErr("Only Real GTOs are allowed in InCoreAuxBasisRIERI<double>",std::cout);
 
-    std::cout<<"Using Libint-RI "<<std::endl;
     auto topLibintRI = tick();
 
     // Determine the number of OpenMP threads
@@ -314,12 +314,6 @@ namespace ChronusQ {
 
     // Copy over the engines to other threads if need be
     for(size_t i = 1; i < nthreads; i++) engines[i] = engines[0];
-
-#ifndef __IN_HOUSE_INT__
-    std::cout<<"Using Libint "<<std::endl;
-#else
-    std::cout<<"Using In-house Integral Engine "<<std::endl;
-#endif
 
     auto topDiag = tick();
 #ifdef CHOLESKY_BUILD_4INDEX

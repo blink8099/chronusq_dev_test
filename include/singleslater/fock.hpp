@@ -29,7 +29,7 @@
 #include <fockbuilder.hpp>
 #include <physcon.hpp>
 
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <cqlinalg/blasext.hpp>
 
 #include <cqlinalg.hpp>
@@ -73,6 +73,8 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert) {
 
     ROOT_ONLY(comm);
+
+    ProgramTimer::tick("Form Core H");
 
     if( coreH != nullptr )
       CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
@@ -138,6 +140,7 @@ namespace ChronusQ {
 
     }
 
+    ProgramTimer::tock("Form Core H");
 
   }; // SingleSlater<MatsT,IntsT>::computeCoreH
 

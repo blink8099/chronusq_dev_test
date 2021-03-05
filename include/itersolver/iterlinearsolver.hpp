@@ -25,6 +25,8 @@
 
 #include <itersolver.hpp>
 
+#include <util/timer.hpp>
+
 namespace ChronusQ {
 
 
@@ -145,6 +147,8 @@ namespace ChronusQ {
     // Shift batch loop
     for(auto iOmega = 0, iBatch = 0; iOmega < nOmega; iOmega += shiftBS) {
 
+      ProgramTimer::tick("Omega");
+
       // Shift batch size information 
       size_t nOmegaDo = std::min(shiftBS, nOmega - iOmega);
       std::vector<_F> shiftBatch(nOmegaDo);
@@ -194,6 +198,8 @@ namespace ChronusQ {
       if( isRoot ) std::cout << "\n\n\n\n";
 
     } // end RHS batch loop
+
+    ProgramTimer::tock("Omega");
 
     } // end Shift batch loop
 

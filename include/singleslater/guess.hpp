@@ -150,6 +150,8 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::formGuess() {
 
+    ProgramTimer::tick("Form Guess");
+
     if( printLevel > 0 )
       std::cout << "  *** Forming Initial Guess Density for SCF Procedure ***"
                 << std::endl << std::endl;
@@ -199,6 +201,8 @@ namespace ChronusQ {
       }
 
     }
+
+    ProgramTimer::tock("Form Guess");
 
 //prettyPrintSmart(std::cout,"1pdm guess",this->onePDM[0],this->nOrbital(),this->nOrbital(),this->nOrbital());
 
@@ -355,7 +359,8 @@ namespace ChronusQ {
       std::shared_ptr<SingleSlater<MatsT,IntsT>> ss =
           std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>> (
             std::make_shared<HartreeFock<MatsT,IntsT>>(
-              rcomm,memManager,atom,basis,*aointsAtom,1, ( defaultMultip == 1 )
+              rcomm,memManager,atom,basis,*aointsAtom,1,
+              ( defaultMultip == 1 )
             )
           );;
       ss->ERI = std::make_shared<InCore4indexERIContraction<MatsT,IntsT>>(

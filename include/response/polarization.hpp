@@ -186,9 +186,11 @@ namespace ChronusQ {
       // Toggle between direct / incore
       template <typename U>
       void formLinearTrans(RC_coll<U> x, SINGLESLATER_POLAR_COPT op) {
-       
-        if( this->genSettings.formFullMat ) formLinearTrans_incore(x,op);
-        else  formLinearTrans_direct(this->comm_,x,op);
+
+        ProgramTimer::timeOp("Linear Trans", [&]() {
+          if( this->genSettings.formFullMat ) formLinearTrans_incore(x,op);
+          else  formLinearTrans_direct(this->comm_,x,op);
+        });
 
       };
 

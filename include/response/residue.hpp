@@ -33,6 +33,7 @@
 #include <itersolver.hpp>
 
 #include <util/matout.hpp>
+#include <util/timer.hpp>
 
 namespace ChronusQ {
 
@@ -50,6 +51,8 @@ namespace ChronusQ {
     //std::cerr << "Top of runFullResidue\n";
     char JOBVR = resSettings.needVR ? 'V' : 'N';
     char JOBVL = resSettings.needVL ? 'V' : 'N';
+
+    ProgramTimer::tick("Full Diagonalize");
 
     if( genSettings.matIsHer ) {
 
@@ -84,8 +87,9 @@ namespace ChronusQ {
 
       //CErr();
 
-
     }
+
+    ProgramTimer::tock("Full Diagonalize");
 
 
     /*
@@ -127,6 +131,7 @@ namespace ChronusQ {
 
     };
 
+    ProgramTimer::tick("Iter Diagonalize");
 
 
     typename GPLHR<T>::Shift_t pc =
@@ -171,6 +176,8 @@ namespace ChronusQ {
           resResults.VR);
   
     }
+
+    ProgramTimer::tock("Iter Diagonalize");
 
   };
 

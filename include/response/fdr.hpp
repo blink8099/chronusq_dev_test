@@ -36,6 +36,7 @@ namespace ChronusQ {
   template <typename U>
   void ResponseTBase<T>::runFullFDR(FDResponseResults<T,U> &results) {
 
+    ProgramTimer::tick("Full FDR");
 
     bool isRoot = MPIRank(comm_) == 0;
     bool isDist = this->genSettings.isDist();
@@ -95,6 +96,8 @@ namespace ChronusQ {
     // Loop over omegas
     for(size_t iOmega = 0; iOmega < nOmega; iOmega++) {
 
+      ProgramTimer::tick("Omega");
+
       U omega = results.shifts[iOmega];
 
       if( this->genSettings.printLevel >= 0 and isRoot )
@@ -145,12 +148,14 @@ namespace ChronusQ {
 
 
       // Solve the linear System
+      ProgramTimer::tick("Solve Linear System");
 #ifdef CQ_ENABLE_MPI
       if( isDist )
         LinSolve(N,nRHS,shiftedMat,1,1,DescA,distSOL,1,1,DescB);
       else
 #endif
         LinSolve(N,nRHS,shiftedMat,N,SOL,N,memManager_);
+      ProgramTimer::tock("Solve Linear System");
 
 
       // Gather solution to root process
@@ -161,6 +166,8 @@ namespace ChronusQ {
 
     //prettyPrintSmart(std::cout,"SOL " + std::to_string(iOmega),SOL,
     //  N,nRHS,N);
+      
+      ProgramTimer::tock("Omega");
 
     }
 
@@ -170,6 +177,7 @@ namespace ChronusQ {
     if( isDist and distSOL ) memManager_.free(distSOL);
 
 
+    ProgramTimer::tock("Full FDR");
 
   }
 
@@ -181,6 +189,7 @@ namespace ChronusQ {
     bool isRoot = MPIRank(comm_) == 0;
     bool isDist = this->genSettings.isDist();
 
+    ProgramTimer::tick("Iter FDR");
 
     typename GMRES<U>::LinearTrans_t lt = [&](size_t nVec, U *V, U *AV) {
 
@@ -221,6 +230,8 @@ namespace ChronusQ {
     gmres.run();
 
     if( isRoot ) gmres.getSol(results.SOL);
+
+    ProgramTimer::tock("Iter FDR");
 
   }
 

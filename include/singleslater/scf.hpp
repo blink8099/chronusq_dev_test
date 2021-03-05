@@ -195,9 +195,9 @@ namespace ChronusQ {
 
     // Form the Fock matrix D(k) -> F(k)
     if( frmFock ) {
-      formFock(pert,increment);
-      //if( MPIRank(comm) == 0 )
-      //  printFockTimings(std::cout);
+      ProgramTimer::timeOp("Form Fock", [&](){
+        formFock(pert,increment);
+      });
     }
 
     if( scfControls.scfAlg == _NEWTON_RAPHSON_SCF and scfConv.nSCFIter > 0 ) {
