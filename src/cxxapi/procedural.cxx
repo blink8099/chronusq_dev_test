@@ -186,10 +186,6 @@ namespace ChronusQ {
 
       // If INCORE, compute and store the ERIs
       aoints->computeAOTwoE(*basis, mol, emPert);
-      //if(auto p = std::dynamic_pointer_cast<Integrals<double>>(aoints))
-      //  p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION, aoints->options_);
-      //else if(auto p = std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints))
-      //  p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION, aoints->options_);
 
       ss->formGuess();
       ss->SCF(emPert);

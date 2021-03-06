@@ -1029,15 +1029,17 @@ namespace ChronusQ {
       off += basisSet_.shells[iShell].alpha.size();
     }
 
-    int AxBx = 0;
-    int AxBy = 1;
-    int AxBz = 2;
-    int AyBx = 3;
-    int AyBy = 4;
-    int AyBz = 5;
-    int AzBx = 6;
-    int AzBy = 7;
-    int AzBz = 8;
+    enum ERI_2ND_DERIV {
+      AxBx,
+      AxBy,
+      AxBz,
+      AyBx,
+      AyBy,
+      AyBz,
+      AzBx,
+      AzBy,
+      AzBz
+    };
 
     /*-------------------------------------*/
     /* End of Basis Formatting for Libcint */
@@ -1077,18 +1079,20 @@ namespace ChronusQ {
     //
     // Allocate thread local storage to store integral contractions
 
-    int LLMS = 0;
-    int LLMX = 1;
-    int LLMY = 2;
-    int LLMZ = 3;
-    int SSMS = 4;
-    int SSMX = 5;
-    int SSMY = 6;
-    int SSMZ = 7;
-    int LSMS = 8;
-    int LSMX = 9;
-    int LSMY = 10;
-    int LSMZ = 11;
+    enum DIRAC_PAULI_SPINOR_COMP {
+      LLMS,
+      LLMX,
+      LLMY,
+      LLMZ,
+      SSMS,
+      SSMX,
+      SSMY,
+      SSMZ,
+      LSMS,
+      LSMX,
+      LSMY,
+      LSMZ
+    };
 
 
     for(auto iMat = 0; iMat < nMat; iMat++)
