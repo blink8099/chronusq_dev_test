@@ -38,7 +38,6 @@ namespace ChronusQ {
   constexpr double EVPerHartree  = 27.211396132;
   constexpr double NMPerHartree  = 45.56335;
   constexpr double SpeedOfLight  = 137.035999074;
-//  constexpr double SpeedOfLight  = 137.03599967994; //PySCF
   constexpr double FSPerAUTime   = 2.41884326505e-2;
   constexpr double JPerHartree   = 4.35974434e-18;
 

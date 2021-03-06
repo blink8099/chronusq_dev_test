@@ -251,10 +251,10 @@ namespace ChronusQ {
       /*++++++++++++++++++++++++++++++++++++++++++++*/
 
       std::vector<TwoBodyContraction<MatsT>> contractDCLL =
-        { {contract1PDMSS.S().pointer(), Scr1, true, COULOMB, relERI[0].pointer(), 1},
-          {contract1PDMSS.X().pointer(), Scr2, true, COULOMB, relERI[1].pointer(), 1},
-          {contract1PDMSS.Y().pointer(), Scr3, true, COULOMB, relERI[2].pointer(), 1},
-          {contract1PDMSS.Z().pointer(), Scr4, true, COULOMB, relERI[3].pointer(), 1} };
+        { {contract1PDMSS.S().pointer(), Scr1, true, COULOMB, relERI[0].pointer(), TRANS_MNKL},
+          {contract1PDMSS.X().pointer(), Scr2, true, COULOMB, relERI[1].pointer(), TRANS_MNKL},
+          {contract1PDMSS.Y().pointer(), Scr3, true, COULOMB, relERI[2].pointer(), TRANS_MNKL},
+          {contract1PDMSS.Z().pointer(), Scr4, true, COULOMB, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
       ss.ERI->twoBodyContract(ss.comm, contractDCLL);
@@ -335,10 +335,10 @@ namespace ChronusQ {
       /*++++++++++++++++++++++++++++++++++++++++++*/
   
       std::vector<TwoBodyContraction<MatsT>> contractLSScalar =
-        { {contract1PDMLS.S().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), 1},
-          {contract1PDMLS.X().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), 1},
-          {contract1PDMLS.Y().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), 1},
-          {contract1PDMLS.Z().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), 1} };
+        { {contract1PDMLS.S().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), TRANS_MNKL},
+          {contract1PDMLS.X().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), TRANS_MNKL},
+          {contract1PDMLS.Y().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), TRANS_MNKL},
+          {contract1PDMLS.Z().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractLSScalar);
@@ -360,10 +360,10 @@ namespace ChronusQ {
   
   
       std::vector<TwoBodyContraction<MatsT>> contractLSMX =
-        { {contract1PDMLS.X().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), 1},
-          {contract1PDMLS.S().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), 1},
-          {contract1PDMLS.Z().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), 1},
-          {contract1PDMLS.Y().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), 1} };
+        { {contract1PDMLS.X().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), TRANS_MNKL},
+          {contract1PDMLS.S().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), TRANS_MNKL},
+          {contract1PDMLS.Z().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), TRANS_MNKL},
+          {contract1PDMLS.Y().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractLSMX);
@@ -387,14 +387,10 @@ namespace ChronusQ {
   
   
       std::vector<TwoBodyContraction<MatsT>> contractLSMY =
-        { {contract1PDMLS.Y().pointer(), Scr1,
-      true, EXCHANGE, relERI[0].pointer(), 1},
-          {contract1PDMLS.Z().pointer(), Scr2,
-      true, EXCHANGE, relERI[1].pointer(),    1},
-          {contract1PDMLS.S().pointer(), Scr3,
-      true, EXCHANGE, relERI[2].pointer(),    1},
-          {contract1PDMLS.X().pointer(), Scr4,
-      true, EXCHANGE, relERI[3].pointer(),    1} };
+        { {contract1PDMLS.Y().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), TRANS_MNKL},
+          {contract1PDMLS.Z().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), TRANS_MNKL},
+          {contract1PDMLS.S().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), TRANS_MNKL},
+          {contract1PDMLS.X().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractLSMY);
@@ -418,10 +414,10 @@ namespace ChronusQ {
   
   
       std::vector<TwoBodyContraction<MatsT>> contractLSMZ =
-        { {contract1PDMLS.Z().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), 1},
-          {contract1PDMLS.Y().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), 1},
-          {contract1PDMLS.X().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), 1},
-          {contract1PDMLS.S().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), 1} };
+        { {contract1PDMLS.Z().pointer(), Scr1, true, EXCHANGE, relERI[0].pointer(), TRANS_MNKL},
+          {contract1PDMLS.Y().pointer(), Scr2, true, EXCHANGE, relERI[1].pointer(), TRANS_MNKL},
+          {contract1PDMLS.X().pointer(), Scr3, true, EXCHANGE, relERI[2].pointer(), TRANS_MNKL},
+          {contract1PDMLS.S().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractLSMZ);
@@ -712,10 +708,10 @@ namespace ChronusQ {
   
       /* Equation (129) */
       std::vector<TwoBodyContraction<MatsT>> contractGSS129 =
-        { {contract1PDMLL.S().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), 1},
-          {contract1PDMLL.X().pointer(), Scr2, true, EXCHANGE, relERI[5].pointer(), 1},
-          {contract1PDMLL.Y().pointer(), Scr3, true, EXCHANGE, relERI[6].pointer(), 1},
-          {contract1PDMLL.Z().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer(), 1} };
+        { {contract1PDMLL.S().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), TRANS_MNKL},
+          {contract1PDMLL.X().pointer(), Scr2, true, EXCHANGE, relERI[5].pointer(), TRANS_MNKL},
+          {contract1PDMLL.Y().pointer(), Scr3, true, EXCHANGE, relERI[6].pointer(), TRANS_MNKL},
+          {contract1PDMLL.Z().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGSS129);
@@ -728,10 +724,10 @@ namespace ChronusQ {
   
       /* Equation (130) */
       std::vector<TwoBodyContraction<MatsT>> contractGSS130 =
-        { {contract1PDMLL.Z().pointer(), Scr1, true, EXCHANGE, relERI[14].pointer(), 1},
-          {contract1PDMLL.S().pointer(), Scr2, true, EXCHANGE, relERI[7].pointer(), 1},
-          {contract1PDMLL.X().pointer(), Scr3, true, EXCHANGE, relERI[10].pointer(), 1},
-          {contract1PDMLL.Y().pointer(), Scr4, true, EXCHANGE, relERI[12].pointer(), 1} };
+        { {contract1PDMLL.Z().pointer(), Scr1, true, EXCHANGE, relERI[14].pointer(), TRANS_MNKL},
+          {contract1PDMLL.S().pointer(), Scr2, true, EXCHANGE, relERI[7].pointer(),  TRANS_MNKL},
+          {contract1PDMLL.X().pointer(), Scr3, true, EXCHANGE, relERI[10].pointer(), TRANS_MNKL},
+          {contract1PDMLL.Y().pointer(), Scr4, true, EXCHANGE, relERI[12].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGSS130);
@@ -745,10 +741,10 @@ namespace ChronusQ {
   
       /* Equation (131) */
       std::vector<TwoBodyContraction<MatsT>> contractGSS131 =
-        { {contract1PDMLL.X().pointer(), Scr1, true, EXCHANGE, relERI[15].pointer(), 1},
-          {contract1PDMLL.S().pointer(), Scr2, true, EXCHANGE, relERI[5].pointer(), 1},
-          {contract1PDMLL.Z().pointer(), Scr3, true, EXCHANGE, relERI[10].pointer(), 1},
-          {contract1PDMLL.Y().pointer(), Scr4, true, EXCHANGE, relERI[8].pointer(), 1} };
+        { {contract1PDMLL.X().pointer(), Scr1, true, EXCHANGE, relERI[15].pointer(), TRANS_MNKL},
+          {contract1PDMLL.S().pointer(), Scr2, true, EXCHANGE, relERI[5].pointer(),  TRANS_MNKL},
+          {contract1PDMLL.Z().pointer(), Scr3, true, EXCHANGE, relERI[10].pointer(), TRANS_MNKL},
+          {contract1PDMLL.Y().pointer(), Scr4, true, EXCHANGE, relERI[8].pointer(),  TRANS_MNKL}};
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGSS131);
@@ -762,10 +758,10 @@ namespace ChronusQ {
   
       /* Equation (132) */
       std::vector<TwoBodyContraction<MatsT>> contractGSS132 =
-        { {contract1PDMLL.Y().pointer(), Scr1, true, EXCHANGE, relERI[16].pointer(), 1},
-          {contract1PDMLL.S().pointer(), Scr2, true, EXCHANGE, relERI[6].pointer(), 1},
-          {contract1PDMLL.X().pointer(), Scr3, true, EXCHANGE, relERI[8].pointer(), 1},
-          {contract1PDMLL.Z().pointer(), Scr4, true, EXCHANGE, relERI[12].pointer(), 1} };
+        { {contract1PDMLL.Y().pointer(), Scr1, true, EXCHANGE, relERI[16].pointer(), TRANS_MNKL},
+          {contract1PDMLL.S().pointer(), Scr2, true, EXCHANGE, relERI[6].pointer(),  TRANS_MNKL},
+          {contract1PDMLL.X().pointer(), Scr3, true, EXCHANGE, relERI[8].pointer(),  TRANS_MNKL},
+          {contract1PDMLL.Z().pointer(), Scr4, true, EXCHANGE, relERI[12].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGSS132);
@@ -1070,10 +1066,10 @@ namespace ChronusQ {
   
       /* Equation (136) */
       std::vector<TwoBodyContraction<MatsT>> contractGLS136 =
-        { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, relERI[4].pointer(), 2},
-          {contract1PDMSL.X().pointer(), Scr2, true, COULOMB, relERI[5].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr3, true, COULOMB, relERI[6].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr4, true, COULOMB, relERI[7].pointer(), 2} };
+        { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, relERI[4].pointer(), TRANS_KL},
+          {contract1PDMSL.X().pointer(), Scr2, true, COULOMB, relERI[5].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr3, true, COULOMB, relERI[6].pointer(), TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr4, true, COULOMB, relERI[7].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS136);
@@ -1087,8 +1083,8 @@ namespace ChronusQ {
   
       /* Equation (137)X first two terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS137AX =
-        { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, relERI[5].pointer(), 2},
-          {contract1PDMSL.X().pointer(), Scr2, true, COULOMB, relERI[4].pointer(), 2} };
+        { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, relERI[5].pointer(), TRANS_KL},
+          {contract1PDMSL.X().pointer(), Scr2, true, COULOMB, relERI[4].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS137AX);
@@ -1100,9 +1096,9 @@ namespace ChronusQ {
   
       /* Equation (137)X last term */
       std::vector<TwoBodyContraction<MatsT>> contractGLS137BX =
-        { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, relERI[17].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, relERI[9].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, relERI[11].pointer(), 2} };
+        { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, relERI[17].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, relERI[9].pointer(),  TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, relERI[11].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS137BX);
@@ -1114,8 +1110,8 @@ namespace ChronusQ {
   
       /* Equation (137)Y first two terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS137AY =
-        { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, relERI[6].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, relERI[4].pointer(), 2} };
+        { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, relERI[6].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, relERI[4].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS137AY);
@@ -1127,9 +1123,9 @@ namespace ChronusQ {
   
       /* Equation (137)Y last term */
       std::vector<TwoBodyContraction<MatsT>> contractGLS137BY =
-        { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, relERI[18].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, relERI[20].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, relERI[13].pointer(), 2} };
+        { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, relERI[18].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, relERI[20].pointer(), TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, relERI[13].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS137BY);
@@ -1141,8 +1137,8 @@ namespace ChronusQ {
   
       /* Equation (137)Z first two terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS137AZ =
-        { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, relERI[7].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr2, true, COULOMB, relERI[4].pointer(), 2} };
+        { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, relERI[7].pointer(), TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr2, true, COULOMB, relERI[4].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS137AZ);
@@ -1154,9 +1150,9 @@ namespace ChronusQ {
   
       /* Equation (137)Z last term */
       std::vector<TwoBodyContraction<MatsT>> contractGLS137BZ =
-        { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, relERI[19].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, relERI[21].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, relERI[22].pointer(), 2} };
+        { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, relERI[19].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, relERI[21].pointer(), TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, relERI[22].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS137BZ);
@@ -1188,10 +1184,10 @@ namespace ChronusQ {
 #if 1 // Gaunt LLSS EXCHANGE
       /* Equation (159) */
       std::vector<TwoBodyContraction<MatsT>> contractGLS159 =
-        { {contract1PDMSL.S().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), 2},
-          {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, relERI[5].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr3, true, EXCHANGE, relERI[6].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer(), 2} };
+        { {contract1PDMSL.S().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), TRANS_KL},
+          {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, relERI[5].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr3, true, EXCHANGE, relERI[6].pointer(), TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS159);
@@ -1204,10 +1200,10 @@ namespace ChronusQ {
   
       /* Equation (160) first four terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS160A =
-        { {contract1PDMSL.Z().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, relERI[5].pointer(), 2},
-          {contract1PDMSL.X().pointer(), Scr3, true, EXCHANGE, relERI[6].pointer(), 2},
-          {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer(), 2} };
+        { {contract1PDMSL.Z().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, relERI[5].pointer(), TRANS_KL},
+          {contract1PDMSL.X().pointer(), Scr3, true, EXCHANGE, relERI[6].pointer(), TRANS_KL},
+          {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS160A);
@@ -1221,9 +1217,9 @@ namespace ChronusQ {
   
       /* Equation (160) last three terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS160B =
-        { {contract1PDMSL.Z().pointer(), Scr1, true, EXCHANGE, relERI[14].pointer(), 2},
-          {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, relERI[10].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr3, true, EXCHANGE, relERI[12].pointer(), 2} };
+        { {contract1PDMSL.Z().pointer(), Scr1, true, EXCHANGE, relERI[14].pointer(), TRANS_KL},
+          {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, relERI[10].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr3, true, EXCHANGE, relERI[12].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS160B);
@@ -1237,10 +1233,10 @@ namespace ChronusQ {
   
       /* Equation (161) first four terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS161A =
-        { {contract1PDMSL.X().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, relERI[7].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[6].pointer(), 2},
-          {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, relERI[5].pointer(), 2} };
+        { {contract1PDMSL.X().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, relERI[7].pointer(), TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[6].pointer(), TRANS_KL},
+          {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, relERI[5].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS161A);
@@ -1254,9 +1250,9 @@ namespace ChronusQ {
   
       /* Equation (161) last three terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS161B =
-        { {contract1PDMSL.X().pointer(), Scr1, true, EXCHANGE, relERI[15].pointer(), 2},
-          {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, relERI[8].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[10].pointer(), 2} };
+        { {contract1PDMSL.X().pointer(), Scr1, true, EXCHANGE, relERI[15].pointer(), TRANS_KL},
+          {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, relERI[8].pointer(),  TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[10].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS161B);
@@ -1269,10 +1265,10 @@ namespace ChronusQ {
   
       /* Equation (162) first four terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS162A =
-        { {contract1PDMSL.Y().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), 2},
-          {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, relERI[7].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[5].pointer(), 2},
-          {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, relERI[6].pointer(), 2} };
+        { {contract1PDMSL.Y().pointer(), Scr1, true, EXCHANGE, relERI[4].pointer(), TRANS_KL},
+          {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, relERI[7].pointer(), TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[5].pointer(), TRANS_KL},
+          {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, relERI[6].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS162A);
@@ -1286,9 +1282,9 @@ namespace ChronusQ {
   
       /* Equation (162) last three terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS162B =
-        { {contract1PDMSL.Y().pointer(), Scr1, true, EXCHANGE, relERI[16].pointer(), 2},
-          {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, relERI[8].pointer(), 2},
-          {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[12].pointer(), 2} };
+        { {contract1PDMSL.Y().pointer(), Scr1, true, EXCHANGE, relERI[16].pointer(), TRANS_KL},
+          {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, relERI[8].pointer(),  TRANS_KL},
+          {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[12].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
       ss.ERI->twoBodyContract(ss.comm, contractGLS162B);
@@ -2082,10 +2078,10 @@ namespace ChronusQ {
     
         /* Equation (136) */
         std::vector<TwoBodyContraction<MatsT>> contractGLS136 =
-          { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, ERI4bf1+ 8*NB1C3, 2},
-            {contract1PDMSL.X().pointer(), Scr2, true, COULOMB, ERI4bf1+ 9*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr3, true, COULOMB, ERI4bf1+10*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr4, true, COULOMB, ERI4bf1+11*NB1C3, 2} };
+          { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, ERI4bf1+ 8*NB1C3, TRANS_KL},
+            {contract1PDMSL.X().pointer(), Scr2, true, COULOMB, ERI4bf1+ 9*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr3, true, COULOMB, ERI4bf1+10*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr4, true, COULOMB, ERI4bf1+11*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS136);
@@ -2098,8 +2094,8 @@ namespace ChronusQ {
     
         /* Equation (137)X first two terms */
         std::vector<TwoBodyContraction<MatsT>> contractGLS137AX =
-          { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, ERI4bf1+9*NB1C3, 2},
-            {contract1PDMSL.X().pointer(), Scr2, true, COULOMB, ERI4bf1+8*NB1C3, 2} };
+          { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, ERI4bf1+9*NB1C3, TRANS_KL},
+            {contract1PDMSL.X().pointer(), Scr2, true, COULOMB, ERI4bf1+8*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS137AX);
@@ -2112,9 +2108,9 @@ namespace ChronusQ {
     
         /* Equation (137)X last term */
         std::vector<TwoBodyContraction<MatsT>> contractGLS137BX =
-          { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, ERI4bf1+21*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, ERI4bf1+13*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, ERI4bf1+15*NB1C3, 2} };
+          { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, ERI4bf1+21*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, ERI4bf1+13*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, ERI4bf1+15*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS137BX);
@@ -2126,8 +2122,8 @@ namespace ChronusQ {
     
         /* Equation (137)Y first two terms */
         std::vector<TwoBodyContraction<MatsT>> contractGLS137AY =
-          { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, ERI4bf1+10*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, ERI4bf1+ 8*NB1C3, 2} };
+          { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, ERI4bf1+10*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, ERI4bf1+ 8*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS137AY);
@@ -2140,9 +2136,9 @@ namespace ChronusQ {
     
         /* Equation (137)Y last term */
         std::vector<TwoBodyContraction<MatsT>> contractGLS137BY =
-          { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, ERI4bf1+22*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, ERI4bf1+24*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, ERI4bf1+17*NB1C3, 2} };
+          { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, ERI4bf1+22*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, ERI4bf1+24*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, ERI4bf1+17*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS137BY);
@@ -2154,8 +2150,8 @@ namespace ChronusQ {
     
         /* Equation (137)Z first two terms */
         std::vector<TwoBodyContraction<MatsT>> contractGLS137AZ =
-          { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, ERI4bf1+11*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr2, true, COULOMB, ERI4bf1+ 8*NB1C3, 2} };
+          { {contract1PDMSL.S().pointer(), Scr1, true, COULOMB, ERI4bf1+11*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr2, true, COULOMB, ERI4bf1+ 8*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS137AZ);
@@ -2168,9 +2164,9 @@ namespace ChronusQ {
     
         /* Equation (137)Z last term */
         std::vector<TwoBodyContraction<MatsT>> contractGLS137BZ =
-          { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, ERI4bf1+23*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, ERI4bf1+25*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, ERI4bf1+26*NB1C3, 2} };
+          { {contract1PDMSL.X().pointer(), Scr1, true, COULOMB, ERI4bf1+23*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, ERI4bf1+25*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, ERI4bf1+26*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS137BZ);
@@ -2200,10 +2196,10 @@ namespace ChronusQ {
 #if 1 // Gaunt LLSS EXCHANGE
         /* Equation (159) */
         std::vector<TwoBodyContraction<MatsT>> contractGLS159 =
-          { {contract1PDMSL.S().pointer(), Scr1, true, EXCHANGE, ERI4bf1+ 8*NB1C3, 2},
-            {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, ERI4bf1+ 9*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr3, true, EXCHANGE, ERI4bf1+10*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr4, true, EXCHANGE, ERI4bf1+11*NB1C3, 2} };
+          { {contract1PDMSL.S().pointer(), Scr1, true, EXCHANGE, ERI4bf1+ 8*NB1C3, TRANS_KL},
+            {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, ERI4bf1+ 9*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr3, true, EXCHANGE, ERI4bf1+10*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr4, true, EXCHANGE, ERI4bf1+11*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS159);
@@ -2215,10 +2211,10 @@ namespace ChronusQ {
     
         /* Equation (160) first four terms */
         std::vector<TwoBodyContraction<MatsT>> contractGLS160A =
-          { {contract1PDMSL.Z().pointer(), Scr1, true, EXCHANGE, ERI4bf1+ 8*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, ERI4bf1+ 9*NB1C3, 2},
-            {contract1PDMSL.X().pointer(), Scr3, true, EXCHANGE, ERI4bf1+10*NB1C3, 2},
-            {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, ERI4bf1+11*NB1C3, 2} };
+          { {contract1PDMSL.Z().pointer(), Scr1, true, EXCHANGE, ERI4bf1+ 8*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, ERI4bf1+ 9*NB1C3, TRANS_KL},
+            {contract1PDMSL.X().pointer(), Scr3, true, EXCHANGE, ERI4bf1+10*NB1C3, TRANS_KL},
+            {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, ERI4bf1+11*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS160A);
@@ -2231,9 +2227,9 @@ namespace ChronusQ {
     
         /* Equation (160) last three terms */
         std::vector<TwoBodyContraction<MatsT>> contractGLS160B =
-          { {contract1PDMSL.Z().pointer(), Scr1, true, EXCHANGE, ERI4bf1+18*NB1C3, 2},
-            {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, ERI4bf1+14*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr3, true, EXCHANGE, ERI4bf1+16*NB1C3, 2} };
+          { {contract1PDMSL.Z().pointer(), Scr1, true, EXCHANGE, ERI4bf1+18*NB1C3, TRANS_KL},
+            {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, ERI4bf1+14*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr3, true, EXCHANGE, ERI4bf1+16*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS160B);
@@ -2247,10 +2243,10 @@ namespace ChronusQ {
     
         /* Equation (161) first four terms */
         std::vector<TwoBodyContraction<MatsT>> contractGLS161A =
-          { {contract1PDMSL.X().pointer(), Scr1, true, EXCHANGE, ERI4bf1+ 8*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, ERI4bf1+11*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, ERI4bf1+10*NB1C3, 2},
-            {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, ERI4bf1+ 9*NB1C3, 2} };
+          { {contract1PDMSL.X().pointer(), Scr1, true, EXCHANGE, ERI4bf1+ 8*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, ERI4bf1+11*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, ERI4bf1+10*NB1C3, TRANS_KL},
+            {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, ERI4bf1+ 9*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS161A);
@@ -2263,9 +2259,9 @@ namespace ChronusQ {
     
         /* Equation (161) last three terms */
         std::vector<TwoBodyContraction<MatsT>> contractGLS161B =
-          { {contract1PDMSL.X().pointer(), Scr1, true, EXCHANGE, ERI4bf1+19*NB1C3, 2},
-            {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, ERI4bf1+12*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, ERI4bf1+14*NB1C3, 2} };
+          { {contract1PDMSL.X().pointer(), Scr1, true, EXCHANGE, ERI4bf1+19*NB1C3, TRANS_KL},
+            {contract1PDMSL.Y().pointer(), Scr2, true, EXCHANGE, ERI4bf1+12*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, ERI4bf1+14*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS161B);
@@ -2278,10 +2274,10 @@ namespace ChronusQ {
     
         /* Equation (162) first four terms */
         std::vector<TwoBodyContraction<MatsT>> contractGLS162A =
-          { {contract1PDMSL.Y().pointer(), Scr1, true, EXCHANGE, ERI4bf1+ 8*NB1C3, 2},
-            {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, ERI4bf1+11*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, ERI4bf1+ 9*NB1C3, 2},
-            {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, ERI4bf1+10*NB1C3, 2} };
+          { {contract1PDMSL.Y().pointer(), Scr1, true, EXCHANGE, ERI4bf1+ 8*NB1C3, TRANS_KL},
+            {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, ERI4bf1+11*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, ERI4bf1+ 9*NB1C3, TRANS_KL},
+            {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, ERI4bf1+10*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS162A);
@@ -2294,9 +2290,9 @@ namespace ChronusQ {
     
         /* Equation (162) last three terms */
         std::vector<TwoBodyContraction<MatsT>> contractGLS162B =
-          { {contract1PDMSL.Y().pointer(), Scr1, true, EXCHANGE, ERI4bf1+20*NB1C3, 2},
-            {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, ERI4bf1+12*NB1C3, 2},
-            {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, ERI4bf1+16*NB1C3, 2} };
+          { {contract1PDMSL.Y().pointer(), Scr1, true, EXCHANGE, ERI4bf1+20*NB1C3, TRANS_KL},
+            {contract1PDMSL.X().pointer(), Scr2, true, EXCHANGE, ERI4bf1+12*NB1C3, TRANS_KL},
+            {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, ERI4bf1+16*NB1C3, TRANS_KL} };
     
         // Call the contraction engine to do the assembly
         relERICon.twoBodyContract3Index(ss.comm, contractGLS162B);

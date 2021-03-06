@@ -33,38 +33,37 @@ namespace ChronusQ {
 
   /**
    *  \brief Compute the 4C Relativistic Core Hamiltonian
+   *
+   *  Hamiltonian format:
+   *         [ V               T ]
+   *         [ T     1/(4c^2)W-T ]
    */
   template <typename MatsT, typename IntsT>
   void FourComponent<MatsT,IntsT>::compute4CCH(EMPerturbation&,
       std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH) {
 
     size_t NB = basisSet_.nBasis;
-    // ==================================================
-    // Hongbins version.
-    // ==================================================
-    // HBL: 4C Implementation
-    // HBL: (V               T)
-    // HBL: (T     1/(4c^2)W-T)
 
-    // Forming 1/(4c^2)*W-T
+    // Form 1/(4c^2)*W-T
     SquareMatrix<dcomplex> W_spinBlock(1./(4. * SpeedOfLight * SpeedOfLight)
         * std::dynamic_pointer_cast<OneERelInts<IntsT>>(
               this->aoints_.potential)->template formW<dcomplex>()
         - this->aoints_.kinetic->matrix()
               .template spatialToSpinBlock<dcomplex>());
 
-    // HBL 4c: Spin Scatter 
+    // Spin Scatter 
     PauliSpinorSquareMatrices<dcomplex> W(W_spinBlock.spinScatter<dcomplex>());
 
     // Set the V block in the first diagonal of CH
     // V = [ V   0 ]
     //     [ 0   V ] 
-    // HBL: [ V   |    ]    [ V1    |      ]
+    //
+    //      [ V   |    ]    [ V1    |      ]
     //      [   V |    ] => [   V2  |      ]
     //      [     |    ]    [       |      ]
     //      [     |    ]    [       |      ]
     
-    // HBL 4c: Spin Scatter
+    // Spin Scatter
     PauliSpinorSquareMatrices<dcomplex> V2C(
         PauliSpinorSquareMatrices<dcomplex>::spinBlockScatterBuild(
             this->aoints_.potential->matrix(),
@@ -84,18 +83,22 @@ namespace ChronusQ {
             this->aoints_.kinetic->matrix()));
 
     // Build 4C coreH
+    // Scalar
     SetMat('N',NB,NB,dcomplex(1.),V2C.S().pointer(),NB,coreH->S().pointer(),2*NB);
     SetMat('N',NB,NB,dcomplex(1.),T2C.S().pointer(),NB,coreH->S().pointer()+NB,2*NB);
     SetMat('N',NB,NB,dcomplex(1.),T2C.S().pointer(),NB,coreH->S().pointer()+2*NB*NB,2*NB);
     SetMat('N',NB,NB,dcomplex(1.),W.S().pointer(),NB,coreH->S().pointer()+2*NB*NB+NB,2*NB);
 
+    // MZ
     SetMat('N',NB,NB,dcomplex(1.),V2C.Z().pointer(),NB,coreH->Z().pointer(),2*NB);
     SetMat('N',NB,NB,dcomplex(1.),T2C.Z().pointer(),NB,coreH->Z().pointer()+NB,2*NB);
     SetMat('N',NB,NB,dcomplex(1.),T2C.Z().pointer(),NB,coreH->Z().pointer()+2*NB*NB,2*NB);
     SetMat('N',NB,NB,dcomplex(1.),W.Z().pointer(),NB,coreH->Z().pointer()+2*NB*NB+NB,2*NB);
 
+    // MY
     SetMat('N',NB,NB,dcomplex(1.),W.Y().pointer(),NB,coreH->Y().pointer()+2*NB*NB+NB,2*NB);
 
+    // MX
     SetMat('N',NB,NB,dcomplex(1.),W.X().pointer(),NB,coreH->X().pointer()+2*NB*NB+NB,2*NB);
 
   };  // void FourComponent::compute4CCH(std::vector<MatsT*> &CH)

@@ -243,11 +243,11 @@ namespace ChronusQ {
     size_t NB2 = NB * NB;
     size_t NB3 = NB * NB2;
 
-    if( C.ERI4 == nullptr) C.ERI4 = reinterpret_cast<double*>(eri4I.pointer());
+    if( C.ERI4 == nullptr ) C.ERI4 = reinterpret_cast<double*>(eri4I.pointer());
 
     memset(C.AX,0.,NB2*sizeof(MatsT));
 
-    if(C.IntTrans==2) {
+    if( C.intTrans == TRANS_KL ) {
 
       // D(μν) = D(λκ)(μν|[κλ]^T) = D(λκ)(μν|λκ)
       #pragma omp parallel for
@@ -259,7 +259,8 @@ namespace ChronusQ {
         C.AX[m + n*NB] += C.ERI4[m + n*NB + l*NB2 + k*NB3] * C.X[l + k*NB];
 
       }
-    } else if(C.IntTrans==1) {
+
+    } else if( C.intTrans == TRANS_MNKL ) {
 
       // D(μν) = D(λκ)(μν|κλ)^T = D(λκ)(κλ|μν)
       #pragma omp parallel for
@@ -272,7 +273,7 @@ namespace ChronusQ {
 
       }
 
-    } else if (C.IntTrans == 0) {
+    } else if( C.intTrans == TRANS_NONE ) {
 
       // D(μν) = D(λκ)(μν|κλ)
       #pragma omp parallel for
@@ -305,7 +306,7 @@ namespace ChronusQ {
 
     memset(C.AX,0.,NB2*sizeof(MatsT));
 
-    if(C.IntTrans == 2) {
+    if( C.intTrans == TRANS_KL ) {
 
       // D(μν) = D(λκ)(μλ|[κν]^T) = D(λκ)(μλ|νκ)
       #pragma omp parallel for
@@ -318,7 +319,7 @@ namespace ChronusQ {
 
       }
 
-    } else if(C.IntTrans == 1) {
+    } else if( C.intTrans == TRANS_MNKL ) {
 
       // D(μν) = D(λκ)(μλ|κν)^T = D(λκ)(κν|μλ)
       #pragma omp parallel for
@@ -331,7 +332,7 @@ namespace ChronusQ {
 
       }
 
-    } else if (C.IntTrans == 0){
+    } else if( C.intTrans == TRANS_NONE ) {
 
       // D(μν) = D(λκ)(μλ|κν)
       #pragma omp parallel for

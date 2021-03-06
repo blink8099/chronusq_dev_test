@@ -71,9 +71,11 @@ namespace ChronusQ {
     // Single element interfaces
     virtual IntsT operator()(size_t p, size_t q, size_t r, size_t s) const {
       CErr("NYI");
+      return 0;
     }
     virtual IntsT operator()(size_t pq, size_t rs) const {
       CErr("NYI");
+      return 0;
     }
 
     // Computation interfaces

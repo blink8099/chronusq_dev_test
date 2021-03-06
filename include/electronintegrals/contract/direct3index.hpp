@@ -99,7 +99,7 @@ namespace ChronusQ {
 
     memset(C.AX,0.,NB*sizeof(MatsT));
 
-    if(C.IntTrans==2) {
+    if( C.intTrans == TRANS_KL ) {
 
       // D(μν) = D(λκ)(μν|[κλ]^T) = D(λκ)(μν|λκ)
       #pragma omp parallel for
@@ -110,12 +110,12 @@ namespace ChronusQ {
         C.AX[n] += C.ERI4[   n + l*NB + k*NB2] * C.X[l + k*NB];
 
       }
-    } else if(C.IntTrans==1) {
+    } else if( C.intTrans == TRANS_MNKL ) {
 
       // D(μν) = D(λκ)(μν|κλ)^T = D(λκ)(κλ|μν)
-      CErr("Invalid C.InTrans in 3-Index AO Direct",std::cout);
+      CErr("Invalid C.intTrans in 3-Index AO Direct",std::cout);
       
-    } else if (C.IntTrans == 0) {
+    } else if( C.intTrans == TRANS_NONE ) {
 
       // D(μν) = D(λκ)(μν|κλ)
       #pragma omp parallel for
@@ -171,7 +171,7 @@ namespace ChronusQ {
 
     memset(C.AX,0.,NB*sizeof(MatsT));
 
-    if(C.IntTrans == 2) {
+    if( C.intTrans == TRANS_KL ) {
       
       // D(μν) = D(λκ)(μλ|[κν]^T) = D(λκ)(μλ|νκ)
       #pragma omp parallel for
@@ -183,12 +183,12 @@ namespace ChronusQ {
 
       }
 
-    } else if(C.IntTrans == 1) {
+    } else if( C.intTrans == TRANS_MNKL ) {
       
       // D(μν) = D(λκ)(μλ|κν)^T = D(λκ)(κν|μλ)
-      CErr("Invalid C.InTrans in 3-Index AO Direct",std::cout);
+      CErr("Invalid C.intTrans in 3-Index AO Direct",std::cout);
 
-    } else if (C.IntTrans == 0){
+    } else if( C.intTrans == TRANS_NONE ){
 
       // D(μν) = D(λκ)(μλ|κν)
       #pragma omp parallel for

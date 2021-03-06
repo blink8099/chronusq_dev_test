@@ -77,66 +77,63 @@ namespace ChronusQ {
     size_t LAThreads = GetLAThreads();
     SetLAThreads(1); // Turn off parallelism in LA functions
 
-    // There are 78 2nd Derivatives per ERI 
-    int AxBx = 3;
-    int AxBy = 4;
-    int AxBz = 5;
-    int AyBx = 14;
-    int AyBy = 15;
-    int AyBz = 16;
-    int AzBx = 24;
-    int AzBy = 25;
-    int AzBz = 26;
-
-    int CxDx = 60;
-    int CxDy = 61;
-    int CxDz = 62;
-    int CyDx = 65;
-    int CyDy = 66;
-    int CyDz = 67;
-    int CzDx = 69;
-    int CzDy = 70;
-    int CzDz = 71;
-
-    int AxCx = 6;
-    int AxCy = 7;
-    int AxCz = 8;
-    int AyCx = 17;
-    int AyCy = 18;
-    int AyCz = 19;
-    int AzCx = 27;
-    int AzCy = 28;
-    int AzCz = 29;
-
-    int AxDx = 9;
-    int AxDy = 10;
-    int AxDz = 11;
-    int AyDx = 20;
-    int AyDy = 21;
-    int AyDz = 22;
-    int AzDx = 30;
-    int AzDy = 31;
-    int AzDz = 32;
-
-    int BxCx = 36;
-    int BxCy = 37;
-    int BxCz = 38;
-    int ByCx = 44;
-    int ByCy = 45;
-    int ByCz = 46;
-    int BzCx = 51;
-    int BzCy = 52;
-    int BzCz = 53;
-
-    int BxDx = 39;
-    int BxDy = 40;
-    int BxDz = 41;
-    int ByDx = 47;
-    int ByDy = 48;
-    int ByDz = 49;
-    int BzDx = 54;
-    int BzDy = 55;
-    int BzDz = 56;
+    // There are 78 2nd Derivatives per ERI
+    enum ERI_2ND_DERIV_IDX {
+      AxBx = 3,
+      AxBy = 4,
+      AxBz = 5,
+      AyBx = 14,
+      AyBy = 15,
+      AyBz = 16,
+      AzBx = 24,
+      AzBy = 25,
+      AzBz = 26,
+      CxDx = 60,
+      CxDy = 61,
+      CxDz = 62,
+      CyDx = 65,
+      CyDy = 66,
+      CyDz = 67,
+      CzDx = 69,
+      CzDy = 70,
+      CzDz = 71,
+      AxCx = 6,
+      AxCy = 7,
+      AxCz = 8,
+      AyCx = 17,
+      AyCy = 18,
+      AyCz = 19,
+      AzCx = 27,
+      AzCy = 28,
+      AzCz = 29,
+      AxDx = 9,
+      AxDy = 10,
+      AxDz = 11,
+      AyDx = 20,
+      AyDy = 21,
+      AyDz = 22,
+      AzDx = 30,
+      AzDy = 31,
+      AzDz = 32,
+      BxCx = 36,
+      BxCy = 37,
+      BxCz = 38,
+      ByCx = 44,
+      ByCy = 45,
+      ByCz = 46,
+      BzCx = 51,
+      BzCy = 52,
+      BzCz = 53,
+      BxDx = 39,
+      BxDy = 40,
+      BxDz = 41,
+      ByDx = 47,
+      ByDy = 48,
+      ByDz = 49,
+      BzDx = 54,
+      BzDy = 55,
+      BzDz = 56
+    };
 
 
     const size_t nBasis   = basisSet_.nBasis;
@@ -174,18 +171,20 @@ namespace ChronusQ {
     //
     // Allocate thread local storage to store integral contractions
 
-    int LLMS = 0;
-    int LLMX = 1;
-    int LLMY = 2;
-    int LLMZ = 3;
-    int SSMS = 4;
-    int SSMX = 5;
-    int SSMY = 6;
-    int SSMZ = 7;
-    int LSMS = 8;
-    int LSMX = 9;
-    int LSMY = 10;
-    int LSMZ = 11;
+    enum DIRAC_PAULI_SPINOR_COMP {
+      LLMS,
+      LLMX,
+      LLMY,
+      LLMZ,
+      SSMS,
+      SSMX,
+      SSMY,
+      SSMZ,
+      LSMS,
+      LSMX,
+      LSMY,
+      LSMZ
+    };
 
     for(auto iMat = 0; iMat < nMat; iMat++)
       memset(matList[iMat].AX,0.,nBasis*nBasis*sizeof(MatsT));
