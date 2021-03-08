@@ -31,7 +31,7 @@
 #include <cqlinalg/blasext.hpp>
 
 // Use stupid but bullet proof incore contraction for debug
-#define _BULLET_PROOF_INCORE
+//#define _BULLET_PROOF_INCORE_REL_RI
 
 namespace ChronusQ {
 
@@ -95,7 +95,7 @@ namespace ChronusQ {
 //    if( C.ERI4 == nullptr) C.ERI4 = reinterpret_cast<double*>(ERI);
 
 
-#ifdef _BULLET_PROOF_INCORE
+#ifdef _BULLET_PROOF_INCORE_REL_RI
 
     memset(C.AX,0.,NB*sizeof(MatsT));
 
@@ -130,28 +130,26 @@ namespace ChronusQ {
     }
  
 
-#else //_BULLET_PROOF_INCORE 
+#else //_BULLET_PROOF_INCORE_REL_RI
 
 
     if( std::is_same<IntsT,dcomplex>::value )
-      Gemm('C','N',nSQ_,1,nSQ_,MatsT(1.),C.ERI4,nSQ_,C.X,nSQ_,MatsT(0.),C.AX,nSQ_);
+      Gemm('C','N',NB2,1,NB2,MatsT(1.),C.ERI4,NB2,C.X,NB2,MatsT(0.),C.AX,NB2);
     else
-      Gemm('N','N',nSQ_,1,nSQ_,MatsT(1.),C.ERI4,nSQ_,C.X,nSQ_,MatsT(0.),C.AX,nSQ_);
+      Gemm('N','N',NB2,1,NB2,MatsT(1.),C.ERI4,NB2,C.X,NB2,MatsT(0.),C.AX,NB2);
 
     // if Complex ints + Hermitian, conjugate
     if( std::is_same<IntsT,dcomplex>::value and C.HER )
-      IMatCopy('R',basisSet_.nBasis,basisSet_.nBasis,
-        MatsT(1.),C.AX,basisSet_.nBasis,basisSet_.nBasis);
+      IMatCopy('R',NB,NB,MatsT(1.),C.AX,NB,NB);
 
     // If non-hermetian, transpose
     if( not C.HER )  {
 
-      IMatCopy('T',basisSet_.nBasis,basisSet_.nBasis,
-        MatsT(1.),C.AX,basisSet_.nBasis,basisSet_.nBasis);
+      IMatCopy('T',NB,NB,MatsT(1.),C.AX,NB,NB);
 
     }
 
-#endif //_BULLET_PROOF_INCORE 
+#endif //_BULLET_PROOF_INCORE_REL_RI
 
   }; // GTODirectRelERIContraction::JContract3Index
 
@@ -167,7 +165,7 @@ namespace ChronusQ {
     // XSLI: This line breaks GIAO
 //    if( C.ERI4 == nullptr) C.ERI4 = reinterpret_cast<double*>(ERI);
 
-#ifdef _BULLET_PROOF_INCORE
+#ifdef _BULLET_PROOF_INCORE_REL_RI
 
     memset(C.AX,0.,NB*sizeof(MatsT));
 
@@ -201,18 +199,18 @@ namespace ChronusQ {
       }
     }
 
-#else //_BULLET_PROOF_INCORE
+#else //_BULLET_PROOF_INCORE_REL_RI
 
     size_t LAThreads = GetLAThreads();
     SetLAThreads(1);
 
     #pragma omp parallel for
     for(auto nu = 0; nu < NB; nu++)
-      Gemm('N','N',NB,1,nSQ_,MatsT(1.),C.ERI4+nu*NB3,NB,C.X,nSQ_,MatsT(0.),C.AX+nu*NB,NB);
+      Gemm('N','N',NB,1,NB2,MatsT(1.),C.ERI4+nu*NB3,NB,C.X,NB2,MatsT(0.),C.AX+nu*NB,NB);
 
     SetLAThreads(LAThreads);
 
-#endif //_BULLET_PROOF_INCORE
+#endif //_BULLET_PROOF_INCORE_REL_RI
 
   }; // GTODirectRelERIContraction::KContract3Index
 
