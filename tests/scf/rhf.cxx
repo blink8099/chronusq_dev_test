@@ -46,6 +46,13 @@ TEST( RHF, NeHe_RHF_STO3G_ISO ) {
  
 };
 
+// HeKr sto-3g test for fchk parsing
+TEST( RHF, HeKr_sto3G ) {
+
+  CQSCFFCHKTEST( "scf/serial/rhf/HeKr_sto-3G", "HeKr_sto-3G.bin.ref", "HeKr_sto-3G.fchk" );
+
+};
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-31G(d) test
