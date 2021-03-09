@@ -33,6 +33,16 @@ namespace ChronusQ {
     PAIR     ///< (mn | kl) X(nl)
   }; ///< 2-Body Tensor Contraction Specification
 
+
+  // ERI transpose type
+  enum INTEGRAL_TRANSPOSE {
+    TRANS_NONE,
+    TRANS_MNKL,
+    TRANS_KL,
+    TRANS_MN
+  };
+
+
   /**
    *  The TwoBodyContraction struct. Stores information
    *  pertinant for a two body operator contraction with
@@ -41,6 +51,7 @@ namespace ChronusQ {
   template <typename T>
   struct TwoBodyContraction {
 
+
     T*  X;  ///< 1-Body (2 index) operator to contraction
     T*  AX; ///< 1-Body (2 index) storage for the contraction
 
@@ -48,7 +59,13 @@ namespace ChronusQ {
 
     TWOBODY_CONTRACTION_TYPE contType;
 
+    double* ERI4 = nullptr;
+
+    INTEGRAL_TRANSPOSE intTrans;
+
+
   }; // struct TwoBodyContraction
+
 
   /**
    *  \brief Templated class to handle the evaluation and storage of

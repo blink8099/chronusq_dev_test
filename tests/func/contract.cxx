@@ -122,7 +122,7 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   // AOIntegrals object
   Integrals<double> aoints;
   aoints.ERI =
-      std::make_shared<DirectERI<double>>(*memManager,*basis,1e-12);
+      std::make_shared<DirectERI<double>>(*memManager,*basis,mol,1e-12);
   
   // Scratch memory
   size_t NB = basis->nBasis;

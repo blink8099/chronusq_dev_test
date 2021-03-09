@@ -27,7 +27,7 @@
 #include <electronintegrals/twoeints/incore4indexeri.hpp>
 #include <electronintegrals/twoeints/incorerieri.hpp>
 #include <electronintegrals/twoeints/gtodirecteri.hpp>
-#include <electronintegrals/relativisticints.hpp>
+#include <electronintegrals/oneeints/relativisticints.hpp>
 #include <electronintegrals/multipoleints.hpp>
 #include <integrals.hpp>
 #include <cqlinalg.hpp>

@@ -105,7 +105,7 @@ namespace ChronusQ {
 
     // Computation interfaces
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
-        OPERATOR, const AOIntsOptions&);
+        OPERATOR, const HamiltonianOptions&);
 
     virtual void clear() { mat_.clear(); }
 

@@ -1,4 +1,4 @@
-/* 
+/*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
  *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
@@ -31,6 +31,7 @@
 #include <cqlinalg/blasext.hpp>
 #include <electronintegrals/twoeints/incore4indexeri.hpp>
 #include <electronintegrals/twoeints/incorerieri.hpp>
+#include <electronintegrals/twoeints/incore4indexreleri.hpp>
 
 // Use stupid but bullet proof incore contraction for debug
 //#define _BULLET_PROOF_INCORE
@@ -61,9 +62,16 @@ namespace ChronusQ {
       EMPerturbation&) const {
     ROOT_ONLY(comm);
 
-    if (typeid(*this) == typeid(InCore4indexERIContraction<MatsT,IntsT>)
-        and typeid(this->ints_) != typeid(InCore4indexERI<IntsT>))
-      CErr("InCore4indexERIContraction expect a InCore4indexERI reference.");
+    if (typeid(*this) == typeid(InCore4indexRelERIContraction<MatsT,IntsT>)
+        and typeid(this->ints_) != typeid(InCore4indexRelERI<IntsT>))
+      CErr("InCore4indexRelERIContraction expect a InCore4indexRelERI reference.");
+
+    if (typeid(*this) == typeid(InCore4indexERIContraction<MatsT,IntsT>))
+      try {
+        dynamic_cast<InCore4indexERI<IntsT>&>(this->ints_);
+      } catch (const std::bad_cast&) {
+        CErr("InCore4indexERIContraction expect a InCore4indexERI reference.");
+      }
 
     if (typeid(*this) == typeid(InCoreRIERIContraction<MatsT,IntsT>))
       try {
@@ -140,14 +148,13 @@ namespace ChronusQ {
 
     #ifdef _BULLET_PROOF_INCORE
 
-    size_t NB3 = basisSet_.nBasis * nSQ_;
-    for(auto i = 0; i < basisSet_.nBasis; ++i)
-    for(auto j = 0; j < basisSet_.nBasis; ++j)
-    for(auto k = 0; k < basisSet_.nBasis; ++k)
-    for(auto l = 0; l < basisSet_.nBasis; ++l) 
+    size_t NB3 = NB * NB2;
+    for(auto i = 0; i < NB; ++i)
+    for(auto j = 0; j < NB; ++j)
+    for(auto k = 0; k < NB; ++k)
+    for(auto l = 0; l < NB; ++l)
 
-      C.AX[i + j*basisSet_.nBasis] +=ERI[i + j*basisSet_.nBasis + l*nSQ_ + k*NB3] *
-        C.X[k + l*basisSet_.nBasis];
+      C.AX[i + j*NB] += eri4I(i, j, l, k) * C.X[k + l*NB];
 
     #else
 
@@ -197,13 +204,11 @@ namespace ChronusQ {
 
     #ifdef _BULLET_PROOF_INCORE
 
-    for(auto i = 0; i < basisSet_.nBasis; ++i)
-    for(auto j = 0; j < basisSet_.nBasis; ++j)
-    for(auto k = 0; k < basisSet_.nBasis; ++k)
-    for(auto l = 0; l < basisSet_.nBasis; ++l) {
-      C.AX[i + j*basisSet_.nBasis] +=
-        ERI[i + k*basisSet_.nBasis + l*nSQ_ + j*NB3] *
-        C.X[k + l*basisSet_.nBasis];
+    for(auto i = 0; i < NB; ++i)
+    for(auto j = 0; j < NB; ++j)
+    for(auto k = 0; k < NB; ++k)
+    for(auto l = 0; l < NB; ++l) {
+      C.AX[i + j*NB] += eri4I(i, k, l, j) * C.X[k + l*NB];
     }
 
     #else
@@ -222,6 +227,126 @@ namespace ChronusQ {
     ProgramTimer::tock("K Contract");
 
   }; // InCore4indexERIContraction::KContract
+
+
+  /**
+   *  \brief Perform a Coulomb-type (34,12) ERI contraction with
+   *  a one-body operator.
+   */
+  template <typename MatsT, typename IntsT>
+  void InCore4indexRelERIContraction<MatsT, IntsT>::JContract(
+      MPI_Comm, TwoBodyContraction<MatsT> &C) const {
+
+    InCore4indexRelERI<IntsT> &eri4I =
+        dynamic_cast<InCore4indexRelERI<IntsT>&>(this->ints_);
+    size_t NB = eri4I.nBasis();
+    size_t NB2 = NB * NB;
+    size_t NB3 = NB * NB2;
+
+    if( C.ERI4 == nullptr ) C.ERI4 = reinterpret_cast<double*>(eri4I.pointer());
+
+    memset(C.AX,0.,NB2*sizeof(MatsT));
+
+    if( C.intTrans == TRANS_KL ) {
+
+      // D(μν) = D(λκ)(μν|[κλ]^T) = D(λκ)(μν|λκ)
+      #pragma omp parallel for
+      for(auto m = 0; m < NB; ++m)
+      for(auto n = 0; n < NB; ++n)
+      for(auto k = 0; k < NB; ++k)
+      for(auto l = 0; l < NB; ++l) {
+
+        C.AX[m + n*NB] += C.ERI4[m + n*NB + l*NB2 + k*NB3] * C.X[l + k*NB];
+
+      }
+
+    } else if( C.intTrans == TRANS_MNKL ) {
+
+      // D(μν) = D(λκ)(μν|κλ)^T = D(λκ)(κλ|μν)
+      #pragma omp parallel for
+      for(auto m = 0; m < NB; ++m)
+      for(auto n = 0; n < NB; ++n)
+      for(auto k = 0; k < NB; ++k)
+      for(auto l = 0; l < NB; ++l) {
+
+        C.AX[m + n*NB] += C.ERI4[k + l*NB + m*NB2 + n*NB3]*C.X[l + k*NB];
+
+      }
+
+    } else if( C.intTrans == TRANS_NONE ) {
+
+      // D(μν) = D(λκ)(μν|κλ)
+      #pragma omp parallel for
+      for(auto m = 0; m < NB; ++m)
+      for(auto n = 0; n < NB; ++n)
+      for(auto k = 0; k < NB; ++k)
+      for(auto l = 0; l < NB; ++l) {
+
+        C.AX[m + n*NB] += C.ERI4[m + n*NB + k*NB2 + l*NB3] * C.X[l + k*NB];
+
+      }
+
+    }
+
+
+  }; // InCore4indexRelERIContraction::JContract
+
+
+  template <typename MatsT, typename IntsT>
+  void InCore4indexRelERIContraction<MatsT, IntsT>::KContract(
+      MPI_Comm, TwoBodyContraction<MatsT> &C) const {
+
+    InCore4indexRelERI<IntsT> &eri4I =
+        dynamic_cast<InCore4indexRelERI<IntsT>&>(this->ints_);
+    size_t NB = eri4I.nBasis();
+    size_t NB2 = NB * NB;
+    size_t NB3 = NB * NB2;
+
+    if( C.ERI4 == nullptr) C.ERI4 = reinterpret_cast<double*>(eri4I.pointer());
+
+    memset(C.AX,0.,NB2*sizeof(MatsT));
+
+    if( C.intTrans == TRANS_KL ) {
+
+      // D(μν) = D(λκ)(μλ|[κν]^T) = D(λκ)(μλ|νκ)
+      #pragma omp parallel for
+      for(auto m = 0; m < NB; ++m)
+      for(auto n = 0; n < NB; ++n)
+      for(auto k = 0; k < NB; ++k)
+      for(auto l = 0; l < NB; ++l) {
+
+        C.AX[m + n*NB] += C.ERI4[m + l*NB + n*NB2 + k*NB3] * C.X[l + k*NB];
+
+      }
+
+    } else if( C.intTrans == TRANS_MNKL ) {
+
+      // D(μν) = D(λκ)(μλ|κν)^T = D(λκ)(κν|μλ)
+      #pragma omp parallel for
+      for(auto m = 0; m < NB; ++m)
+      for(auto n = 0; n < NB; ++n)
+      for(auto k = 0; k < NB; ++k)
+      for(auto l = 0; l < NB; ++l) {
+
+        C.AX[m + l*NB] += C.ERI4[k + l*NB + m*NB2 + n*NB3] * C.X[n + k*NB];
+
+      }
+
+    } else if( C.intTrans == TRANS_NONE ) {
+
+      // D(μν) = D(λκ)(μλ|κν)
+      #pragma omp parallel for
+      for(auto m = 0; m < NB; ++m)
+      for(auto n = 0; n < NB; ++n)
+      for(auto k = 0; k < NB; ++k)
+      for(auto l = 0; l < NB; ++l) {
+
+        C.AX[m + n*NB] += C.ERI4[m + l*NB + k*NB2 + n*NB3] * C.X[l + k*NB];
+
+      }
+    }
+
+  }; // InCore4indexRelERIContraction::KContract
 
 
   /**
@@ -273,14 +398,12 @@ namespace ChronusQ {
 
     // if Complex ints + Hermitian, conjugate
 //    if( std::is_same<IntsT,dcomplex>::value and C.HER )
-//      IMatCopy('R',basisSet_.nBasis,basisSet_.nBasis,
-//        IntsT(1.),AX,basisSet_.nBasis,basisSet_.nBasis);
+//      IMatCopy('R',NB,NB,IntsT(1.),AX,NB,NB);
 
     // If non-hermetian, transpose
 //    if( not C.HER )  {
 
-//      IMatCopy('T',basisSet_.nBasis,basisSet_.nBasis,
-//        IntsT(1.),AX,basisSet_.nBasis,basisSet_.nBasis);
+//      IMatCopy('T',NB,NB,IntsT(1.),AX,NB,NB);
 
 //    }
 

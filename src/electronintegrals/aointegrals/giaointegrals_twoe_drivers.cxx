@@ -39,8 +39,8 @@ namespace ChronusQ {
    *  in house GIAO code over the CGTO basis.
    */ 
   template <>
-  void InCore4indexERI<dcomplex>::computeAOInts(BasisSet &basisSet, Molecule&,
-      EMPerturbation &emPert, OPERATOR op, const AOIntsOptions &options) {
+  void InCore4indexERI<dcomplex>::computeERINR(BasisSet &basisSet, Molecule&,
+      EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &options) {
 
     if (op != ELECTRON_REPULSION)
       CErr("Only Electron repulsion integrals in InCore4indexERI<dcomplex>",std::cout);

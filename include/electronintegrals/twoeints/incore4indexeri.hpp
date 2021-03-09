@@ -106,8 +106,22 @@ namespace ChronusQ {
     const IntsT* pointer() const { return ERI; }
 
     // Computation interfaces
-    virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
-        OPERATOR, const AOIntsOptions&);
+    virtual void computeAOInts(BasisSet &basisSet, Molecule &mol,
+        EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &hamiltonianOptions) {
+
+      // Use Libcint to compute nonrelativistic integrals
+      if ( hamiltonianOptions.Libcint ) computeERINRCINT(basisSet, mol, emPert, op, hamiltonianOptions);
+      // Use Libint to compute nonrelativistic integrals
+      else  computeERINR(basisSet, mol, emPert, op, hamiltonianOptions);
+
+    }
+
+    /// Evaluate nonrealtivistic ERIs in the CGTO basis
+    void computeERINR(BasisSet&, Molecule&, EMPerturbation&,
+        OPERATOR, const HamiltonianOptions&);
+    void computeERINRCINT(BasisSet&, Molecule&, EMPerturbation&,
+        OPERATOR, const HamiltonianOptions&);
+
 
     virtual void clear() {
       std::fill_n(ERI, NB2*NB2, IntsT(0.));
@@ -204,7 +218,7 @@ namespace ChronusQ {
     virtual void twoBodyContract(
         MPI_Comm comm,
         const bool,
-        std::vector<TwoBodyContraction<MatsT>> &list,
+        std::vector<TwoBodyContraction<MatsT>>&,
         EMPerturbation&) const;
 
     virtual void JContract(

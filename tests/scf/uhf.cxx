@@ -56,7 +56,8 @@ TEST( UHF, KCaKrK_sto3G ) {
 // H atom 3-21g post-scf test
 TEST( UHF, H_321G ) {
 
-  CQSCFTEST( "scf/serial/uhf/H_3-21G", "H_3-21G.bin.ref" );
+  CQSCFTEST( "scf/serial/uhf/H_3-21G", "H_3-21G.bin.ref", 1e-7,
+              true, true, true, true, true, true);
 
 };
 

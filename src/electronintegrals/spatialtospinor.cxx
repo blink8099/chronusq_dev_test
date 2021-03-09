@@ -24,7 +24,7 @@
 
 #include <electronintegrals/twoeints/incore4indexeri.hpp>
 #include <electronintegrals/twoeints/incorerieri.hpp>
-#include <electronintegrals/relativisticints.hpp>
+#include <electronintegrals/oneeints/relativisticints.hpp>
 #include <matrix.hpp>
 #include <cqlinalg.hpp>
 

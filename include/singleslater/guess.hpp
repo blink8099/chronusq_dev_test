@@ -27,6 +27,7 @@
 #include <cqlinalg.hpp>
 #include <util/matout.hpp>
 #include <corehbuilder/nonrel.hpp>
+#include <corehbuilder/x2c.hpp>
 #include <electronintegrals/twoeints/incore4indexeri.hpp>
 
 namespace ChronusQ {
@@ -370,14 +371,23 @@ namespace ChronusQ {
       ss->scfControls.dampError = 1e-4;
       ss->scfControls.nKeep     = 8;
 
-      AOIntsOptions aoiOptions{basisType, false, false, false};
+      HamiltonianOptions hamiltonianOptions;
+      hamiltonianOptions.basisType = basisType;
+
+      // NR Guess
+      hamiltonianOptions.OneEScalarRelativity = false;
+      hamiltonianOptions.OneESpinOrbit = false;
+
       ss->coreHBuilder = std::make_shared<NRCoreH<MatsT,IntsT>>(
-            ss->aoints, aoiOptions);
-      ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>();
+          ss->aoints, hamiltonianOptions);
+//      ss->coreHBuilder = std::make_shared<X2C<MatsT,IntsT>>(
+//          ss->aoints, memManager, atom, basis, hamiltonianOptions);
+      ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>(
+          hamiltonianOptions);
 
       ss->formCoreH(pert);
       aointsAtom->ERI->computeAOInts(basis, atom, pert,
-          ELECTRON_REPULSION, aoiOptions);
+          ELECTRON_REPULSION, hamiltonianOptions);
 
 
       ss->formGuess();

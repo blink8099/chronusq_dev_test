@@ -149,7 +149,7 @@ namespace ChronusQ {
     std::shared_ptr<BasisSet> basis = CQBasisSetOptions(output,input,mol,"BASIS");
     std::shared_ptr<BasisSet> dfbasis = CQBasisSetOptions(output,input,mol,"DFBASIS");
 
-    auto aoints = CQIntsOptions(output,input,*memManager,basis,dfbasis);
+    auto aoints = CQIntsOptions(output,input,*memManager,mol,basis,dfbasis);
 
     auto ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
 
@@ -158,7 +158,6 @@ namespace ChronusQ {
 
     CQSCFOptions(output,input,*ss,emPert);
        
-
 
     bool rstExists = false;
     if( ss->scfControls.guess == READMO or 

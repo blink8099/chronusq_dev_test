@@ -23,7 +23,7 @@
  */
 #include <corehbuilder/x2c/atomic.hpp>
 #include <corehbuilder/nonrel.hpp>
-#include <electronintegrals/relativisticints.hpp>
+#include <electronintegrals/oneeints/relativisticints.hpp>
 #include <matrix.hpp>
 #include <cqlinalg.hpp>
 #include <physcon.hpp>
@@ -76,7 +76,7 @@ namespace ChronusQ {
     std::vector<size_t> cumeNBs;
 
     if (type_.diagonalOnly)
-      NRCoreH<MatsT, IntsT>(this->aoints_, this->aoiOptions_)
+      NRCoreH<MatsT, IntsT>(this->aoints_, this->hamiltonianOptions_)
           .computeNRCH(emPert, coreH);
 
     std::vector<MatsT*> CH(coreH->SZYXPointers());
@@ -122,11 +122,11 @@ namespace ChronusQ {
       if (type_.isolateAtom) {
         aointsAtom = std::make_shared<Integrals<IntsT>>();
         atoms_.emplace_back(*aointsAtom, this->memManager_, atomMol, basis,
-                            this->aoiOptions_);
+                            this->hamiltonianOptions_);
       } else {
         aointsAtom = std::make_shared<Integrals<IntsT>>();
         atoms_.emplace_back(*aointsAtom, this->memManager_, this->molecule_, basis,
-                            this->aoiOptions_);
+                            this->hamiltonianOptions_);
       }
 
     }
@@ -171,7 +171,7 @@ namespace ChronusQ {
     this->uncontractedInts_.computeAOOneE(this->memManager_,
         this->molecule_, this->uncontractedBasis_, emPert,
         {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0}},
-        this->aoiOptions_);
+        this->hamiltonianOptions_);
     this->computeX2C_UDU(emPert, coreH);
     return;
 #endif
@@ -197,7 +197,7 @@ namespace ChronusQ {
     this->uncontractedInts_.computeAOOneE(this->memManager_,
         this->molecule_, this->uncontractedBasis_, emPert,
         {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0}},
-        this->aoiOptions_);
+        this->hamiltonianOptions_);
 
     this->W = std::make_shared<SquareMatrix<MatsT>>(
         std::dynamic_pointer_cast<OneERelInts<IntsT>>(
@@ -276,7 +276,7 @@ namespace ChronusQ {
         Gemm('C','N',2*atomINB,2*atomJNB,2*atomINP,MatsT(1.),
           atoms_[I].US,2*atomINP,SCR,2*atomINP,MatsT(1.),Hx2c,2*atomINB);
 
-        if (this->aoiOptions_.OneESpinOrbit)
+        if (this->hamiltonianOptions_.OneESpinOrbit)
           SpinScatter(atomINB,atomJNB,Hx2c,2*atomINB,HUnS,atomINB,
             HUnZ,atomINB,HUnY,atomINB,HUnX,atomINB);
         else {

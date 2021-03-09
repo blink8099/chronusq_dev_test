@@ -24,6 +24,11 @@
 #pragma once
 
 #include <corehbuilder.hpp>
+#include <molecule.hpp>
+#include <memmanager.hpp>
+#include <basisset.hpp>
+#include <fields.hpp>
+#include <integrals.hpp>
 
 namespace ChronusQ {
 
@@ -32,35 +37,79 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   class FourComponent : public CoreHBuilder<MatsT,IntsT> {
+
+    template <typename MatsU, typename IntsU>
+    friend class FourComponent;
+
   protected:
 
+    CQMemManager    &memManager_;        ///< CQMemManager to allocate matricies
+    Molecule         molecule_;          ///< Molecule object for nuclear potential
+    BasisSet         basisSet_;          ///< BasisSet for original basis defintion
+    BasisSet         uncontractedBasis_; ///< BasisSet for uncontracted basis defintion
+    Integrals<IntsT> uncontractedInts_;  ///< AOIntegrals for uncontracted basis
+    size_t           nPrimUse_;          ///< Number of primitives used in p space
+
   public:
+
+    // Operator storage
+    IntsT*  mapPrim2Cont = nullptr;
+    std::shared_ptr<SquareMatrix<MatsT>> W  = nullptr; ///< W = (\sigma p) V (\sigma p)
+    IntsT*  UK = nullptr; ///< K transformation between p- and R-space
+    double* p  = nullptr; ///< p momentum eigens
+    MatsT*  X  = nullptr; ///< X = S * L^-1
+    MatsT*  Y  = nullptr; ///< Y = sqrt(1 + X**H * X)
+    MatsT*  UL = nullptr; ///< Picture change matrix of large component
+    MatsT*  US = nullptr; ///< Picture change matrix of small component
 
     // Constructors
 
     // Disable default constructor
     FourComponent() = delete;
-    FourComponent(Integrals<IntsT> &aoints):
-      CoreHBuilder<MatsT,IntsT>(aoints, {true,true,true}) {}
 
-    // Same or Different type
+    // Default copy and move constructors
+    FourComponent(const FourComponent<MatsT,IntsT> &);
+    FourComponent(FourComponent<MatsT,IntsT> &&);
+
+    /**
+     * \brief Constructor
+     *
+     *  \param [in] aoints             Reference to the global AOIntegrals
+     *  \param [in] memManager         Memory manager for matrix allocation
+     *  \param [in] mol                Molecule object for molecular specification
+     *  \param [in] basis              The GTO basis for integral evaluation
+     *  \param [in] hamiltonianOptions Flags for AO integrals evaluation
+     */
+    FourComponent(Integrals<IntsT> &aoints, CQMemManager &mem,
+        const Molecule &mol, const BasisSet &basis, HamiltonianOptions hamiltonianOptions) :
+      CoreHBuilder<MatsT,IntsT>(aoints, hamiltonianOptions),
+      memManager_(mem),molecule_(mol), basisSet_(basis),
+      uncontractedBasis_(basisSet_.uncontractBasis()) {}
+
+    // Different type
     template <typename MatsU>
-    FourComponent(const FourComponent<MatsU,IntsT> &other):
-      CoreHBuilder<MatsT,IntsT>(other) {}
+    FourComponent(const FourComponent<MatsU,IntsT> &other, int dummy = 0);
     template <typename MatsU>
-    FourComponent(FourComponent<MatsU,IntsT> &&other):
-      CoreHBuilder<MatsT,IntsT>(other) {}
+    FourComponent(FourComponent<MatsU,IntsT> &&     other, int dummy = 0);
 
-    // Virtual destructor
-    virtual ~FourComponent() {}
+    /**
+     *  Destructor.
+     *
+     *  Destructs a FourComponent object
+     */
+    virtual ~FourComponent() { dealloc(); }
 
-    // Public member functions
+
+    // Public Member functions
+
+    // Deallocation (see include/x2c/impl.hpp for docs)
+    virtual void dealloc();
 
     // Compute core Hamitlonian
     virtual void computeCoreH(EMPerturbation&,
-        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>) {
-      CErr("4C NYI",std::cout);
-    }
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    virtual void compute4CCH(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
 
     // Compute the gradient
     virtual void getGrad() {

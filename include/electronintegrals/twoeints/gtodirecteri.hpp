@@ -37,13 +37,14 @@ namespace ChronusQ {
     BasisSet &basisSet_;
     double threshSchwartz_ = 1e-12; ///< Schwartz screening threshold
     double* schwartz_ = nullptr;   ///< Schwartz bounds for the ERIs
+    Molecule &molecule_;
 
   public:
 
     // Constructor
     DirectERI() = delete;
-    DirectERI(CQMemManager &mem, BasisSet &basis, double threshSchwartz):
-        TwoEInts<IntsT>(mem, basis.nBasis), basisSet_(basis),
+    DirectERI(CQMemManager &mem, BasisSet &basis, Molecule &mol, double threshSchwartz):
+        TwoEInts<IntsT>(mem, basis.nBasis), basisSet_(basis), molecule_(mol),
         threshSchwartz_(threshSchwartz) {}
     DirectERI( const DirectERI &other ):
         DirectERI(other.memManager(), other.nBasis(), other.threshSchwartz_) {
@@ -51,7 +52,7 @@ namespace ChronusQ {
     }
     template <typename IntsU>
     DirectERI( const DirectERI<IntsU> &other, int = 0 ):
-        DirectERI(other.memManager_, other.basisSet_, other.threshSchwartz_) {
+        DirectERI(other.memManager_, other.basisSet_, other.molecule_, other.threshSchwartz_) {
       if (other.schwartz_) {
         size_t NS = basisSet().nShell;
         schwartz_ = this->memManager().template malloc<double>(NS*NS);
@@ -59,24 +60,27 @@ namespace ChronusQ {
       }
     }
     DirectERI( DirectERI &&other ): TwoEInts<IntsT>(std::move(other)),
-        basisSet_(other.basis), threshSchwartz_(other.threshSchwartz_),
+        basisSet_(other.basis), molecule_(other.mol), threshSchwartz_(other.threshSchwartz_),
         schwartz_(other.schwartz_) { other.schwartz_ = nullptr; }
 
     BasisSet& basisSet() { return basisSet_; }
+    Molecule& molecule() { return molecule_; }
     double threshSchwartz() const { return threshSchwartz_; }
     double*& schwartz() { return schwartz_; }
 
     // Single element interfaces
     virtual IntsT operator()(size_t p, size_t q, size_t r, size_t s) const {
       CErr("NYI");
+      return 0;
     }
     virtual IntsT operator()(size_t pq, size_t rs) const {
       CErr("NYI");
+      return 0;
     }
 
     // Computation interfaces
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
-        OPERATOR, const AOIntsOptions&) {}
+        OPERATOR, const HamiltonianOptions&) {}
 
     virtual void clear() {}
 
@@ -164,6 +168,11 @@ namespace ChronusQ {
     }
 
     void directScaffoldNew(
+        MPI_Comm,
+        const bool,
+        std::vector<TwoBodyContraction<MatsT>>&) const;
+
+    void direct4CScaffold(
         MPI_Comm,
         const bool,
         std::vector<TwoBodyContraction<MatsT>>&) const;

@@ -1916,10 +1916,10 @@ namespace ChronusQ {
 
 #ifdef _REPORT_INTEGRAL_TIMINGS
     size_t nIntSkip = std::accumulate(nSkip.begin(),nSkip.end(),0);
-    std::cout << "New Screened " << nIntSkip << std::endl;
+    std::cout << "Screened " << nIntSkip << std::endl;
 
     auto durDirect = tock(topDirect);
-    std::cout << "New Direct Contraction took " <<  durDirect << " s\n"; 
+    std::cout << "Coulomb-Exchange AO Direct Contraction took " <<  durDirect << " s\n"; 
 
     std::cout << std::endl;
 #endif

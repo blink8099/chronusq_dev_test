@@ -30,6 +30,7 @@
 #include <electronintegrals/squarematrix/impl.hpp>
 #include <electronintegrals/twoeints/impl.hpp>
 #include <fockbuilder/rofock.hpp>
+#include <fockbuilder/fourcompfock.hpp>
 
 namespace ChronusQ {
 
@@ -145,22 +146,43 @@ namespace ChronusQ {
 
     size_t NB = basisSet().nBasis;
 
-    SPIN_OPERATOR_ALLOC(NB,fockMatrix);
-    SPIN_OPERATOR_ALLOC(NB,fockMatrixOrtho);
-    SPIN_OPERATOR_ALLOC(NB,onePDMOrtho);
-    SPIN_OPERATOR_ALLOC(NB,coreHPerturbed);
+    if( nC != 4 ) {
+      SPIN_OPERATOR_ALLOC(NB,fockMatrix);
+      SPIN_OPERATOR_ALLOC(NB,fockMatrixOrtho);
+      SPIN_OPERATOR_ALLOC(NB,onePDMOrtho);
+      SPIN_OPERATOR_ALLOC(NB,coreHPerturbed);
 
-    ortho.reserve(2);
-    ortho.emplace_back(memManager, NB);
-    ortho.emplace_back(memManager, NB);
+      ortho.reserve(2);
+      ortho.emplace_back(memManager, NB);
+      ortho.emplace_back(memManager, NB);
 
-    SPIN_OPERATOR_ALLOC(NB,exchangeMatrix);
-    SPIN_OPERATOR_ALLOC(NB,twoeH);
+      SPIN_OPERATOR_ALLOC(NB,exchangeMatrix);
+      SPIN_OPERATOR_ALLOC(NB,twoeH);
 
-    coulombMatrix = std::make_shared<SquareMatrix<MatsT>>(memManager, NB);
+      coulombMatrix = std::make_shared<SquareMatrix<MatsT>>(memManager, NB);
 
-    SPIN_OPERATOR_ALLOC(NB,curOnePDM);
-    SPIN_OPERATOR_ALLOC(NB,deltaOnePDM);
+      SPIN_OPERATOR_ALLOC(NB,curOnePDM);
+      SPIN_OPERATOR_ALLOC(NB,deltaOnePDM);
+    } else {
+
+      SPIN_OPERATOR_ALLOC(2*NB,fockMatrix);
+      SPIN_OPERATOR_ALLOC(2*NB,fockMatrixOrtho);
+      SPIN_OPERATOR_ALLOC(2*NB,onePDMOrtho);
+      SPIN_OPERATOR_ALLOC(2*NB,coreHPerturbed);
+
+      ortho.reserve(2);
+      ortho.emplace_back(memManager, 2*NB);
+      ortho.emplace_back(memManager, 2*NB);
+
+      SPIN_OPERATOR_ALLOC(2*NB,exchangeMatrix);
+      SPIN_OPERATOR_ALLOC(2*NB,twoeH);
+
+      coulombMatrix = std::make_shared<SquareMatrix<MatsT>>(memManager, 2*NB);
+
+      SPIN_OPERATOR_ALLOC(2*NB,curOnePDM);
+      SPIN_OPERATOR_ALLOC(2*NB,deltaOnePDM);
+
+    }
 
   }; // SingleSlater<MatsT>::alloc
 

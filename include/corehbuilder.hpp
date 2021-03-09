@@ -39,8 +39,8 @@ namespace ChronusQ {
     friend class CoreHBuilder;
 
   protected:
-    Integrals<IntsT> &aoints_;
-    AOIntsOptions     aoiOptions_; ///< One electron terms to be computed
+    Integrals<IntsT>  &aoints_;
+    HamiltonianOptions hamiltonianOptions_; ///< One electron terms to be computed
 
   public:
 
@@ -48,22 +48,25 @@ namespace ChronusQ {
 
     // Disable default constructor
     CoreHBuilder() = delete;
-    CoreHBuilder(Integrals<IntsT> &aoints, AOIntsOptions aoiOptions):
-      aoints_(aoints), aoiOptions_(aoiOptions) {}
+    CoreHBuilder(Integrals<IntsT> &aoints, HamiltonianOptions hamiltonianOptions):
+      aoints_(aoints), hamiltonianOptions_(hamiltonianOptions) {}
 
     // Same or Different type
     template <typename MatsU>
     CoreHBuilder(const CoreHBuilder<MatsU,IntsT> &other):
-      aoints_(other.aoints_), aoiOptions_(other.aoiOptions_) {}
+      aoints_(other.aoints_), hamiltonianOptions_(other.hamiltonianOptions_) {}
     template <typename MatsU>
     CoreHBuilder(CoreHBuilder<MatsU,IntsT> &&other):
-      aoints_(other.aoints_), aoiOptions_(other.aoiOptions_) {}
+      aoints_(other.aoints_), hamiltonianOptions_(other.hamiltonianOptions_) {}
 
     // Virtual destructor
     virtual ~CoreHBuilder() {}
 
 
     // Public member functions
+    const HamiltonianOptions& getHamiltonianOptions() const {
+      return hamiltonianOptions_;
+    }
 
     // Compute various core Hamitlonian
     virtual void computeCoreH(EMPerturbation&,

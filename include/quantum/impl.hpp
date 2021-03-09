@@ -96,6 +96,7 @@ namespace ChronusQ {
     std::cout << "Quantum::alloc (this = " << this << ")" << std::endl;
     #endif
 
+    if (nC == 4) N *= 2;
     SPIN_OPERATOR_ALLOC(N,onePDM);
 
   }; // Quantum<T>::alloc

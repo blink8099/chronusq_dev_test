@@ -24,17 +24,19 @@ add_library(electronintegrals STATIC
 transform.cxx
 spatialtospinor.cxx
 aointegrals/aointegrals_onee_drivers.cxx
-aointegrals/aointegrals_onee_engine.cxx
-aointegrals/aointegrals_twoe_drivers.cxx
-aointegrals/aointegrals_twoe_engine.cxx
-aointegrals/aointegrals_twoesp_gto.cxx
+aointegrals/aointegrals_onee_inhouse.cxx
+aointegrals/aointegrals_twoe_libint.cxx
+aointegrals/aointegrals_twoe_libcint.cxx
+aointegrals/aointegrals_twoe_inhouse.cxx
+aointegrals/aointegrals_ri_libint.cxx
+aointegrals/aointegrals_utilities.cxx
 aointegrals/giaointegrals_twoe_drivers.cxx
 aointegrals/giaointegrals_onee_drivers.cxx
-aointegrals/giaointegrals_onee_engine.cxx
-aointegrals/giaointegrals_twoe_engine.cxx
+aointegrals/giaointegrals_onee_inhouse.cxx
+aointegrals/giaointegrals_twoe_inhouse.cxx
 impl.cxx)
 
-target_link_libraries( electronintegrals PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
+target_link_libraries( electronintegrals PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 ChronusQ::Libcint )
 
 if(TARGET libint)
   add_dependencies(electronintegrals libint)

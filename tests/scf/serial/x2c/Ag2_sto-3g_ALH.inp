@@ -14,9 +14,10 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = 2CHF
 job = SCF
-x2ctype = ALH
+x2ctype = OneE
+atomicx2c = ALH
 
 [SCF]
 guess = sad
