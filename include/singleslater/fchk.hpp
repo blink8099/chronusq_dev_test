@@ -159,7 +159,8 @@ namespace ChronusQ {
       if ( tokens.size() == 5 ){
         if ( tokens[0] == "Orthonormal" and tokens[1] == "basis" ){
           if( this-> nC == 1){
-            readBeta = false;
+            if( isBeta ) readBeta = false;
+            else readAlpha = false;
             continue;
           }
           if( this-> nC == 2){
@@ -194,11 +195,11 @@ namespace ChronusQ {
 
     }// end of eof loop
 
-    return sl;
-
     if ( not isBeta and this->nC == 1 and not this->iCS ) CErr("Could not find beta MOs on fchk file!");
 
     fchkFile.close();
+
+    return sl;
 
   } // SingleSlater<T>::fchkToCQMO()
 
