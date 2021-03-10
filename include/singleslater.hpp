@@ -113,6 +113,8 @@ namespace ChronusQ {
     ///< ortho[0] : Orthogonalization matrix which S -> I
     ///< ortho[1] : Inverse of ortho[0]
     std::vector<SquareMatrix<MatsT>> ortho;
+    // Just the gradient of ortho[1]
+    std::vector<SquareMatrix<MatsT>> gradOrtho;
 
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH; ///< Core Hamiltonian (scalar and magnetization)
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreHPerturbed; ///< Perturbed Core Hamiltonian (scalar and magnetization)
@@ -207,6 +209,7 @@ namespace ChronusQ {
     void formCoreH(EMPerturbation&); // Compute the CH
 //  void updateCoreH(EMPerturbation &);
     void computeOrtho();  // Evaluate orthonormalization transformations
+    void computeOrthoGrad(); // Evaluate gradient of orthonormalization
 
     // Method specific properties
     void populationAnalysis();

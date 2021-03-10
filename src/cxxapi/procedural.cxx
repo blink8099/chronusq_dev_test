@@ -232,7 +232,7 @@ namespace ChronusQ {
 
     // casted->gradERI->output(std::cout, "", true);
 
-    InCore4IndexGradContraction<double,double> contract(*(casted->gradERI));
+    InCore4indexGradContraction<double,double> contract(*(casted->gradERI));
 
     auto ssd = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss);
 

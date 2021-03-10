@@ -324,6 +324,91 @@ namespace ChronusQ {
 
   }; // computeOrtho
 
+
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::computeOrthoGrad() {
+
+    size_t NB = basisSet().nBasis;
+    size_t nSQ  = NB*NB;
+
+    size_t nAtoms = this->molecule().nAtoms;
+    size_t nGrad = 3*nAtoms;
+
+
+    // Allocate if we haven't already
+    if( gradOrtho.empty() )
+      for( auto i = 0; i < nGrad; i++ )
+        gradOrtho.emplace_back(memManager, NB);
+    else if( gradOrtho.size() != nGrad )
+      CErr("Mismatched gradient sizes in computeOrthoGrad!");
+
+    for( auto i = 0; i < nGrad; i++ )
+      gradOrtho[i].clear();
+
+    // Check that the overlap gradient has already been computed
+    // (and is still around)
+    if( not this->aoints.gradOverlap )
+      CErr("Gradient overlap object null in computeOrthoGrad");
+    else if( this->aoints.gradOverlap->size() == 0 )
+      CErr("Gradient overlap missing in computeOrthoGrad");
+
+
+    if(orthoType == LOWDIN) {
+
+      // Allocate scratch
+      MatsT* sVecs   = memManager.malloc<MatsT>(nSQ);
+      MatsT* sE      = memManager.malloc<MatsT>(NB);
+      MatsT* weights = memManager.malloc<MatsT>(nSQ);
+      MatsT* SCR1    = memManager.malloc<MatsT>(nSQ);
+      MatsT* SCR2    = memManager.malloc<MatsT>(nSQ);
+
+      
+      // Copy the overlap over to scratch space
+      std::copy_n(this->aoints.overlap->pointer(),nSQ,sVecs);
+
+      // Diagonalize the overlap in scratch S = V * s * V**T
+      HermetianEigen('V','U',NB,sVecs,NB,sE,memManager);
+
+      if( std::abs( sE[0] ) < 1e-10 )
+        CErr("Contracted Basis Set is Linearly Dependent!");
+
+
+      // Compute weights = (sqrt(si) + sqrt(sj))^-1
+      for( auto i = 0; i < NB; i++ )
+      for( auto j = 0; j < NB; j++ ) {
+          weights[i*NB + j] = MatsT(1.) / (std::sqrt(sE[i]) + std::sqrt(sE[j]));
+      }
+
+      // Loop over gradient components
+      for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+
+        // Copy overlap gradient into scratch space
+        std::copy_n((*this->aoints.gradOverlap)[iGrad]->pointer(), nSQ, SCR1);
+
+        //
+        // dV/dR = V . (weights x V**T . dS/dR . V) . V**T
+        //
+
+        // dS/dR . V
+        Gemm('N','N',NB,NB,NB,MatsT(1.),SCR1,NB,sVecs,NB,MatsT(0.),SCR2,NB);
+        // V**T . dS/dR . V
+        Gemm('C','N',NB,NB,NB,MatsT(1.),sVecs,NB,SCR2,NB,MatsT(0.),SCR1,NB);
+        // weights x V**T . dS/dR . V
+        std::transform(SCR1, SCR1+nSQ, weights, SCR1, std::multiplies<>());
+        // (weights x V**T . dS/dR . V) . V**T
+        Gemm('N','C',NB,NB,NB,MatsT(1.),SCR1,NB,sVecs,NB,MatsT(0.),SCR2,NB);
+        // dV/dR = V . (weights x V**T . dS/dR . V) . V**T
+        Gemm('N','N',NB,NB,NB,MatsT(1.),sVecs,NB,SCR2,NB,MatsT(0.),gradOrtho[iGrad].pointer(),NB);
+
+      } 
+
+      memManager.free(sVecs, sE, weights, SCR1, SCR2);
+
+    } else if(orthoType == CHOLESKY)
+      CErr("Cholesky orthogonalization gradients not yet implemented");
+
+  }; // computeOrthoGrad
+
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::MOFOCK() {
 

@@ -111,12 +111,13 @@ namespace ChronusQ {
         components_.emplace_back(std::make_shared(*p));
     }
 
-    // Integral class converter constructor
-    template <typename OtherIntClass>
-    GradInts( const GradInts<OtherIntClass,IntsT> &other, char = ' ' ) :
-      ElectronIntegrals(other), nAtoms_(other.nAtoms_) {
+    // TODO
+    // // Integral class converter constructor
+    // template <template <typename> class OtherIntClass>
+    // GradInts( const GradInts<OtherIntClass,IntsT> &other, char = ' ' ) :
+    //   ElectronIntegrals(other), nAtoms_(other.nAtoms_) {
 
-    }
+    // }
 
 
     //
@@ -140,8 +141,8 @@ namespace ChronusQ {
     }
 
     // Size access
-    size_t nAtoms() { return nAtoms_; }
-    size_t size() { return components_.size(); }
+    size_t nAtoms() const { return nAtoms_; }
+    size_t size() const { return components_.size(); }
 
 
     //
@@ -222,7 +223,7 @@ namespace ChronusQ {
     friend class GradContractions;
 
   protected:
-    GradInts<TwoEInts,IntsT> grad_;
+    GradInts<TwoEInts,IntsT>& grad_;
 
   public:
 
