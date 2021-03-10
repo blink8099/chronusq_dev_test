@@ -34,6 +34,11 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 
+#include <electronintegrals/twoeints.hpp>
+#include <electronintegrals/twoeints/gtodirecteri.hpp>
+#include <electronintegrals/twoeints/incore4indexeri.hpp>
+#include <electronintegrals/twoeints/incorerieri.hpp>
+
 // Debug directives
 //#define _DEBUGORTHO
 //#define _DEBUGERI
@@ -563,7 +568,7 @@ namespace ChronusQ {
     std::vector<double*> gradPtrs(3*nAtoms_, nullptr);
 
     for (auto i = 0; i < 3*nAtoms_; i++) {
-      gradPtrs[i] = components_[i].pointer();
+      gradPtrs[i] = components_[i]->pointer();
     }
 
 
@@ -626,7 +631,6 @@ namespace ChronusQ {
       CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,
       const std::vector<std::pair<OPERATOR,size_t>>&,
       const AOIntsOptions&);
-
 
 }; // namespace ChronusQ
 

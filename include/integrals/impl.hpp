@@ -174,32 +174,32 @@ namespace ChronusQ {
     size_t NB = basis.nBasis;
     size_t NAt = mol.nAtoms;
 
+    auto computeOneE = [&](std::shared_ptr<GradInts<OneEInts,IntsT>>& p, OPERATOR o) {
+      if (p == nullptr)
+        p = std::make_shared<GradInts<OneEInts,IntsT>>(mem, NB, NAt);
+      else
+        p->clear();
+
+      p->computeAOInts(basis, mol, emPert, o, options);
+    };
+
     for ( auto& op: ops ) {
+
 
       switch (op.first) {
 
         case OVERLAP:
-          gradOverlap = std::make_shared<GradInts<OneEInts,IntsT>>(mem, NB,
-                                                                   NAt);
-          gradOverlap->computeAOInts(basis, mol, emPert, op.first, options);
-          // TODO: Write code to save gradient integrals to binary file
-          //   Should be toggleable with default off to keep binary file to 
-          //   reasonable size.
+          computeOneE(gradOverlap, op.first);
           break;
 
         case KINETIC:
-          gradKinetic = std::make_shared<GradInts<OneEInts,IntsT>>(mem, NB,
-                                                                   NAt);
-          gradKinetic->computeAOInts(basis, mol, emPert, op.first, options);
+          computeOneE(gradKinetic, op.first);
           break;
 
         case NUCLEAR_POTENTIAL:
           if ( options.OneEScalarRelativity )
             CErr("Relativistic gradients not yet implemented!");
-          else
-            gradPotential = std::make_shared<GradInts<OneEInts,IntsT>>(mem, NB,
-                                                                       NAt);
-          gradPotential->computeAOInts(basis, mol, emPert, op.first, options);
+          computeOneE(gradKinetic, op.first);
           break;
 
         case MAGNETIC_MULTIPOLE:
@@ -209,9 +209,15 @@ namespace ChronusQ {
           break;
 
         case ELECTRON_REPULSION:
-          CErr("FIXME Andrew!!!");
+          if ( gradERI == nullptr )
+            CErr("ERI gradients must be allocated outside of computeGradInts!");
+
+          gradERI->computeAOInts(basis, mol, emPert, op.first, options);
           break;
       }
+
+      // TODO: Write code to save gradient integrals to binary file. Should be
+      //   toggleable with default off to keep binary file to reasonable size.
 
     }
 

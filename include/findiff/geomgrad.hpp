@@ -61,6 +61,9 @@ namespace ChronusQ {
     template<typename IntsT>
     std::vector<IntsT> getOneEInts();
 
+    template<typename IntsT>
+    std::vector<IntsT> getERI();
+
     public:
 
     NumGradient() = delete;
@@ -258,6 +261,75 @@ namespace ChronusQ {
           prettyPrintSmart(std::cout, names[iOp],
                            res[iAtom*3 + iXYZ].data() + iOp*NB*NB,
                            NB, NB, NB);
+        }
+      }
+      std::cout << " ====================================== " << std::endl;
+
+    };
+
+    template <typename IntsT>
+    void eriGrad(size_t acc = 2) {
+
+      FiniteDifferencer<double,IntsT> diff;
+
+      diff.setDerOrder(1);
+      diff.setAccOrder(acc);
+
+      diff.setStepSize(1e-3);
+
+      diff.setValFunc(std::bind(&NumGradient::getERI<IntsT>, this));
+
+      bool cInt = goodType<dcomplex,dcomplex>();
+      bool cMat = cInt or goodType<dcomplex,double>();
+
+      for ( auto iAtm = 0; iAtm < nAtoms; iAtm++ ) {
+        for ( auto iXYZ = 0; iXYZ < 3; iXYZ++ ) {
+
+          if(cInt)
+            diff.addChangeFunc(
+              std::bind(&NumGradient::moveMol<dcomplex,dcomplex>, this,
+                        iAtm, iXYZ, std::placeholders::_1));
+
+          else if(cMat)
+            diff.addChangeFunc(
+              std::bind(&NumGradient::moveMol<dcomplex,double>, this,
+                        iAtm, iXYZ, std::placeholders::_1));
+
+          else
+            diff.addChangeFunc(
+              std::bind(&NumGradient::moveMol<double,double>, this,
+                        iAtm, iXYZ, std::placeholders::_1));
+
+        }
+      }
+
+      diff.doDifference();
+
+      auto res = diff.getResults();
+
+      auto NB = basis->nBasis;
+
+      std::cout << " ===  Numerical ERI Gradient  === " << std::endl;
+      for ( auto iAtom = 0; iAtom < nAtoms; iAtom++ ) {
+
+        for ( auto iXYZ = 0; iXYZ < 3; iXYZ++ ) {
+
+          std::cout << "Atom: " << std::setw(8) << std::left << iAtom;
+          std::cout << "Cart: " << std::setw(8) << std::left << iXYZ;
+          std::cout << '\n' << std::endl;
+
+          for ( auto i = 0, ijkl = 0; i < NB; i++ )
+          for ( auto j = 0; j < NB; j++ )
+          for ( auto k = 0; k < NB; k++ )
+          for ( auto l = 0; l < NB; l++, ijkl++ ) {
+            std::cout << "    (" << i << "," << j << "," << k << "," << l << ")";
+            std::cout << "    ";
+            if (std::abs(res[iAtom*3 +iXYZ][ijkl]) < 1e-14)
+              std::cout << 0.;
+            else 
+              std::cout << res[iAtom*3 +iXYZ][ijkl];
+            std::cout << std::endl;
+          }
         }
       }
       std::cout << " ====================================== " << std::endl;

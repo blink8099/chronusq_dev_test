@@ -28,6 +28,7 @@
 #include <findiff/geomgrad.hpp>
 #include <grid/integrator.hpp>
 #include <singleslater.hpp>
+#include <electronintegrals/twoeints/incore4indexeri.hpp>
 
 namespace ChronusQ {
 
@@ -155,8 +156,39 @@ namespace ChronusQ {
 
   };
 
-  template std::vector<double> NumGradient::getOneEInts();
-  template std::vector<dcomplex> NumGradient::getOneEInts();
+  // Gets eris at each geometry
+  template <typename IntsT>
+  std::vector<IntsT> NumGradient::getERI() {
+
+    curr_->formCoreH(emPert);
+
+    if(auto p = std::dynamic_pointer_cast<Integrals<IntsT>>(aoints))
+      p->ERI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION,
+                            {basis->basisType, false, false, false});
+
+    auto NB = basis->nBasis;
+    auto NSq = NB*NB;
+    auto NB4 = NSq*NSq;
+
+    std::vector<IntsT> results;
+
+    auto copier = [&](IntsT* pointer) {
+      std::copy(pointer, pointer + NB4, back_inserter(results));
+    };
+
+    auto int_cast = std::dynamic_pointer_cast<Integrals<IntsT>>(aoints);
+    auto eri = std::dynamic_pointer_cast<InCore4indexERI<IntsT>>(int_cast->ERI);
+    if ( eri == nullptr )
+      CErr("Only incore eris in finite difference eri gradients");
+
+    copier(eri->pointer());
+
+    return results;
+
+  };
+
+  template std::vector<double> NumGradient::getERI();
+  template std::vector<dcomplex> NumGradient::getERI();
 
 }
 

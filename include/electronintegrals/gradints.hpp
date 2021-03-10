@@ -24,18 +24,15 @@
 #pragma once
 
 #include <electronintegrals.hpp>
-#include <electronintegrals/oneeints.hpp>
+#include <electronintegrals/twoeints.hpp>
 
 namespace ChronusQ {
 
   /**
    *  \brief Templated class to handle the evaluation and storage of
-   *  dipole, quadrupole, and octupole integral matrices in a finite
-   *  basis set.
+   *  gradient integral matrices in a finite basis set.
    *
-   *  Templated over storage type (IntsT) to allow for a seamless
-   *  interface to both real- and complex-valued basis sets
-   *  (e.g., GTO and GIAO)
+   *  Templated over IntClass to be general to the underlying storage
    */
   template <template <typename> class IntClass, typename IntsT>
   class GradInts : public ElectronIntegrals {
@@ -44,7 +41,10 @@ namespace ChronusQ {
     friend class GradInts;
 
   protected:
-    std::vector<IntClass<IntsT>> components_;
+    typedef std::shared_ptr<IntClass<IntsT>> IntPtr;
+    typedef std::shared_ptr<const IntClass<IntsT>> ConstIntPtr;
+
+    std::vector<IntPtr> components_;
     size_t nAtoms_;
 
   public:
@@ -64,12 +64,39 @@ namespace ChronusQ {
       components_.reserve(3*nAtoms_);
 
       for (size_t i = 0; i < 3*nAtoms_; i++) {
-        components_.emplace_back(mem, nBasis);
+        components_.emplace_back(
+          std::make_shared<IntClass<IntsT>>(mem, nBasis)
+        );
+      }
+
+    };
+
+    // Constructor from a vector of pointers to integrals
+    template <template <typename> class IntSubClass>
+    GradInts(CQMemManager &mem, size_t nBasis, size_t nAtoms,
+      std::vector<std::shared_ptr<IntSubClass<IntsT>>> integrals) :
+      ElectronIntegrals(mem, nBasis), nAtoms_(nAtoms)
+    {
+
+      components_.reserve(3*nAtoms_);
+
+      assert(integrals.size() == 3*nAtoms_);
+
+      for (size_t i = 0; i < 3*nAtoms_; i++) {
+        components_.emplace_back(
+          std::dynamic_pointer_cast<IntClass<IntsT>>(integrals[i])
+        );
+      }
+
+      if ( std::any_of(components_.begin(),
+                       components_.end(),
+                       [](auto& p) { return p == nullptr; }) ) {
+        CErr("Couldn't convert to parent class in GradInts constructor!");
       }
 
     }
 
-    // Converter constructor
+    // Integral matrix type converter constructor
     template <typename IntsU>
     GradInts( const GradInts<IntClass,IntsU> &other, int = 0 ):
         ElectronIntegrals(other), nAtoms_(other.nAtoms_) {
@@ -81,7 +108,14 @@ namespace ChronusQ {
       components_.reserve(other.components_.size());
 
       for (auto &p : other.components_)
-        components_.emplace_back(p);
+        components_.emplace_back(std::make_shared(*p));
+    }
+
+    // Integral class converter constructor
+    template <typename OtherIntClass>
+    GradInts( const GradInts<OtherIntClass,IntsT> &other, char = ' ' ) :
+      ElectronIntegrals(other), nAtoms_(other.nAtoms_) {
+
     }
 
 
@@ -90,20 +124,24 @@ namespace ChronusQ {
     //
 
     // Element access by internal storage
-    OneEInts<IntsT>& operator[](size_t i) {
+    IntPtr& operator[](size_t i) {
       return components_[i];
     }
-    const OneEInts<IntsT>& operator[](size_t i) const {
+    const ConstIntPtr& operator[](size_t i) const {
       return components_[i];
     }
 
     // Element access by atom index and cartesian index
-    OneEInts<IntsT>& integralByAtomCart(size_t atom, size_t xyz) {
+    IntPtr& integralByAtomCart(size_t atom, size_t xyz) {
       return components_[3*atom + xyz];
     }
-    const OneEInts<IntsT>& integralByAtomCart(size_t atom, size_t xyz) const {
+    const ConstIntPtr& integralByAtomCart(size_t atom, size_t xyz) const {
       return components_[3*atom + xyz];
     }
+
+    // Size access
+    size_t nAtoms() { return nAtoms_; }
+    size_t size() { return components_.size(); }
 
 
     //
@@ -114,8 +152,8 @@ namespace ChronusQ {
         OPERATOR, const AOIntsOptions&);
 
     virtual void clear() {
-      for (OneEInts<IntsT>& c : components_)
-        c.clear();
+      for (IntPtr& c : components_)
+        c->clear();
     }
 
     virtual void output(std::ostream &out, const std::string &s = "",
@@ -129,15 +167,17 @@ namespace ChronusQ {
         else
           oeiStr = "GradInts[" + s + "].";
 
-        for (size_t i = 0; i < components_.size(); i++)
-          prettyPrintSmart(out, oeiStr + std::to_string(i),
-              operator[](i).pointer(),
-              this->nBasis(), this->nBasis(), this->nBasis());
+        std::cout << oeiStr << std::endl;
+
+        for (size_t i = 0; i < components_.size(); i++) {
+          oeiStr = "Grad " + s + " " + std::to_string(i);
+          components_[i]->output(out, oeiStr, printFull);
+        }
 
       } else {
         std::string oeiStr;
         if (s == "")
-          oeiStr = "OneE Gradient Integral";
+          oeiStr = "Gradient Integral";
         else
           oeiStr = "GradInts[" + s + "]";
         out << oeiStr << " with " << nAtoms_ << " atoms.";
@@ -170,6 +210,128 @@ namespace ChronusQ {
 
   }; // class GradInts
 
+
+
+  /**
+   *  \brief Class to handle the contraction of the gradient two-body potential
+   */
+  template <typename MatsT, typename IntsT>
+  class GradContractions {
+
+    template <typename MatsU, typename IntsU>
+    friend class GradContractions;
+
+  protected:
+    GradInts<TwoEInts,IntsT> grad_;
+
+  public:
+
+    // Constructors
+    GradContractions() = delete;
+    GradContractions(GradInts<TwoEInts,IntsT>& grads): grad_(grads) { }
+
+    template <typename MatsU>
+    GradContractions( const GradContractions<MatsU,IntsT> &other, int dummy = 0 ):
+      GradContractions(other.grad_) {}
+    template <typename MatsU>
+    GradContractions( GradContractions<MatsU,IntsT> &&other, int dummy = 0 ):
+      GradContractions(other.grad_) {}
+
+    GradContractions( const GradContractions &other ):
+      GradContractions(other, 0) {}
+    GradContractions( GradContractions &&other ):
+      GradContractions(std::move(other), 0) {}
+
+    GradInts<TwoEInts,IntsT>& ints() { return grad_; }
+    const GradInts<TwoEInts,IntsT>& ints() const { return grad_; }
+
+
+    /**
+     *  Contract the gradient of the two-body potential with one-body operators
+     *
+     *  The outer vector of contractions is over gradient components (i.e. it
+     *  should be 3*NAtoms long) and the inner vector is over contractions 
+     *  (similar to in the non-gradient contraction case)
+     *
+     *  \param [in] comm MPI communicator for this parallel operation (usually the MPI world)
+     *  \param [in] screen Whether or not to screen the integrals
+     *  \param [in/out] contList List of one body operators for contraction.
+     *  \param [in] pert Perturbation used in GIAO calculations, but GIAOs are NYI in this method
+     */
+    virtual void gradTwoBodyContract(
+      MPI_Comm,
+      const bool,
+      std::vector<std::vector<TwoBodyContraction<MatsT>>>&,
+      EMPerturbation&) const = 0;
+
+    // Contract all into the same storage
+    inline void gradTwoBodyContract(
+      MPI_Comm comm,
+      const bool screen,
+      std::vector<TwoBodyContraction<MatsT>>& list,
+      EMPerturbation& pert) const {
+      
+      // Copy into individual contractions (using the same storage)
+      size_t N = this->grad_.size();
+      std::vector<std::vector<TwoBodyContraction<MatsT>>> longList(N, list);
+
+      gradTwoBodyContract(comm, screen, longList, pert);
+    }
+
+    // Other defaults
+    inline void gradTwoBodyContract(
+      MPI_Comm comm,
+      const bool screen,
+      std::vector<std::vector<TwoBodyContraction<MatsT>>>& contList) const {
+      
+      EMPerturbation pert;
+      gradTwoBodyContract(comm,screen,contList,pert);
+    }
+
+    inline void gradTwoBodyContract(
+      MPI_Comm comm,
+      const bool screen,
+      std::vector<TwoBodyContraction<MatsT>>& contList) const {
+      
+      EMPerturbation pert;
+      gradTwoBodyContract(comm,screen,contList,pert);
+    }
+    
+    inline void gradTwoBodyContract(
+        MPI_Comm comm,
+        std::vector<std::vector<TwoBodyContraction<MatsT>>> &contList,
+        EMPerturbation &pert) const {
+      gradTwoBodyContract(comm,true,contList,pert);
+    }
+
+    inline void gradTwoBodyContract(
+        MPI_Comm comm,
+        std::vector<TwoBodyContraction<MatsT>> &contList,
+        EMPerturbation &pert) const {
+      gradTwoBodyContract(comm,true,contList,pert);
+    }
+
+    inline void gradTwoBodyContract(
+        MPI_Comm comm,
+        std::vector<std::vector<TwoBodyContraction<MatsT>>> &contList) const {
+      gradTwoBodyContract(comm,true,contList);
+    }
+
+    inline void gradTwoBodyContract(
+        MPI_Comm comm,
+        std::vector<TwoBodyContraction<MatsT>> &contList) const {
+      gradTwoBodyContract(comm,true,contList);
+    }
+
+    // Destructor
+    virtual ~GradContractions() {}
+
+    // Pointer convertor
+    template <typename MatsU>
+    static std::shared_ptr<GradContractions<MatsU,IntsT>>
+    convert(const std::shared_ptr<GradContractions<MatsT,IntsT>>&);
+
+  }; // class GradientContractions
 
 }; // namespace ChronusQ
 
