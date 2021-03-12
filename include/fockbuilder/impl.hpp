@@ -85,29 +85,20 @@ namespace ChronusQ {
       { {contract1PDM.S().pointer(), ss.coulombMatrix->pointer(), true, COULOMB} };
 
     // Determine how many (if any) exchange terms to calculate
-    if( std::abs(xHFX) > 1e-12 and not increment and
+    if( std::abs(xHFX) > 1e-12 and not increment and ss.nC == 1 and
         (ss.scfControls.guess != SAD or ss.scfConv.nSCFIter != 0) and
         std::dynamic_pointer_cast<InCoreRIERIContraction<MatsT, IntsT>>(ss.ERI)) {
       ROOT_ONLY(ss.comm);
       auto rieri = std::dynamic_pointer_cast<InCoreRIERIContraction<MatsT, IntsT>>(ss.ERI);
 
-      if(ss.nC == 1) {
-        SquareMatrix<MatsT> AAblock(ss.exchangeMatrix->memManager(), NB);
-        rieri->KCoefContract(ss.comm, ss.nOA, ss.mo[0].pointer(), AAblock.pointer());
-        if(ss.iCS) {
-          *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock);
-        } else {
-          SquareMatrix<MatsT> BBblock(ss.exchangeMatrix->memManager(), NB);
-          rieri->KCoefContract(ss.comm, ss.nOB, ss.mo[1].pointer(), BBblock.pointer());
-          *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock, BBblock);
-        }
+      SquareMatrix<MatsT> AAblock(ss.exchangeMatrix->memManager(), NB);
+      rieri->KCoefContract(ss.comm, ss.nOA, ss.mo[0].pointer(), AAblock.pointer());
+      if(ss.iCS) {
+        *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock);
       } else {
-        SquareMatrix<MatsT> spinBlockForm(ss.exchangeMatrix->memManager(), NB*2);
-        InCoreRIERI<MatsT> rierispinor(dynamic_cast<InCoreRIERI<IntsT>&>(rieri->ints()).
-                                       template spatialToSpinBlock<MatsT>());
-        InCoreRIERIContraction<MatsT,MatsT>(rierispinor)
-            .KCoefContract(ss.comm, ss.nO, ss.mo[0].pointer(), spinBlockForm.pointer());
-        *ss.exchangeMatrix = spinBlockForm.template spinScatter<MatsT>();
+        SquareMatrix<MatsT> BBblock(ss.exchangeMatrix->memManager(), NB);
+        rieri->KCoefContract(ss.comm, ss.nOB, ss.mo[1].pointer(), BBblock.pointer());
+        *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock, BBblock);
       }
 
     } else if( std::abs(xHFX) > 1e-12 ) {
