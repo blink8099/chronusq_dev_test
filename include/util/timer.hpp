@@ -240,9 +240,15 @@ namespace ChronusQ {
       }
   
       // Stop all subsections
-      for ( auto& thread: children_ )
-        for ( auto& section: thread.second )
-          section.second->stop();
+      // Locked because tick can cause reallocation of children_
+      //   on another thread - this is _very_ unlikely to happen during
+      //   normal usage, but is possible.
+      {
+        const std::lock_guard<std::mutex> lock(mutex_);
+        for ( auto& thread: children_ )
+          for ( auto& section: thread.second )
+            section.second->stop();
+      }
   
       stop_ = Clock::now();
       stopped_ = true;
@@ -252,6 +258,12 @@ namespace ChronusQ {
     // Start a new subsection
     IdType tick(std::string label, size_t threadId = 0) {
   
+      IdType id = registry_->getId();
+  
+      auto child = std::make_unique<TimeSection>(label, id, registry_, this);
+  
+      registry_->add(id, child.get());
+
       // Locked due to insertion
       {
         const std::lock_guard<std::mutex> lock(mutex_);
@@ -259,20 +271,17 @@ namespace ChronusQ {
           std::unordered_map<IdType,std::unique_ptr<TimeSection>> temp;
           children_.insert({threadId, std::move(temp)});
         }
+        children_[threadId].insert({id, std::move(child)});
       }
-  
-      IdType id = registry_->getId();
-  
-      auto child = std::make_unique<TimeSection>(label, id, registry_, this);
-  
-      registry_->add(id, child.get());
-      children_[threadId].insert({id, std::move(child)});
   
       return id;
     }
   
     // Stop a subsection
     void tock(size_t id, size_t threadId = 0) {
+      // Locked because tick can cause reallocation of children_ on another
+      // thread
+      const std::lock_guard<std::mutex> lock(mutex_);
       children_[threadId].find(id)->second->stop();
     }
   

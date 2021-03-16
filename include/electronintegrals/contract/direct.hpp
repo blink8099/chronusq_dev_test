@@ -1714,9 +1714,6 @@ namespace ChronusQ {
         double s1234_deg = s12_deg * s34_deg * s12_34_deg;
 
 #endif
-#ifdef _REPORT_INTEGRAL_TIMINGS
-        ProgramTimer::tick("Direct Int Form");
-#endif
 
 #if 1
         // Evaluate ERI for shell quartet (s1 s2 | s3 s4)
@@ -1731,9 +1728,6 @@ namespace ChronusQ {
 #endif
         );
 #endif
-#ifdef _REPORT_INTEGRAL_TIMINGS
-        ProgramTimer::tock("Direct Int Form");
-#endif
 
         // Libint2 internal screening
         const double *buff = buf_vec[0];
@@ -1744,9 +1738,6 @@ namespace ChronusQ {
 
 // Flag to turn contraction on and off
 #if 1
-#ifdef _REPORT_INTEGRAL_TIMINGS
-        ProgramTimer::tick("Direct Den Contract");
-#endif
 
         // Scale the buffer by the degeneracy factor and store
         // in infBuffer
@@ -1896,10 +1887,6 @@ namespace ChronusQ {
           } // Symmetry check
 
         } // iMat loop
-
-#ifdef _REPORT_INTEGRAL_TIMINGS
-        ProgramTimer::tock("Direct Den Contract");
-#endif
 
 #endif
 

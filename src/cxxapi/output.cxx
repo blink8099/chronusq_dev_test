@@ -75,7 +75,6 @@ namespace ChronusQ {
 
     auto printAgg = [&](std::string message, std::string label,
                         std::string parent, size_t id) {
-      std::cout << message << std::endl;
       auto summary = timer.getAggDurSummary<Duration>(label, parent, id);
       auto dur = summary.first.count();
       auto avg = summary.second.count();
@@ -104,9 +103,9 @@ namespace ChronusQ {
     auto cqId = timer.getLabelId("Chronus Quantum");
     printReg("  Total program time", "Chronus Quantum", cqId);
     printReg("  - Memory allocation", "Memory Allocation", cqId);
-    printReg("  - Core Hamiltonian", "Form Core H", cqId);
-    printReg("  - Two Body Integrals", "Incore 2e Ints", cqId);
-    printReg("  - Guess Formation", "Form Guess", cqId);
+    printAgg("  - Core Hamiltonian", "Form Core H", "Chronus Quantum", cqId);
+    printAgg("  - Two Body Integrals", "Incore 2e Ints", "Chronus Quantum", cqId);
+    printAgg("  - Guess Formation", "Form Guess", "Chronus Quantum", cqId);
 
     // SCF specific
     auto scfId = timer.getLabelId("SCF Total");
