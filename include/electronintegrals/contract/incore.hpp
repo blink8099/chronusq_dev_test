@@ -445,7 +445,7 @@ namespace ChronusQ {
 
     #pragma omp parallel for
     for(auto nu = 0ul; nu < NB; nu++)
-      Gemm('N','N',NBRI,NB,NB,MatsT(1.),eri3j.pointer()+nu*NBNBRI,NBRI,X,NB,MatsT(0.),Ktemp+nu*NBNBRI,NBRI);
+      Gemm('N','T',NBRI,NB,NB,MatsT(1.),eri3j.pointer()+nu*NBNBRI,NBRI,X,NB,MatsT(0.),Ktemp+nu*NBNBRI,NBRI);
 
     SetLAThreads(LAThreads);
 
