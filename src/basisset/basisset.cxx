@@ -92,7 +92,7 @@ namespace ChronusQ {
    *  Computes nShell, nBasis and nPrimitive. Determines  maxL and maxPrim.
    *  Constructs the shell mappings to basis function number and center number
    */ 
-  void BasisSet::update() {
+  void BasisSet::update(bool computeShellPairs) {
 
     // Compute the number of shells
     nShell = shells.size();
@@ -169,10 +169,12 @@ namespace ChronusQ {
 
 
     // Compute shell pair data
-    const auto max_engine_precision = std::numeric_limits<double>::epsilon();
-    const auto ln_prec = std::log(max_engine_precision);
-    shellData.computeShellPairs(shells,mapSh2Cen,maxPrim,maxL,1e-12,
-        ln_prec);
+    if (computeShellPairs) {
+      const auto max_engine_precision = std::numeric_limits<double>::epsilon();
+      const auto ln_prec = std::log(max_engine_precision);
+      shellData.computeShellPairs(shells,mapSh2Cen,maxPrim,maxL,1e-12,
+          ln_prec);
+    }
 
   }; // BasisSet::update
 

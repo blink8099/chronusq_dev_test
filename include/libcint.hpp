@@ -38,6 +38,9 @@ extern "C" {
 #define CQ_CINT_INT2E_WRAPPER(name) \
   int c##name(double*, const FINT*, const FINT*, const FINT, const FINT*, const FINT, const double*, const CINTOpt*);
 
+#define CQ_INT_INT2E_WRAPPER(name) \
+  FINT name(double*, FINT*, FINT*, FINT*, FINT, FINT*, FINT, double*, CINTOpt*, double*);
+
 #define CQ_CINT_OPT_WRAPPER(name) \
   void c##name(CINTOpt**, const int*, const int, const int*, const int, const double*);
 
@@ -50,6 +53,8 @@ CQ_CINT_OPT_WRAPPER(int2e_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_spinor);
+CQ_INT_INT2E_WRAPPER(int2e_cart);
+CQ_INT_INT2E_WRAPPER(int2e_sph);
 
 /* <i|OVLP |j> */
 CQ_CINT_OPT_WRAPPER(int1e_ovlp_optimizer);
@@ -896,12 +901,16 @@ CQ_CINT_OPT_WRAPPER(int2e_ipvip1_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_ipvip1_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_ipvip1_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_ipvip1_spinor);
+CQ_INT_INT2E_WRAPPER(int2e_ipvip1_cart);
+CQ_INT_INT2E_WRAPPER(int2e_ipvip1_sph);
 
 /* (NABLA i j|R12 |NABLA k l) */
 CQ_CINT_OPT_WRAPPER(int2e_ip1ip2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_ip1ip2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_ip1ip2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_ip1ip2_spinor);
+CQ_INT_INT2E_WRAPPER(int2e_ip1ip2_cart);
+CQ_INT_INT2E_WRAPPER(int2e_ip1ip2_sph);
 
 /* <P* NABLA NABLA i|NUC DOT P |j> */
 CQ_CINT_OPT_WRAPPER(int1e_ipippnucp_optimizer);

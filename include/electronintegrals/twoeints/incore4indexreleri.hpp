@@ -128,8 +128,6 @@ namespace ChronusQ {
         OPERATOR, const HamiltonianOptions&);
     void computeERICINT(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const HamiltonianOptions&);
-    void computeERIGCCINT(BasisSet&, Molecule&, EMPerturbation&,
-        OPERATOR, const HamiltonianOptions&);
 
     virtual void clear() {
       InCore4indexERI<IntsT>::clear();

@@ -190,7 +190,7 @@ namespace ChronusQ {
 
     // Update BasisSet object member data (nBasis, etc).
     // See src/basisset/basisset.cxx for documentation
-    void update();
+    void update(bool computeShellPairs = true);
 
   }; // BasisSet struct
 
