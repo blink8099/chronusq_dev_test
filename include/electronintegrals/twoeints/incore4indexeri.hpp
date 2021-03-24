@@ -110,16 +110,23 @@ namespace ChronusQ {
         EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &hamiltonianOptions) {
 
       // Use Libcint to compute nonrelativistic integrals
-      if ( hamiltonianOptions.Libcint ) computeERINRCINT(basisSet, mol, emPert, op, hamiltonianOptions);
+      if ( hamiltonianOptions.Libcint ) computeERIGCCINT(basisSet, mol, emPert, op, hamiltonianOptions);
       // Use Libint to compute nonrelativistic integrals
-      else  computeERINR(basisSet, mol, emPert, op, hamiltonianOptions);
+      else if (hamiltonianOptions.basisType == COMPLEX_GIAO)
+        computeERINR(basisSet, mol, emPert, op, hamiltonianOptions);
+      else
+        computeERIGCNR(basisSet, mol, emPert, op, hamiltonianOptions);
 
     }
 
     /// Evaluate nonrealtivistic ERIs in the CGTO basis
     void computeERINR(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const HamiltonianOptions&);
+    void computeERIGCNR(BasisSet&, Molecule&, EMPerturbation&,
+        OPERATOR, const HamiltonianOptions&);
     void computeERINRCINT(BasisSet&, Molecule&, EMPerturbation&,
+        OPERATOR, const HamiltonianOptions&);
+    void computeERIGCCINT(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const HamiltonianOptions&);
 
 

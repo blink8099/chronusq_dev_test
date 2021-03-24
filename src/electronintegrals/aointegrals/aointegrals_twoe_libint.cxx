@@ -70,9 +70,9 @@ namespace ChronusQ {
     InCore4indexERI<double> &eri4I = *this;
 
 #ifndef __IN_HOUSE_INT__
-    std::cout<<"Using Libint "<<std::endl;
+    std::cout<<"  Using Libint "<<std::endl;
 #else
-    std::cout<<"Using In-house Integral Engine "<<std::endl;
+    std::cout<<"  Using In-house Integral Engine "<<std::endl;
 #endif
 
     auto topERI4 = tick();
@@ -174,7 +174,7 @@ namespace ChronusQ {
     }; // omp region
 
     auto durERI4 = tock(topERI4);
-    std::cout << "Libint-ERI4 duration   = " << durERI4 << std::endl;
+    std::cout << "  Libint-ERI4 duration   = " << durERI4 << std::endl;
 
     // Debug output of the ERIs
 #ifdef __DEBUGERI__
@@ -188,6 +188,478 @@ namespace ChronusQ {
     };
 #endif
   }; // InCore4indexERI<double>::computeERI
+
+
+  /**
+   * @brief Compute ERI in a general-contraction shell quartet.
+   *        Note layout difference, resPQRS need to be reorganized by
+   *        the following code to match the layout of a general
+   *        shell quartet output as in libcint:
+   *        for (size_t SS = 0, pqrs = 0; SS < sContrSize; SS++)
+   *          for (size_t s = 0; s < sAMSize; s++)
+   *            for (size_t RR = 0; RR < rContrSize; RR++)
+   *              for (size_t r = 0; r < rAMSize; r++)
+   *                for (size_t QQ = 0; QQ < qContrSize; QQ++)
+   *                  for (size_t q = 0; q < qAMSize; q++)
+   *                    for (size_t PP = 0; PP < pContrSize; PP++)
+   *                      for (size_t p = 0; p < pAMSize; p++, pqrs++) {
+   *                        block[pqrs] = resPQRS[(s + sAMSize * (r + rAMSize * (q + qAMSize * p)))
+   *                            + pqrsAMSize * (PP + pContrSize * (QQ + qContrSize * (RR + rContrSize * SS)))];
+   *                      }
+   * @return The count of engine.compute2 calls,
+   *         and the total time of such calls
+   */
+  inline std::pair<size_t, double> libintGeneralContractionERI(
+      size_t P, size_t Q, size_t R, size_t S,
+      BasisSet &basisSet, libint2::Engine &engine,
+      std::vector<std::vector<libint2::Shell>> &shellPrims_,
+      std::vector<double*> &coefBlocks_, double *workBlock,
+      const double *&resPQRS) {
+
+    std::pair<size_t, double> counter_timer(0, 0.0);
+
+    size_t pContrSize = basisSet.shells[P].contr.size();
+    size_t qContrSize = basisSet.shells[Q].contr.size();
+    size_t rContrSize = basisSet.shells[R].contr.size();
+    size_t sContrSize = basisSet.shells[S].contr.size();
+
+    std::vector<libint2::Shell> &primsP = shellPrims_[P];
+    std::vector<libint2::Shell> &primsQ = shellPrims_[Q];
+    std::vector<libint2::Shell> &primsR = shellPrims_[R];
+    std::vector<libint2::Shell> &primsS = shellPrims_[S];
+
+    size_t pAMSize = primsP[0].size();
+    size_t qAMSize = primsQ[0].size();
+    size_t rAMSize = primsR[0].size();
+    size_t sAMSize = primsS[0].size();
+
+    size_t pNprim = pContrSize > 1 ? primsP.size() : 1;
+    size_t qNprim = qContrSize > 1 ? primsQ.size() : 1;
+    size_t rNprim = rContrSize > 1 ? primsR.size() : 1;
+    size_t sNprim = sContrSize > 1 ? primsS.size() : 1;
+
+    size_t pqrsAMSize = pAMSize * qAMSize * rAMSize * sAMSize;
+
+    // Compute primitive ERI
+
+    const auto& buf_vec = engine.results();
+    const double *buff = buf_vec[0];
+
+    const double *inpP, *inpQ, *inpR, *inpS;
+    double *resP, *resQ, *resR, *resS;
+
+    double *sVec, *rVec, *qVec, *pVec;
+    sVec = workBlock + pqrsAMSize * pContrSize * qContrSize * rContrSize * sContrSize;
+    rVec = sVec + pqrsAMSize * pContrSize * qContrSize * rContrSize * sNprim;
+    qVec = rVec + pqrsAMSize * pContrSize * qContrSize * rNprim;
+    pVec = qVec + pqrsAMSize * pContrSize * qNprim;
+
+    inpP = pVec;
+    inpQ = qVec;
+    inpR = rVec;
+    inpS = sVec;
+
+    for (size_t SS(0); SS < sNprim; SS++) {
+      for (size_t RR(0); RR < rNprim; RR++) {
+        for (size_t QQ(0); QQ < qNprim; QQ++) {
+          for (size_t PP(0); PP < pNprim; PP++) {
+
+            // Evaluate ERI for shell quartet
+            auto beginERI = tick();
+            engine.compute2<
+              libint2::Operator::coulomb, libint2::BraKet::xx_xx, 0>(
+                  primsP[PP], primsQ[QQ], primsR[RR], primsS[SS]
+            );
+            counter_timer.second += tock(beginERI);
+            counter_timer.first++;
+            buff = buf_vec[0];
+            if(buff == nullptr) continue;
+
+            if (pContrSize > 1) {
+              std::copy_n(buff, pqrsAMSize, &pVec[PP * pqrsAMSize]);
+            } else
+              inpP = buff;
+
+          }
+
+          if (qContrSize > 1 or pContrSize > 1) {
+            resP = &qVec[QQ * pContrSize * pqrsAMSize];
+            Gemm('N', 'N', pqrsAMSize, pContrSize, pNprim,
+                 1.0, inpP, pqrsAMSize,
+                 coefBlocks_[P], pNprim,
+                 0.0, resP, pqrsAMSize);
+          } else
+            inpQ = inpP;
+
+        }
+
+        if (rContrSize > 1 or qContrSize > 1) {
+          resQ = &rVec[RR * pContrSize * qContrSize * pqrsAMSize];
+          Gemm('N', 'N', pqrsAMSize * pContrSize, qContrSize, qNprim,
+               1.0, inpQ, pqrsAMSize * pContrSize,
+               coefBlocks_[Q], qNprim,
+               0.0, resQ, pqrsAMSize * pContrSize);
+        } else
+          inpR = inpQ;
+
+      }
+
+      if (sContrSize > 1 or rContrSize > 1) {
+        resR = &sVec[SS * pContrSize * qContrSize * rContrSize * pqrsAMSize];
+        Gemm('N', 'N', pqrsAMSize * pContrSize * qContrSize, rContrSize, rNprim,
+             1.0, inpR, pqrsAMSize * pContrSize * qContrSize,
+             coefBlocks_[R], rNprim,
+             0.0, resR, pqrsAMSize * pContrSize * qContrSize);
+      } else
+        inpS = inpR;
+
+    }
+
+    if (sContrSize > 1) {
+      resS = &workBlock[0];
+      Gemm('N', 'N', pqrsAMSize * pContrSize * qContrSize * rContrSize, sContrSize, sNprim,
+           1.0, inpS, pqrsAMSize * pContrSize * qContrSize * rContrSize,
+           coefBlocks_[S], sNprim,
+           0.0, resS, pqrsAMSize * pContrSize * qContrSize * rContrSize);
+      resPQRS = resS;
+    } else
+      resPQRS = inpS;
+
+    return counter_timer;
+  }; // libintGeneralContractionERI
+
+
+  template <>
+  void InCore4indexERI<dcomplex>::computeERIGCNR(BasisSet&, Molecule&,
+      EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+    CErr("Only real GTOs are allowed",std::cout);
+  };
+  template <>
+  void InCore4indexERI<double>::computeERIGCNR(BasisSet &originalBasisSet, Molecule &mol,
+      EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &options) {
+
+    if (op != ELECTRON_REPULSION)
+      CErr("Only Electron repulsion integrals in InCore4indexERI<double>",std::cout);
+    if (options.basisType != REAL_GTO)
+      CErr("Only Real GTOs are allowed in InCore4indexERI<double>",std::cout);
+
+    BasisSet basisSet(originalBasisSet);
+
+    std::vector<libint2::Shell> shells;
+
+    shells.push_back(*basisSet.shells.begin());
+
+    for (auto it = ++basisSet.shells.begin(); it != basisSet.shells.end(); it++) {
+
+      if (shells.back().O == it->O and
+          shells.back().alpha == it->alpha and
+          shells.back().contr[0].l == it->contr[0].l) {
+
+        shells.back().contr.push_back(it->contr[0]);
+
+      } else {
+        shells.push_back(*it);
+      }
+
+    }
+
+    bool segmented = shells.size() == originalBasisSet.nShell;
+
+    // Determine the number of OpenMP threads
+    size_t nthreads = GetNumThreads();
+
+    // Create a vector of libint2::Engines for possible threading
+    std::vector<libint2::Engine> engines(nthreads);
+
+    // Initialize the first engine for the integral evaluation
+    engines[0] = libint2::Engine(libint2::Operator::coulomb,
+      basisSet.maxPrim,basisSet.maxL,0);
+    engines[0].set_precision(0.);
+
+
+    // Copy over the engines to other threads if need be
+    for(size_t i = 1; i < nthreads; i++) engines[i] = engines[0];
+
+    this->clear();
+    InCore4indexERI<double> &eri4I = *this;
+
+    std::vector<std::vector<libint2::Shell>> shellPrims; // Mappings from primitives to CGTOs
+    std::vector<double*> coefBlocks; // Mappings from primitives to CGTOs
+    std::vector<double*> workBlocks;
+
+    size_t maxNcontrAMSize = 1, maxNprimAMSize = 1, maxAMSize = 1;
+
+    if (not segmented) {
+
+      basisSet.shells = shells;
+      basisSet.update(false);
+
+      // Compute the mappings from primitives to CGTOs
+      BasisSet primitives(originalBasisSet.uncontractBasis());
+      OneEInts<double> overlap(memManager_, primitives.nBasis);
+
+      overlap.computeAOInts(primitives, mol, emPert, OVERLAP, options);
+
+      double *mapPrim2Cont = memManager_.malloc<double>(primitives.nBasis*originalBasisSet.nBasis);
+      originalBasisSet.makeMapPrim2Cont(overlap.pointer(), mapPrim2Cont, memManager_);
+
+      coefBlocks.resize(basisSet.nShell, nullptr);
+      shellPrims.reserve(basisSet.nShell);
+
+      for (size_t P(0); P < basisSet.nShell; P++) {
+        // Gather contraction coefficients
+        libint2::Shell &shellP = basisSet.shells[P];
+        maxNcontrAMSize = std::max(maxNcontrAMSize, shellP.size());
+        size_t pContrSize = shellP.ncontr();
+        size_t pAMSize = shellP.contr[0].size();
+        if (pContrSize == 1) {
+          maxNprimAMSize = std::max(maxNprimAMSize, pAMSize);
+          shellPrims.emplace_back(1, shellP);
+          coefBlocks[P] = memManager_.malloc<double>(1);
+          coefBlocks[P][0] = 1.0;
+          continue;
+        }
+
+        size_t pNprim = shellP.nprim();
+
+        std::vector<libint2::Shell> primsP;
+        primsP.reserve(pNprim);
+
+        for(auto &a : shellP.alpha) {// Loop over primitives
+          libint2::Shell newShell{
+            { a },
+            { { shellP.contr[0].l, shellP.contr[0].pure, { 1.0 } } },
+            { { shellP.O[0], shellP.O[1], shellP.O[2] } }
+          };
+          primsP.push_back(std::move(newShell));
+        }
+
+        maxNprimAMSize = std::max(maxNprimAMSize, pNprim * pAMSize);
+
+        size_t pBegin = basisSet.mapSh2Bf[P];
+        coefBlocks[P] = memManager_.malloc<double>(pContrSize * pNprim);
+        for (size_t c = 0; c < pContrSize; c++) {
+          for (size_t i = 0; i < pNprim; i++) {
+            coefBlocks[P][i + c * pNprim]
+                = mapPrim2Cont[pBegin + c * pAMSize +
+                                basisSet.primitives[primsP[i]] * basisSet.nBasis];
+          }
+        }
+        shellPrims.push_back(std::move(primsP));
+      }
+      memManager_.free(mapPrim2Cont);
+
+      workBlocks.resize(nthreads, nullptr);
+
+      size_t maxL = basisSet.maxL;
+      maxAMSize = basisSet.forceCart ?
+                      (maxL + 1) * (maxL + 2) / 2 :
+                      (2 * maxL + 1);
+      size_t primAllocSize = maxNcontrAMSize * maxNcontrAMSize
+          * maxNcontrAMSize * maxNcontrAMSize
+          + maxNprimAMSize * maxNcontrAMSize
+          * maxNcontrAMSize * maxNcontrAMSize
+          + maxNprimAMSize * maxNcontrAMSize
+          * maxNcontrAMSize * maxAMSize
+          + maxNprimAMSize * maxNcontrAMSize
+          * maxAMSize * maxAMSize
+          + maxNprimAMSize * maxAMSize
+          * maxAMSize * maxAMSize;
+      for (size_t i = 0; i < nthreads; i++) {
+        workBlocks[i] = memManager_.malloc<double>(primAllocSize);
+      }
+    }
+
+#ifndef __IN_HOUSE_INT__
+    std::cout<<"  Using Libint "<<std::endl;
+#else
+    std::cout<<"  Using In-house Integral Engine "<<std::endl;
+#endif
+
+    auto topERI4 = tick();
+    #pragma omp parallel
+    {
+      size_t thread_id = GetThreadID();
+
+      // Get threads result buffer
+      const auto& buf_vec = engines[thread_id].results();
+
+      size_t n1,n2,n3,n4,i,j,k,l,ijkl,bf1,bf2,bf3,bf4;
+      size_t s4_max;
+      for(size_t s1(0), bf1_s(0), s1234(0); s1 < basisSet.nShell;
+          bf1_s+=n1, s1++) {
+
+        n1 = basisSet.shells[s1].size(); // Size of Shell 1
+
+      for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++) {
+
+        n2 = basisSet.shells[s2].size(); // Size of Shell 2
+
+#ifdef __IN_HOUSE_INT__
+        libint2::ShellPair pair1_to_use;
+        pair1_to_use.init( basisSet_.shells[s1],basisSet_.shells[s2],-2000);
+#endif
+
+      for(size_t s3(0), bf3_s(0); s3 <= s1; bf3_s+=n3, s3++) {
+
+        n3 = basisSet.shells[s3].size(); // Size of Shell 3
+        s4_max = (s1 == s3) ? s2 : s3; // Determine the unique max of Shell 4
+
+      for(size_t s4(0), bf4_s(0); s4 <= s4_max; bf4_s+=n4, s4++, s1234++) {
+
+        n4 = basisSet.shells[s4].size(); // Size of Shell 4
+
+#ifdef __IN_HOUSE_INT__
+        libint2::ShellPair pair2_to_use;
+        pair2_to_use.init( basisSet_.shells[s3],basisSet_.shells[s4],-2000);
+
+#endif
+
+        // Round Robbin work distribution
+        #ifdef _OPENMP
+        if( s1234 % nthreads != thread_id ) continue;
+        #endif
+
+
+        if (segmented or basisSet.shells[s1].ncontr() == 1 and basisSet.shells[s2].ncontr() == 1
+            and basisSet.shells[s3].ncontr() == 1 and basisSet.shells[s4].ncontr() == 1) {
+          // Evaluate ERI for shell quartet
+          engines[thread_id].compute2<
+            libint2::Operator::coulomb, libint2::BraKet::xx_xx, 0>(
+            basisSet.shells[s1],
+            basisSet.shells[s2],
+            basisSet.shells[s3],
+            basisSet.shells[s4]
+          );
+          const auto *buff =  buf_vec[0] ;
+          if(buff == nullptr) continue;
+
+#ifdef __DEBUGERI__
+          prettyPrintSmart(std::cout, "(" + std::to_string(s4) + "," + std::to_string(s3) + "|"
+                                          + std::to_string(s2) + "," + std::to_string(s1) + ")",
+                           buff, n4*n3, n2*n1, n4*n3);
+#endif
+
+          // Libint2 internal screening
+
+          // Place shell quartet into persistent storage with
+          // permutational symmetry
+          for(i = 0ul, bf1 = bf1_s, ijkl = 0ul ; i < n1; ++i, bf1++)
+          for(j = 0ul, bf2 = bf2_s             ; j < n2; ++j, bf2++)
+          for(k = 0ul, bf3 = bf3_s             ; k < n3; ++k, bf3++)
+          for(l = 0ul, bf4 = bf4_s             ; l < n4; ++l, bf4++, ++ijkl) {
+
+
+              // (12 | 34)
+              eri4I(bf1, bf2, bf3, bf4) = buff[ijkl];
+              // (12 | 43)
+              eri4I(bf1, bf2, bf4, bf3) = buff[ijkl];
+              // (21 | 34)
+              eri4I(bf2, bf1, bf3, bf4) = buff[ijkl];
+              // (21 | 43)
+              eri4I(bf2, bf1, bf4, bf3) = buff[ijkl];
+              // (34 | 12)
+              eri4I(bf3, bf4, bf1, bf2) = buff[ijkl];
+              // (43 | 12)
+              eri4I(bf4, bf3, bf1, bf2) = buff[ijkl];
+              // (34 | 21)
+              eri4I(bf3, bf4, bf2, bf1) = buff[ijkl];
+              // (43 | 21)
+              eri4I(bf4, bf3, bf2, bf1) = buff[ijkl];
+
+
+          }; // ijkl loop
+
+        } else {
+
+          size_t P = s1, Q = s2, R = s3, S = s4;
+
+          size_t pContrSize = basisSet.shells[P].contr.size();
+          size_t qContrSize = basisSet.shells[Q].contr.size();
+          size_t rContrSize = basisSet.shells[R].contr.size();
+          size_t sContrSize = basisSet.shells[S].contr.size();
+
+          size_t pAMSize = shellPrims[P][0].size();
+          size_t qAMSize = shellPrims[Q][0].size();
+          size_t rAMSize = shellPrims[R][0].size();
+          size_t sAMSize = shellPrims[S][0].size();
+
+          size_t pqrsAMSize = pAMSize * qAMSize * rAMSize * sAMSize;
+
+          const double *resPQRS;
+          libintGeneralContractionERI(
+              P, Q, R, S,
+              basisSet, engines[thread_id],
+              shellPrims, coefBlocks, workBlocks[thread_id],
+              resPQRS);
+
+  #ifdef __DEBUGERI__
+          prettyPrintSmart(std::cout, "resPQRS",
+                           resPQRS, pqrsAMSize, pContrSize * qContrSize * rContrSize * sContrSize, pqrsAMSize);
+  #endif
+
+          // Reorganize
+          for (size_t SS = 0, bf4 = bf4_s, pqrs = 0; SS < sContrSize; SS++)
+            for (size_t s = 0; s < sAMSize; s++, bf4++)
+              for (size_t RR = 0, bf3 = bf3_s; RR < rContrSize; RR++)
+                for (size_t r = 0; r < rAMSize; r++, bf3++)
+                  for (size_t QQ = 0, bf2 = bf2_s; QQ < qContrSize; QQ++)
+                    for (size_t q = 0; q < qAMSize; q++, bf2++)
+                      for (size_t PP = 0, bf1 = bf1_s; PP < pContrSize; PP++)
+                        for (size_t p = 0; p < pAMSize; p++, bf1++, pqrs++) {
+                          double eriVal = resPQRS[(s + sAMSize * (r + rAMSize * (q + qAMSize * p)))
+                              + pqrsAMSize * (PP + pContrSize * (QQ + qContrSize * (RR + rContrSize * SS)))];
+                          // (12 | 34)
+                          eri4I(bf1, bf2, bf3, bf4) = eriVal;
+                          // (12 | 43)
+                          eri4I(bf1, bf2, bf4, bf3) = eriVal;
+                          // (21 | 34)
+                          eri4I(bf2, bf1, bf3, bf4) = eriVal;
+                          // (21 | 43)
+                          eri4I(bf2, bf1, bf4, bf3) = eriVal;
+                          // (34 | 12)
+                          eri4I(bf3, bf4, bf1, bf2) = eriVal;
+                          // (43 | 12)
+                          eri4I(bf4, bf3, bf1, bf2) = eriVal;
+                          // (34 | 21)
+                          eri4I(bf3, bf4, bf2, bf1) = eriVal;
+                          // (43 | 21)
+                          eri4I(bf4, bf3, bf2, bf1) = eriVal;
+                        }
+
+        }
+
+      }; // s4
+      }; // s3
+      }; // s2
+      }; // s1
+    }; // omp region
+
+    auto durERI4 = tock(topERI4);
+    std::cout << "  Libint-ERI4 duration   = " << durERI4 << std::endl;
+
+    for (double *p : coefBlocks) {
+      if (p) memManager_.free(p);
+    }
+    coefBlocks.clear();
+
+    if (not segmented)
+      for (size_t i = 0; i < nthreads; i++) {
+        memManager_.free(workBlocks[i]);
+      }
+
+    // Debug output of the ERIs
+#ifdef __DEBUGERI__
+    std::cout << "Two-Electron Integrals (ERIs)" << std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << eri4I(i, j, k, l) << std::endl;
+    };
+#endif
+  }; // InCore4indexERI<double>::computeERIGCNR
 
 
   template <>
@@ -859,7 +1331,7 @@ namespace ChronusQ {
     }; // omp region
 
     auto durERIDCB = tock(topERIDCB);
-    std::cout << "Libint-ERI-Dirac-Coulomb-Breit duration   = " << durERIDCB << std::endl;
+    std::cout << "  Libint-ERI-Dirac-Coulomb-Breit duration   = " << durERIDCB << std::endl;
 
 
 #ifdef __DEBUGERI__
@@ -1491,7 +1963,7 @@ namespace ChronusQ {
 
 
     auto durERIDCB = tock(topERIDCB);
-    //std::cout << "Libint-ERI4-Dirac-Coulomb-Breit duration   = " << durERIDCB << std::endl;
+    //std::cout << "  Libint-ERI4-Dirac-Coulomb-Breit duration   = " << durERIDCB << std::endl;
 
   }  // computeERI3Index
 

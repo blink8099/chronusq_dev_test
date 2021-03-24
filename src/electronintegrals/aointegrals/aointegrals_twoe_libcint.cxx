@@ -48,6 +48,9 @@ namespace ChronusQ {
   void InCore4indexERI<double>::computeERINRCINT(BasisSet &basisSet_, Molecule &molecule_,
       EMPerturbation&, OPERATOR, const HamiltonianOptions &hamiltonianOptions) {
 
+    if (basisSet_.forceCart)
+      CErr("Libcint + cartesian GTO NYI.");
+
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
     int iAtom, iShell, off;
@@ -154,7 +157,11 @@ namespace ChronusQ {
         shls[2] = int(s3);
         shls[3] = int(s4);
 
-        if(cint2e_sph(buff, shls, atm, nAtoms, bas, nShells, env, nullptr)==0) continue;
+        if (basisSet_.forceCart) {
+          if(int2e_cart(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr)==0) continue;
+        } else {
+          if(int2e_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr)==0) continue;
+        }
 
         // permutational symmetry
 	ijkl = 0ul;
@@ -194,7 +201,7 @@ namespace ChronusQ {
     auto durERI4 = tock(topERI4);
     std::cout << "Libcint-ERI4 duration   = " << durERI4 << std::endl;
 
-    memManager_.free(buffAll);
+    memManager_.free(buffAll, atm, bas, env);
 
 #ifdef __DEBUGERI__
     // Debug output of the ERIs
@@ -222,8 +229,39 @@ namespace ChronusQ {
   };
 
   template <>
-  void InCore4indexRelERI<double>::computeERICINT(BasisSet &basisSet_, Molecule &molecule_,
+  void InCore4indexRelERI<double>::computeERICINT(BasisSet &originalBasisSet, Molecule &molecule_,
       EMPerturbation&, OPERATOR, const HamiltonianOptions &hamiltonianOptions) {
+
+    if (originalBasisSet.forceCart)
+      CErr("Libcint + cartesian GTO NYI.");
+
+    BasisSet basisSet_(originalBasisSet);
+
+    std::vector<libint2::Shell> shells;
+
+    shells.push_back(*basisSet_.shells.begin());
+
+    size_t buffSize = shells.back().size();
+
+    for (auto it = ++basisSet_.shells.begin(); it != basisSet_.shells.end(); it++) {
+
+      if (shells.back().O == it->O and
+          shells.back().alpha == it->alpha and
+          shells.back().contr[0].l == it->contr[0].l) {
+
+        shells.back().contr.push_back(it->contr[0]);
+
+      } else {
+        shells.push_back(*it);
+      }
+
+      buffSize = std::max(buffSize, shells.back().size());
+
+    }
+
+    basisSet_.shells = shells;
+
+    basisSet_.update(false);
 
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
@@ -250,10 +288,12 @@ namespace ChronusQ {
 
     for(iShell = 0; iShell < nShells; iShell++) {
 
+      int nContr = basisSet_.shells[iShell].contr.size();
+
       bas[ATOM_OF  + BAS_SLOTS * iShell]  = basisSet_.mapSh2Cen[iShell];
       bas[ANG_OF   + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].contr[0].l;
       bas[NPRIM_OF + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * iShell]  = 1;
+      bas[NCTR_OF  + BAS_SLOTS * iShell]  = nContr;
       bas[PTR_EXP  + BAS_SLOTS * iShell]  = off;
 
       for(int iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
@@ -265,11 +305,41 @@ namespace ChronusQ {
 
       // Spherical GTO normalization constant missing in Libcint
       sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-      for(int iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++){
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-     }
+      for (size_t i = 0; i < nContr; i++) {
+        for(int iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++){
+          env[off + iCoeff] = basisSet_.shells[iShell].contr[i].coeff[iCoeff]*sNorm;
+        }
+        off += basisSet_.shells[iShell].alpha.size();
+      }
 
-      off += basisSet_.shells[iShell].alpha.size();
+    }
+
+    int cache_size = 0;
+    for (int i = 0; i < nShells; i++) {
+      int n, shls[4]{i,i,i,i};
+      if (basisSet_.forceCart) {
+        n = int2e_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+        if(hamiltonianOptions.DiracCoulomb) {
+          n = int2e_ipvip1_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+          cache_size = std::max(cache_size, n);
+        }
+        if(hamiltonianOptions.Gaunt) {
+          n = int2e_ip1ip2_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+          cache_size = std::max(cache_size, n);
+        }
+      } else {
+        n = int2e_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+        if(hamiltonianOptions.DiracCoulomb) {
+          n = int2e_ipvip1_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+          cache_size = std::max(cache_size, n);
+        }
+        if(hamiltonianOptions.Gaunt) {
+          n = int2e_ip1ip2_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+          cache_size = std::max(cache_size, n);
+        }
+      }
     }
 
 
@@ -286,9 +356,11 @@ namespace ChronusQ {
 
 
     // Get threads result buffer
-    int buffSize = (basisSet_.maxL+1)*(basisSet_.maxL+2)/2;
     int buffN4 = buffSize*buffSize*buffSize*buffSize;
+    if (hamiltonianOptions.DiracCoulomb or hamiltonianOptions.Gaunt)
+      buffN4 *= 9;
     double *buffAll = memManager_.malloc<double>(buffN4*nthreads);
+    double *cacheAll = memManager_.malloc<double>(cache_size*nthreads);
 
     std::cout<<"Using Libcint "<<std::endl;
 
@@ -303,6 +375,7 @@ namespace ChronusQ {
       size_t s4_max;
       int shls[4];
       double *buff = buffAll+buffN4*thread_id;
+      double *cache = cacheAll+cache_size*thread_id;
 
       for(size_t s1(0), bf1_s(0), s1234(0); s1 < nShells; 
           bf1_s+=n1, s1++) { 
@@ -332,7 +405,11 @@ namespace ChronusQ {
         shls[2] = int(s3);
         shls[3] = int(s4);
 
-        if(cint2e_sph(buff, shls, atm, nAtoms, bas, nShells, env, nullptr)==0) continue;
+        if (basisSet_.forceCart) {
+          if(int2e_cart(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+        } else {
+          if(int2e_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+        }
 
         // permutational symmetry
 	ijkl = 0ul;
@@ -374,8 +451,6 @@ namespace ChronusQ {
     //	               << basisSet_.shells[s3].contr[0].l<<" "<<basisSet_.shells[s4].contr[0].l<<std::endl;
     std::cout << "Libcint-ERI4 duration   = " << durERI4 << std::endl;
 
-    memManager_.free(buffAll);
-
 #ifdef __DEBUGERI__
     // Debug output of the ERIs
     std::cout << std::scientific << std::setprecision(16);
@@ -400,8 +475,6 @@ namespace ChronusQ {
 
       for (InCore4indexERI<double>& c : components_) c.clear();
   
-      buffAll = memManager_.malloc<double>(9*buffN4*nthreads);
-  
       int AxBx = 0;
       int AxBy = 1;
       int AxBz = 2;
@@ -421,7 +494,8 @@ namespace ChronusQ {
         size_t n1,n2,n3,n4,i,j,k,l,ijkl,bf1,bf2,bf3,bf4;
         size_t s4_max;
         int shls[4];
-        double *buff = buffAll + 9*buffN4*thread_id;
+        double *buff = buffAll + buffN4*thread_id;
+        double *cache = cacheAll+cache_size*thread_id;
   
         for(size_t s1(0), bf1_s(0), s1234(0); s1 < nShells; bf1_s+=n1, s1++) { 
   
@@ -449,8 +523,12 @@ namespace ChronusQ {
           shls[2] = int(s3);
           shls[3] = int(s4);
   
-          if(cint2e_ipvip1_sph(buff, shls, atm, nAtoms, bas, nShells, env, nullptr)==0) continue;
-  
+          if (basisSet_.forceCart) {
+            if(int2e_ipvip1_cart(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+          } else {
+            if(int2e_ipvip1_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+          }
+
           ijkl = 0ul;
   	  auto nQuad = n1*n2*n3*n4;
           for(l = 0ul, bf4 = bf4_s ; l < n4; ++l, bf4++)
@@ -520,9 +598,7 @@ namespace ChronusQ {
   
       auto durERIDC = tock(topERIDC);
       std::cout << "Libcint-ERI-Dirac-Coulomb duration   = " << durERIDC << std::endl;
-  
-      memManager_.free(buffAll);
-  
+    
 
 #ifdef __DEBUGERI__
       std::cout << std::scientific << std::setprecision(16);
@@ -532,13 +608,13 @@ namespace ChronusQ {
       for(auto k = 0ul; k < NB; k++)
       for(auto l = 0ul; l < NB; l++){
         std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
-        std::cout << scalar()(i, j, k, l);
+        std::cout << (*this)[0](i, j, k, l);
         std::cout << "   ";
-        std::cout << SOX()(i, j, k, l);
+        std::cout << (*this)[1](i, j, k, l);
         std::cout << "   ";
-        std::cout << SOY()(i, j, k, l);
+        std::cout << (*this)[2](i, j, k, l);
         std::cout << "   ";
-        std::cout << SOZ()(i, j, k, l) << std::endl;
+        std::cout << (*this)[3](i, j, k, l) << std::endl;
       };
 #endif
 
@@ -571,17 +647,17 @@ namespace ChronusQ {
       int BzCy = 7;
       int BzCz = 8;
   
-      buffAll = memManager_.malloc<double>(9*buffN4*nthreads);
       auto topERIGaunt = tick();
   
       #pragma omp parallel
       {
         int thread_id = GetThreadID();
-  
+
         size_t n1,n2,n3,n4,i,j,k,l,ijkl,bf1,bf2,bf3,bf4;
         size_t s4_max;
         int shls[4];
-        double *buff = buffAll + 9*buffN4*thread_id;
+        double *buff = buffAll + buffN4*thread_id;
+        double *cache = cacheAll+cache_size*thread_id;
   
         for(size_t s1(0), bf1_s(0), s1234(0); s1 < nShells; 
             bf1_s+=n1, s1++) { 
@@ -609,9 +685,13 @@ namespace ChronusQ {
           shls[1] = int(s2);
           shls[2] = int(s3);
           shls[3] = int(s4);
-  
-          if(cint2e_ip1ip2_sph(buff, shls, atm, nAtoms, bas, nShells, env, nullptr)==0) continue;
-  
+
+          if (basisSet_.forceCart) {
+            if(int2e_ip1ip2_cart(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+          } else {
+            if(int2e_ip1ip2_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+          }
+
   
   	  ijkl = 0ul;
   	  auto nQuad = n1*n2*n3*n4;
@@ -775,7 +855,7 @@ namespace ChronusQ {
       auto durERIGaunt = tock(topERIGaunt);
       //std::cout << "Libcint-ERI-Gaunt duration   = " << durERIGaunt << std::endl;
   
-      memManager_.free(buffAll);
+      memManager_.free(cacheAll, buffAll, env, bas, atm);
   
   
 #ifdef __DEBUGERI__
@@ -962,10 +1042,6 @@ namespace ChronusQ {
     prettyPrintSmart(std::cout,"Rank-2 ERI22 ∇∇(ab|cd)",(*this)[22].pointer(), NB*NB,NB*NB,NB*NB);
 #endif
 
-    memManager_.free(atm);
-    memManager_.free(bas);
-    memManager_.free(env);
-
   }; // InCore4indexRelERI<double>::computeERICINT
 
 
@@ -973,14 +1049,45 @@ namespace ChronusQ {
 
 
   template <>
-  void InCore4indexRelERI<dcomplex>::computeERIGCCINT(BasisSet&, Molecule&,
+  void InCore4indexERI<dcomplex>::computeERIGCCINT(BasisSet&, Molecule&,
       EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
     CErr("Only real GTOs are allowed",std::cout);
   };
 
   template <>
-  void InCore4indexRelERI<double>::computeERIGCCINT(BasisSet &basisSet_, Molecule &molecule_,
+  void InCore4indexERI<double>::computeERIGCCINT(BasisSet &originalBasisSet, Molecule &molecule_,
       EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+
+    if (originalBasisSet.forceCart)
+      CErr("Libcint + cartesian GTO NYI.");
+
+    BasisSet basisSet_(originalBasisSet);
+
+    std::vector<libint2::Shell> shells;
+
+    shells.push_back(*basisSet_.shells.begin());
+
+    size_t buffSize = shells.back().size();
+
+    for (auto it = ++basisSet_.shells.begin(); it != basisSet_.shells.end(); it++) {
+
+      if (shells.back().O == it->O and
+          shells.back().alpha == it->alpha and
+          shells.back().contr[0].l == it->contr[0].l) {
+
+        shells.back().contr.push_back(it->contr[0]);
+
+      } else {
+        shells.push_back(*it);
+      }
+
+      buffSize = std::max(buffSize, shells.back().size());
+
+    }
+
+    basisSet_.shells = shells;
+
+    basisSet_.update(false);
 
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
@@ -989,8 +1096,7 @@ namespace ChronusQ {
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    // XSLI: we need to know the maximum number of enviroment variables
-    double *env = memManager_.template malloc<double>(100000);
+    double *env = memManager_.template malloc<double>(nAtoms*3+originalBasisSet.nShell*basisSet_.maxPrim*2);
     double sNorm;
 
     off = PTR_ENV_START; // = 20
@@ -1006,13 +1112,14 @@ namespace ChronusQ {
 
     }
 
-#if 0
     for(iShell = 0; iShell < nShells; iShell++) {
+
+      int nContr = basisSet_.shells[iShell].contr.size();
 
       bas[ATOM_OF  + BAS_SLOTS * iShell]  = basisSet_.mapSh2Cen[iShell];
       bas[ANG_OF   + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].contr[0].l;
       bas[NPRIM_OF + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * iShell]  = 1;
+      bas[NCTR_OF  + BAS_SLOTS * iShell]  = nContr;
       bas[PTR_EXP  + BAS_SLOTS * iShell]  = off;
 
       for(int iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
@@ -1024,243 +1131,29 @@ namespace ChronusQ {
 
       // Spherical GTO normalization constant missing in Libcint
       sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
+      for (size_t i = 0; i < nContr; i++) {
+        for(int iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++){
+          env[off + iCoeff] = basisSet_.shells[iShell].contr[i].coeff[iCoeff]*sNorm;
+        }
+        off += basisSet_.shells[iShell].alpha.size();
+      }
 
-      for(int iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++){
-
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-        //env[off + iCoeff] = basisSet_.unNormCont[iShell][iCoeff]*
-         	//CINTgto_norm(bas[ANG_OF+BAS_SLOTS*iShell], env[bas[PTR_EXP+BAS_SLOTS*iShell]+iCoeff]);
-     }
-
-      off += basisSet_.shells[iShell].alpha.size();
     }
-#else
 
-    int iPrim;
-    int iCoeff;
-    int jShell;
-
-    jShell = 0;
-    iShell = 0; //S
-      bas[ATOM_OF  + BAS_SLOTS * jShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * jShell]  = 2*basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * jShell]  = 2;
-      bas[PTR_EXP  + BAS_SLOTS * jShell]  = off;
-
-      for(iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-      off += basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * jShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+1].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+1].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+1].alpha.size();
-
-    jShell++;
-    iShell = 2; //P
-      bas[ATOM_OF  + BAS_SLOTS * jShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * jShell]  = 3*basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * jShell]  = 3;
-      bas[PTR_EXP  + BAS_SLOTS * jShell]  = off;
-
-      for(iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-      off += basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * jShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+1].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+1].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+1].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+2].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+2].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+2].alpha.size();
-
-
-    jShell++;
-    iShell = 5; //D
-      bas[ATOM_OF  + BAS_SLOTS * jShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * jShell]  = 4*basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * jShell]  = 4;
-      bas[PTR_EXP  + BAS_SLOTS * jShell]  = off;
-
-      for(iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-      off += basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * jShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+1].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+1].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+1].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+2].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+2].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+2].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+3].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+3].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+3].alpha.size();
-
-
-    jShell++;
-    iShell = 9; //F
-      bas[ATOM_OF  + BAS_SLOTS * jShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * jShell]  = 5*basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * jShell]  = 5;
-      bas[PTR_EXP  + BAS_SLOTS * jShell]  = off;
-
-      for(iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-      off += basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * jShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+1].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+1].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+1].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+2].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+2].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+2].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+3].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+3].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+3].alpha.size();
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell+4].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell+4].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell+4].alpha.size();
-
-
-    jShell++;
-    iShell = 14; //G
-      bas[ATOM_OF  + BAS_SLOTS * jShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * jShell]  = 1;
-      bas[PTR_EXP  + BAS_SLOTS * jShell]  = off;
-
-      for(iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-      off += basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * jShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell].alpha.size();
-
-
-    jShell++;
-    iShell = 15; //G
-      bas[ATOM_OF  + BAS_SLOTS * jShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * jShell]  = 1;
-      bas[PTR_EXP  + BAS_SLOTS * jShell]  = off;
-
-      for(iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-      off += basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * jShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell].alpha.size();
-
-
-    jShell++;
-    iShell = 16; //G
-      bas[ATOM_OF  + BAS_SLOTS * jShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * jShell]  = 1;
-      bas[PTR_EXP  + BAS_SLOTS * jShell]  = off;
-
-      for(iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-      off += basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * jShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell].alpha.size();
-
-
-    jShell++;
-    iShell = 17; //H
-      bas[ATOM_OF  + BAS_SLOTS * jShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * jShell]  = basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * jShell]  = 1;
-      bas[PTR_EXP  + BAS_SLOTS * jShell]  = off;
-
-      for(iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-      off += basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * jShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-
-      for(iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++)
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-      off += basisSet_.shells[iShell].alpha.size();
-
-
-#endif
-
+    int cache_size = 0;
+    for (int i = 0; i < nShells; i++) {
+      int n, shls[4]{i,i,i,i};
+      if (basisSet_.forceCart) {
+        n = int2e_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+      } else {
+        n = int2e_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+      }
+      cache_size = std::max(cache_size, n);
+    }
 
     // Determine the number of OpenMP threads
     int nthreads = GetNumThreads();
- 
+
     // Allocate and zero out ERIs
     size_t NB  = basisSet_.nBasis;
     size_t NB2 = NB*NB;
@@ -1271,18 +1164,14 @@ namespace ChronusQ {
 
 
     // Get threads result buffer
-    // XSLI: we need to know what is the degree of general contraction
-    // int buffSize = (basisSet_.maxL+1)*(basisSet_.maxL+2)/2;
-    int buffSize = 35;
     int buffN4 = buffSize*buffSize*buffSize*buffSize;
     double *buffAll = memManager_.malloc<double>(buffN4*nthreads);
+    double *cacheAll = memManager_.malloc<double>(cache_size*nthreads);
 
     std::cout<<"Using Libcint "<<std::endl;
 
-    // XSLI 
-    nShells = jShell;
-
     auto topERI4 = tick();
+
     #pragma omp parallel
     {
       int thread_id = GetThreadID();
@@ -1291,9 +1180,10 @@ namespace ChronusQ {
       size_t s4_max;
       int shls[4];
       double *buff = buffAll+buffN4*thread_id;
+      double *cache = cacheAll+cache_size*thread_id;
 
-      for(size_t s1(0), bf1_s(0), s1234(0); s1 < nShells; 
-          bf1_s+=n1, s1++) { 
+      for(size_t s1(0), bf1_s(0), s1234(0); s1 < nShells;
+          bf1_s+=n1, s1++) {
 
         n1 = basisSet_.shells[s1].size(); // Size of Shell 1
 
@@ -1320,7 +1210,40 @@ namespace ChronusQ {
         shls[2] = int(s3);
         shls[3] = int(s4);
 
-        if(cint2e_sph(buff, shls, atm, nAtoms, bas, nShells, env, nullptr)==0) continue;
+        if (basisSet_.forceCart) {
+          if(int2e_cart(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+        } else {
+          if(int2e_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+        }
+
+        // permutational symmetry
+  ijkl = 0ul;
+        for(l = 0ul, bf4 = bf4_s ; l < n4; ++l, bf4++)
+        for(k = 0ul, bf3 = bf3_s ; k < n3; ++k, bf3++)
+        for(j = 0ul, bf2 = bf2_s ; j < n2; ++j, bf2++)
+        for(i = 0ul, bf1 = bf1_s ; i < n1; ++i, bf1++)
+  {
+
+            // (12 | 34)
+            (*this)(bf1, bf2, bf3, bf4) = buff[ijkl];
+            // (12 | 43)
+            (*this)(bf1, bf2, bf4, bf3) = buff[ijkl];
+            // (21 | 34)
+            (*this)(bf2, bf1, bf3, bf4) = buff[ijkl];
+            // (21 | 43)
+            (*this)(bf2, bf1, bf4, bf3) = buff[ijkl];
+            // (34 | 12)
+            (*this)(bf3, bf4, bf1, bf2) = buff[ijkl];
+            // (43 | 12)
+            (*this)(bf4, bf3, bf1, bf2) = buff[ijkl];
+            // (34 | 21)
+            (*this)(bf3, bf4, bf2, bf1) = buff[ijkl];
+            // (43 | 21)
+            (*this)(bf4, bf3, bf2, bf1) = buff[ijkl];
+
+      ijkl++;
+
+        }; // ijkl loop
 
       }; // s4
       }; // s3
@@ -1328,13 +1251,15 @@ namespace ChronusQ {
       }; // s1
     }; // omp region
 
-    memManager_.free(buffAll);
     auto durERI4 = tock(topERI4);
     std::cout << "Libcint-ERI4 duration   = " << durERI4 << std::endl;
 
-    // Debug output of the ERIs
+    memManager_.free(cacheAll, buffAll, env, bas, atm);
+
 #ifdef __DEBUGERI__
-    std::cout << "Two-Electron Integrals (ERIs)" << std::endl;
+    // Debug output of the ERIs
+    std::cout << std::scientific << std::setprecision(16);
+    std::cout << "Libcint ERI (ab|cd)" << std::endl;
     for(auto i = 0ul; i < NB; i++)
     for(auto j = 0ul; j < NB; j++)
     for(auto k = 0ul; k < NB; k++)
@@ -1342,11 +1267,7 @@ namespace ChronusQ {
       std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
       std::cout << (*this)(i, j, k, l) << std::endl;
     };
-#endif 
-
-    memManager_.free(atm);
-    memManager_.free(bas);
-    memManager_.free(env);
+#endif // __DEBUGERI__
 
   }; // InCore4indexRelERI<double>::computeERIGCCINT
 

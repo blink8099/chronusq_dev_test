@@ -684,6 +684,15 @@ namespace ChronusQ {
     // Parse Integral library
     OPTOPT( hamiltonianOptions.Libcint = input.getData<bool>("INTS.LIBCINT") )
 
+    if (hamiltonianOptions.Libcint) {
+      if (basis.forceCart)
+        CErr("Libcint + cartesian GTO NYI.");
+      if (auto aoi = std::dynamic_pointer_cast<Integrals<double>>(aoints))
+        if (auto rieri = std::dynamic_pointer_cast<InCoreAuxBasisRIERI<double>>(aoi->ERI))
+          if (rieri->auxbasisSet()->forceCart)
+            CErr("Libcint + cartesian GTO NYI.");
+    }
+
 
     // Parse 4C options
     OPTOPT( hamiltonianOptions.DiracCoulomb = input.getData<bool>("INTS.DIRACCOULOMB") )
