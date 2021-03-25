@@ -186,12 +186,90 @@ namespace ChronusQ {
       CErr("Requested operator is not implemented in OneEInts,"
            " it is implemented in MultipoleInts",std::cout);
       break;
+    default:
+      CErr("Requested operator is not implemented in OneEInts.");
+      break;
     }
 
   };
 
   template <>
-  void MultipoleInts<dcomplex>::computeAOInts(BasisSet &basis, Molecule&,
+  void VectorInts<dcomplex>::computeAOInts(BasisSet &basis, Molecule&,
+      EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &options) {
+    if (options.basisType == REAL_GTO)
+      CErr("Real GTOs are not allowed in VectorInts<dcomplex>",std::cout);
+    if (options.basisType == COMPLEX_GTO)
+      CErr("Complex GTOs NYI in VectorInts<dcomplex>",std::cout);
+    if (options.OneEScalarRelativity or options.OneESpinOrbit)
+      CErr("Relativistic integrals are implemented in OneERelInts",std::cout);
+
+    auto magAmp = emPert.getDipoleAmp(Magnetic);
+
+    switch (op) {
+    case OVERLAP:
+    case KINETIC:
+    case NUCLEAR_POTENTIAL:
+      CErr("Requested operator is not implemented in VectorInts,"
+           " it is implemented in OneEInts",std::cout);
+      break;
+    case ELECTRON_REPULSION:
+      CErr("Electron repulsion integrals are not implemented in VectorInts,"
+           " they are implemented in TwoEInts",std::cout);
+      break;
+    case LEN_ELECTRIC_MULTIPOLE:
+      switch (order()) {
+      case 1:
+        OneEInts<dcomplex>::OneEDriverLocal<3,true>(
+            std::bind(&ComplexGIAOIntEngine::computeGIAOEDipoleE1_len,
+                      std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3, &magAmp[0]),
+            basis.shells, pointers());
+        break;
+      case 2:
+        OneEInts<dcomplex>::OneEDriverLocal<6,true>(
+            std::bind(&ComplexGIAOIntEngine::computeGIAOEQuadrupoleE2_len,
+                      std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3, &magAmp[0]),
+            basis.shells, pointers());
+        break;
+      case 3:
+        OneEInts<dcomplex>::OneEDriverLocal<10,true>(
+            std::bind(&ComplexGIAOIntEngine::computeGIAOEOctupoleE3_len,
+                      std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3, &magAmp[0]),
+            basis.shells, pointers());
+        break;
+      default:
+        CErr("Requested operator is NYI in VectorInts.",std::cout);
+        break;
+      }
+      break;
+    case VEL_ELECTRIC_MULTIPOLE:
+      CErr("Requested operator is NYI in VectorInts.",std::cout);
+      break;
+    case MAGNETIC_MULTIPOLE:
+      switch (order()) {
+      case 1:
+        OneEInts<dcomplex>::OneEDriverLocal<3,false>(
+            std::bind(&ComplexGIAOIntEngine::computeGIAOAngularL,
+                      std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3, &magAmp[0]),
+            basis.shells, pointers());
+        break;
+      default:
+        CErr("Requested operator is NYI in VectorInts.",std::cout);
+        break;
+      }
+      break;
+    default:
+      CErr("Requested operator is not implemented in VectorInts.");
+      break;
+    }
+
+  };
+
+  template <>
+  void MultipoleInts<dcomplex>::computeAOInts(BasisSet &basis, Molecule &mol,
       EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &options) {
     if (options.basisType == REAL_GTO)
       CErr("Real GTOs are not allowed in MultipoleInts<dcomplex>",std::cout);
@@ -214,47 +292,14 @@ namespace ChronusQ {
            " they are implemented in TwoEInts",std::cout);
       break;
     case LEN_ELECTRIC_MULTIPOLE:
-      switch (highOrder()) {
-      case 3:
-        OneEInts<dcomplex>::OneEDriverLocal<10,true>(
-            std::bind(&ComplexGIAOIntEngine::computeGIAOEOctupoleE3_len,
-                      std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3, &magAmp[0]),
-            basis.shells, octupolePointers());
-      case 2:
-        OneEInts<dcomplex>::OneEDriverLocal<6,true>(
-            std::bind(&ComplexGIAOIntEngine::computeGIAOEQuadrupoleE2_len,
-                      std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3, &magAmp[0]),
-            basis.shells, quadrupolePointers());
-      case 1:
-        OneEInts<dcomplex>::OneEDriverLocal<3,true>(
-            std::bind(&ComplexGIAOIntEngine::computeGIAOEDipoleE1_len,
-                      std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3, &magAmp[0]),
-            basis.shells, dipolePointers());
-        break;
-      default:
-        CErr("Requested operator is NYI in MultipoleInts.",std::cout);
-        break;
-      }
-      break;
     case VEL_ELECTRIC_MULTIPOLE:
-      CErr("Requested operator is NYI in MultipoleInts.",std::cout);
-      break;
     case MAGNETIC_MULTIPOLE:
-      switch (highOrder()) {
-      case 1:
-        OneEInts<dcomplex>::OneEDriverLocal<3,false>(
-            std::bind(&ComplexGIAOIntEngine::computeGIAOAngularL,
-                      std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3, &magAmp[0]),
-            basis.shells, dipolePointers());
-        break;
-      default:
-        CErr("Requested operator is NYI in MultipoleInts.",std::cout);
-        break;
+      for (VectorInts<dcomplex> &vInts: components_) {
+        vInts.computeAOInts(basis, mol, emPert, op, options);
       }
+      break;
+    default:
+      CErr("Requested operator is not implemented in MultipoleInts.");
       break;
     }
 
