@@ -368,13 +368,95 @@ namespace ChronusQ {
       CErr("Requested operator is not implemented in OneEInts,"
            " it is implemented in MultipoleInts",std::cout);
       break;
+    default:
+      CErr("Requested operator is not implemented in OneEInts.");
+      break;
+    }
+
+  };
+
+  template <>
+  void VectorInts<double>::computeAOInts(BasisSet &basis, Molecule &mol,
+      EMPerturbation&, OPERATOR op, const HamiltonianOptions &options) {
+    if (options.basisType != REAL_GTO)
+      CErr("Only Real GTOs are allowed in VectorInts<double>",std::cout);
+    if (options.OneEScalarRelativity or options.OneESpinOrbit)
+      CErr("Relativistic multipole integrals are implemented in OneERelInts",std::cout);
+
+    switch (op) {
+    case OVERLAP:
+    case KINETIC:
+    case NUCLEAR_POTENTIAL:
+      CErr("Requested operator is not implemented in VectorInts,"
+           " it is implemented in OneEInts",std::cout);
+      break;
+    case ELECTRON_REPULSION:
+      CErr("Electron repulsion integrals are not implemented in VectorInts,"
+           " they are implemented in TwoEInts",std::cout);
+      break;
+    case LEN_ELECTRIC_MULTIPOLE:
+      CErr("Len Electric multipole integrals are not implemented in VectorInts,"
+           " they are implemented in MultipoleInts",std::cout);
+      break;
+    case VEL_ELECTRIC_MULTIPOLE:
+      switch (order()) {
+      case 1:
+        OneEInts<double>::OneEDriverLocal<3,false>(
+            std::bind(&RealGTOIntEngine::computeEDipoleE1_vel,
+                      std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3),
+            basis.shells, pointers());
+        break;
+      case 2:
+        OneEInts<double>::OneEDriverLocal<6,false>(
+            std::bind(&RealGTOIntEngine::computeEQuadrupoleE2_vel,
+                      std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3),
+            basis.shells, pointers());
+        break;
+      case 3:
+        OneEInts<double>::OneEDriverLocal<10,false>(
+            std::bind(&RealGTOIntEngine::computeEOctupoleE3_vel,
+                      std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3),
+            basis.shells, pointers());
+        break;
+      default:
+        CErr("Requested operator is NYI in VectorInts.",std::cout);
+        break;
+      }
+      break;
+    case MAGNETIC_MULTIPOLE:
+      switch (order()) {
+      case 1:
+        OneEInts<double>::OneEDriverLocal<3,false>(
+            std::bind(&RealGTOIntEngine::computeAngularL,
+                      std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3),
+            basis.shells, pointers());
+        break;
+      case 2:
+        OneEInts<double>::OneEDriverLocal<9,false>(
+            std::bind(&RealGTOIntEngine::computeMQuadrupoleM2_vel,
+                      std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3),
+            basis.shells, pointers());
+        break;
+      default:
+        CErr("Requested operator is NYI in VectorInts.",std::cout);
+        break;
+      }
+      break;
+    default:
+      CErr("Requested operator is not implemented in VectorInts.");
+      break;
     }
 
   };
 
   template <>
   void MultipoleInts<double>::computeAOInts(BasisSet &basis, Molecule &mol,
-      EMPerturbation&, OPERATOR op, const HamiltonianOptions &options) {
+      EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &options) {
     if (options.basisType != REAL_GTO)
       CErr("Only Real GTOs are allowed in MultipoleInts<double>",std::cout);
     if (options.OneEScalarRelativity or options.OneESpinOrbit)
@@ -420,50 +502,13 @@ namespace ChronusQ {
       memManager().free(_multipole[0]);
       break;
     case VEL_ELECTRIC_MULTIPOLE:
-      switch (highOrder()) {
-      case 3:
-        OneEInts<double>::OneEDriverLocal<10,false>(
-            std::bind(&RealGTOIntEngine::computeEOctupoleE3_vel,
-                      std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3),
-            basis.shells, octupolePointers());
-      case 2:
-        OneEInts<double>::OneEDriverLocal<6,false>(
-            std::bind(&RealGTOIntEngine::computeEQuadrupoleE2_vel,
-                      std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3),
-            basis.shells, quadrupolePointers());
-      case 1:
-        OneEInts<double>::OneEDriverLocal<3,false>(
-            std::bind(&RealGTOIntEngine::computeEDipoleE1_vel,
-                      std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3),
-            basis.shells, dipolePointers());
-        break;
-      default:
-        CErr("Requested operator is NYI in MultipoleInts.",std::cout);
-        break;
+    case MAGNETIC_MULTIPOLE:
+      for (VectorInts<double> &vInts: components_) {
+        vInts.computeAOInts(basis, mol, emPert, op, options);
       }
       break;
-    case MAGNETIC_MULTIPOLE:
-      switch (highOrder()) {
-      case 2:
-        OneEInts<double>::OneEDriverLocal<9,false>(
-            std::bind(&RealGTOIntEngine::computeMQuadrupoleM2_vel,
-                      std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3),
-            basis.shells, quadrupolePointers());
-      case 1:
-        OneEInts<double>::OneEDriverLocal<3,false>(
-            std::bind(&RealGTOIntEngine::computeAngularL,
-                      std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3),
-            basis.shells, dipolePointers());
-        break;
-      default:
-        CErr("Requested operator is NYI in MultipoleInts.",std::cout);
-        break;
-      }
+    default:
+      CErr("Requested operator is not implemented in MultipoleInts.");
       break;
     }
 
@@ -509,10 +554,6 @@ namespace ChronusQ {
                   pair,sh1,sh2,mol);
               }, basis.shells, SOXYZPointers());
     }
-//SS print start
-//prettyPrintSmart(std::cout,"_potential ",_potential[0],NB,NB,NB);
-//prettyPrintSmart(std::cout,"_PVdP ",_PVdP[0],NB,NB,NB);
-//SS print end
 
   };
 

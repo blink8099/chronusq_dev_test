@@ -23,7 +23,7 @@
  */
 #pragma once
 #include <electronintegrals.hpp>
-#include <electronintegrals/oneeints.hpp>
+#include <electronintegrals/vectorints.hpp>
 
 namespace ChronusQ {
 
@@ -45,7 +45,7 @@ namespace ChronusQ {
   protected:
     size_t highOrder_ = 0;
     bool symmetric_ = false;
-    std::vector<OneEInts<IntsT>> components_;
+    std::vector<VectorInts<IntsT>> components_;
 
     void orderCheck(size_t order) const {
       if (order > highOrder())
@@ -54,90 +54,32 @@ namespace ChronusQ {
         CErr("No zeroth-order components in MultipoleInts.");
     }
 
-    size_t nComponentsOnOrder(size_t order) const {
-      if (symmetric()) {
-        return (order + 2) * (order + 1) / 2;
-      } else {
-        size_t pow = 3;
-        for (size_t i = 2; i <= order; i++) {
-          pow *= 3;
-        }
-        return pow;
-      }
-    }
-
     size_t cumeComponents(size_t order) const {
       size_t count = 0;
-      if (symmetric()) {
-        for (size_t i = 1; i <= order; i++)
-          count += (i + 2) * (i + 1) / 2;
-      } else {
-        size_t pow = 3;
-        for (size_t i = 1; i <= order; i++) {
-          count += pow;
-          pow *= 3;
-        }
-      }
+      for (size_t i = 1; i <= order; i++)
+        count += VectorInts<IntsT>::nComponentsOnOrder(i, symmetric());
       return count;
     }
 
-    size_t index(std::vector<size_t> comps) const {
+    std::pair<size_t, size_t> index(std::vector<size_t> comps) const {
       size_t order = comps.size();
-      orderCheck(order);
-      size_t count = cumeComponents(order-1);
-      if (symmetric()) {
-        std::array<size_t, 3> ncomps{0,0,0};
-        for (size_t i = 0; i < order; i++) {
-          if (comps[i] > 2)
-            CErr("MultipoleInts Component label must be"
-                 " combinations of 'X', 'Y', and 'Z'");
-          ncomps[comps[i]]++;
-        }
-        size_t yz = ncomps[1] + ncomps[2];
-        count += yz * (yz+1) / 2 + ncomps[2];
-      } else {
-        size_t pow = 1;
-        for (int i = order - 1; i >= 0; i--) {
-          if (comps[i] > 2)
-            CErr("MultipoleInts Component label must be"
-                 " combinations of 'X', 'Y', and 'Z'");
-          count += comps[i] * pow;
-          pow *= 3;
-        }
-      }
-      return count;
+      orderCheck(order--);
+      return std::make_pair(order, components_[order].index(comps));
     }
 
-    std::vector<size_t> indices(std::string s) const {
-      std::vector<size_t> inds(s.size());
-      std::transform(s.begin(), s.end(), inds.begin(),
-          [](unsigned char c){ return std::toupper(c) - 'X';});
-      return inds;
-    }
-
-    std::string label(size_t i) const {
+    std::pair<size_t, size_t> index(size_t i) const {
       size_t order = 1, orderNComp = 3;
       while (i >= orderNComp) {
         i -= orderNComp;
-        orderNComp = nComponentsOnOrder(++order);
+        orderNComp = VectorInts<IntsT>::nComponentsOnOrder(++order, symmetric());
       }
+      return std::make_pair(order-1, i);
+    }
 
-      std::string s;
-      if (symmetric()) {
-        size_t yz = static_cast<size_t>(std::sqrt(2*i+0.25)-0.5);
-        std::array<size_t, 3> ncomps{0,0,0};
-        ncomps[0] = order - yz;
-        ncomps[2] = i - yz*(yz+1)/2;
-        ncomps[1] = yz - ncomps[2];
-        for (size_t j = 0; j < 3; j++)
-          for (size_t k = 0; k < ncomps[j]; k++)
-            s += static_cast<char>('X'+j);
-      } else
-        for (size_t j = 0; j < order; j++) {
-          s = static_cast<char>('X'+i%3) + s;
-          i /= 3;
-        }
-      return s;
+    std::string label(size_t i) const {
+      std::pair<size_t, size_t> indices = index(i);
+      return VectorInts<IntsT>::indexToLabel(
+            indices.second, indices.first+1, symmetric());
     }
 
   public:
@@ -150,10 +92,9 @@ namespace ChronusQ {
         ElectronIntegrals(mem, nb), highOrder_(order), symmetric_(symm) {
       if (order == 0)
         CErr("MultipoleInts order must be at least 1.");
-      size_t size = cumeComponents(order);
-      components_.reserve(size);
-      for (size_t i = 0; i < size; i++) {
-        components_.emplace_back(mem, nb);
+      components_.reserve(order);
+      for (size_t i = 1; i <= order; i++) {
+        components_.emplace_back(mem, nb, i, symm);
       }
     }
 
@@ -169,35 +110,33 @@ namespace ChronusQ {
         components_.emplace_back(p);
     }
 
-    size_t size() const { return components_.size(); }
+    size_t size() const { return cumeComponents(highOrder()); }
     bool symmetric() const { return symmetric_; }
     size_t highOrder() const { return highOrder_; }
 
     OneEInts<IntsT>& operator[](size_t i) {
-      return components_[i];
+      std::pair<size_t, size_t> indices = index(i);
+      return components_[indices.first][indices.second];
     }
 
     const OneEInts<IntsT>& operator[](size_t i) const {
-      return components_[i];
+      std::pair<size_t, size_t> indices = index(i);
+      return components_[indices.first][indices.second];
     }
 
     OneEInts<IntsT>& operator[](std::string s) {
-      return components_[index(indices(s))];
+      orderCheck(s.size());
+      return components_[s.size()-1][s];
     }
 
     const OneEInts<IntsT>& operator[](std::string s) const {
-      return components_[index(indices(s))];
+      orderCheck(s.size());
+      return components_[s.size()-1][s];
     }
 
     std::vector<IntsT*> pointersByOrder(size_t order) {
-      orderCheck(order);
-      size_t iStart = cumeComponents(order - 1);
-      size_t iEnd = cumeComponents(order);
-      std::vector<IntsT*> ps(iEnd - iStart);
-      std::transform(components_.begin()+iStart,
-          components_.begin()+iEnd, ps.begin(),
-          [](OneEInts<IntsT> &oei){ return oei.pointer(); });
-      return ps;
+      orderCheck(order--);
+      return components_[order].pointers();
     }
 
     std::vector<IntsT*> dipolePointers() {
@@ -217,7 +156,7 @@ namespace ChronusQ {
         OPERATOR, const HamiltonianOptions&);
 
     virtual void clear() {
-      for (OneEInts<IntsT>& c : components_)
+      for (VectorInts<IntsT>& c : components_)
         c.clear();
     }
 
@@ -229,9 +168,11 @@ namespace ChronusQ {
           oeiStr = "MultipoleInts.";
         else
           oeiStr = "MultipoleInts[" + s + "].";
-        for (size_t i = 0; i < size(); i++)
-          prettyPrintSmart(out, oeiStr+label(i), operator[](i).pointer(),
+        for (size_t i = 0; i < size(); i++) {
+          std::string label_i = label(i);
+          prettyPrintSmart(out, oeiStr+label_i, operator[](label_i).pointer(),
               this->nBasis(), this->nBasis(), this->nBasis());
+        }
       } else {
         std::string oeiStr;
         if (s == "")
