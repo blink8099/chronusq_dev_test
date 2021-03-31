@@ -989,7 +989,7 @@ namespace ChronusQ {
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(nAtoms*3+nShells*basisSet_.maxPrim*2);
+    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+nShells*basisSet_.maxPrim*2);
     double sNorm;
 
     off = PTR_ENV_START; // = 20
