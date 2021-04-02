@@ -52,6 +52,11 @@ namespace ChronusQ {
       "SCHWARTZ",     // double
       "RI",           // AUXBASIS or CHOLESKY or False
       "RITHRESHOLD",  // double
+      "RISIGMA",      // double
+      "RIMINSHRINK",  // size_t
+      "RIMAXQUAL",    // size_t
+      "RIGENCONTR",   // True or False
+      "RIBUILD4INDEX",// True or False
       "FINITENUCLEI", // True or False
       "NONRELCOULOMB",// True or False
       "DC",           // True or False
@@ -98,7 +103,13 @@ namespace ChronusQ {
     CONTRACTION_ALGORITHM contrAlg = CONTRACTION_ALGORITHM::DIRECT; ///< Alg for 2-body contraction
     double threshSchwartz = 1e-12; ///< Schwartz screening threshold
     std::string RI = "FALSE"; ///< RI algorithm
+    CHOLESKY_ALG CDalg = CHOLESKY_ALG::DYNAMIC_ERI; ///< Cholesky algorithm
     double CDRI_thresh = 1e-4; ///< Cholesky RI threshold
+    double CDRI_sigma = 1e-2; ///< Cholesky RI sigma for span factor algorithm
+    bool CDRI_genContr = true; ///< Cholesky RI uncontract basis functions to primitives
+    size_t CDRI_max_qual = 1000; ///< Cholesky RI max # of qualified candidates per iteration for span-factor algorithm
+    size_t CDRI_minShrinkCycle = 10; ///< Cholesky RI min # of iterations between shrinks for dynamic-all algorithm
+    bool CDRI_build4I = false; ///< Cholesky RI explicitly build 4-index
 
     if( not ALG.compare("DIRECT") )
       contrAlg = CONTRACTION_ALGORITHM::DIRECT;
@@ -114,30 +125,50 @@ namespace ChronusQ {
     OPTOPT( RI = input.getData<std::string>("INTS.RI");)
     trim(RI);
 
-    if( not RI.compare("AUXBASIS") and not RI.compare("CHOLESKY") and not RI.compare("FALSE") )
-      CErr(RI + " not a valid INTS.RI",out);
-
-    if(RI.compare("FALSE") and contrAlg != CONTRACTION_ALGORITHM::INCORE) {
-      contrAlg = CONTRACTION_ALGORITHM::INCORE;
-      std::cout << "Incore ERI algorithm enforced by RI." << std::endl;
+    if(RI.compare("FALSE")) {
+      if (contrAlg != CONTRACTION_ALGORITHM::INCORE) {
+        contrAlg = CONTRACTION_ALGORITHM::INCORE;
+        std::cout << "Incore ERI algorithm enforced by RI." << std::endl;
+      }
+      if(not RI.compare("AUXBASIS") ) {
+        if (dfbasis->nBasis < 1)
+          CErr("Keyword INTS.RI requires a non-empty DFbasis->",std::cout);
+      } else if (not RI.compare("TRADITIONAL")) {
+        CDalg = CHOLESKY_ALG::TRADITIONAL;
+      } else if (not RI.compare("DYNAMICALL")) {
+        CDalg = CHOLESKY_ALG::DYNAMIC_ALL;
+      } else if (not RI.compare("SPANFACTOR")) {
+        CDalg = CHOLESKY_ALG::SPAN_FACTOR;
+      } else if (not RI.compare("CHOLESKY") or not RI.compare("DYNAMICERI")) {
+        CDalg = CHOLESKY_ALG::DYNAMIC_ERI;
+      } else if (not RI.compare("SPANFACTORREUSE")) {
+        CDalg = CHOLESKY_ALG::SPAN_FACTOR_REUSE;
+      } else {
+        CErr(RI + " not a valid INTS.RI",out);
+      }
     }
-    if(not RI.compare("AUXBASIS") and dfbasis->nBasis < 1)
-      CErr("Keyword INTS.RI requires a non-empty DFbasis->",std::cout);
-    if(not RI.compare("CHOLESKY"))
-      OPTOPT( CDRI_thresh = input.getData<double>("INTS.CDRI_THRESHOLD"); )
+    OPTOPT( CDRI_genContr = input.getData<bool>("INTS.RIGENCONTR"); )
+    OPTOPT( CDRI_thresh = input.getData<double>("INTS.RITHRESHOLD"); )
+    OPTOPT( CDRI_sigma = input.getData<double>("INTS.RISIGMA"); )
+    OPTOPT( CDRI_max_qual = input.getData<size_t>("INTS.RIMAXQUAL"); )
+    OPTOPT( CDRI_minShrinkCycle = input.getData<size_t>("INTS.RIMINSHRINK"); )
+    OPTOPT( CDRI_build4I = input.getData<bool>("INTS.RIBUILD4INDEX"); )
 
     std::shared_ptr<IntegralsBase> aoi = nullptr;
 
     if(basis->basisType == REAL_GTO) {
       std::shared_ptr<Integrals<double>> aoint =
           std::make_shared<Integrals<double>>();
-      if(not RI.compare("AUXBASIS"))
-        aoint->ERI =
-            std::make_shared<InCoreAuxBasisRIERI<double>>(mem,basis->nBasis,dfbasis);
-      else if (not RI.compare("CHOLESKY"))
-        aoint->ERI =
-            std::make_shared<InCoreCholeskyRIERI<double>>(mem,basis->nBasis,CDRI_thresh);
-      else if (contrAlg == CONTRACTION_ALGORITHM::INCORE)
+      if(RI.compare("FALSE")) {
+        if(not RI.compare("AUXBASIS"))
+          aoint->ERI =
+              std::make_shared<InCoreAuxBasisRIERI<double>>(mem,basis->nBasis,dfbasis);
+        else
+          aoint->ERI =
+              std::make_shared<InCoreCholeskyRIERI<double>>(
+                  mem, basis->nBasis, CDRI_thresh, CDalg, CDRI_genContr,
+                  CDRI_sigma, CDRI_max_qual, CDRI_minShrinkCycle, CDRI_build4I);
+      } else if (contrAlg == CONTRACTION_ALGORITHM::INCORE)
         aoint->ERI =
             std::make_shared<InCore4indexERI<double>>(mem,basis->nBasis);
       else

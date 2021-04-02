@@ -31,6 +31,26 @@
 
 namespace ChronusQ {
 
+  enum class CHOLESKY_ALG {
+    TRADITIONAL,      // The traditional one-step algorithm
+    DYNAMIC_ALL,      // Individual ERI and CD vectors are all dynamically controlled
+    SPAN_FACTOR,      // Koch's span-factor algorithm
+    SPAN_FACTOR_REUSE,// Span-factor algorithm that reuses residual matrix from previous steps
+    DYNAMIC_ERI       // Span-factor algorithm that reuses ERI vectors from previous steps
+  };
+
+
+  struct SpanFactorShellPair {
+    std::pair<size_t,size_t> PQ;
+    std::vector<size_t> indices;
+    bool evaluated;
+
+    bool operator<(const SpanFactorShellPair &rhs) const {
+      return indices[0] < rhs.indices[0];
+    }
+  };
+
+
   template <typename IntsT>
   class InCoreRIERI : public TwoEInts<IntsT> {
 
@@ -39,7 +59,7 @@ namespace ChronusQ {
 
   protected:
     size_t NBRI, NBNBRI;
-    IntsT* ERI3J = nullptr;    ///< Electron-Electron repulsion integrals (3 index)
+    IntsT* ERI3J = nullptr; ///< Electron-Electron repulsion integrals (3 index)
 
   public:
 
@@ -126,6 +146,8 @@ namespace ChronusQ {
       CErr("AO integral evaluation is NOT implemented in super class InCoreRIERI.");
     }
 
+    void contract2CenterERI(IntsT *S); ///< forms S^{-1/2}(Q|ij), destroys S
+
     virtual void clear() {
       std::fill_n(ERI3J, this->nBasis()*NBNBRI, IntsT(0.));
     }
@@ -178,8 +200,12 @@ namespace ChronusQ {
         OutT* out, bool increment = false) const;
 
     void malloc() {
-      if (ERI3J) this->memManager().free(ERI3J);
       size_t NB3 = this->nBasis()*NBNBRI;
+      if (ERI3J) {
+        if (this->memManager().getSize(ERI3J) == NB3)
+          return;
+        this->memManager().free(ERI3J);
+      }
       try { ERI3J = this->memManager().template malloc<IntsT>(NB3); }
       catch(...) {
         std::cout << std::fixed;
@@ -192,7 +218,6 @@ namespace ChronusQ {
 
     virtual ~InCoreRIERI() {
       if(ERI3J) this->memManager().free(ERI3J);
-      //if(ERI3K) this->memManager_.free(ERI3K);
     }
 
   }; // class InCoreRIERI
@@ -239,6 +264,10 @@ namespace ChronusQ {
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const HamiltonianOptions&);
 
+    void compute3CenterERI(BasisSet &basisSet, BasisSet &auxBasisSet);
+
+    void compute2CenterERI(BasisSet &auxBasisSet, IntsT *S) const;
+
     virtual void output(std::ostream &out, const std::string &s = "",
                         bool printFull = false) const {
       if (s == "")
@@ -273,35 +302,120 @@ namespace ChronusQ {
     friend class InCoreCholeskyRIERI;
 
   protected:
-    double delta_; // Maximum error allowed in the decomposition
-    std::vector<size_t> pivots; // List of selected pivots
+    CHOLESKY_ALG alg_; // Algorithm for building 3-index Cholesky vectors
+    double tau_; // Maximum error allowed in the decomposition
+    double sigma_; // sigma in the span factor algorithm
+    size_t maxQual_; // Max qualified candidates per span
+    size_t minShrinkCycle_; // Mininum # of iterations between shrinks
+    bool generalContraction_; // Uncontract basis then run
+    std::vector<size_t> pivots_; // List of selected pivots
+    std::shared_ptr<InCore4indexERI<IntsT>> eri4I_ = nullptr; // Four-index ERI
+    std::vector<std::vector<libint2::Shell>> shellPrims_; // Mappings from primitives to CGTOs
+    std::vector<IntsT*> coefBlocks_; // Mappings from primitives to CGTOs
+
+    // Libint
+    size_t maxNcontrAMSize_ = 1, maxNprimAMSize_ = 1, maxAMSize_ = 1;
+    std::vector<libint2::Engine> engines;
+    std::vector<double*> workBlocks;
+
+    // Libcint
+    int *atm, *bas;
+    double *env, *buffAll, *cacheAll;
+    int buffN4, cache_size, nAtoms, nShells;
+    bool libcint_ = false; // Using libcint
+
+    // ERI stat
+    size_t c1ERI = 0, c2ERI = 0;
+    double t1ERI = 0.0, t2ERI = 0.0;
 
   public:
 
     // Constructor
     InCoreCholeskyRIERI() = delete;
-    InCoreCholeskyRIERI(CQMemManager &mem, size_t nb):
-        InCoreRIERI<IntsT>(mem, nb), delta_(0.0) {}
-    InCoreCholeskyRIERI(CQMemManager &mem, size_t nb, double delta):
-        InCoreRIERI<IntsT>(mem, nb), delta_(delta) {}
+    InCoreCholeskyRIERI(CQMemManager &mem, size_t nb, double tau,
+        CHOLESKY_ALG alg = CHOLESKY_ALG::DYNAMIC_ERI, bool genContr = true,
+        double sigma = 0.01, size_t maxQual = 1000, size_t minShrink = 10,
+        bool build4I = false):
+        InCoreRIERI<IntsT>(mem, nb), alg_(alg), tau_(tau),
+        sigma_(sigma), maxQual_(maxQual), minShrinkCycle_(minShrink),
+        generalContraction_(genContr) {
+      if (build4I)
+        eri4I_ = std::make_shared<InCore4indexERI<IntsT>>(mem, nb);
+    }
     InCoreCholeskyRIERI( const InCoreCholeskyRIERI& ) = default;
     template <typename IntsU>
     InCoreCholeskyRIERI( const InCoreCholeskyRIERI<IntsU> &other, int = 0 ):
-        InCoreRIERI<IntsT>(other) {
-      delta_ = other.delta_;
-    }
+        InCoreRIERI<IntsT>(other), alg_(other.alg_), tau_(other.tau_),
+        sigma_(other.sigma_), maxQual_(other.maxQual_),
+        minShrinkCycle_(other.minShrinkCycle_),
+        generalContraction_(other.generalContraction_), pivots_(other.pivots_),
+        eri4I_(std::make_shared<InCore4indexERI<IntsT>>(*other.eri4I_)){}
     InCoreCholeskyRIERI( InCoreCholeskyRIERI &&other ) = default;
 
     InCoreCholeskyRIERI& operator=( const InCoreCholeskyRIERI& ) = default;
     InCoreCholeskyRIERI& operator=( InCoreCholeskyRIERI&& ) = default;
 
-    void setDelta( double delta ) { delta_ = delta; }
-    double delta() const { return delta_; }
-    const std::vector<size_t>& getPivots() const { return pivots; }
+    void setTau( double tau ) { tau_ = tau; }
+    double tau() const { return tau_; }
+    const std::vector<size_t>& getPivots() const { return pivots_; }
 
     // Computation interfaces
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
                                OPERATOR, const HamiltonianOptions&);
+
+    void computeCD_Traditional(BasisSet&);
+
+    void computeCDPivots_DynamicAll(BasisSet&);
+
+    void computeCDPivots_SpanFactor(BasisSet&);
+
+    void computeCDPivots_DynamicERI(BasisSet&);
+
+    void computeCDPivots_SpanFactorReuse(BasisSet&);
+
+    std::map<std::pair<size_t, size_t>, IntsT*>
+    computeDiagonalLibint(BasisSet&, IntsT *diag, bool saveDiagBlocks = false);
+
+    std::map<std::pair<size_t, size_t>, IntsT*>
+    computeDiagonalLibcint(BasisSet&, IntsT *diag, bool saveDiagBlocks = false);
+
+    void computeTraditionalERIVector(BasisSet&, size_t pivot, IntsT *L);
+
+    void computeTraditionalERIVectorByShellLibint(BasisSet&,
+        size_t r, size_t s, size_t R, size_t S, IntsT *L);
+
+    void computeTraditionalERIVectorByShellLibcint(BasisSet&,
+        size_t r, size_t s, size_t R, size_t S, IntsT *L);
+
+    void computeSpanFactorERI(BasisSet&,
+        const std::vector<size_t> &D,
+        std::vector<SpanFactorShellPair> &shellPair_Dindices,
+        size_t lenQ, IntsT* ERIvecAlloc,
+        std::map<std::pair<size_t, size_t>, IntsT*> &diagBlocks,
+        bool Mpq_only = false);
+
+    void computeSpanFactorERIVectorLibint(BasisSet&,
+        const std::vector<size_t> &D,
+        std::vector<SpanFactorShellPair> &shellPair_Dindices,
+        size_t lenQ, size_t qShellPairIndex, IntsT* ERIvecAlloc,
+        std::map<std::pair<size_t, size_t>, IntsT*> &diagBlocks,
+        bool Mpq_only = false);
+
+    void computeSpanFactorERIVectorLibcint(BasisSet&,
+        const std::vector<size_t> &D,
+        std::vector<SpanFactorShellPair> &shellPair_Dindices,
+        size_t lenQ, size_t qShellPairIndex, IntsT* ERIvecAlloc,
+        std::map<std::pair<size_t, size_t>, IntsT*> &diagBlocks,
+        bool Mpq_only = false);
+
+    void computePivotRI(BasisSet &basisSet);
+
+    void computePivotRI3indexERILibint(BasisSet &basisSet);
+
+    void computePivotRI3indexERILibcint(BasisSet &basisSet);
+
+    static std::map<std::pair<size_t,size_t>, std::vector<size_t>>
+    groupPivotsByShell(BasisSet&, const std::vector<size_t> &pivots);
 
     virtual void output(std::ostream &out, const std::string &s = "",
                         bool printFull = false) const {
