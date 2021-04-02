@@ -64,9 +64,8 @@ namespace ChronusQ {
         std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
 
     // Compute the gradient
-    virtual void getGrad() {
-      CErr("NR CoreH gradient NYI",std::cout);
-    }
+    virtual std::vector<double> getGrad(EMPerturbation&,
+      SingleSlater<MatsT,IntsT>&);
 
   };
 

@@ -224,6 +224,10 @@ namespace ChronusQ {
     // Form a fock matrix (see include/singleslater/fock.hpp for docs)
     virtual void formFock(EMPerturbation &, bool increment = false, double xHFX = 1.);
 
+    // Get the total gradient
+    virtual std::vector<double> getGrad(EMPerturbation&, bool equil = false,
+      bool saveInts = false);
+
     // Form initial guess orbitals
     // see include/singleslater/guess.hpp for docs)
     void formGuess();

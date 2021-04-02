@@ -199,7 +199,7 @@ namespace ChronusQ {
         case NUCLEAR_POTENTIAL:
           if ( options.OneEScalarRelativity )
             CErr("Relativistic gradients not yet implemented!");
-          computeOneE(gradKinetic, op.first);
+          computeOneE(gradPotential, op.first);
           break;
 
         case MAGNETIC_MULTIPOLE:

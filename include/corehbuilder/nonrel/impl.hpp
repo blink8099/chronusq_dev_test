@@ -143,4 +143,44 @@ namespace ChronusQ {
 
   };  // void NRCoreH::computeCoreH(std::vector<MatsT*> &CH)
 
+  template <typename MatsT, typename IntsT>
+  std::vector<double> NRCoreH<MatsT,IntsT>::getGrad(EMPerturbation& pert,
+    SingleSlater<MatsT,IntsT>& ss) {
+
+    if (not this->aoints_.gradKinetic)
+      CErr("Kinetic energy gradient integrals missing in NRCoreH::getGrad!");
+    if (not this->aoints_.gradPotential)
+      CErr("Potential energy gradient integrals missing in NRCoreH::getGrad!");
+
+    GradInts<OneEInts,IntsT>& gradK = *this->aoints_.gradKinetic;
+    GradInts<OneEInts,IntsT>& gradV = *this->aoints_.gradPotential;
+
+
+    size_t NB = ss.basisSet().nBasis;
+    size_t nGrad = 3*ss.molecule().nAtoms;
+
+    std::vector<double> gradient;
+
+    // Allocate scratch (NRCH is SCALAR only)
+    SquareMatrix<MatsT> vdv(ss.memManager, NB);
+    SquareMatrix<MatsT> dvv(ss.memManager, NB);
+    SquareMatrix<MatsT> coreHGrad(ss.memManager,NB);
+    
+    // Loop over gradient components
+    for ( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+    
+      // Assemble core gradient
+      coreHGrad = 2. * (gradK[iGrad]->matrix() + gradV[iGrad]->matrix());
+
+      // Contract
+      double element = ss.template computeOBProperty<double,DENSITY_TYPE::SCALAR>(
+        coreHGrad.pointer());
+      gradient.emplace_back(0.5*element);
+
+    }
+
+    return gradient;
+
+  };  // std::vector<double> NRCoreH::getGrad
+
 }

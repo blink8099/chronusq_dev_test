@@ -129,6 +129,109 @@ namespace ChronusQ {
   }; // SingleSlater<MatsT,IntsT>::computeCoreH
 
 
+  template <typename MatsT, typename IntsT>
+  std::vector<double> SingleSlater<MatsT,IntsT>::getGrad(EMPerturbation& pert,
+    bool equil, bool saveInts) {
+
+    // Get constants
+    size_t NB = basisSet().nBasis;
+    size_t nSQ  = NB*NB;
+
+    size_t nAtoms = this->molecule().nAtoms;
+    size_t nGrad = 3*nAtoms;
+
+    size_t nSp = fockMatrix->nComponent();
+    bool hasXY = fockMatrix->hasXY();
+    bool hasZ = fockMatrix->hasZ();
+
+
+    // Total gradient
+    std::vector<double> gradient(nGrad, 0.);
+
+    AOIntsOptions opts{basisSet_.basisType, false, false, false, false,
+      false, false, false};
+
+    // Core H contribution
+    this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
+      {{OVERLAP, 1},
+       {KINETIC, 1},
+       {NUCLEAR_POTENTIAL, 1}},
+       opts
+    );
+
+    std::vector<double> coreGrad = coreHBuilder->getGrad(pert, *this);
+
+    // 2e contribution
+    this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
+      {{ELECTRON_REPULSION, 1}},
+      opts
+    );
+    std::vector<double> twoEGrad = fockBuilder->getGDGrad(*this, pert);
+
+    // Pulay contribution
+    //
+    // NOTE: We may want to change these methods out to use just the energy
+    //   weighted density matrix - can probably get some speed up.
+    if( equil ) {
+      // TODO
+    }
+    else {
+
+      computeOrthoGrad();
+
+      // Allocate
+      SquareMatrix<MatsT> vdv(memManager, NB);
+      SquareMatrix<MatsT> dvv(memManager, NB);
+      PauliSpinorSquareMatrices<MatsT> SCR(memManager, NB, hasXY, hasZ);
+
+      for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+
+        // Form VdV and dVV
+        Gemm('N','N',NB,NB,NB,MatsT(1.),ortho[0].pointer(),NB,
+          gradOrtho[iGrad].pointer(),NB,MatsT(0.),vdv.pointer(),NB);
+        Gemm('N','N',NB,NB,NB,MatsT(1.),gradOrtho[iGrad].pointer(),NB,
+          ortho[0].pointer(),NB,MatsT(0.),dvv.pointer(),NB);
+
+        // Form FVdV and dVVF
+        for( auto iSp = 0; iSp < nSp; iSp++ ) {
+          auto comp = static_cast<PAULI_SPINOR_COMPS>(iSp);
+          Gemm('N','N',NB,NB,NB,MatsT(1.),(*fockMatrix)[comp].pointer(),NB,
+            vdv.pointer(),NB,MatsT(0.),SCR[comp].pointer(),NB);
+          Gemm('N','N',NB,NB,NB,MatsT(1.),dvv.pointer(),NB,
+            (*fockMatrix)[comp].pointer(),NB,MatsT(1.),SCR[comp].pointer(),NB);
+        }
+
+        // Trace
+        double gradVal = this->template computeOBProperty<double,SCALAR>(
+          SCR.S().pointer()
+        );
+
+        if( hasZ )
+          gradVal += this->template computeOBProperty<double,MZ>(
+            SCR.Z().pointer()
+          );
+        if( hasXY ) {
+          gradVal += this->template computeOBProperty<double,MY>(
+            SCR.Y().pointer()
+          );
+          gradVal += this->template computeOBProperty<double,MX>(
+            SCR.X().pointer()
+          );
+        }
+
+        size_t iAt = iGrad/3;
+        size_t iXYZ = iGrad%3;
+        gradient[iGrad] = coreGrad[iGrad] + twoEGrad[iGrad] - 0.5*gradVal
+                          + this->molecule().nucRepForce[iAt][iXYZ];
+      }
+
+    }
+
+    return gradient;
+
+  };
+
+
   /**
    *  \brief Allocate, compute and store the orthonormalization matricies 
    *  over the CGTO basis.

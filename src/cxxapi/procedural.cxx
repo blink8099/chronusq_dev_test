@@ -207,17 +207,17 @@ namespace ChronusQ {
     std::cout << "TwoE Energy: " << ss->MBEnergy;
 
     // Numerical gradient
-    // size_t acc = 16;
-    // if ( acc != 0 ) {
-    //   NumGradient grad(input, ss, basis);
-    //   // grad.intGrad<double>(acc);
-    //   grad.eriGrad<double>(acc);
-    // }
+    size_t acc = 8;
+    if ( acc != 0 ) {
+      NumGradient grad(input, ss, basis);
+      grad.doGrad(acc);
+      // grad.eriGrad<double>(acc);
+    }
 
-    std::vector<std::shared_ptr<DirectERI<double>>> ints;
+    std::vector<std::shared_ptr<InCore4indexERI<double>>> ints;
     for ( auto i = 0; i < mol.atoms.size() * 3; i++ )
       ints.push_back(
-        std::make_shared<DirectERI<double>>(*memManager, *basis, 1e-12)
+        std::make_shared<InCore4indexERI<double>>(*memManager, basis->nBasis)
       );
 
     auto casted = std::dynamic_pointer_cast<Integrals<double>>(aoints);
@@ -226,137 +226,18 @@ namespace ChronusQ {
     );
 
 
-    aoints->computeGradInts(*memManager, mol, *basis, emPert, {{OVERLAP,1},
-        {KINETIC,1}, {NUCLEAR_POTENTIAL,1}, {ELECTRON_REPULSION,1}},
-        {basis->basisType, false, false, false});
+    // aoints->computeGradInts(*memManager, mol, *basis, emPert, {{OVERLAP,1},
+    //     {KINETIC,1}, {NUCLEAR_POTENTIAL,1}, {ELECTRON_REPULSION,1}},
+    //     {basis->basisType, false, false, false});
 
-    // casted->gradERI->output(std::cout, "", true);
+    auto ssd = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss);
 
-    InCore4indexGradContraction<double,double> contract(*(casted->gradERI));
+    size_t NB = basis->nBasis;
 
-    auto ssd = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss);
-
-    auto NB = basis->nBasis;
-    std::vector<std::vector<TwoBodyContraction<double>>> doubleList;
-
-    std::vector<double*> JList;
-    std::vector<std::vector<double*>> KList;
-
-    for ( auto iGrad = 0; iGrad < 3*mol.nAtoms; iGrad++ ) {
-
-      std::vector<TwoBodyContraction<double>> contList;
-
-      auto JGrad = memManager->template malloc<double>(NB*NB);
-      std::fill_n(JGrad, NB*NB, 0.);
-      std::vector<double*> KGrad;
-      for ( auto i = 0; i < ssd->onePDM->nComponent(); i++ ) {
-        std::cout << "K index " << i << std::endl;
-        KGrad.push_back(memManager->template malloc<double>(NB*NB));
-        std::fill_n(KGrad[i], NB*NB, 0.);
-      }
-
-      JList.push_back(JGrad);
-      KList.push_back(KGrad);
-
-      TwoBodyContraction<double> JGradCont;
-      JGradCont.AX = JGrad;
-      JGradCont.X  = ssd->onePDM->S().pointer();
-      JGradCont.HER = true;
-      JGradCont.contType = COULOMB;
-      contList.push_back(JGradCont);
-
-      TwoBodyContraction<double> K0GradCont;
-      K0GradCont.AX = KGrad[0];
-      K0GradCont.X  = ssd->onePDM->S().pointer();
-      K0GradCont.HER = true;
-      K0GradCont.contType = EXCHANGE;
-      contList.push_back(K0GradCont);
-
-      if (ssd->onePDM->hasZ()) {
-        TwoBodyContraction<double> K1GradCont;
-        K1GradCont.AX = KGrad[1];
-        K1GradCont.X  = ssd->onePDM->Z().pointer();
-        K1GradCont.HER = true;
-        K1GradCont.contType = EXCHANGE;
-        contList.push_back(K1GradCont);
-      }
-
-      if (ssd->onePDM->hasXY()) {
-        TwoBodyContraction<double> K2GradCont;
-        K2GradCont.AX = KGrad[2];
-        K2GradCont.X  = ssd->onePDM->Y().pointer();
-        K2GradCont.HER = true;
-        K2GradCont.contType = EXCHANGE;
-        contList.push_back(K2GradCont);
-
-        TwoBodyContraction<double> K3GradCont;
-        K3GradCont.AX = KGrad[3];
-        K3GradCont.X  = ssd->onePDM->X().pointer();
-        K3GradCont.HER = true;
-        K3GradCont.contType = EXCHANGE;
-        contList.push_back(K3GradCont);
-      }
-
-      doubleList.push_back(contList);
-    }
-
-    GradContractions<double,double>& ccast = contract;
-    ccast.gradTwoBodyContract(MPI_COMM_WORLD, false, doubleList, emPert);
-
-
-    for ( auto i = 0, idx = 0; i < mol.atoms.size(); i++ ) {
-      for ( auto xyz = 0; xyz < 3; xyz++, idx++ ) {
-        std::cout << "  Atom " << i << ", Cart " << xyz << std::endl;
-        prettyPrintSmart(std::cout, "Analytic J Gradient",
-          JList[idx], NB, NB, NB);
-      }
-    }
-
-    for ( auto i = 0, idx = 0; i < mol.atoms.size(); i++ ) {
-      for ( auto xyz = 0; xyz < 3; xyz++, idx++ ) {
-        std::cout << "  Atom " << i << ", Cart " << xyz << std::endl;
-        prettyPrintSmart(std::cout, "Analytic K Gradient",
-          KList[idx][SCALAR], NB, NB, NB);
-      }
-    }
-
-    std::cout << "================================================" << std::endl;
-
-    for ( auto i = 0, idx = 0; i < mol.atoms.size(); i++ ) {
-      for ( auto xyz = 0; xyz < 3; xyz++, idx++ ) {
-        std::cout << "  Atom " << i << ", Cart " << xyz << std::endl;
-        prettyPrintSmart(std::cout, "Analytic K Gradient",
-          KList[idx][MZ], NB, NB, NB);
-      }
-    }
-
-    /*
-    auto casted = std::dynamic_pointer_cast<Integrals<double>>(aoints);
-    auto NB = basis->nBasis;
-    for ( auto i = 0, idx = 0; i < mol.atoms.size(); i++ ) {
-      for ( auto xyz = 0; xyz < 3; xyz++, idx++ ) {
-        std::cout << "  Atom " << i << ", Cart " << xyz << std::endl;
-        prettyPrintSmart(std::cout, "Analytic Overlap Gradient",
-          (*casted->gradOverlap)[idx]->pointer(), NB, NB, NB);
-      }
-    }
-
-    for ( auto i = 0, idx = 0; i < mol.atoms.size(); i++ ) {
-      for ( auto xyz = 0; xyz < 3; xyz++, idx++ ) {
-        std::cout << "  Atom " << i << ", Cart " << xyz << std::endl;
-        prettyPrintSmart(std::cout, "Analytic Kinetic Gradient",
-          (*casted->gradKinetic)[idx]->pointer(), NB, NB, NB);
-      }
-    }
-
-    for ( auto i = 0, idx = 0; i < mol.atoms.size(); i++ ) {
-      for ( auto xyz = 0; xyz < 3; xyz++, idx++ ) {
-        std::cout << "  Atom " << i << ", Cart " << xyz << std::endl;
-        prettyPrintSmart(std::cout, "Analytic Potential Gradient",
-          (*casted->gradPotential)[idx]->pointer(), NB, NB, NB);
-      }
-    }
-    */
+    auto grad = ssd->getGrad(emPert, false, false);
+    std::cout << std::endl;
+    for( auto &X: grad )
+      std::cout << "Grad: " << X << std::endl;
 
     if( not jobType.compare("RT") ) {
 

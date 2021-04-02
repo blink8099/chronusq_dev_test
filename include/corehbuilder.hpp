@@ -70,7 +70,8 @@ namespace ChronusQ {
         std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>) = 0;
 
     // Compute the gradient
-    virtual void getGrad() = 0;
+    virtual std::vector<double> getGrad(EMPerturbation&,
+      SingleSlater<MatsT,IntsT>&) = 0;
 
     // Pointer convertor
     template <typename MatsU>
