@@ -33,6 +33,7 @@ namespace ChronusQ {
 
   // Instantiate copy constructors
   template SingleSlater<dcomplex,double>::SingleSlater(const SingleSlater<double,double> &, int);
+  template SingleSlater<dcomplex,double>::SingleSlater(const SingleSlater<dcomplex,double> &, int);
   template SingleSlater<dcomplex,dcomplex>::SingleSlater(const SingleSlater<dcomplex,dcomplex> &, int);
 
   // Instantiate move ctors
