@@ -263,6 +263,12 @@ namespace ChronusQ {
 
     basisSet_.update(false);
 
+    size_t maxNContr = std::max_element(basisSet_.shells.begin(),
+                                        basisSet_.shells.end(),
+                                        [](libint2::Shell &a, libint2::Shell &b) {
+                                          return a.ncontr() < b.ncontr();
+                                        })->ncontr();
+
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
     int iAtom, iShell, off;
@@ -270,7 +276,7 @@ namespace ChronusQ {
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+nShells*basisSet_.maxPrim*2);
+    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+nShells*basisSet_.maxPrim*(maxNContr+1));
     double sNorm;
 
     off = PTR_ENV_START; // = 20
@@ -1089,6 +1095,12 @@ namespace ChronusQ {
 
     basisSet_.update(false);
 
+    size_t maxNContr = std::max_element(basisSet_.shells.begin(),
+                                        basisSet_.shells.end(),
+                                        [](libint2::Shell &a, libint2::Shell &b) {
+                                          return a.ncontr() < b.ncontr();
+                                        })->ncontr();
+
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
     int iAtom, iShell, off;
@@ -1096,7 +1108,7 @@ namespace ChronusQ {
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+originalBasisSet.nShell*basisSet_.maxPrim*2);
+    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+originalBasisSet.nShell*basisSet_.maxPrim*(maxNContr+1));
     double sNorm;
 
     off = PTR_ENV_START; // = 20

@@ -5035,6 +5035,12 @@ namespace ChronusQ {
 
       groupedBasisSet.update(false);
 
+      size_t maxNContr = std::max_element(groupedBasisSet.shells.begin(),
+                                          groupedBasisSet.shells.end(),
+                                          [](libint2::Shell &a, libint2::Shell &b) {
+                                            return a.ncontr() < b.ncontr();
+                                          })->ncontr();
+
       // Clear objects
       for (double *p : coefBlocks_) {
         if (p) memManager_.free(p);
@@ -5098,7 +5104,7 @@ namespace ChronusQ {
         // ATM_SLOTS = 6; BAS_SLOTS = 8;
         atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
         bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-        env = memManager_.template malloc<double>(nAtoms*3+basisSet.nShell*groupedBasisSet.maxPrim*2);
+        env = memManager_.template malloc<double>(nAtoms*3+basisSet.nShell*groupedBasisSet.maxPrim*(maxNContr+1));
         double sNorm;
 
         off = PTR_ENV_START; // = 20
