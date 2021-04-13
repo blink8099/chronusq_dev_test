@@ -48,8 +48,8 @@ namespace ChronusQ {
     const size_t tdOffSet = N / 2;
     const size_t chunk    = 600;
 
-    std::shared_ptr<ERIContractions<U,IntsT>> ERI =
-        ERIContractions<MatsT,IntsT>::template convert<U>(ks.ERI);
+    std::shared_ptr<TPIContractions<U,IntsT>> TPI =
+        TPIContractions<MatsT,IntsT>::template convert<U>(ks.TPI);
 
     ProgramTimer::tick("Direct Hessian Contract");
 
@@ -81,7 +81,7 @@ namespace ChronusQ {
           this->template phTransitionVecMO2AO<U>(c,scatter,nDo,N,V_c,
               V_c + tdOffSet);
 
-        ERI->twoBodyContract(c,cList); // form G[V]
+        TPI->twoBodyContract(c,cList); // form G[V]
         ks.formFXC(c,cList); // Fxc contraction
 
 

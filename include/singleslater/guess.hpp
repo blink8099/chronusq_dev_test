@@ -28,7 +28,7 @@
 #include <util/matout.hpp>
 #include <corehbuilder/nonrel.hpp>
 #include <corehbuilder/x2c.hpp>
-#include <electronintegrals/twoeints/incore4indexeri.hpp>
+#include <particleintegrals/twopints/incore4indextpi.hpp>
 
 namespace ChronusQ {
 
@@ -353,18 +353,18 @@ namespace ChronusQ {
      
       std::shared_ptr<Integrals<IntsT>> aointsAtom =
           std::make_shared<Integrals<IntsT>>();
-      aointsAtom->ERI = std::make_shared<InCore4indexERI<IntsT>>(
+      aointsAtom->TPI = std::make_shared<InCore4indexTPI<IntsT>>(
           memManager,basis.nBasis);
 
+      Particle p = {-1.0,1.0};
       std::shared_ptr<SingleSlater<MatsT,IntsT>> ss =
           std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>> (
             std::make_shared<HartreeFock<MatsT,IntsT>>(
-              rcomm,memManager,atom,basis,*aointsAtom,1,
-              ( defaultMultip == 1 )
+              rcomm,memManager,atom,basis,*aointsAtom,1,( defaultMultip == 1 ),p
             )
-          );;
-      ss->ERI = std::make_shared<InCore4indexERIContraction<MatsT,IntsT>>(
-          *aointsAtom->ERI);
+          );
+      ss->TPI = std::make_shared<InCore4indexTPIContraction<MatsT,IntsT>>(
+          *aointsAtom->TPI);
 
       ss->printLevel = 0;
       ss->scfControls.doIncFock = false;        
@@ -386,7 +386,7 @@ namespace ChronusQ {
           hamiltonianOptions);
 
       ss->formCoreH(pert);
-      aointsAtom->ERI->computeAOInts(basis, atom, pert,
+      aointsAtom->TPI->computeAOInts(basis, atom, pert,
           ELECTRON_REPULSION, hamiltonianOptions);
 
 
@@ -722,8 +722,12 @@ namespace ChronusQ {
 
     size_t savHash; 
 
+    std::string prefix = "/SCF/";
+    if (this->particle.charge == 1.0)
+      prefix = "/PROT_SCF/";
+
     try{
-      savFile.readData("/SCF/FIELD_TYPE", &savHash);
+      savFile.readData(prefix + "FIELD_TYPE", &savHash);
     } catch (...) {
       CErr("Cannot find /SCF/FIELD_TYPE on rstFile!",std::cout);
     }
@@ -740,7 +744,7 @@ namespace ChronusQ {
       std::string t_field = t_is_double ? "REAL" : "COMPLEX";
       std::string s_field = s_is_double ? "REAL" : "COMPLEX";
 
-      std::string message = "/SCF/FIELD_TYPE on disk (" + s_field +
+      std::string message = prefix + "FIELD_TYPE on disk (" + s_field +
         ") is incompatible with current FIELD_TYPE (" + t_field + ")";
 
       CErr(message,std::cout);
@@ -750,16 +754,16 @@ namespace ChronusQ {
     auto NB = this->nC * this->nAlphaOrbital();
     auto NB2 = NB*NB;
 
-    auto MO1dims = savFile.getDims( "SCF/MO1" );
-    auto MO2dims = savFile.getDims( "SCF/MO2" );
+    auto MO1dims = savFile.getDims( prefix + "MO1" );
+    auto MO2dims = savFile.getDims( prefix + "MO2" );
 
 
     // Find errors in MO1
     if( MO1dims.size() == 0 ) 
-      CErr("SCF/MO1 does not exist in " + savFile.fName(), std::cout); 
+      CErr(prefix + "MO1 does not exist in " + savFile.fName(), std::cout); 
 
     if( MO1dims.size() != 2 ) 
-      CErr("SCF/MO1 not saved as a rank-2 tensor in " + savFile.fName(), 
+      CErr(prefix + "MO1 not saved as a rank-2 tensor in " + savFile.fName(), 
           std::cout); 
 
     if( MO1dims[0] != NB or MO1dims[1] != NB ) {
@@ -783,7 +787,9 @@ namespace ChronusQ {
 
     // Read in MO1
     std::cout << "    * Found SCF/MO1 !" << std::endl;
-    savFile.readData("SCF/MO1",this->mo[0].pointer());
+    savFile.readData(prefix + "MO1",this->mo[0].pointer());
+
+    //this->mo[0].output(std::cout, "read in MO", true);
 
 
 
@@ -791,7 +797,7 @@ namespace ChronusQ {
 
     // Unrestricted calculations
     if( this->nC == 1 and not this->iCS ) {
-
+      
       if( MO2dims.size() == 0 )
         std::cout << "    * WARNING: SCF/MO2 does not exist in "
           << savFile.fName() << " -- Copying SCF/MO1 -> SCF/MO2 " << std::endl;
@@ -817,7 +823,7 @@ namespace ChronusQ {
         this->mo[1] = this->mo[0];
       else {
         std::cout << "    * Found SCF/MO2 !" << std::endl;
-        savFile.readData("SCF/MO2",this->mo[1].pointer());
+        savFile.readData(prefix + "MO2",this->mo[1].pointer());
       }
 
     }

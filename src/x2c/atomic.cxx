@@ -23,7 +23,7 @@
  */
 #include <corehbuilder/x2c/atomic.hpp>
 #include <corehbuilder/nonrel.hpp>
-#include <electronintegrals/oneeints/relativisticints.hpp>
+#include <particleintegrals/onepints/relativisticints.hpp>
 #include <matrix.hpp>
 #include <cqlinalg.hpp>
 #include <physcon.hpp>
@@ -168,7 +168,7 @@ namespace ChronusQ {
     ///   2> Compute Hx2c = U * D * U
 #ifdef UDU_ATOMIC_X2C_ALGORITHM
     computeU();
-    this->uncontractedInts_.computeAOOneE(this->memManager_,
+    this->uncontractedInts_.computeAOOneP(this->memManager_,
         this->molecule_, this->uncontractedBasis_, emPert,
         {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0}},
         this->hamiltonianOptions_);
@@ -194,13 +194,13 @@ namespace ChronusQ {
     MatsT *HUnX = this->memManager_.template malloc<MatsT>(maxAtomNB*maxAtomNB);
     MatsT *HUnY = this->memManager_.template malloc<MatsT>(maxAtomNB*maxAtomNB);
 
-    this->uncontractedInts_.computeAOOneE(this->memManager_,
+    this->uncontractedInts_.computeAOOneP(this->memManager_,
         this->molecule_, this->uncontractedBasis_, emPert,
         {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0}},
         this->hamiltonianOptions_);
 
     this->W = std::make_shared<SquareMatrix<MatsT>>(
-        std::dynamic_pointer_cast<OneERelInts<IntsT>>(
+        std::dynamic_pointer_cast<OnePRelInts<IntsT>>(
             this->uncontractedInts_.potential)->template formW<MatsT>());
 
     size_t cumeINP = 0;

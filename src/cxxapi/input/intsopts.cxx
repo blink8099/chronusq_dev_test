@@ -24,12 +24,12 @@
 #include <cxxapi/options.hpp>
 #include <cerr.hpp>
 
-#include <electronintegrals/print.hpp>
-#include <electronintegrals/twoeints.hpp>
-#include <electronintegrals/twoeints/incore4indexeri.hpp>
-#include <electronintegrals/twoeints/gtodirecteri.hpp>
-#include <electronintegrals/twoeints/giaodirecteri.hpp>
-#include <electronintegrals/twoeints/incorerieri.hpp>
+#include <particleintegrals/print.hpp>
+#include <particleintegrals/twopints.hpp>
+#include <particleintegrals/twopints/incore4indextpi.hpp>
+#include <particleintegrals/twopints/gtodirecttpi.hpp>
+#include <particleintegrals/twopints/giaodirecteri.hpp>
+#include <particleintegrals/twopints/incoreritpi.hpp>
 
 namespace ChronusQ {
 
@@ -77,6 +77,16 @@ namespace ChronusQ {
       if( ipos == allowedKeywords.end() ) 
         CErr("Keyword INTS." + keyword + " is not recognized",std::cout);// Error
     }
+
+    // Specified NEO keywords
+    intsKeywords = input.getDataInSection("PINTS");
+
+    // Make sure all of the basisKeywords in allowedKeywords
+    for( auto &keyword : intsKeywords ) {
+      auto ipos = std::find(allowedKeywords.begin(),allowedKeywords.end(),keyword);
+      if ( ipos == allowedKeywords.end() )
+        CErr("Keyword PINTS." + keyword + " is not recognized",std::cout);// Error
+    }
     // Check for disallowed combinations (if any)
   }
 
@@ -92,11 +102,16 @@ namespace ChronusQ {
    */ 
   std::shared_ptr<IntegralsBase> CQIntsOptions(std::ostream &out, 
       CQInputFile &input, CQMemManager &mem, Molecule &mol,
-      std::shared_ptr<BasisSet> basis, std::shared_ptr<BasisSet> dfbasis) {
+      std::shared_ptr<BasisSet> basis,  std::shared_ptr<BasisSet> dfbasis, 
+      std::shared_ptr<BasisSet> basis2, std::string int_sec) {
+
+    // check the validity of the integral option section 
+    if (not int_sec.compare("INTS") and not int_sec.compare("PINTS") and not int_sec.compare("EPINTS"))
+      CErr("Found invalue integral section");
 
     // Parse integral algorithm
     std::string ALG = "DIRECT";
-    OPTOPT( ALG = input.getData<std::string>("INTS.ALG"); )
+    OPTOPT( ALG = input.getData<std::string>(int_sec+".ALG"); )
     trim(ALG);
 
     // Control Variables
@@ -119,10 +134,10 @@ namespace ChronusQ {
       CErr(ALG + "not a valid INTS.ALG",out);
 
     // Parse Schwartz threshold
-    OPTOPT( threshSchwartz = input.getData<double>("INTS.SCHWARTZ"); )
+    OPTOPT( threshSchwartz = input.getData<double>(int_sec+".SCHWARTZ"); )
 
     // Parse RI option
-    OPTOPT( RI = input.getData<std::string>("INTS.RI");)
+    OPTOPT( RI = input.getData<std::string>(int_sec+".RI");)
     trim(RI);
 
     if(RI.compare("FALSE")) {
@@ -147,6 +162,7 @@ namespace ChronusQ {
         CErr(RI + " not a valid INTS.RI",out);
       }
     }
+
     OPTOPT( CDRI_genContr = input.getData<bool>("INTS.RIGENCONTR"); )
     OPTOPT( CDRI_thresh = input.getData<double>("INTS.RITHRESHOLD"); )
     OPTOPT( CDRI_sigma = input.getData<double>("INTS.RISIGMA"); )
@@ -159,21 +175,34 @@ namespace ChronusQ {
     if(basis->basisType == REAL_GTO) {
       std::shared_ptr<Integrals<double>> aoint =
           std::make_shared<Integrals<double>>();
+
       if(RI.compare("FALSE")) {
+        if (basis2)
+          CErr("AUXBASIS or CHOLESKY with NEO NYI");
         if(not RI.compare("AUXBASIS"))
-          aoint->ERI =
+          aoint->TPI =
               std::make_shared<InCoreAuxBasisRIERI<double>>(mem,basis->nBasis,dfbasis);
         else
-          aoint->ERI =
+          aoint->TPI =
               std::make_shared<InCoreCholeskyRIERI<double>>(
                   mem, basis->nBasis, CDRI_thresh, CDalg, CDRI_genContr,
                   CDRI_sigma, CDRI_max_qual, CDRI_minShrinkCycle, CDRI_build4I);
-      } else if (contrAlg == CONTRACTION_ALGORITHM::INCORE)
-        aoint->ERI =
-            std::make_shared<InCore4indexERI<double>>(mem,basis->nBasis);
-      else
-        aoint->ERI =
-            std::make_shared<DirectERI<double>>(mem,*basis,mol,threshSchwartz);
+      } else if (contrAlg == CONTRACTION_ALGORITHM::INCORE) {
+        if (not basis2)
+          aoint->TPI =
+              std::make_shared<InCore4indexTPI<double>>(mem,basis->nBasis);
+        else
+          aoint->TPI = 
+              std::make_shared<InCore4indexTPI<double>>(mem,basis->nBasis,basis2->nBasis);
+      }
+      else {
+        if (not basis2)
+          aoint->TPI =
+              std::make_shared<DirectTPI<double>>(mem,*basis,*basis,mol,threshSchwartz);
+        else
+          aoint->TPI = 
+              std::make_shared<DirectTPI<double>>(mem,*basis,*basis2,mol,threshSchwartz);
+      }
 
       aoi = std::dynamic_pointer_cast<IntegralsBase>(aoint);
     } else if(basis->basisType == COMPLEX_GIAO) {
@@ -181,12 +210,18 @@ namespace ChronusQ {
           std::make_shared<Integrals<dcomplex>>();
       if(RI.compare("FALSE"))
         CErr("GIAO resolution of identity ERI NYI",std::cout);
-      else if (contrAlg == CONTRACTION_ALGORITHM::INCORE)
-        giaoint->ERI =
-            std::make_shared<InCore4indexERI<dcomplex>>(mem,basis->nBasis);
-      else
-        giaoint->ERI =
-            std::make_shared<DirectERI<dcomplex>>(mem,*basis,mol,threshSchwartz);
+      else if (contrAlg == CONTRACTION_ALGORITHM::INCORE) {
+        if (basis2)
+          CErr("GIAO with NEO NYI",std::cout);
+        giaoint->TPI =
+            std::make_shared<InCore4indexTPI<dcomplex>>(mem,basis->nBasis);
+      }
+      else {
+        if (basis2)
+          CErr("GIAO with NEO NYI",std::cout);
+        giaoint->TPI =
+            std::make_shared<DirectTPI<dcomplex>>(mem,*basis,*basis,mol,threshSchwartz);
+      }
 
       aoi = std::dynamic_pointer_cast<IntegralsBase>(giaoint);
     }
@@ -197,6 +232,5 @@ namespace ChronusQ {
     return aoi;
 
   }; // CQIntsOptions
-
 
 }; // namespace ChronusQ

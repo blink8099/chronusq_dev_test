@@ -27,7 +27,7 @@
 #include <util/timer.hpp>
 #include <cqlinalg.hpp>
 #include <matrix.hpp>
-#include <electronintegrals/twoeints/incorerieri.hpp>
+#include <particleintegrals/twopints/incoreritpi.hpp>
 #include <fockbuilder/rofock/impl.hpp>
 
 #include <typeinfo>
@@ -87,17 +87,17 @@ namespace ChronusQ {
     // Determine how many (if any) exchange terms to calculate
     if( std::abs(xHFX) > 1e-12 and not increment and ss.nC == 1 and
         (ss.scfControls.guess != SAD or ss.scfConv.nSCFIter != 0) and
-        std::dynamic_pointer_cast<InCoreRIERIContraction<MatsT, IntsT>>(ss.ERI)) {
+        std::dynamic_pointer_cast<InCoreRITPIContraction<MatsT, IntsT>>(ss.TPI)) {
       ROOT_ONLY(ss.comm);
-      auto rieri = std::dynamic_pointer_cast<InCoreRIERIContraction<MatsT, IntsT>>(ss.ERI);
+      auto ritpi = std::dynamic_pointer_cast<InCoreRITPIContraction<MatsT, IntsT>>(ss.TPI);
 
       SquareMatrix<MatsT> AAblock(ss.exchangeMatrix->memManager(), NB);
-      rieri->KCoefContract(ss.comm, ss.nOA, ss.mo[0].pointer(), AAblock.pointer());
+      ritpi->KCoefContract(ss.comm, ss.nOA, ss.mo[0].pointer(), AAblock.pointer());
       if(ss.iCS) {
         *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock);
       } else {
         SquareMatrix<MatsT> BBblock(ss.exchangeMatrix->memManager(), NB);
-        rieri->KCoefContract(ss.comm, ss.nOB, ss.mo[1].pointer(), BBblock.pointer());
+        ritpi->KCoefContract(ss.comm, ss.nOB, ss.mo[1].pointer(), BBblock.pointer());
         *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock, BBblock);
       }
 
@@ -119,7 +119,7 @@ namespace ChronusQ {
       }
     }
 
-    ss.ERI->twoBodyContract(ss.comm, contract, pert);
+    ss.TPI->twoBodyContract(ss.comm, contract, pert);
 
     ROOT_ONLY(ss.comm); // Return if not root (J/K only valid on root process)
 
@@ -141,6 +141,49 @@ namespace ChronusQ {
 
   } // FockBuilder::formGD
 
+
+  /**
+   *  \brief Forms the Hartree-Fock perturbation tensor
+   *
+   *  Populates / overwrites GD storage (and JScalar and K storage)
+   */
+  template <typename MatsT, typename IntsT>
+  void FockBuilder<MatsT,IntsT>::formepJ(NEOSingleSlater<MatsT,IntsT> &ss,
+    NEOSingleSlater<MatsT,IntsT> &aux_ss, bool increment, double xHFX) {
+
+    typedef MatsT*                    oper_t;
+    typedef std::vector<oper_t>       oper_t_coll;
+
+    // Decide list of onePDMs to use
+    PauliSpinorSquareMatrices<MatsT> &contract1PDM
+        = increment ? *aux_ss.deltaOnePDM : *aux_ss.onePDM;
+
+    size_t NB = ss.basisSet().nBasis;
+
+    // Zero out J and K[i]
+    if(not increment)
+      ss.epJMatrix->clear();
+  
+    std::vector<TwoBodyContraction<MatsT>> contract =
+      { {contract1PDM.S().pointer(), ss.epJMatrix->pointer(), true, COULOMB} };
+
+    EMPerturbation pert;
+    ss.EPAI->twoBodyContract(ss.comm, contract, pert);
+
+    ROOT_ONLY(ss.comm); // Return if not root (J/K only valid on root process)
+
+
+    // G[D] -= 2*epJ[D]
+    *ss.twoeH -= 2.0 * *ss.epJMatrix;
+    *ss.fockMatrix -= 2.0 * *ss.epJMatrix;
+
+#if 0
+  //printJ(std::cout);
+    printK(std::cout);
+  //printGD(std::cout);
+#endif
+
+  } // FockBuilder::formepJ
 
   /**
    *  \brief Forms the Fock matrix for a single slater determinant using

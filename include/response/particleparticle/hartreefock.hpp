@@ -76,7 +76,7 @@ namespace ChronusQ {
         { MMat,KMMat,true, EXCHANGE }
       };
 
-    ss.ERI->twoBodyContract(c,in);
+    ss.TPI->twoBodyContract(c,in);
 
     MatAdd('N','N',NB,NB,MatsT(1.),JMMat, NB, MatsT(-0.5), KMMat, NB, JMMat, NB);
 
@@ -86,8 +86,8 @@ namespace ChronusQ {
 /****************************/
 #endif
 
-    std::shared_ptr<ERIContractions<U,IntsT>> ERI =
-        ERIContractions<MatsT,IntsT>::template convert<U>(ss.ERI);
+    std::shared_ptr<TPIContractions<U,IntsT>> TPI =
+        TPIContractions<MatsT,IntsT>::template convert<U>(ss.TPI);
 
     for(auto &X : x) {
 
@@ -117,7 +117,7 @@ namespace ChronusQ {
           this->template ppTransitionVecMO2AO<U>(c,scatter,nDo,N,V_c,
             V_c + tdOffSet);
 
-        ERI->twoBodyContract(c,cList); // form G[V]
+        TPI->twoBodyContract(c,cList); // form G[V]
 
 
 

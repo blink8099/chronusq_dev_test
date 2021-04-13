@@ -114,7 +114,9 @@ namespace ChronusQ {
     size_t nShell;      ///< Number of CGTO basis shells
     size_t maxPrim;     ///< Max primitive dimension of basis
     size_t maxL;        ///< Max angular momentum of basis
-    
+
+    bool nucBasis;      ///< Whether this basis is for nuclear
+
     BASIS_FUNCTION_TYPE basisType = REAL_GTO; ///< Type of basis function
 
     cartvec_t centers; ///< A list of centers that comprise the BasisSet
@@ -141,7 +143,8 @@ namespace ChronusQ {
     BasisSet(std::string _basisName, std::string _basisDef,
       bool stringDef, const Molecule &mol, 
       BASIS_FUNCTION_TYPE _basisType, 
-      bool _forceCart = false, bool doPrint = true);
+      bool _forceCart = false, bool doPrint = true, 
+      bool _nucBasis = false);
        
     /**
      *  Copy constructor.
@@ -301,7 +304,13 @@ namespace ChronusQ {
     {  "SARC2-QZV-ZORA-JKFIT"      , "sarc2-qzv-zora-jkfit.gbs"      },
     {  "SARC2-QZVP-DKH2-JKFIT"     , "sarc2-qzvp-dkh2-jkfit.gbs"     },
     {  "SARC2-QZVP-ZORA-JKFIT"     , "sarc2-qzvp-zora-jkfit.gbs"     },
-    {  "X2C-JFIT"                  , "x2c-jfit.gbs"                  }
+    {  "X2C-JFIT"                  , "x2c-jfit.gbs"                  },
+    {  "PROT-SP"                   , "prot-sp.gbs"                   },
+    {  "PROT-PB4-D"                , "prot-pb4-d.gbs"                },
+    {  "PROT-PB4-F1"               , "prot-pb4-f1.gbs"               },
+    {  "PROT-PB4-F2"               , "prot-pb4-f2.gbs"               },
+    {  "PROT-PB5-G"                , "prot-pb5-g.gbs"                },
+    {  "PROT-PB6-G"                , "prot-pb6-g.gbs"                }
   };
 
 

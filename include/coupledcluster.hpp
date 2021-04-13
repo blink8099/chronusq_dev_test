@@ -25,7 +25,7 @@
 #pragma once
 
 #include <singleslater.hpp>
-#include <electronintegrals.hpp>
+#include <particleintegrals.hpp>
 #include <wavefunction.hpp>
 #include <chronusq_sys.hpp>
 #include <singleslater/hartreefock.hpp>

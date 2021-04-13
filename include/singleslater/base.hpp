@@ -91,6 +91,7 @@ namespace ChronusQ {
 
     // Guess Settings
     SS_GUESS guess = SAD;
+    SS_GUESS prot_guess = CORE;
 
     // DIIS settings 
     DIIS_ALG diisAlg = CDIIS; ///< Type of DIIS extrapolation 
@@ -130,6 +131,7 @@ namespace ChronusQ {
     double nrmFDC;       ///< 2-Norm of [F,D]
 
     size_t nSCFIter = 0; ///< Number of SCF Iterations
+    size_t nSCFMacroIter = 0; ///< Number of macro SCF iteration in NEO-SCF
 
   }; // SCFConvergence struct
 
@@ -178,9 +180,9 @@ namespace ChronusQ {
 
     SingleSlaterBase() = delete;
 
-    SingleSlaterBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS) : 
-      WaveFunctionBase(c, mem,_nC,iCS), QuantumBase(c, mem,_nC,iCS),
-      printLevel((MPIRank(c) == 0) ? 1 : 0) { };
+    SingleSlaterBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS, Particle p) : 
+      WaveFunctionBase(c, mem,_nC,iCS,p), QuantumBase(c, mem,_nC,iCS,p),
+      printLevel((MPIRank(c) == 0) ? 2 : 0) { };
       
 
 
@@ -234,7 +236,7 @@ namespace ChronusQ {
     // Procedural Functions to be shared among all derived classes
       
     // Perform an SCF procedure (see include/singleslater/scf.hpp for docs)
-    void SCF(EMPerturbation &);
+    virtual void SCF(EMPerturbation &);
 
   }; // class SingleSlaterBase
 

@@ -68,9 +68,10 @@ namespace ChronusQ {
     nucRepEnergy = 0.;
     for(size_t iAtm = 0; iAtm < nAtoms; iAtm++)
     for(size_t jAtm = 0; jAtm < iAtm  ; jAtm++)
-      nucRepEnergy +=
-        atoms[iAtm].nucCharge * atoms[jAtm].nucCharge /
-        RIJ[iAtm][jAtm];
+      if (not atoms[iAtm].quantum and not atoms[jAtm].quantum )
+        nucRepEnergy +=
+          atoms[iAtm].nucCharge * atoms[jAtm].nucCharge /
+          RIJ[iAtm][jAtm];
   }
 
   /**

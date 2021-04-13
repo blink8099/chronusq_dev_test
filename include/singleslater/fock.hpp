@@ -116,7 +116,7 @@ namespace ChronusQ {
       hamiltonianOptions.OneESpinOrbit = false;
     }
 
-    this->aoints.computeAOOneE(memManager,this->molecule(),
+    this->aoints.computeAOOneP(memManager,this->molecule(),
         basisSet(),emPert, ops, hamiltonianOptions); // compute the necessary 1e ints
 
     // Compute core Hamiltonian

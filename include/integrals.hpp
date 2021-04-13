@@ -26,9 +26,9 @@
 #include <chronusq_sys.hpp>
 #include <util/files.hpp>
 #include <fields.hpp>
-#include <electronintegrals/oneeints.hpp>
-#include <electronintegrals/twoeints.hpp>
-#include <electronintegrals/multipoleints.hpp>
+#include <particleintegrals/onepints.hpp>
+#include <particleintegrals/twopints.hpp>
+#include <particleintegrals/multipoleints.hpp>
 
 namespace ChronusQ {
 
@@ -61,12 +61,13 @@ namespace ChronusQ {
     IntegralsBase() = default;
 
     // Interfaces
-    virtual void computeAOOneE(CQMemManager &mem, Molecule &mol,
+    virtual void computeAOOneP(CQMemManager &mem, Molecule &mol,
         BasisSet &basis, EMPerturbation&,
         const std::vector<std::pair<OPERATOR,size_t>>&,
         const HamiltonianOptions&) = 0;
 
     virtual void computeAOTwoE(BasisSet&, Molecule&, EMPerturbation&) = 0;
+    virtual void computeAOTwoE(BasisSet&, BasisSet&, Molecule&, EMPerturbation&) = 0;
 
     // Print (see src/aointegrals/print.cxx for docs)
     template <typename G> 
@@ -93,20 +94,20 @@ namespace ChronusQ {
 
   public:
 
-    // 1-e storage
-    std::shared_ptr<OneEInts<IntsT>> overlap   = nullptr;   ///< Overlap matrix
-    std::shared_ptr<OneEInts<IntsT>> kinetic   = nullptr;   ///< Kinetic matrix
-    std::shared_ptr<OneEInts<IntsT>> potential = nullptr;   ///< Nuclear potential matrix
+    // 1-particle storage
+    std::shared_ptr<OnePInts<IntsT>> overlap   = nullptr;   ///< Overlap matrix
+    std::shared_ptr<OnePInts<IntsT>> kinetic   = nullptr;   ///< Kinetic matrix
+    std::shared_ptr<OnePInts<IntsT>> potential = nullptr;   ///< Nuclear potential matrix
 
     std::shared_ptr<MultipoleInts<IntsT>> lenElectric = nullptr;
     std::shared_ptr<MultipoleInts<IntsT>> velElectric = nullptr;
     std::shared_ptr<MultipoleInts<IntsT>> magnetic = nullptr;
 
-    // 2-e storage
-    std::shared_ptr<TwoEInts<IntsT>> ERI = nullptr;
+    // 2-particle storage
+    std::shared_ptr<TwoPInts<IntsT>> TPI = nullptr;
 
     // miscellaneous storage
-    std::map<std::string, std::shared_ptr<ElectronIntegrals>> misc;
+    std::map<std::string, std::shared_ptr<ParticleIntegrals>> misc;
 
     // Constructors
     Integrals() = default;
@@ -119,15 +120,21 @@ namespace ChronusQ {
     ~Integrals() {}
 
     // Integral evaluation
-    // Evaluate the 1-e ints (general)
-    virtual void computeAOOneE(CQMemManager &mem, Molecule &mol,
+    // Evaluate the 1-particle ints (general)
+    virtual void computeAOOneP(CQMemManager &mem, Molecule &mol,
         BasisSet &basis, EMPerturbation&,
         const std::vector<std::pair<OPERATOR,size_t>>&,
         const HamiltonianOptions&);
 
     virtual void computeAOTwoE(BasisSet& basis, Molecule& mol,
       EMPerturbation& emPert) {
-      ERI->computeAOInts(basis, mol, emPert, ELECTRON_REPULSION,
+      TPI->computeAOInts(basis, mol, emPert, ELECTRON_REPULSION,
+                         options_);
+    }
+
+    virtual void computeAOTwoE(BasisSet& basis, BasisSet& basis2, 
+                               Molecule& mol, EMPerturbation& emPert) {
+      TPI->computeAOInts(basis, basis2, mol, emPert, EP_ATTRACTION,
                          options_);
     }
 

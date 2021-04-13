@@ -27,8 +27,8 @@
 #include <util/preprocessor.hpp>
 #include <quantum/preprocessor.hpp>
 #include <corehbuilder/impl.hpp>
-#include <electronintegrals/squarematrix/impl.hpp>
-#include <electronintegrals/twoeints/impl.hpp>
+#include <particleintegrals/squarematrix/impl.hpp>
+#include <particleintegrals/twopints/impl.hpp>
 #include <fockbuilder/rofock.hpp>
 #include <fockbuilder/fourcompfock.hpp>
 
@@ -61,7 +61,7 @@ namespace ChronusQ {
     deltaOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.deltaOnePDM)),
     coreH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.coreH)),
     coreHPerturbed(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.coreHPerturbed)),
-    ERI(ERIContractions<MatsU,IntsT>::template convert<MatsT>(other.ERI)),
+    TPI(TPIContractions<MatsU,IntsT>::template convert<MatsT>(other.TPI)),
     coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
     fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)) {
 
@@ -108,7 +108,7 @@ namespace ChronusQ {
     deltaOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.deltaOnePDM))),
     coreH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.coreH))),
     coreHPerturbed(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.coreHPerturbed))),
-    ERI(ERIContractions<MatsU,IntsT>::template convert<MatsT>(other.ERI)),
+    TPI(TPIContractions<MatsU,IntsT>::template convert<MatsT>(other.TPI)),
     coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
     fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)) {
 
@@ -230,7 +230,9 @@ namespace ChronusQ {
 #include <singleslater/kohnsham/impl.hpp> // KS headers
 #include <singleslater/kohnsham/fxc.hpp> // KS headers
 
-#include <singleslater/hartreefock/scf.hpp> 
 #include <singleslater/kohnsham/scf.hpp>  
 
+#include <singleslater/hartreefock/scf.hpp>
 
+#include <singleslater/neo_singleslater.hpp>
+#include <singleslater/neo_singleslater/impl.hpp> // NEO headers

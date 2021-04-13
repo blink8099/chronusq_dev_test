@@ -23,11 +23,21 @@
  */
 #pragma once
 #include <basisset.hpp>
+#include <particleintegrals.hpp>
 
 
 namespace ChronusQ {
 
   enum KineticBalance {RKBPauli, RKBSpinor, UKBScalar};
+
+  /**
+   *  The particle types to evaluate integrals
+   */
+  struct Particle {
+    double charge = -1.0; // particle charge
+    double mass = 1.0;    // particle mass
+  };
+
 
   struct HamiltonianOptions {
 
@@ -41,6 +51,7 @@ namespace ChronusQ {
     BASIS_FUNCTION_TYPE basisType = REAL_GTO; //GTO or GIAO
     bool finiteWidthNuc = false; // Use finite nuclei in integral evaluations
     bool Libcint = false; // Use Libcint library instead of Libint
+    Particle particle; // Particle type
 
     // One-Component Options
     bool PerturbativeScalarRelativity = false; // Add perturbative scalar relativity

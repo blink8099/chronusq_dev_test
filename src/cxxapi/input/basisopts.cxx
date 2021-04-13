@@ -75,6 +75,10 @@ namespace ChronusQ {
     bool inputBasis(false);
     OPTOPT( inputBasis = input.getData<bool>(section+".DEFINEBASIS") )
 
+    // Determine if we're parsing a protonic basis
+    bool pBasis(false);
+    OPTOPT( pBasis = (!section.compare("PBASIS")); ); 
+
     // Find the Basis Definition
     std::string basisName;
     OPTOPT( basisName = input.getData<std::string>(section+".BASIS"); )
@@ -86,6 +90,8 @@ namespace ChronusQ {
     if ( basisName.empty() and basisDef.empty() ) {
       if ( section == "BASIS" )
         CErr("Basis file or specification not found!");
+      else if ( section == "PBASIS" )
+        CErr("Proton Basis file or specification not found!");
       else
         return std::make_shared<BasisSet>();
     }
@@ -102,7 +108,8 @@ namespace ChronusQ {
     // Construct the BasisSet object
     std::shared_ptr<BasisSet> basis =
         std::make_shared<BasisSet>(basisName,basisDef,inputBasis,
-                                   mol,bType,forceCart,MPIRank() == 0);
+                                   mol,bType,forceCart,MPIRank() == 0,
+                                   pBasis);
 
     // Ouput BasisSet information
     out << *basis << std::endl;

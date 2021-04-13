@@ -80,7 +80,10 @@ namespace ChronusQ {
       PauliSpinorSquareMatrices<MatsT> FSCR(this->memManager, NB,
           fockMatrixOrtho->hasXY(), fockMatrixOrtho->hasZ());
 
-      savFile.readData("/SCF/FOCK_ORTHO", FSCR);
+      if (this->particle.charge < 0.)
+        savFile.readData("/SCF/FOCK_ORTHO", FSCR);
+      else
+        savFile.readData("/PROT_SCF/FOCK_ORTHO", FSCR);
 
       *fockMatrixOrtho = (1-dp) * *fockMatrixOrtho + dp * FSCR;
 

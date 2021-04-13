@@ -23,7 +23,7 @@
  */
 #include <corehbuilder/x2c.hpp>
 #include <corehbuilder/nonrel.hpp>
-#include <electronintegrals/oneeints/relativisticints.hpp>
+#include <particleintegrals/onepints/relativisticints.hpp>
 #include <matrix.hpp>
 #include <physcon.hpp>
 #include <cqlinalg.hpp>
@@ -94,7 +94,7 @@ namespace ChronusQ {
     size_t NP = uncontractedBasis_.nPrimitive;
     size_t NB = basisSet_.nBasis;
 
-    uncontractedInts_.computeAOOneE(memManager_,
+    uncontractedInts_.computeAOOneP(memManager_,
         molecule_, uncontractedBasis_, emPert,
         {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0}},
         this->hamiltonianOptions_);
@@ -128,9 +128,9 @@ namespace ChronusQ {
 
     // Transform T into the orthonormal basis
     // T -> TO
-    std::shared_ptr<OneEInts<IntsT>> kinetic =
-        std::dynamic_pointer_cast<OneEInts<IntsT>>(
-            ElectronIntegrals::transform(
+    std::shared_ptr<OnePInts<IntsT>> kinetic =
+        std::dynamic_pointer_cast<OnePInts<IntsT>>(
+            ParticleIntegrals::transform(
                 *uncontractedInts_.kinetic, 'N', overlap, NPU, NP));
 
     // Get the SVD of TO
@@ -146,9 +146,9 @@ namespace ChronusQ {
       kinetic->pointer(),NPU,IntsT(0.),UK,NP);
 
     // Allocate and for "P^2" potential
-    std::shared_ptr<OneERelInts<IntsT>> potential =
-        std::dynamic_pointer_cast<OneERelInts<IntsT>>(
-            ElectronIntegrals::transform(
+    std::shared_ptr<OnePRelInts<IntsT>> potential =
+        std::dynamic_pointer_cast<OnePRelInts<IntsT>>(
+            ParticleIntegrals::transform(
                 *uncontractedInts_.potential, 'N', UK, NPU, NP));
 
     // P^2 -> P^-1
@@ -170,7 +170,7 @@ namespace ChronusQ {
     // Allocate W separately  as it's needed later
     size_t LDW = 2*NPU;
     SquareMatrix<MatsT> Wp(
-        std::dynamic_pointer_cast<OneERelInts<IntsT>>(potential)
+        std::dynamic_pointer_cast<OnePRelInts<IntsT>>(potential)
             ->template formW<MatsT>());
 
     // Subtract out 2mc^2 from W diagonals
@@ -429,17 +429,17 @@ namespace ChronusQ {
 
     // Allocate W separately  as it's needed later
     W = std::make_shared<SquareMatrix<MatsT>>(
-        std::dynamic_pointer_cast<OneERelInts<IntsT>>(
+        std::dynamic_pointer_cast<OnePRelInts<IntsT>>(
             uncontractedInts_.potential)->template formW<MatsT>());
 
     // T2c = [ T  0 ]
     //       [ 0  T ]
-    const OneEInts<IntsT> &T2c = uncontractedInts_.kinetic->
+    const OnePInts<IntsT> &T2c = uncontractedInts_.kinetic->
         template spatialToSpinBlock<IntsT>();
 
     // V2c = [ V  0 ]
     //       [ 0  V ]
-    const OneEInts<IntsT> &V2c = uncontractedInts_.potential->
+    const OnePInts<IntsT> &V2c = uncontractedInts_.potential->
         template spatialToSpinBlock<IntsT>();
 
     SquareMatrix<MatsT> Hx2c(memManager_, 2*NB);

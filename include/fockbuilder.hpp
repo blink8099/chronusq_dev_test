@@ -25,6 +25,7 @@
 
 #include <fields.hpp>
 #include <singleslater.hpp>
+#include <singleslater/neo_singleslater.hpp>
 
 namespace ChronusQ {
 
@@ -64,6 +65,9 @@ namespace ChronusQ {
 
     // Form the Hartree-Fock perturbation tensor (see include/fockbuilder/impl.hpp for docs)
     virtual void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
+
+    // Form the EPJ contribution to Fock matrix (see include/fockbuilder/impl.hpp for docs)
+    virtual void formepJ(NEOSingleSlater<MatsT,IntsT> &, NEOSingleSlater<MatsT,IntsT> &, bool increment = false, double xHFX = 1.);
 
     // Form a fock matrix (see include/fockbuilder/impl.hpp for docs)
     virtual void formFock(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);

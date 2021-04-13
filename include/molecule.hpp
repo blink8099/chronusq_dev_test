@@ -42,6 +42,8 @@ namespace ChronusQ {
     size_t nAtoms;   ///< Number of atoms in the Molecule
     size_t multip;   ///< Spin multiplicity XXX: This implies <S^2>
     size_t nTotalE;  ///< Total number of electrons in the Molecule
+    size_t nTotalP;  ///< Total number of quantum protons
+    size_t multip_proton; ///< Spin multiplicity of quantum protons: This implies <S^2>
 
     int  charge;   ///< Overall charge of the Molecule (atomic units)
 
@@ -55,6 +57,8 @@ namespace ChronusQ {
     dynmat_t RIJ;         ///< Nuclear distance matrix
 
     std::vector<Atom> atoms; ///< The Atoms of which the Molecule consists
+    std::vector<size_t> atomsC; /// The indices classical Atoms of which the Molecule consists
+    std::vector<size_t> atomsQ; /// The indices quantum Atoms of which the Molecule consists
 
 
     std::vector<libint2::Shell> chargeDist;
@@ -122,6 +126,25 @@ namespace ChronusQ {
       update();
     }
 
+    /**
+     *  \brief Constructs a new Molecule by retaining only the quantum nuclei
+     *
+     */
+    Molecule retainQNuc() {
+
+      // vector of atoms 
+      std::vector<Atom> new_atoms = {};
+      for (size_t i = 0; i < atoms.size(); i++)
+        if (atoms[i].quantum)
+          new_atoms.emplace_back(atoms[i]);
+      
+      // construct the molecule object
+      Molecule new_mole(0, 0, new_atoms);
+
+      // return it
+      return new_mole;
+    }
+
 
     private:
 
@@ -155,6 +178,29 @@ namespace ChronusQ {
              << "total electrons = " << nTotalE;
           CErr(ss.str(),std::cout);
         }
+
+        // Compute the total number of quantum protons 
+        nTotalP = 0;
+        size_t ind = 0;
+        for ( Atom& atom : atoms ) {
+          if ( atom.quantum ) {
+            // return an error if not hydrogen
+            if ( atom.atomicNumber != 1 )
+              CErr("Non-Hydrogen quantum nuclei NYI.");
+
+            nTotalP += 1;
+            atomsQ.push_back(ind);
+          }
+          else 
+            atomsC.push_back(ind);
+          ind += 1;
+        }
+
+        if (nTotalP > 1)
+          CErr("NEO with multiple quantum protons NYI.");
+
+        // assume high-spin open-shell for protons 
+        multip_proton = (size_t)(2 * nTotalP * 0.5 + 1);
 
         computeRIJ();
         computeNNRep();

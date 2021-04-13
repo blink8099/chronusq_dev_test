@@ -33,6 +33,7 @@
 #include <realtime.hpp>
 #include <response.hpp>
 #include <coupledcluster.hpp>
+#include <corehbuilder/x2c/atomic.hpp>
 
 
 
@@ -42,6 +43,33 @@
 
 namespace ChronusQ {
 
+  // Type of SingleSlater object
+  enum RefType { 
+    isRawRef,  // non-specified
+    isRRef,    // RHF/DFT
+    isURef,    // UHF/DFT
+    isRORef,   // ROHF/DFT
+    isGRef,    // GHF/DFT
+    isTwoCRef, // Two-component
+    isX2CRef,  // X2C
+    isFourCRef // Four-component
+  };
+
+  // A struct that stores reference information
+  struct RefOptions {
+    
+    std::string RCflag = "REAL"; // Real or Complex
+    
+    RefType refType = isRRef;    // R/U/G/2c/X2C/4c
+
+    bool isKSRef = false;        // HF or DFT
+
+    size_t nC = 1;               // number of component
+    bool iCS = true;             // closed shell or not
+
+    std::string funcName;        // DFT functional name
+  };
+
   // Function definitions ofr option parsing. 
   // See src/cxxapi/input/*opts.cxx for documentation
 
@@ -50,9 +78,22 @@ namespace ChronusQ {
 
   void CQMOLECULE_VALID(std::ostream&, CQInputFile &);
 
-  void parseGeomInp(Molecule &, std::string &, std::ostream &);
+  void parseGeomInp(Molecule &, std::string &, std::ostream &, bool);
 
   void parseGeomFchk(Molecule &, std::string &, std::ostream &);
+
+  RefOptions parseRef(std::ostream &, Molecule &, std::vector<std::string> &);
+
+  void buildFunclist(std::vector<std::shared_ptr<DFTFunctional>> &,
+    std::string);
+
+  void parseIntParam(std::ostream &, CQInputFile &, IntegrationParam &);
+
+  void parseHamiltonianOptions(std::ostream &, CQInputFile &, 
+    BasisSet &basis, std::shared_ptr<IntegralsBase> aoints,
+    RefOptions &refOptions, HamiltonianOptions &hamiltonianOptions);
+
+  bool parseAtomicType(std::ostream &, CQInputFile &, ATOMIC_X2C_TYPE &);
 
   // Parse the options relating to the BasisSet
   std::shared_ptr<BasisSet> CQBasisSetOptions(std::ostream &, CQInputFile &,
@@ -66,6 +107,16 @@ namespace ChronusQ {
       std::ostream &, CQInputFile &,
       CQMemManager &mem, Molecule &mol, BasisSet &basis,
       std::shared_ptr<IntegralsBase> );
+
+  // Parse the options relating to the NEOSingleSlater
+  // (and variants)
+  std::vector<std::shared_ptr<SingleSlaterBase>> CQNEOSingleSlaterOptions(
+      std::ostream &, CQInputFile &,
+      CQMemManager &mem, Molecule &mol,
+      BasisSet &ebasis, BasisSet &pbasis,
+      std::shared_ptr<IntegralsBase> eaoints,
+      std::shared_ptr<IntegralsBase> paoints,
+      std::shared_ptr<IntegralsBase> epaoints);
 
   void CQQM_VALID(std::ostream&, CQInputFile &);
   void CQDFTINT_VALID(std::ostream&, CQInputFile &);
@@ -89,7 +140,8 @@ namespace ChronusQ {
   // Parse integral options
   std::shared_ptr<IntegralsBase> CQIntsOptions(std::ostream &, 
     CQInputFile &, CQMemManager &, Molecule &,
-    std::shared_ptr<BasisSet>, std::shared_ptr<BasisSet>);
+    std::shared_ptr<BasisSet>, std::shared_ptr<BasisSet>,
+    std::shared_ptr<BasisSet>, std::string int_sec = "INTS");
 
   void CQINTS_VALID(std::ostream&, CQInputFile &);
 

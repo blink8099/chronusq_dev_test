@@ -35,7 +35,7 @@
 #include <molecule.hpp>
 #include <basisset.hpp>
 #include <integrals.hpp>
-#include <electronintegrals/twoeints/gtodirecteri.hpp>
+#include <particleintegrals/twopints/gtodirecttpi.hpp>
 
 #include <cqlinalg/blasext.hpp>
 
@@ -121,8 +121,8 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
 
   // AOIntegrals object
   Integrals<double> aoints;
-  aoints.ERI =
-      std::make_shared<DirectERI<double>>(*memManager,*basis,mol,1e-12);
+  aoints.TPI =
+      std::make_shared<DirectTPI<double>>(*memManager,*basis,*basis,mol,1e-12);
   
   // Scratch memory
   size_t NB = basis->nBasis;
@@ -166,8 +166,8 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   refFile.readData(storage + "/AX",SX2);
   
   // Form G[X] directly
-  GTODirectERIContraction<FIELD,double> ERI(*aoints.ERI);
-  ERI.twoBodyContract(MPI_COMM_WORLD,true,cont,pert);
+  GTODirectTPIContraction<FIELD,double> TPI(*aoints.TPI);
+  TPI.twoBodyContract(MPI_COMM_WORLD,true,cont,pert);
   
   // Compare with reference result
   double maxDiff(0.);

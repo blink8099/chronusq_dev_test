@@ -67,8 +67,8 @@ namespace ChronusQ {
      *  \param [in] _nC  Number of spin components (1 and 2 are supported)
      *  \param [in] iCS  Whether or not to treat as closed shell
      */ 
-    WaveFunctionBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS) : 
-      QuantumBase(c, mem,_nC,iCS) { }; // WaveFunctionBase ctor 
+    WaveFunctionBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS, Particle p) : 
+      QuantumBase(c, mem,_nC,iCS,p) { }; // WaveFunctionBase ctor 
 
     size_t nAlphaOrbital() const { return nOA + nVA; }
     size_t nBetaOrbital() const { return nOB + nVB; }
