@@ -302,27 +302,51 @@ namespace ChronusQ {
     std::vector<libint2::Shell> shells;
     std::vector<std::vector<double>> cont;
   
-    for(auto &atom : mol.atoms){ 
+    // loop over atoms in the molecule
+    if (not this->nucBasis_) {
+      for(auto &atom : mol.atoms){ 
 
-      if( refShells.find(atom.atomicNumber) == refShells.end() )
-        CErr("Cannot find Z=" + std::to_string(atom.atomicNumber) + " in Basis Definition");
+        if( refShells.find(atom.atomicNumber) == refShells.end() )
+          CErr("Cannot find Z=" + std::to_string(atom.atomicNumber) + " in Basis Definition");
 
-      auto &newSh  = refShells[atom.atomicNumber];
+        auto &newSh  = refShells[atom.atomicNumber];
   
-      std::vector<libint2::Shell>::iterator shFront = 
-        shells.insert(shells.end(),newSh.shells.begin(),
-          newSh.shells.end());
+        std::vector<libint2::Shell>::iterator shFront = 
+          shells.insert(shells.end(),newSh.shells.begin(),
+            newSh.shells.end());
 
-      cont.insert(cont.end(),newSh.unNormCont.begin(),
-        newSh.unNormCont.end());
+        cont.insert(cont.end(),newSh.unNormCont.begin(),
+          newSh.unNormCont.end());
   
   
-      std::for_each(shFront,shells.end(),
-        [&](libint2::Shell &sh) { sh.move(atom.coord); }
-      );
+        std::for_each(shFront,shells.end(),
+          [&](libint2::Shell &sh) { sh.move(atom.coord); }
+        );
   
+      }
+    } else { // nuclear basis
+      for (auto &atom : mol.atoms) {
+        
+        if ( atom.quantum ) {
+          if (atom.atomicNumber != 1)
+            CErr("Find non-hydrogen atoms");
+
+          auto &newSh = refShells[atom.atomicNumber];
+
+          std::vector<libint2::Shell>::iterator shFront = 
+            shells.insert(shells.end(),newSh.shells.begin(), 
+              newSh.shells.end());
+          
+          cont.insert(cont.end(),newSh.unNormCont.begin(),
+            newSh.unNormCont.end());
+
+          std::for_each(shFront,shells.end(),
+            [&](libint2::Shell &sh) { sh.move(atom.coord); }
+          );
+        }
+      }
     }
-  
+
     return { shells, cont };
 
   }; // ReferenceShellSer::generateShellSet

@@ -25,12 +25,12 @@
 #pragma once
 
 #include <singleslater.hpp>
-#include <electronintegrals.hpp>
+#include <particleintegrals.hpp>
 #include <wavefunction.hpp>
 #include <chronusq_sys.hpp>
-#include <electronintegrals/twoeints.hpp>
-#include <electronintegrals/twoeints/incore4indexeri.hpp>
-#include <electronintegrals/twoeints/incorerieri.hpp>
+#include <particleintegrals/twopints.hpp>
+#include <particleintegrals/twopints/incore4indextpi.hpp>
+#include <particleintegrals/twopints/incoreritpi.hpp>
 #include <util/files.hpp>
 #include <util/math.hpp>
 #include <util/threads.hpp>
@@ -62,7 +62,7 @@ namespace ChronusQ{
 
   template <typename MatsT, typename IntsT>
   void CCSD<MatsT,IntsT>::run() {
-    if(std::dynamic_pointer_cast<InCore4indexERI<IntsT>>(this->ref_.aoints.ERI)){
+    if(std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(this->ref_.aoints.TPI)){
       runConventional();
     }
     else {
@@ -231,19 +231,19 @@ namespace ChronusQ{
     // Start parallel without TA
     endTAThreads();
 
-    auto aoeri = std::make_shared<InCore4indexERI<IntsT>>(
-              std::dynamic_pointer_cast<InCore4indexERI<IntsT>>(this->ref_.aoints.ERI)
+    auto aoeri = std::make_shared<InCore4indexTPI<IntsT>>(
+              std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(this->ref_.aoints.TPI)
                ->template spatialToSpinBlock<IntsT>());
-    auto moeri = std::make_shared<InCore4indexERI<MatsT>>(
+    auto moeri = std::make_shared<InCore4indexTPI<MatsT>>(
         aoeri->transform('N', this->ref_.mo[0].pointer(), nMO, nMO));
     Integrals<MatsT> moints;
-    moints.ERI = moeri;    
+    moints.TPI = moeri;    
 
     // Go back to TA threads
     startTAThreads();
 
-    if (std::shared_ptr<InCore4indexERI<dcomplex>> eri = 
-      std::dynamic_pointer_cast<InCore4indexERI<dcomplex>>(moints.ERI)){
+    if (std::shared_ptr<InCore4indexTPI<dcomplex>> eri = 
+      std::dynamic_pointer_cast<InCore4indexTPI<dcomplex>>(moints.TPI)){
     std::vector<std::string> mointsTypes{"abij","iabj","aibj","ijkl","abcd","abci","aijk"};
     std::set<char> hole{'i','j','k','l'};
     std::set<char> particle{'a','b','c','d'};  

@@ -27,8 +27,8 @@
 #include <cqlinalg.hpp>
 #include <physcon.hpp>
 #include <util/matout.hpp>
-#include <electronintegrals/twoeints/incore4indexreleri.hpp>
-#include <electronintegrals/twoeints/gtodirectreleri.hpp>
+#include <particleintegrals/twopints/incore4indexreleri.hpp>
+#include <particleintegrals/twopints/gtodirectreleri.hpp>
 
 //#define _PRINT_MATRICES
 
@@ -41,9 +41,9 @@ namespace ChronusQ {
   void FourCompFock<MatsT,IntsT>::formGD(SingleSlater<MatsT,IntsT> &ss,
     EMPerturbation &pert, bool increment, double xHFX) {
 
-    if( std::dynamic_pointer_cast<InCore4indexRelERIContraction<MatsT,IntsT>>(ss.ERI) )
+    if( std::dynamic_pointer_cast<InCore4indexRelERIContraction<MatsT,IntsT>>(ss.TPI) )
       formGDInCore(ss, pert, increment, xHFX);
-    else if( std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.ERI) )
+    else if( std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.TPI) )
       formGDDirect(ss, pert, increment, xHFX);
       //formGD3Index(ss, pert, increment, xHFX);
     else
@@ -57,7 +57,7 @@ namespace ChronusQ {
     EMPerturbation &pert, bool increment, double xHFX) {
 
     InCore4indexRelERI<IntsT> &relERI =
-        *std::dynamic_pointer_cast<InCore4indexRelERI<IntsT>>(ss.aoints.ERI);
+        *std::dynamic_pointer_cast<InCore4indexRelERI<IntsT>>(ss.aoints.TPI);
     CQMemManager &mem = ss.memManager;
 
     // Decide list of onePDMs to use
@@ -203,7 +203,7 @@ namespace ChronusQ {
       if(not increment) ss.exchangeMatrix->clear();
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractLL, pert);
+      ss.TPI->twoBodyContract(ss.comm, contractLL, pert);
   
       /* Store LL block into 2C spin scattered matrices */
       // Assemble 4C coulombMatrix
@@ -257,7 +257,7 @@ namespace ChronusQ {
           {contract1PDMSS.Z().pointer(), Scr4, true, COULOMB, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
-      ss.ERI->twoBodyContract(ss.comm, contractDCLL);
+      ss.TPI->twoBodyContract(ss.comm, contractDCLL);
   
       // Add Dirac-Coulomb contributions  to the LLLL block
       MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C, MatsT(1.0), 
@@ -300,7 +300,7 @@ namespace ChronusQ {
         {contract1PDMLL.S().pointer(), Scr4, true, COULOMB, relERI[3].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractSS);
+      ss.TPI->twoBodyContract(ss.comm, contractSS);
   
       // Store SS block into 2C spin scattered matrices 
       // These scaling factors were modified to take into account the issue of storing the 
@@ -341,7 +341,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractLSScalar);
+      ss.TPI->twoBodyContract(ss.comm, contractLSScalar);
   
       // Add to the LS part of the exchangeMatrix[MS]
       MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C, MatsT(1.0),
@@ -366,7 +366,7 @@ namespace ChronusQ {
           {contract1PDMLS.Y().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractLSMX);
+      ss.TPI->twoBodyContract(ss.comm, contractLSMX);
   
       // Add to the LS part of the exchangeMatrix[MX]
       MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C,
@@ -393,7 +393,7 @@ namespace ChronusQ {
           {contract1PDMLS.X().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractLSMY);
+      ss.TPI->twoBodyContract(ss.comm, contractLSMY);
   
       // Add to the LS part of the exchangeMatrix[MY]
       MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C,
@@ -420,7 +420,7 @@ namespace ChronusQ {
           {contract1PDMLS.S().pointer(), Scr4, true, EXCHANGE, relERI[3].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractLSMZ);
+      ss.TPI->twoBodyContract(ss.comm, contractLSMZ);
   
       // Add to the LS part of the exchangeMatrix[MZ]
       MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C,
@@ -559,7 +559,7 @@ namespace ChronusQ {
           {contract1PDMSS.Z().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLL113);
+      ss.TPI->twoBodyContract(ss.comm, contractGLL113);
   
       // Add to the LL part of 4C exchangeMatrix in Pauli matrix form
       MatAdd('N','N', NB1C, NB1C, -3.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer(), NB2C, ss.exchangeMatrix->S().pointer(), NB2C);
@@ -576,7 +576,7 @@ namespace ChronusQ {
           {contract1PDMSS.Y().pointer(), Scr4, true, EXCHANGE, relERI[12].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLL114);
+      ss.TPI->twoBodyContract(ss.comm, contractGLL114);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer(), NB2C, ss.exchangeMatrix->Z().pointer(), NB2C);
@@ -594,7 +594,7 @@ namespace ChronusQ {
           {contract1PDMSS.Z().pointer(), Scr4, true, EXCHANGE, relERI[10].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLL115);
+      ss.TPI->twoBodyContract(ss.comm, contractGLL115);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer(), NB2C, ss.exchangeMatrix->X().pointer(), NB2C);
@@ -612,7 +612,7 @@ namespace ChronusQ {
           {contract1PDMSS.Z().pointer(), Scr4, true, EXCHANGE, relERI[12].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLL116);
+      ss.TPI->twoBodyContract(ss.comm, contractGLL116);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,  scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer(), NB2C, ss.exchangeMatrix->Y().pointer(), NB2C);
@@ -714,7 +714,7 @@ namespace ChronusQ {
           {contract1PDMLL.Z().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGSS129);
+      ss.TPI->twoBodyContract(ss.comm, contractGSS129);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,-3.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+SS, NB2C, ss.exchangeMatrix->S().pointer()+SS, NB2C);
@@ -730,7 +730,7 @@ namespace ChronusQ {
           {contract1PDMLL.Y().pointer(), Scr4, true, EXCHANGE, relERI[12].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGSS130);
+      ss.TPI->twoBodyContract(ss.comm, contractGSS130);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,      scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
@@ -747,7 +747,7 @@ namespace ChronusQ {
           {contract1PDMLL.Y().pointer(), Scr4, true, EXCHANGE, relERI[8].pointer(),  TRANS_MNKL}};
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGSS131);
+      ss.TPI->twoBodyContract(ss.comm, contractGSS131);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,      scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
@@ -764,7 +764,7 @@ namespace ChronusQ {
           {contract1PDMLL.Z().pointer(), Scr4, true, EXCHANGE, relERI[12].pointer(), TRANS_MNKL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGSS132);
+      ss.TPI->twoBodyContract(ss.comm, contractGSS132);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,      scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
@@ -955,7 +955,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), Scr4, true, COULOMB, relERI[7].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS91);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS91);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,   2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
@@ -970,7 +970,7 @@ namespace ChronusQ {
           {contract1PDMLS.X().pointer(), Scr2, true, COULOMB, relERI[4].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS92AX);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS92AX);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
@@ -984,7 +984,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), Scr3, true, COULOMB, relERI[11].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS92BX);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS92BX);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
@@ -998,7 +998,7 @@ namespace ChronusQ {
           {contract1PDMLS.Y().pointer(), Scr2, true, COULOMB, relERI[4].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS92AY);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS92AY);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
@@ -1013,7 +1013,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), Scr3, true, COULOMB, relERI[13].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS92BY);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS92BY);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
@@ -1027,7 +1027,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), Scr2, true, COULOMB, relERI[4].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS92AZ);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS92AZ);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
@@ -1041,7 +1041,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), Scr3, true, COULOMB, relERI[22].pointer()} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS92BZ);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS92BZ);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
@@ -1072,7 +1072,7 @@ namespace ChronusQ {
           {contract1PDMSL.Z().pointer(), Scr4, true, COULOMB, relERI[7].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS136);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS136);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,  -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
@@ -1087,7 +1087,7 @@ namespace ChronusQ {
           {contract1PDMSL.X().pointer(), Scr2, true, COULOMB, relERI[4].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS137AX);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS137AX);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
@@ -1101,7 +1101,7 @@ namespace ChronusQ {
           {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, relERI[11].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS137BX);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS137BX);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
@@ -1114,7 +1114,7 @@ namespace ChronusQ {
           {contract1PDMSL.Y().pointer(), Scr2, true, COULOMB, relERI[4].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS137AY);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS137AY);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
@@ -1128,7 +1128,7 @@ namespace ChronusQ {
           {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, relERI[13].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS137BY);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS137BY);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
@@ -1141,7 +1141,7 @@ namespace ChronusQ {
           {contract1PDMSL.Z().pointer(), Scr2, true, COULOMB, relERI[4].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS137AZ);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS137AZ);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
@@ -1155,7 +1155,7 @@ namespace ChronusQ {
           {contract1PDMSL.Z().pointer(), Scr3, true, COULOMB, relERI[22].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS137BZ);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS137BZ);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
@@ -1190,7 +1190,7 @@ namespace ChronusQ {
           {contract1PDMSL.Z().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS159);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS159);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, -scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
@@ -1206,7 +1206,7 @@ namespace ChronusQ {
           {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, relERI[7].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS160A);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS160A);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
@@ -1222,7 +1222,7 @@ namespace ChronusQ {
           {contract1PDMSL.Y().pointer(), Scr3, true, EXCHANGE, relERI[12].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS160B);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS160B);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
@@ -1239,7 +1239,7 @@ namespace ChronusQ {
           {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, relERI[5].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS161A);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS161A);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
@@ -1255,7 +1255,7 @@ namespace ChronusQ {
           {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[10].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS161B);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS161B);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
@@ -1271,7 +1271,7 @@ namespace ChronusQ {
           {contract1PDMSL.S().pointer(), Scr4, true, EXCHANGE, relERI[6].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS162A);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS162A);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
@@ -1287,7 +1287,7 @@ namespace ChronusQ {
           {contract1PDMSL.Z().pointer(), Scr3, true, EXCHANGE, relERI[12].pointer(), TRANS_KL} };
   
       // Call the contraction engine to do the assembly
-      ss.ERI->twoBodyContract(ss.comm, contractGLS162B);
+      ss.TPI->twoBodyContract(ss.comm, contractGLS162B);
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C, scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
@@ -1409,7 +1409,7 @@ namespace ChronusQ {
 
     CQMemManager &mem = ss.memManager;
     GTODirectRelERIContraction<MatsT,IntsT> &relERICon =
-        *std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.ERI);
+        *std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.TPI);
 
     // Decide list of onePDMs to use
     PauliSpinorSquareMatrices<MatsT> &contract1PDM
@@ -1515,7 +1515,7 @@ namespace ChronusQ {
       if(not increment) ss.exchangeMatrix->clear();
   
       // Call the contraction engine to do the assembly of direct Coulomb LLLL
-      GTODirectERIContraction<MatsT,IntsT>(ss.ERI->ints()).twoBodyContract(ss.comm, true, contractLL, pert);
+      GTODirectTPIContraction<MatsT,IntsT>(ss.TPI->ints()).twoBodyContract(ss.comm, true, contractLL, pert);
   
   
       /* Store LL block into 2C spin scattered matrices */
@@ -2410,7 +2410,7 @@ namespace ChronusQ {
 
     CQMemManager &mem = ss.memManager;
     GTODirectRelERIContraction<MatsT,IntsT> &relERICon =
-        *std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.ERI);
+        *std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.TPI);
 
     // Decide list of onePDMs to use
     PauliSpinorSquareMatrices<MatsT> &contract1PDM
@@ -2546,7 +2546,7 @@ namespace ChronusQ {
       if(not increment) ss.exchangeMatrix->clear();
   
       // Call the contraction engine to do the assembly of direct Coulomb LLLL
-      GTODirectERIContraction<MatsT,IntsT>(ss.ERI->ints()).twoBodyContract(ss.comm, true, contractLL, pert);
+      GTODirectTPIContraction<MatsT,IntsT>(ss.TPI->ints()).twoBodyContract(ss.comm, true, contractLL, pert);
   
   
       /* Store LL block into 2C spin scattered matrices */

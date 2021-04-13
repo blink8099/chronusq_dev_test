@@ -29,7 +29,7 @@ arithmetic/scaledmatrix.cxx
 impl.cxx)
 target_link_libraries ( matrix PUBLIC ChronusQ::Libint2 )
 
-# Append electronintegrals to executable link
+# Append particleintegrals to executable link
 list(APPEND CQEX_LINK matrix)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 

@@ -85,26 +85,43 @@ namespace ChronusQ {
      *  \param [in] iCS  Whether or not to treat as closed shell
      */ 
     WaveFunction(MPI_Comm c, CQMemManager &mem, Molecule &mol, size_t nBasis,
-                 Integrals<IntsT> &aoi, size_t _nC, bool iCS) :
-      QuantumBase(c, mem,_nC,iCS),
-      WaveFunctionBase(c, mem,_nC,iCS),
-      Quantum<MatsT>(c, mem,_nC,iCS,nBasis),
+                 Integrals<IntsT> &aoi, size_t _nC, bool iCS, Particle p = {-1.0,1.0}) :
+      QuantumBase(c, mem,_nC,iCS,p),
+      WaveFunctionBase(c, mem,_nC,iCS,p),
+      Quantum<MatsT>(c, mem,_nC,iCS,p,nBasis),
       molecule_(mol), eps1(nullptr), eps2(nullptr), aoints(aoi) {
 
       // Compute meta data
 
-      this->nO = molecule_.nTotalE;
-      this->nV = 2*nBasis - nO;
+      if (p.charge < 0.) {
+        this->nO = molecule_.nTotalE;
+        this->nV = 2*nBasis - nO;
 
-      if( this->iCS ) {
-        this->nOA = this->nO / 2; this->nOB = this->nO / 2;
-        this->nVA = this->nV / 2; this->nVB = this->nV / 2;
+        if( this->iCS ) {
+          this->nOA = this->nO / 2; this->nOB = this->nO / 2;
+          this->nVA = this->nV / 2; this->nVB = this->nV / 2;
+        } else {
+          size_t nSingleE = molecule_.multip - 1;
+          this->nOB = (this->nO - nSingleE) / 2;
+          this->nOA = this->nOB + nSingleE;
+          this->nVA = nBasis - this->nOA;
+          this->nVB = nBasis - this->nOB;
+        }
       } else {
-        size_t nSingleE = molecule_.multip - 1;
-        this->nOB = (this->nO - nSingleE) / 2;
-        this->nOA = this->nOB + nSingleE;
-        this->nVA = nBasis - this->nOA;
-        this->nVB = nBasis - this->nOB;
+         this->nO = molecule_.nTotalP;
+         this->nV = 2*nBasis - nO;
+ 
+         if( this->iCS ) {
+           this->nOA = this->nO / 2; this->nOB = this->nO / 2;
+           this->nVA = this->nV / 2; this->nVB = this->nV / 2;
+         } else {
+           size_t nSingleP = molecule_.multip_proton - 1;
+           this->nOB = (this->nO - nSingleP) / 2;
+           this->nOA = this->nOB + nSingleP;
+           this->nVA = nBasis - this->nOA;
+           this->nVB = nBasis - this->nOB;
+         }
+
       }
 
       // Allocate internal memory

@@ -96,8 +96,16 @@ namespace ChronusQ {
       }
     }
 
+    // Figure out whether we are doing NEO-SCF
+    bool doNEO = false;
+    if ( input.containsSection("SCF") )
+      try {
+        doNEO = input.getData<bool>("SCF.NEO");
+      } catch(...) { ; }
+
+
     // Parse different files depending on READGEOM
-    if( geomReadStr == "INPUTFILE" ) parseGeomInp(mol,geomStr,out);
+    if( geomReadStr == "INPUTFILE" ) parseGeomInp(mol,geomStr,out,doNEO);
     else if( geomReadStr == "FCHK" ) parseGeomFchk(mol,scrName,out);
     else CErr("INVALID OPTION FOR READGEOM KEYWORD!");
 
@@ -105,7 +113,7 @@ namespace ChronusQ {
 
   }; // CQMoleculeOptions
 
-  void parseGeomInp( Molecule &mol, std::string &geomStr, std::ostream &out ) {
+  void parseGeomInp( Molecule &mol, std::string &geomStr, std::ostream &out, bool doNEO ) {
 
     std::istringstream geomStream; geomStream.str(geomStr);
     std::vector<std::string> tokens;
@@ -118,7 +126,7 @@ namespace ChronusQ {
 
       if( tokens.size() == 0 ) continue;
 
-      if( tokens.size() != 4 ) CErr("Error in geometry reader. A line should have 4 entries: Atom Symbol, x, y, z");
+      if( tokens.size() != 4 and tokens.size() != 5 ) CErr("Error in geometry reader. A line should have 4 or 5 entries: Atom Symbol, x, y, z, (Quantum or Not)");
 
       for( auto i=0; i<tokens.size(); i++ )
         if( tokens[i].find("NAN") != std::string::npos or tokens[i].find("INF") != std::string::npos ) CErr("Invalid entry for GEOM!");
@@ -173,6 +181,16 @@ namespace ChronusQ {
       atoms.back().coord[1] = std::stod(tokens[2]) / AngPerBohr;
       atoms.back().coord[2] = std::stod(tokens[3]) / AngPerBohr;
 
+      // quantum nuclei
+      if (tokens.size() == 5 and tokens[4] == "Q") {
+        if (not doNEO)
+          CErr("Find quantum nuclei in regular SCF!");
+        else
+          atoms.back().quantum = true;
+      }
+      else if (tokens.size() == 5 and tokens[4] != "Q") {
+        CErr("Error in geometry reader. Do you want to specify quantum nuclei? Use keyword Q!");
+      }
     }
 
     if ( atoms.size() == 0 )

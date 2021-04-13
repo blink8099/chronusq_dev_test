@@ -78,8 +78,8 @@ namespace ChronusQ {
      *  \param [in] N     Dimension of the density matricies to be allocated
      */ 
     Quantum(MPI_Comm c, CQMemManager &mem, size_t _nC = 1, 
-      bool _iCS = true, size_t N = 0, bool doAlloc = true): 
-      QuantumBase(c,mem,_nC,_iCS) {
+      bool _iCS = true, Particle p = {-1.0, 1.0}, size_t N = 0, bool doAlloc = true): 
+      QuantumBase(c,mem,_nC,_iCS,p) {
 
         // Allocate densities
         if( N != 0 and doAlloc ) alloc(N);

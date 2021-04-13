@@ -113,7 +113,7 @@ namespace ChronusQ {
 
     if( printLevel > 0 ) std::cout << BannerEnd << std::endl;
 
-    if( printLevel > 0 ) {
+    if( printLevel > 1 ) {
       this->printMOInfo(std::cout);
       this->printMultipoles(std::cout);
       this->printSpin(std::cout);

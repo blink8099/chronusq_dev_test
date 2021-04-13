@@ -34,6 +34,8 @@
 
 #include <fields.hpp>
 
+#include <particleintegrals.hpp>
+
 namespace ChronusQ {
 
   enum DENSITY_TYPE {
@@ -71,6 +73,7 @@ namespace ChronusQ {
 
     int   nC;   ///< Number of spin components
     bool  iCS;  ///< is closed shell?
+    Particle particle; ///< Particle Type
 
 
     // Property storage
@@ -87,7 +90,9 @@ namespace ChronusQ {
     // Energy expectation values
     double OBEnergy;   ///< 1-Body operator contribution to the energy
     double MBEnergy;   ///< Many(2)-Body operator contribution to the energy
+    double PPEnergy = 0.;   //<  Many(2)-Body proton-proton repulsion energy
     double totalEnergy;///< The total energy
+
 
 
 
@@ -108,8 +113,8 @@ namespace ChronusQ {
      *  \param [in] _iCS  Whether or not system is closed shell
      *                    (only used when _nC == 1)
      */ 
-    QuantumBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool _iCS): 
-      memManager(mem), nC(_nC), iCS(_iCS), comm(c),
+    QuantumBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool _iCS, Particle p): 
+      memManager(mem), nC(_nC), iCS(_iCS), particle(p), comm(c),
       elecDipole({0.,0.,0.}),
       elecQuadrupole{{{0.,0.,0.},{0.,0.,0.},{0.,0.,0.}}},
       elecOctupole{

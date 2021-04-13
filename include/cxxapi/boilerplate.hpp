@@ -26,7 +26,7 @@
 
 #include <chronusq_sys.hpp>
 #include <libint2/cxxapi.h>
-#include <electronintegrals.hpp>
+#include <particleintegrals.hpp>
 
 #include <util/threads.hpp>
 #include <H5Cpp.h>

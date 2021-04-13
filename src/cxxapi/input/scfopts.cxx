@@ -45,7 +45,9 @@ namespace ChronusQ {
       "DAMPPARAM",
       "DAMPERROR",
       "FIELD",
-      "PRINTMOS"
+      "PRINTMOS",
+      "NEO",
+      "PROT_GUESS"
     };
 
     // Specified keywords
@@ -138,6 +140,21 @@ namespace ChronusQ {
         ss.scfControls.guess = FCHKMO;
       else
         CErr("Unrecognized entry for SCF.GUESS");
+    )
+
+    OPTOPT(
+      std::string guessString = input.getData<std::string>("SCF.PROT_GUESS");
+
+      if( not guessString.compare("CORE") )
+        ss.scfControls.prot_guess = CORE;
+      else if( not guessString.compare("RANDOM") )
+        ss.scfControls.prot_guess = RANDOM;
+      else if( not guessString.compare("READMO") )
+        ss.scfControls.prot_guess = READMO;
+      else if( not guessString.compare("READDEN") )
+        ss.scfControls.prot_guess = READDEN;
+      else
+        CErr("Unrecognized entry for SCF.PROT_GUESS");
     )
 
 

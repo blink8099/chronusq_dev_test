@@ -35,7 +35,7 @@ namespace ChronusQ {
    *  many-body wave function
    */ 
   template <typename MatsT, typename IntsT>
-  class HartreeFock : public SingleSlater<MatsT,IntsT>,
+  class HartreeFock : virtual public SingleSlater<MatsT,IntsT>,
     public std::enable_shared_from_this<HartreeFock<MatsT,IntsT>> {
 
     public:

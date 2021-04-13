@@ -26,7 +26,7 @@
 #include <chronusq_sys.hpp>
 #include <wavefunction.hpp>
 #include <singleslater/base.hpp>
-#include <electronintegrals/twoeints.hpp>
+#include <particleintegrals/twopints.hpp>
 #include <matrix.hpp>
 
 // Debug print triggered by Wavefunction
@@ -118,7 +118,7 @@ namespace ChronusQ {
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreHPerturbed; ///< Perturbed Core Hamiltonian (scalar and magnetization)
 
     // CoreH and Fock builders
-    std::shared_ptr<ERIContractions<MatsT,IntsT>> ERI; ///< ERIContractions
+    std::shared_ptr<TPIContractions<MatsT,IntsT>> TPI; ///< TPIContractions
     std::shared_ptr<CoreHBuilder<MatsT,IntsT>> coreHBuilder; ///< Builder for CoreH
     std::shared_ptr<FockBuilder<MatsT,IntsT>> fockBuilder; ///< Builder for Fock
 
@@ -299,4 +299,5 @@ namespace ChronusQ {
 // Include headers for specializations of SingleSlater
 #include <singleslater/hartreefock.hpp> // HF specialization
 #include <singleslater/kohnsham.hpp>    // KS specialization
+#include <singleslater/neo_singleslater.hpp>  // NEO specialization
 

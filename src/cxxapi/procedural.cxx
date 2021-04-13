@@ -140,24 +140,63 @@ namespace ChronusQ {
       CErr("Must Specify QM.JOB",output);
     }
 
+    bool doNEO = false;
+    
+    if ( input.containsSection("SCF") ) {
+      try {
+        doNEO = input.getData<bool>("SCF.NEO");
+      } catch(...) { ; }
+    }
 
     auto memManager = CQMiscOptions(output,input);
 
 
     // Create Molecule and BasisSet objects
     Molecule mol(std::move(CQMoleculeOptions(output,input,scrFileName)));
+
+    // Create BasisSet objects
     std::shared_ptr<BasisSet> basis = CQBasisSetOptions(output,input,mol,"BASIS");
     std::shared_ptr<BasisSet> dfbasis = CQBasisSetOptions(output,input,mol,"DFBASIS");
 
-    auto aoints = CQIntsOptions(output,input,*memManager,mol,basis,dfbasis);
+    auto aoints = CQIntsOptions(output,input,*memManager,mol,basis,dfbasis,nullptr);
 
-    auto ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
+    // Create BasisSet and integral objects for nuclear orbitals 
+    std::shared_ptr<BasisSet> prot_basis = 
+      doNEO ? CQBasisSetOptions(output,input,mol,"PBASIS") : nullptr;
+    auto prot_aoints = 
+      doNEO ? CQIntsOptions(output,input,*memManager,mol,prot_basis,dfbasis,nullptr,"PINTS"): nullptr;
+    auto ep_aoints   = 
+      doNEO? CQIntsOptions(output,input,*memManager,mol,basis,dfbasis,prot_basis,"EPINTS") : nullptr;
+
+    std::shared_ptr<SingleSlaterBase> ss  = nullptr;
+    std::shared_ptr<SingleSlaterBase> pss = nullptr;
+
+    // NEO calculation
+    if (doNEO) {
+      
+      // construct the neo single slater objects for electron and proton
+      std::vector<std::shared_ptr<SingleSlaterBase>> neo_vec = 
+        CQNEOSingleSlaterOptions(output,input,*memManager,mol,
+                                 *basis,*prot_basis,
+                                 aoints, prot_aoints,
+                                 ep_aoints);
+
+      ss  = neo_vec[0]; // electron
+      pss = neo_vec[1]; // proton
+
+    }
+    else
+      ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
 
     // EM Perturbation for SCF
     EMPerturbation emPert;
 
+    // SCF options for electrons
     CQSCFOptions(output,input,*ss,emPert);
-       
+
+    // SCF options for protons
+    if (doNEO)
+      CQSCFOptions(output,input,*pss,emPert);
 
     bool rstExists = false;
     if( ss->scfControls.guess == READMO or 
@@ -165,6 +204,14 @@ namespace ChronusQ {
       rstExists = true;
     if( ss->scfControls.guess == FCHKMO )
       ss->fchkFileName = scrFileName;
+
+    if (doNEO) {
+      if( pss->scfControls.guess == READMO or 
+          pss->scfControls.guess == READDEN ) 
+        rstExists = true;
+      if( pss->scfControls.guess == FCHKMO )
+        pss->fchkFileName = scrFileName;
+    }
 
     // Create the restart and scratch files
     SafeFile rstFile(rstFileName, rstExists);
@@ -176,6 +223,11 @@ namespace ChronusQ {
     if( rank == 0 ) {
       ss->savFile     = rstFile;
       aoints->savFile = rstFile;
+      if (doNEO) { 
+        pss->savFile         = rstFile;
+        prot_aoints->savFile = rstFile;
+        ep_aoints->savFile   = rstFile;
+      }
     }
 
 
@@ -187,12 +239,28 @@ namespace ChronusQ {
       // If INCORE, compute and store the ERIs
       aoints->computeAOTwoE(*basis, mol, emPert);
 
+      if (doNEO) { 
+
+        if(auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
+          prot_aoints->computeAOTwoE(*prot_basis, mol, emPert);
+        else
+          CErr("NEO with complex integrals NYI!",output);
+
+        if(auto p = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints))
+          ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert); 
+
+      }
+
       ss->formGuess();
       ss->SCF(emPert);
     }
 
 
     if( not jobType.compare("RT") ) {
+
+      // FIXME: Need to implement RT-NEO
+      if (doNEO)
+        CErr("RT-NEO NYI!",output);
 
       if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
 
@@ -203,6 +271,10 @@ namespace ChronusQ {
     }
 
     if( not jobType.compare("RESP") ) {
+
+      // FIXME: Need to implement TD-NEO
+      if (doNEO)
+        CErr("RESP-NEO NYI!",output);
 
       auto resp = CQResponseOptions(output,input,ss);
       resp->savFile = rstFile;
@@ -215,6 +287,11 @@ namespace ChronusQ {
 
     
     if( not jobType.compare("CC")){  
+
+      // FIXME: Need to implement NEO-CC
+      if (doNEO)
+        CErr("NEO-CC NYI!",output);
+
       #ifdef CQ_HAS_TA
         auto cc = CQCCOptions(output, input, ss);
         cc->run(); 

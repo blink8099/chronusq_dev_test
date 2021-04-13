@@ -48,13 +48,14 @@ namespace ChronusQ {
    */
   BasisSet::BasisSet(std::string _basisName, std::string _basisDef,
     bool doDef, const Molecule &mol, BASIS_FUNCTION_TYPE _basisType, bool
-    _forceCart, bool doPrint) {
+    _forceCart, bool doPrint, bool _nucBasis) {
 
     basisType = _basisType;
     forceCart = _forceCart;
     basisName = _basisName;
     basisDef  = _basisDef;
     inputDef  = doDef;
+    nucBasis  = _nucBasis;
 
 
     std::string uppercase(basisName);
@@ -69,7 +70,7 @@ namespace ChronusQ {
     }
 
     // Generate the reference basis set of that keyword
-    ReferenceBasisSet ref(basisName, basisDef, inputDef, _forceCart, doPrint);
+    ReferenceBasisSet ref(basisName, basisDef, inputDef, _forceCart, doPrint, _nucBasis);
 
     // Update appropriate shell set and coefficients for the Molecule
     // object
@@ -160,10 +161,19 @@ namespace ChronusQ {
       auto it = std::find_if(mapSh2Cen.begin(),mapSh2Cen.end(),
                   [&](size_t x){ return x == iAtm; });
 
-      size_t firstShell = std::distance(mapSh2Cen.begin(),it);
-      mapCen2BfSt.emplace_back(mapSh2Bf[firstShell]);
+      if (nucBasis and it == mapSh2Cen.end())
+        mapCen2BfSt.emplace_back(0);
+      else {
+        size_t firstShell = std::distance(mapSh2Cen.begin(),it);
+        mapCen2BfSt.emplace_back(mapSh2Bf[firstShell]);
+      }
 
     }
+
+    //std::cout << "mapCen2BfSt is " << std::endl;
+    //for(size_t ii = 0; ii < mapCen2BfSt.size(); ii++)
+    //  std::cout << mapCen2BfSt[ii] << "  ";
+    //std::cout << std::endl;
 
 
 

@@ -56,40 +56,44 @@ namespace ChronusQ {
       size_t t_hash = typeid(MatsT).hash_code();
 
       // Save Field type
-      savFile.safeWriteData("SCF/FIELD_TYPE",&t_hash,{1});
+      std::string prefix = "SCF/";
+      if (this->particle.charge == 1.0)
+        prefix = "PROT_" + prefix;
+      
+      savFile.safeWriteData(prefix + "FIELD_TYPE",&t_hash,{1});
 
-      savFile.safeWriteData("SCF/1PDM", *this->onePDM);
+      savFile.safeWriteData(prefix + "1PDM", *this->onePDM);
 
-      savFile.safeWriteData("SCF/FOCK", *fockMatrix);
+      savFile.safeWriteData(prefix + "FOCK", *fockMatrix);
 
-      savFile.safeWriteData("SCF/1PDM_ORTHO", *onePDMOrtho);
+      savFile.safeWriteData(prefix + "1PDM_ORTHO", *onePDMOrtho);
 
-      savFile.safeWriteData("SCF/FOCK_ORTHO", *fockMatrixOrtho);
+      savFile.safeWriteData(prefix + "FOCK_ORTHO", *fockMatrixOrtho);
 
       // Save MOs
-      savFile.safeWriteData("SCF/MO1", this->mo[0].pointer(), {NBC,NBC});
+      savFile.safeWriteData(prefix + "MO1", this->mo[0].pointer(), {NBC,NBC});
       if( this->nC == 1 and not this->iCS )
-        savFile.safeWriteData("SCF/MO2", this->mo[1].pointer(), {NBC,NBC});
+        savFile.safeWriteData(prefix + "MO2", this->mo[1].pointer(), {NBC,NBC});
 
       // Save Energies
-      savFile.safeWriteData("SCF/TOTAL_ENERGY",&this->totalEnergy,
+      savFile.safeWriteData(prefix + "TOTAL_ENERGY",&this->totalEnergy,
         {1});
-      savFile.safeWriteData("SCF/ONE_BODY_ENERGY",&this->OBEnergy,
+      savFile.safeWriteData(prefix + "ONE_BODY_ENERGY",&this->OBEnergy,
         {1});
-      savFile.safeWriteData("SCF/MANY_BODY_ENERGY",&this->MBEnergy,
+      savFile.safeWriteData(prefix + "MANY_BODY_ENERGY",&this->MBEnergy,
         {1});
 
       // Save Multipoles
-      savFile.safeWriteData("SCF/LEN_ELECTRIC_DIPOLE",&this->elecDipole[0],
+      savFile.safeWriteData(prefix + "LEN_ELECTRIC_DIPOLE",&this->elecDipole[0],
         {3});
-      savFile.safeWriteData("SCF/LEN_ELECTRIC_QUADRUPOLE",
+      savFile.safeWriteData(prefix + "LEN_ELECTRIC_QUADRUPOLE",
         &this->elecQuadrupole[0][0], {3,3});
-      savFile.safeWriteData("SCF/LEN_ELECTRIC_OCTUPOLE",
+      savFile.safeWriteData(prefix + "LEN_ELECTRIC_OCTUPOLE",
         &this->elecOctupole[0][0][0], {3,3,3});
 
       // Save Spin
-      savFile.safeWriteData("SCF/S_EXPECT",&this->SExpect[0],{3});
-      savFile.safeWriteData("SCF/S_SQUARED",&this->SSq,{1});
+      savFile.safeWriteData(prefix + "S_EXPECT",&this->SExpect[0],{3});
+      savFile.safeWriteData(prefix + "S_SQUARED",&this->SSq,{1});
       
 
     // If file doesnt exist, checkpoint important bits in core
@@ -461,8 +465,12 @@ namespace ChronusQ {
         PauliSpinorSquareMatrices<MatsT> DENSCR(this->memManager, NB,
             this->onePDM->hasXY(), this->onePDM->hasZ());
 
-        savFile.readData("/SCF/1PDM",DENSCR);
+        std::string prefix = "/SCF/";
+        if (this->particle.charge == 1.0)
+          prefix = "/PROT_SCF/";
+        savFile.readData(prefix + "1PDM",DENSCR);
 
+        //DENSCR.output(std::cout, "old_den", true);
         *deltaOnePDM = *this->onePDM - DENSCR;
 
       }

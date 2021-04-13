@@ -52,6 +52,8 @@ namespace ChronusQ {
 
         SquareMatrix<MatsT> DA(memManager, NB);
 
+        //this->mo[0].output(std::cout, "mo1", true);
+
         // DA = CA * CA**H
         Gemm('N', 'C', NB, NB, this->nOA, MatsT(1.), this->mo[0].pointer(), NB,
             this->mo[0].pointer(), NB, MatsT(0.), DA.pointer(), NB);
@@ -142,6 +144,7 @@ namespace ChronusQ {
     this->OBEnergy = 
       this->template computeOBProperty<double,DENSITY_TYPE::SCALAR>(
          coreH->S().pointer());
+
     
     
     // One body Spin Orbit
@@ -206,6 +209,7 @@ namespace ChronusQ {
     // Compute elecric contribution to the dipoles
     for(auto iXYZ = 0; iXYZ < 3; iXYZ++) 
       this->elecDipole[iXYZ] = -this->template computeOBProperty<double,SCALAR>((*this->aoints.lenElectric)[iXYZ].pointer());
+
 
     // Nuclear contributions to the dipoles
     for(auto &atom : this->molecule().atoms)

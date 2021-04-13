@@ -58,7 +58,7 @@ namespace ChronusQ {
    *  many-body wave function
    */ 
   template <typename MatsT, typename IntsT>
-  class KohnSham : public SingleSlater<MatsT,IntsT>,
+  class KohnSham : virtual public SingleSlater<MatsT,IntsT>,
     public std::enable_shared_from_this<KohnSham<MatsT,IntsT>> {
 
 

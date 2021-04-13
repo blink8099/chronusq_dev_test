@@ -27,7 +27,7 @@
 #include <cqlinalg.hpp>
 #include <cqlinalg/svd.hpp>
 #include <util/matout.hpp>
-#include <electronintegrals/oneeints/relativisticints.hpp>
+#include <particleintegrals/onepints/relativisticints.hpp>
 
 namespace ChronusQ {
 
@@ -46,7 +46,7 @@ namespace ChronusQ {
 
     // Form 1/(4c^2)*W-T
     SquareMatrix<dcomplex> W_spinBlock(1./(4. * SpeedOfLight * SpeedOfLight)
-        * std::dynamic_pointer_cast<OneERelInts<IntsT>>(
+        * std::dynamic_pointer_cast<OnePRelInts<IntsT>>(
               this->aoints_.potential)->template formW<dcomplex>()
         - this->aoints_.kinetic->matrix()
               .template spatialToSpinBlock<dcomplex>());

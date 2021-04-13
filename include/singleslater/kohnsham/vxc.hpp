@@ -378,8 +378,10 @@ namespace ChronusQ {
         double *SCR_cur = SCR2 + iPt*NBE;
         double *B_cur   = BasisScr + iPt*NBE;
   
-        for (size_t j = 0; j < NBE; j++) 
+        for (size_t j = 0; j < NBE; j++) {
           Den[iPt] += SCR_cur[j] * B_cur[j];
+          //std::cout << "Basis Val " << B_cur[j] << std::endl;
+        }
 
     } else {
 
@@ -829,6 +831,7 @@ namespace ChronusQ {
    */  
   template <typename MatsT, typename IntsT>
   void KohnSham<MatsT,IntsT>::formVXC() {
+
 #if VXC_DEBUG_LEVEL >= 1
     // TIMING 
     auto topMem = std::chrono::high_resolution_clock::now();
@@ -1029,15 +1032,20 @@ namespace ChronusQ {
 #endif
 
       auto vxcbuild = [&](size_t &res, std::vector<cart_t> &batch, 
-        std::vector<double> &weights, size_t NBE, double *BasisEval, 
-        std::vector<size_t> &batchEvalShells, 
-        std::vector<std::pair<size_t,size_t>> &subMatCut) {
+        std::vector<double> &weights, std::vector<size_t> NBE_vec, 
+        std::vector<double*> BasisEval_vec, 
+        std::vector<std::vector<size_t>>& batchEvalShells_vec, 
+        std::vector<std::vector<std::pair<size_t,size_t>>>& subMatCut_vec) {
 
 #if VXC_DEBUG_LEVEL > 3
         prettyPrintSmart(std::cerr,"BASIS SCR",BasisEval,NBE,
           4*batch.size(),NBE);
 #endif
 
+        size_t NBE = NBE_vec[0];
+        double* BasisEval = BasisEval_vec[0];
+        std::vector<size_t> & batchEvalShells = batchEvalShells_vec[0];
+        std::vector<std::pair<size_t,size_t>> & subMatCut = subMatCut_vec[0];
 
         // intParam.epsilon / ntotalpts (NANG * NRAD * NATOMS)
         double epsScreen = intParam.epsilon / nAtoms /

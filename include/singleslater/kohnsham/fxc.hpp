@@ -1540,9 +1540,16 @@ namespace ChronusQ {
 
 
     auto fxcbuild = [&](size_t &res, std::vector<cart_t> &batch, 
-      std::vector<double> &weights, size_t NBE, double *BasisEval, 
-      std::vector<size_t> &batchEvalShells, 
-      std::vector<std::pair<size_t,size_t>> &subMatCut) {
+      std::vector<double> &weights, std::vector<size_t> NBE_vec, 
+      std::vector<double*> BasisEval_vec, 
+      std::vector<std::vector<size_t>>& batchEvalShells_vec, 
+      std::vector<std::vector<std::pair<size_t,size_t>>>& subMatCut_vec) {
+
+
+      size_t NBE = NBE_vec[0];
+      double * BasisEval = BasisEval_vec[0];
+      std::vector<size_t> & batchEvalShells = batchEvalShells_vec[0];
+      std::vector<std::pair<size_t,size_t>> & subMatCut = subMatCut_vec[0];
 
       double epsScreen = intParam.epsilon / nAtoms /
         intParam.nAng / intParam.nRad;

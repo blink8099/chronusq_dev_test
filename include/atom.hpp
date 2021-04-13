@@ -38,6 +38,7 @@ namespace ChronusQ {
     size_t massNumber;   ///< Mass Number
     double atomicMass;   ///< Atomic Mass (in a.u.)
     double slaterRadius; ///< Slater radius (in Bohr)
+    bool   quantum;      ///< Whether this atom is treated quantum mechanically
 
     std::array<double,3> coord; ///< X,Y,Z coordinates
 
@@ -51,12 +52,14 @@ namespace ChronusQ {
      *  \param [in] MASS Atomic Mass (A.U.)
      *  \param [in] RAD  Slater radium (Bohr)
      *  \param [in] XYZ  Cartesian atomic coordinates (X,Y,Z)
+     *  \param [in] Q    Whether the atom is treated quantum or not
      */
     Atom(const size_t AN = 0, const double NC = 0., const size_t MN = 0,
       const double MASS = 0., const double RAD = 0.,
-      std::array<double,3> XYZ = {0.,0.,0.}) :
+      std::array<double,3> XYZ = {0.,0.,0.}, bool Q = false) :
       atomicNumber(AN), nucCharge(NC), massNumber(MN), atomicMass(MASS),
-      slaterRadius(RAD), coord(std::move(XYZ)){ };
+      slaterRadius(RAD), coord(std::move(XYZ)), 
+      quantum(Q) { };
 
     /**
      *  X,Y,Z constructor
@@ -69,10 +72,11 @@ namespace ChronusQ {
      *  \param [in] X    X cartesian coordinate of atomic coordinates
      *  \param [in] Y    Y cartesian coordinate of atomic coordinates
      *  \param [in] Z    Z cartesian coordinate of atomic coordinates
+     *  \param [in] Q    Whether the atom is treated quantum or not
      */
     Atom(const size_t AN, const double NC, const size_t MN,
-      const double MASS, const double RAD, double X, double Y, double Z) :
-      Atom(AN,NC,MN,MASS,RAD,{X,Y,Z}){ };
+      const double MASS, const double RAD, double X, double Y, double Z, bool Q = false) :
+      Atom(AN,NC,MN,MASS,RAD,{X,Y,Z},Q){ };
 
     /**
      *  Symbol + coordinate array constructor
@@ -813,7 +817,10 @@ namespace ChronusQ {
   
   // Define Symbol + coordinate array constructor
   inline Atom::Atom(std::string symb, std::array<double,3> XYZ) :
-    Atom(atomicReference[symb]){ coord = XYZ; };
+    Atom(atomicReference[symb]){ 
+      coord = XYZ; 
+      quantum = false; 
+    };
 
 }; // namespace ChronusQ
 
