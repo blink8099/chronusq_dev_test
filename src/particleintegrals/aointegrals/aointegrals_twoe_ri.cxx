@@ -5155,7 +5155,8 @@ namespace ChronusQ {
 
         cache_size = 0;
         for (int i = 0; i < nShells; i++) {
-          int n, shls[4]{i,i,i,i};
+          size_t n;
+          int shls[4]{i,i,i,i};
           if (groupedBasisSet.forceCart) {
             n = int2e_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
           } else {

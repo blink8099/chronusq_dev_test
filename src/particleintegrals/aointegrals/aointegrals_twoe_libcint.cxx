@@ -113,7 +113,7 @@ namespace ChronusQ {
 
     // Get threads result buffer
     int buffSize = (basisSet_.maxL+1)*(basisSet_.maxL+2)/2;
-    int buffN4 = buffSize*buffSize*buffSize*buffSize;
+    size_t buffN4 = buffSize*buffSize*buffSize*buffSize;
     double *buffAll = memManager_.malloc<double>(buffN4*nthreads);
 
     std::cout<<"Using Libcint "<<std::endl;
@@ -317,9 +317,10 @@ namespace ChronusQ {
 
     }
 
-    int cache_size = 0;
+    size_t cache_size = 0;
     for (int i = 0; i < nShells; i++) {
-      int n, shls[4]{i,i,i,i};
+      size_t n;
+      int shls[4]{i,i,i,i};
       if (basisSet_.forceCart) {
         n = int2e_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
         cache_size = std::max(cache_size, n);
@@ -359,7 +360,7 @@ namespace ChronusQ {
 
 
     // Get threads result buffer
-    int buffN4 = buffSize*buffSize*buffSize*buffSize;
+    size_t buffN4 = buffSize*buffSize*buffSize*buffSize;
     if (hamiltonianOptions.DiracCoulomb or hamiltonianOptions.Gaunt)
       buffN4 *= 9;
     double *buffAll = memManager_.malloc<double>(buffN4*nthreads);
@@ -1146,9 +1147,10 @@ namespace ChronusQ {
 
     }
 
-    int cache_size = 0;
+    size_t cache_size = 0;
     for (int i = 0; i < nShells; i++) {
-      int n, shls[4]{i,i,i,i};
+      size_t n;
+      int shls[4]{i,i,i,i};
       if (basisSet_.forceCart) {
         n = int2e_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
       } else {
@@ -1170,7 +1172,7 @@ namespace ChronusQ {
 
 
     // Get threads result buffer
-    int buffN4 = buffSize*buffSize*buffSize*buffSize;
+    size_t buffN4 = buffSize*buffSize*buffSize*buffSize;
     double *buffAll = memManager_.malloc<double>(buffN4*nthreads);
     double *cacheAll = memManager_.malloc<double>(cache_size*nthreads);
 

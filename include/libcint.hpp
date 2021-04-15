@@ -33,13 +33,13 @@ extern "C" {
 //       Ask Xiaosong
 
 #define CQ_CINT_INT1E_WRAPPER(name) \
-  int c##name(double*, int*, int*, int, int*, int, double*);
+  size_t c##name(double*, int*, int*, int, int*, int, double*);
 
 #define CQ_CINT_INT2E_WRAPPER(name) \
-  int c##name(double*, const FINT*, const FINT*, const FINT, const FINT*, const FINT, const double*, const CINTOpt*);
+  size_t c##name(double*, const FINT*, const FINT*, const FINT, const FINT*, const FINT, const double*, const CINTOpt*);
 
 #define CQ_INT_INT2E_WRAPPER(name) \
-  FINT name(double*, FINT*, FINT*, FINT*, FINT, FINT*, FINT, double*, CINTOpt*, double*);
+  size_t name(double*, FINT*, FINT*, FINT*, FINT, FINT*, FINT, double*, CINTOpt*, double*);
 
 #define CQ_CINT_OPT_WRAPPER(name) \
   void c##name(CINTOpt**, const int*, const int, const int*, const int, const double*);
