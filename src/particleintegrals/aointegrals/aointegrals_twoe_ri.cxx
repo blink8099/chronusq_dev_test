@@ -5016,6 +5016,7 @@ namespace ChronusQ {
       std::vector<libint2::Shell> shells;
 
       shells.push_back(*groupedBasisSet.shells.begin());
+      size_t countExpCoef = shells.back().alpha.size() * 2;
 
       for (auto it = ++groupedBasisSet.shells.begin(); it != groupedBasisSet.shells.end(); it++) {
 
@@ -5024,9 +5025,11 @@ namespace ChronusQ {
             and shells.back().alpha == it->alpha) {
 
           shells.back().contr.push_back(it->contr[0]);
+          countExpCoef += shells.back().alpha.size();
 
         } else {
           shells.push_back(*it);
+          countExpCoef += shells.back().alpha.size() * 2;
         }
 
       }
@@ -5034,12 +5037,6 @@ namespace ChronusQ {
       groupedBasisSet.shells = shells;
 
       groupedBasisSet.update(false);
-
-      size_t maxNContr = std::max_element(groupedBasisSet.shells.begin(),
-                                          groupedBasisSet.shells.end(),
-                                          [](libint2::Shell &a, libint2::Shell &b) {
-                                            return a.ncontr() < b.ncontr();
-                                          })->ncontr();
 
       // Clear objects
       for (double *p : coefBlocks_) {
@@ -5104,7 +5101,7 @@ namespace ChronusQ {
         // ATM_SLOTS = 6; BAS_SLOTS = 8;
         atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
         bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-        env = memManager_.template malloc<double>(nAtoms*3+basisSet.nShell*groupedBasisSet.maxPrim*(maxNContr+1));
+        env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
         double sNorm;
 
         off = PTR_ENV_START; // = 20

@@ -242,6 +242,7 @@ namespace ChronusQ {
     shells.push_back(*basisSet_.shells.begin());
 
     size_t buffSize = shells.back().size();
+    size_t countExpCoef = shells.back().alpha.size() * 2;
 
     for (auto it = ++basisSet_.shells.begin(); it != basisSet_.shells.end(); it++) {
 
@@ -250,9 +251,11 @@ namespace ChronusQ {
           shells.back().contr[0].l == it->contr[0].l) {
 
         shells.back().contr.push_back(it->contr[0]);
+        countExpCoef += shells.back().alpha.size();
 
       } else {
         shells.push_back(*it);
+        countExpCoef += shells.back().alpha.size() * 2;
       }
 
       buffSize = std::max(buffSize, shells.back().size());
@@ -263,12 +266,6 @@ namespace ChronusQ {
 
     basisSet_.update(false);
 
-    size_t maxNContr = std::max_element(basisSet_.shells.begin(),
-                                        basisSet_.shells.end(),
-                                        [](libint2::Shell &a, libint2::Shell &b) {
-                                          return a.ncontr() < b.ncontr();
-                                        })->ncontr();
-
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
     int iAtom, iShell, off;
@@ -276,7 +273,7 @@ namespace ChronusQ {
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+nShells*basisSet_.maxPrim*(maxNContr+1));
+    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
     double sNorm;
 
     off = PTR_ENV_START; // = 20
@@ -1074,6 +1071,7 @@ namespace ChronusQ {
     shells.push_back(*basisSet_.shells.begin());
 
     size_t buffSize = shells.back().size();
+    size_t countExpCoef = shells.back().alpha.size() * 2;
 
     for (auto it = ++basisSet_.shells.begin(); it != basisSet_.shells.end(); it++) {
 
@@ -1082,9 +1080,11 @@ namespace ChronusQ {
           shells.back().contr[0].l == it->contr[0].l) {
 
         shells.back().contr.push_back(it->contr[0]);
+        countExpCoef += shells.back().alpha.size();
 
       } else {
         shells.push_back(*it);
+        countExpCoef += shells.back().alpha.size() * 2;
       }
 
       buffSize = std::max(buffSize, shells.back().size());
@@ -1095,12 +1095,6 @@ namespace ChronusQ {
 
     basisSet_.update(false);
 
-    size_t maxNContr = std::max_element(basisSet_.shells.begin(),
-                                        basisSet_.shells.end(),
-                                        [](libint2::Shell &a, libint2::Shell &b) {
-                                          return a.ncontr() < b.ncontr();
-                                        })->ncontr();
-
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
     int iAtom, iShell, off;
@@ -1108,7 +1102,7 @@ namespace ChronusQ {
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+originalBasisSet.nShell*basisSet_.maxPrim*(maxNContr+1));
+    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
     double sNorm;
 
     off = PTR_ENV_START; // = 20
