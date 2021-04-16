@@ -113,7 +113,7 @@ namespace ChronusQ {
 
     // Get threads result buffer
     int buffSize = (basisSet_.maxL+1)*(basisSet_.maxL+2)/2;
-    int buffN4 = buffSize*buffSize*buffSize*buffSize;
+    size_t buffN4 = buffSize*buffSize*buffSize*buffSize;
     double *buffAll = memManager_.malloc<double>(buffN4*nthreads);
 
     std::cout<<"Using Libcint "<<std::endl;
@@ -242,6 +242,7 @@ namespace ChronusQ {
     shells.push_back(*basisSet_.shells.begin());
 
     size_t buffSize = shells.back().size();
+    size_t countExpCoef = shells.back().alpha.size() * 2;
 
     for (auto it = ++basisSet_.shells.begin(); it != basisSet_.shells.end(); it++) {
 
@@ -250,9 +251,11 @@ namespace ChronusQ {
           shells.back().contr[0].l == it->contr[0].l) {
 
         shells.back().contr.push_back(it->contr[0]);
+        countExpCoef += shells.back().alpha.size();
 
       } else {
         shells.push_back(*it);
+        countExpCoef += shells.back().alpha.size() * 2;
       }
 
       buffSize = std::max(buffSize, shells.back().size());
@@ -270,7 +273,7 @@ namespace ChronusQ {
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+nShells*basisSet_.maxPrim*2);
+    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
     double sNorm;
 
     off = PTR_ENV_START; // = 20
@@ -314,9 +317,10 @@ namespace ChronusQ {
 
     }
 
-    int cache_size = 0;
+    size_t cache_size = 0;
     for (int i = 0; i < nShells; i++) {
-      int n, shls[4]{i,i,i,i};
+      size_t n;
+      int shls[4]{i,i,i,i};
       if (basisSet_.forceCart) {
         n = int2e_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
         cache_size = std::max(cache_size, n);
@@ -356,7 +360,7 @@ namespace ChronusQ {
 
 
     // Get threads result buffer
-    int buffN4 = buffSize*buffSize*buffSize*buffSize;
+    size_t buffN4 = buffSize*buffSize*buffSize*buffSize;
     if (hamiltonianOptions.DiracCoulomb or hamiltonianOptions.Gaunt)
       buffN4 *= 9;
     double *buffAll = memManager_.malloc<double>(buffN4*nthreads);
@@ -1068,6 +1072,7 @@ namespace ChronusQ {
     shells.push_back(*basisSet_.shells.begin());
 
     size_t buffSize = shells.back().size();
+    size_t countExpCoef = shells.back().alpha.size() * 2;
 
     for (auto it = ++basisSet_.shells.begin(); it != basisSet_.shells.end(); it++) {
 
@@ -1076,9 +1081,11 @@ namespace ChronusQ {
           shells.back().contr[0].l == it->contr[0].l) {
 
         shells.back().contr.push_back(it->contr[0]);
+        countExpCoef += shells.back().alpha.size();
 
       } else {
         shells.push_back(*it);
+        countExpCoef += shells.back().alpha.size() * 2;
       }
 
       buffSize = std::max(buffSize, shells.back().size());
@@ -1096,7 +1103,7 @@ namespace ChronusQ {
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+originalBasisSet.nShell*basisSet_.maxPrim*2);
+    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
     double sNorm;
 
     off = PTR_ENV_START; // = 20
@@ -1140,9 +1147,10 @@ namespace ChronusQ {
 
     }
 
-    int cache_size = 0;
+    size_t cache_size = 0;
     for (int i = 0; i < nShells; i++) {
-      int n, shls[4]{i,i,i,i};
+      size_t n;
+      int shls[4]{i,i,i,i};
       if (basisSet_.forceCart) {
         n = int2e_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
       } else {
@@ -1164,7 +1172,7 @@ namespace ChronusQ {
 
 
     // Get threads result buffer
-    int buffN4 = buffSize*buffSize*buffSize*buffSize;
+    size_t buffN4 = buffSize*buffSize*buffSize*buffSize;
     double *buffAll = memManager_.malloc<double>(buffN4*nthreads);
     double *cacheAll = memManager_.malloc<double>(cache_size*nthreads);
 

@@ -326,7 +326,8 @@ namespace ChronusQ {
     // Libcint
     int *atm, *bas;
     double *env, *buffAll, *cacheAll;
-    int buffN4, cache_size, nAtoms, nShells;
+    size_t buffN4, cache_size;
+    int nAtoms, nShells;
     bool libcint_ = false; // Using libcint
 
     // ERI stat

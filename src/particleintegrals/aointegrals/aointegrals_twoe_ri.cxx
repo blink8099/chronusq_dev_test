@@ -5016,6 +5016,7 @@ namespace ChronusQ {
       std::vector<libint2::Shell> shells;
 
       shells.push_back(*groupedBasisSet.shells.begin());
+      size_t countExpCoef = shells.back().alpha.size() * 2;
 
       for (auto it = ++groupedBasisSet.shells.begin(); it != groupedBasisSet.shells.end(); it++) {
 
@@ -5024,9 +5025,11 @@ namespace ChronusQ {
             and shells.back().alpha == it->alpha) {
 
           shells.back().contr.push_back(it->contr[0]);
+          countExpCoef += shells.back().alpha.size();
 
         } else {
           shells.push_back(*it);
+          countExpCoef += shells.back().alpha.size() * 2;
         }
 
       }
@@ -5098,7 +5101,7 @@ namespace ChronusQ {
         // ATM_SLOTS = 6; BAS_SLOTS = 8;
         atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
         bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-        env = memManager_.template malloc<double>(nAtoms*3+basisSet.nShell*groupedBasisSet.maxPrim*2);
+        env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
         double sNorm;
 
         off = PTR_ENV_START; // = 20
@@ -5152,7 +5155,8 @@ namespace ChronusQ {
 
         cache_size = 0;
         for (int i = 0; i < nShells; i++) {
-          int n, shls[4]{i,i,i,i};
+          size_t n;
+          int shls[4]{i,i,i,i};
           if (groupedBasisSet.forceCart) {
             n = int2e_cart(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
           } else {
