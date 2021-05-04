@@ -210,7 +210,7 @@ namespace ChronusQ {
 
 #ifdef _SHZ_SCREEN_4C
     // Compute shell block norms (∞-norm) of matList.X
-    if(eri.schwartz() == nullptr) eri.computeSchwartz();
+    if(eri.schwarz() == nullptr) eri.computeSchwarz();
     double *ShBlkNorms_raw = memManager_.malloc<double>(nMat*nShell*nShell);
     std::vector<double*> ShBlkNorms;
     for(auto iMat = 0, iOff = 0; iMat < nMat; iMat++, iOff += nShell*nShell ) {
@@ -232,7 +232,7 @@ namespace ChronusQ {
     engines[0].set_precision(
       std::min(
         std::numeric_limits<double>::epsilon(),
-        eri.threshSchwartz()/maxShBlkNorm
+        eri.threshSchwarz()/maxShBlkNorm
       )/maxnPrim4
     );
 //    engines[0].set_precision(0.);
@@ -287,7 +287,7 @@ namespace ChronusQ {
 #ifdef _SHZ_SCREEN_4C
         double shz12 = 0, shMax12 = 0;
         if( screen ) {
-          shz12 = eri.schwartz()[s1 + s2*nShell];
+          shz12 = eri.schwarz()[s1 + s2*nShell];
           shMax12 = ShBlkNorms[0][s1 + s2*nShell];
         }
 #endif
@@ -335,8 +335,8 @@ namespace ChronusQ {
 
           shMax = std::max(shMax,shMax123);
 
-          if((shMax *shMax * shz12 * eri.schwartz()[s3 + s4*nShell]) <
-             eri.threshSchwartz()) { nSkip[thread_id]++; continue; }
+          if((shMax *shMax * shz12 * eri.schwarz()[s3 + s4*nShell]) <
+             eri.threshSchwarz()) { nSkip[thread_id]++; continue; }
         }
  
 #endif
@@ -1119,7 +1119,7 @@ namespace ChronusQ {
 
 #ifdef _SHZ_SCREEN_4C
     // Compute shell block norms (∞-norm) of matList.X
-    if(eri.schwartz() == nullptr) eri.computeSchwartz();
+    if(eri.schwarz() == nullptr) eri.computeSchwarz();
     double *ShBlkNorms_raw = memManager_.malloc<double>(nMat*nShell*nShell);
     std::vector<double*> ShBlkNorms;
     for(auto iMat = 0, iOff = 0; iMat < nMat; iMat++, iOff += nShell*nShell ) {
@@ -1187,7 +1187,7 @@ namespace ChronusQ {
 #ifdef _SHZ_SCREEN_4C
         double shz12 = 0, shMax12 = 0;
         if( screen ) {
-          shz12 = eri.schwartz()[s1 + s2*nShell];
+          shz12 = eri.schwarz()[s1 + s2*nShell];
           shMax12 = ShBlkNorms[0][s1 + s2*nShell];
         }
 #endif
@@ -1235,8 +1235,8 @@ namespace ChronusQ {
 
           shMax = std::max(shMax,shMax123);
 
-          if((shMax *shMax * shz12 * eri.schwartz()[s3 + s4*nShell]) <
-             eri.threshSchwartz()) { nSkip[thread_id]++; continue; }
+          if((shMax *shMax * shz12 * eri.schwarz()[s3 + s4*nShell]) <
+             eri.threshSchwarz()) { nSkip[thread_id]++; continue; }
         }
  
 #endif

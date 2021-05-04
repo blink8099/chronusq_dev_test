@@ -42,26 +42,26 @@ namespace ChronusQ {
 
 
   /**
-   *  \brief Allocate and evaluate the Schwartz bounds over the
+   *  \brief Allocate and evaluate the Schwarz bounds over the
    *  CGTO shell pairs.
    */ 
 //  template <>
-//  void AOIntegrals<dcomplex>::computeSchwartz() {
+//  void AOIntegrals<dcomplex>::computeSchwarz() {
 //    CErr("Only real GTOs are allowed",std::cout);
 //  };
   template <typename IntsT>
-  void DirectTPI<IntsT>::computeSchwartz() {
+  void DirectTPI<IntsT>::computeSchwarz() {
 
     CQMemManager &memManager_ = this->memManager();
 
-    if( schwartz() != nullptr ) memManager_.free(schwartz());
-    if( schwartz2() != nullptr ) memManager_.free(schwartz2());
+    if( schwarz() != nullptr ) memManager_.free(schwarz());
+    if( schwarz2() != nullptr ) memManager_.free(schwarz2());
 
-    // Allocate the schwartz tensor
+    // Allocate the schwarz tensor
     size_t nShell = basisSet().nShell;
-    schwartz() = memManager_.malloc<double>(nShell*nShell);
+    schwarz() = memManager_.malloc<double>(nShell*nShell);
     if (&basisSet() != &basisSet2())
-      schwartz2() = memManager_.malloc<double>(basisSet2().nShell*basisSet2().nShell);
+      schwarz2() = memManager_.malloc<double>(basisSet2().nShell*basisSet2().nShell);
 
     // Define the libint2 integral engine
     libint2::Engine engine(libint2::Operator::coulomb,
@@ -100,7 +100,7 @@ namespace ChronusQ {
         diags[i + j*n1] = buf_vec[0][ij*n1*n2 + ij];
 
 
-      schwartz()[s1 + s2*basisSet().nShell] =
+      schwarz()[s1 + s2*basisSet().nShell] =
         std::sqrt(MatNorm<double>('I',n1,n2,diags,n1));
 
       // Free up space
@@ -136,7 +136,7 @@ namespace ChronusQ {
           diags[i + j*n1] = buf_vec[0][ij*n1*n2 + ij];
 
 
-        schwartz2()[s1 + s2*basisSet2().nShell] =
+        schwarz2()[s1 + s2*basisSet2().nShell] =
           std::sqrt(MatNorm<double>('I',n1,n2,diags,n1));
 
         // Free up space
@@ -151,18 +151,18 @@ namespace ChronusQ {
 
     std::chrono::duration<double> durSch = botSch - topSch;
 
-    HerMat('L',basisSet().nShell,schwartz(),basisSet().nShell);
+    HerMat('L',basisSet().nShell,schwarz(),basisSet().nShell);
     if (&basisSet() != &basisSet2())
-      HerMat('L',basisSet2().nShell,schwartz2(),basisSet2().nShell);
+      HerMat('L',basisSet2().nShell,schwarz2(),basisSet2().nShell);
 
 #if 0
-    prettyPrintSmart(std::cout,"Schwartz",schwartz,basisSet_.nShell,
+    prettyPrintSmart(std::cout,"Schwarz",schwarz,basisSet_.nShell,
       basisSet_.nShell,basisSet_.nShell);
 #endif
 
-  }; // DirectERI<double>::computeSchwartz
-  template void DirectTPI<double>::computeSchwartz();
-  template void DirectTPI<dcomplex>::computeSchwartz();
+  }; // DirectERI<double>::computeSchwarz
+  template void DirectTPI<double>::computeSchwarz();
+  template void DirectTPI<dcomplex>::computeSchwarz();
 
 }; // namespace ChronusQ
 
