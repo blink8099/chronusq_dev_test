@@ -235,36 +235,19 @@ namespace ChronusQ {
     if (originalBasisSet.forceCart)
       CErr("Libcint + cartesian GTO NYI.");
 
-    BasisSet basisSet_(originalBasisSet);
+    BasisSet basisSet_ = originalBasisSet.groupGeneralContractionBasis();
 
-    std::vector<libint2::Shell> shells;
-
-    shells.push_back(*basisSet_.shells.begin());
-
-    size_t buffSize = shells.back().size();
-    size_t countExpCoef = shells.back().alpha.size() * 2;
-
-    for (auto it = ++basisSet_.shells.begin(); it != basisSet_.shells.end(); it++) {
-
-      if (shells.back().O == it->O and
-          shells.back().alpha == it->alpha and
-          shells.back().contr[0].l == it->contr[0].l) {
-
-        shells.back().contr.push_back(it->contr[0]);
-        countExpCoef += shells.back().alpha.size();
-
-      } else {
-        shells.push_back(*it);
-        countExpCoef += shells.back().alpha.size() * 2;
-      }
-
-      buffSize = std::max(buffSize, shells.back().size());
-
-    }
-
-    basisSet_.shells = shells;
-
-    basisSet_.update(false);
+    size_t buffSize = std::max_element(basisSet_.shells.begin(),
+                                       basisSet_.shells.end(),
+                                       [](libint2::Shell &a, libint2::Shell &b) {
+                                         return a.size() < b.size();
+                                       })->size();
+    size_t countExpCoef = std::accumulate(basisSet_.shells.begin(),
+                                          basisSet_.shells.end(),
+                                          0,
+                                          [](const size_t &count, const libint2::Shell &sh) {
+                                            return count + sh.alpha.size() * (1 + sh.contr.size());
+                                          });
 
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
@@ -1065,36 +1048,19 @@ namespace ChronusQ {
     if (originalBasisSet.forceCart)
       CErr("Libcint + cartesian GTO NYI.");
 
-    BasisSet basisSet_(originalBasisSet);
+    BasisSet basisSet_ = originalBasisSet.groupGeneralContractionBasis();
 
-    std::vector<libint2::Shell> shells;
-
-    shells.push_back(*basisSet_.shells.begin());
-
-    size_t buffSize = shells.back().size();
-    size_t countExpCoef = shells.back().alpha.size() * 2;
-
-    for (auto it = ++basisSet_.shells.begin(); it != basisSet_.shells.end(); it++) {
-
-      if (shells.back().O == it->O and
-          shells.back().alpha == it->alpha and
-          shells.back().contr[0].l == it->contr[0].l) {
-
-        shells.back().contr.push_back(it->contr[0]);
-        countExpCoef += shells.back().alpha.size();
-
-      } else {
-        shells.push_back(*it);
-        countExpCoef += shells.back().alpha.size() * 2;
-      }
-
-      buffSize = std::max(buffSize, shells.back().size());
-
-    }
-
-    basisSet_.shells = shells;
-
-    basisSet_.update(false);
+    size_t buffSize = std::max_element(basisSet_.shells.begin(),
+                                       basisSet_.shells.end(),
+                                       [](libint2::Shell &a, libint2::Shell &b) {
+                                         return a.size() < b.size();
+                                       })->size();
+    size_t countExpCoef = std::accumulate(basisSet_.shells.begin(),
+                                          basisSet_.shells.end(),
+                                          0,
+                                          [](const size_t &count, const libint2::Shell &sh) {
+                                            return count + sh.alpha.size() * (1 + sh.contr.size());
+                                          });
 
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;

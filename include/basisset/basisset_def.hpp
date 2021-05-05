@@ -189,6 +189,7 @@ namespace ChronusQ {
 
 
     BasisSet uncontractBasis();
+    BasisSet groupGeneralContractionBasis();
 
 
     // Update BasisSet object member data (nBasis, etc).

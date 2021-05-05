@@ -305,6 +305,44 @@ namespace ChronusQ {
   };
 
 
+  BasisSet BasisSet::groupGeneralContractionBasis() {
+
+
+    // Copy basis
+    BasisSet GCBasis(*this);
+
+    std::vector<libint2::Shell> shells;
+
+    shells.push_back(*GCBasis.shells.begin());
+
+    for (auto it = ++GCBasis.shells.begin(); it != GCBasis.shells.end(); it++) {
+
+      if (shells.back().O == it->O and
+          shells.back().alpha == it->alpha and
+          shells.back().contr[0].l == it->contr[0].l) {
+        // This shell has the same origin, set of exponents, and angular momentum
+        // as the previous shell, merge to previous contraction coefficients.
+
+        shells.back().contr.push_back(it->contr[0]);
+
+      } else {
+        // A different shell
+
+        shells.push_back(*it);
+      }
+
+    }
+
+    GCBasis.shells = shells;
+
+    GCBasis.update(false); // Update, but do not compute shell pair data.
+                           // Computing shell pair data does not work with GC
+
+    return GCBasis;
+
+  };
+
+
 
 
   void BasisSet::makeMapPrim2Cont(const double *SUn, double *MAP, CQMemManager &mem) {

@@ -5013,30 +5013,14 @@ namespace ChronusQ {
                        basisSet.nBasis, basisSet.nPrimitive, basisSet.nBasis);
 #endif
 
-      std::vector<libint2::Shell> shells;
+      groupedBasisSet = basisSet.groupGeneralContractionBasis();
 
-      shells.push_back(*groupedBasisSet.shells.begin());
-      size_t countExpCoef = shells.back().alpha.size() * 2;
-
-      for (auto it = ++groupedBasisSet.shells.begin(); it != groupedBasisSet.shells.end(); it++) {
-
-        if (shells.back().O == it->O
-            and shells.back().contr[0].l == it->contr[0].l
-            and shells.back().alpha == it->alpha) {
-
-          shells.back().contr.push_back(it->contr[0]);
-          countExpCoef += shells.back().alpha.size();
-
-        } else {
-          shells.push_back(*it);
-          countExpCoef += shells.back().alpha.size() * 2;
-        }
-
-      }
-
-      groupedBasisSet.shells = shells;
-
-      groupedBasisSet.update(false);
+      size_t countExpCoef = std::accumulate(groupedBasisSet.shells.begin(),
+                                            groupedBasisSet.shells.end(),
+                                            0,
+                                            [](const size_t &count, const libint2::Shell &sh) {
+                                              return count + sh.alpha.size() * (1 + sh.contr.size());
+                                            });
 
       // Clear objects
       for (double *p : coefBlocks_) {
