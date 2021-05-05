@@ -36,53 +36,53 @@ namespace ChronusQ {
   protected:
     BasisSet &basisSet_;
     BasisSet &basisSet2_;
-    double threshSchwartz_ = 1e-12; ///< Schwartz screening threshold
-    double* schwartz_ = nullptr;   ///< Schwartz bounds for the TPIs
-    double* schwartz2_ = nullptr;  ///< second Schwartz bounds for the TPIs
+    double threshSchwarz_ = 1e-12; ///< Schwarz screening threshold
+    double* schwarz_ = nullptr;   ///< Schwarz bounds for the TPIs
+    double* schwarz2_ = nullptr;  ///< second Schwarz bounds for the TPIs
     Molecule &molecule_;
 
   public:
 
     // Constructor
     DirectTPI() = delete;
-    DirectTPI(CQMemManager &mem, BasisSet &basis, BasisSet &basis2, Molecule &mol, double threshSchwartz):
+    DirectTPI(CQMemManager &mem, BasisSet &basis, BasisSet &basis2, Molecule &mol, double threshSchwarz):
         TwoPInts<IntsT>(mem, basis.nBasis, basis2.nBasis), 
         basisSet_(basis), basisSet2_(basis2),molecule_(mol),
-        threshSchwartz_(threshSchwartz) {}
+        threshSchwarz_(threshSchwarz) {}
     DirectTPI( const DirectTPI &other ):
-        DirectTPI(other.memManager(), other.nBasis(), other.nBasis2(), other.threshSchwartz_) {
-      std::copy_n(other.schwartz_, basisSet_.nShell*basisSet_.nShell, schwartz_);
-      std::copy_n(other.schwartz2_, basisSet2_.nShell*basisSet2_.nShell, schwartz2_);
+        DirectTPI(other.memManager(), other.nBasis(), other.nBasis2(), other.threshSchwarz_) {
+      std::copy_n(other.schwarz_, basisSet_.nShell*basisSet_.nShell, schwarz_);
+      std::copy_n(other.schwarz2_, basisSet2_.nShell*basisSet2_.nShell, schwarz2_);
     }
     template <typename IntsU>
     DirectTPI( const DirectTPI<IntsU> &other, int = 0 ):
-        DirectTPI(other.memManager_, other.basisSet_, other.basisSet2_, other.molecule_, other.threshSchwartz_) {
-      if (other.schwartz_) {
+        DirectTPI(other.memManager_, other.basisSet_, other.basisSet2_, other.molecule_, other.threshSchwarz_) {
+      if (other.schwarz_) {
         size_t NS = basisSet().nShell;
-        schwartz_ = this->memManager().template malloc<double>(NS*NS);
-        std::copy_n(other.schwartz_, NS*NS, schwartz_);
+        schwarz_ = this->memManager().template malloc<double>(NS*NS);
+        std::copy_n(other.schwarz_, NS*NS, schwarz_);
       }
-      if (other.schwartz2_) {
+      if (other.schwarz2_) {
         size_t NS = basisSet2().nShell;
-        schwartz2_ = this->memManager().template malloc<double>(NS*NS);
-        std::copy_n(other.schwartz2_, NS*NS, schwartz2_);
+        schwarz2_ = this->memManager().template malloc<double>(NS*NS);
+        std::copy_n(other.schwarz2_, NS*NS, schwarz2_);
       }
     }
     DirectTPI( DirectTPI &&other ): TwoPInts<IntsT>(std::move(other)),
         basisSet_(other.basisSet_), basisSet2_(other.basisSet2_), 
-        threshSchwartz_(other.threshSchwartz_),
+        threshSchwarz_(other.threshSchwarz_),
         molecule_(other.molecule_),
-        schwartz_(other.schwartz_), schwartz2_(other.schwartz2_) 
-        { other.schwartz_ = nullptr; 
-          other.schwartz2_ = nullptr;
+        schwarz_(other.schwarz_), schwarz2_(other.schwarz2_) 
+        { other.schwarz_ = nullptr; 
+          other.schwarz2_ = nullptr;
         }
 
     BasisSet& basisSet() { return basisSet_; }
     BasisSet& basisSet2() { return basisSet2_; }
     Molecule& molecule() { return molecule_; }
-    double threshSchwartz() const { return threshSchwartz_; }
-    double*& schwartz()  { return schwartz_; }
-    double*& schwartz2() { return schwartz2_; }
+    double threshSchwarz() const { return threshSchwarz_; }
+    double*& schwarz()  { return schwarz_; }
+    double*& schwarz2() { return schwarz2_; }
 
     // Single element interfaces
     virtual IntsT operator()(size_t p, size_t q, size_t r, size_t s) const {
@@ -103,7 +103,7 @@ namespace ChronusQ {
 
     virtual void clear() {}
 
-    void computeSchwartz();
+    void computeSchwarz();
 
     virtual void output(std::ostream &out, const std::string &s = "",
                         bool printFull = false) const {
@@ -115,8 +115,8 @@ namespace ChronusQ {
       out << "DIRECT";
       out << std::endl;
 
-      out << "    * Schwartz Screening Threshold = "
-          << threshSchwartz() << std::endl;
+      out << "    * Schwarz Screening Threshold = "
+          << threshSchwarz() << std::endl;
 
       if (printFull) {
         CErr("Printing Full ERI tensor for Direct contraction NYI.", out);
@@ -124,8 +124,8 @@ namespace ChronusQ {
     }
 
     virtual ~DirectTPI() {
-      if(schwartz_)  this->memManager().free(schwartz_);
-      if(schwartz2_) this->memManager().free(schwartz2_);
+      if(schwarz_)  this->memManager().free(schwarz_);
+      if(schwarz2_) this->memManager().free(schwarz2_);
     }
 
   }; // class DirectTPI

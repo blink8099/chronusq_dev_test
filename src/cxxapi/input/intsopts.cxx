@@ -49,7 +49,7 @@ namespace ChronusQ {
     // Allowed keywords
     std::vector<std::string> allowedKeywords = {
       "ALG",          // Direct or Incore?
-      "SCHWARTZ",     // double
+      "SCHWARZ",     // double
       "RI",           // AUXBASIS or CHOLESKY or False
       "RITHRESHOLD",  // double
       "RISIGMA",      // double
@@ -116,7 +116,7 @@ namespace ChronusQ {
 
     // Control Variables
     CONTRACTION_ALGORITHM contrAlg = CONTRACTION_ALGORITHM::DIRECT; ///< Alg for 2-body contraction
-    double threshSchwartz = 1e-12; ///< Schwartz screening threshold
+    double threshSchwarz = 1e-12; ///< Schwarz screening threshold
     std::string RI = "FALSE"; ///< RI algorithm
     CHOLESKY_ALG CDalg = CHOLESKY_ALG::DYNAMIC_ERI; ///< Cholesky algorithm
     double CDRI_thresh = 1e-4; ///< Cholesky RI threshold
@@ -133,8 +133,8 @@ namespace ChronusQ {
     else
       CErr(ALG + "not a valid INTS.ALG",out);
 
-    // Parse Schwartz threshold
-    OPTOPT( threshSchwartz = input.getData<double>(int_sec+".SCHWARTZ"); )
+    // Parse Schwarz threshold
+    OPTOPT( threshSchwarz = input.getData<double>(int_sec+".SCHWARZ"); )
 
     // Parse RI option
     OPTOPT( RI = input.getData<std::string>(int_sec+".RI");)
@@ -198,10 +198,10 @@ namespace ChronusQ {
       else {
         if (not basis2)
           aoint->TPI =
-              std::make_shared<DirectTPI<double>>(mem,*basis,*basis,mol,threshSchwartz);
+              std::make_shared<DirectTPI<double>>(mem,*basis,*basis,mol,threshSchwarz);
         else
           aoint->TPI = 
-              std::make_shared<DirectTPI<double>>(mem,*basis,*basis2,mol,threshSchwartz);
+              std::make_shared<DirectTPI<double>>(mem,*basis,*basis2,mol,threshSchwarz);
       }
 
       aoi = std::dynamic_pointer_cast<IntegralsBase>(aoint);
@@ -220,7 +220,7 @@ namespace ChronusQ {
         if (basis2)
           CErr("GIAO with NEO NYI",std::cout);
         giaoint->TPI =
-            std::make_shared<DirectTPI<dcomplex>>(mem,*basis,*basis,mol,threshSchwartz);
+            std::make_shared<DirectTPI<dcomplex>>(mem,*basis,*basis,mol,threshSchwarz);
       }
 
       aoi = std::dynamic_pointer_cast<IntegralsBase>(giaoint);

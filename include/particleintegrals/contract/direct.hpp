@@ -127,8 +127,8 @@ namespace ChronusQ {
     const bool AnyNonHer = std::any_of(list.begin(),list.end(),
       []( TwoBodyContraction<MatsT> & x ) -> bool { return not x.HER; });
 
-    // Compute schwartz bounds if we haven't already
-    if(eri.schwartz() == nullptr) eri.computeSchwartz();
+    // Compute schwarz bounds if we haven't already
+    if(eri.schwarz() == nullptr) eri.computeSchwarz();
 #endif
 
 
@@ -227,7 +227,7 @@ namespace ChronusQ {
     engines[0].set_precision(
       std::min(
         std::numeric_limits<double>::epsilon(),
-        eri.threshSchwartz() / maxShBlk
+        eri.threshSchwarz() / maxShBlk
       ) / NP4
     );
 
@@ -344,7 +344,7 @@ namespace ChronusQ {
 #ifdef _SHZ_SCREEN
       double shz12 = 0, shMax12 = 0;
       if( screen ) {
-        shz12 = eri.schwartz()[s1 + s2*NS];
+        shz12 = eri.schwarz()[s1 + s2*NS];
         shMax12 = ShBlkNorms[0][s1 + s2*NS];
       }
 #endif
@@ -438,8 +438,8 @@ namespace ChronusQ {
 
           shMax = std::max(shMax,shMax123);
 
-          if((shMax * shz12 * eri.schwartz()[s3 + s4*NS]) <
-             eri.threshSchwartz()) { nSkip[thread_id]++; continue; }
+          if((shMax * shz12 * eri.schwarz()[s3 + s4*NS]) <
+             eri.threshSchwarz()) { nSkip[thread_id]++; continue; }
         }
 #endif
       
@@ -1429,12 +1429,12 @@ namespace ChronusQ {
 
 
 #ifdef _SHZ_SCREEN
-    // Compute schwartz bounds if we haven't already
-    if(tpi.schwartz() == nullptr or tpi.schwartz2() == nullptr) 
-      tpi.computeSchwartz();
+    // Compute schwarz bounds if we haven't already
+    if(tpi.schwarz() == nullptr or tpi.schwarz2() == nullptr) 
+      tpi.computeSchwarz();
 
-    double * schwartz1 = this->auxContract ? tpi.schwartz2() : tpi.schwartz();
-    double * schwartz2 = this->auxContract ? tpi.schwartz()  : tpi.schwartz2();
+    double * schwarz1 = this->auxContract ? tpi.schwarz2() : tpi.schwarz();
+    double * schwarz2 = this->auxContract ? tpi.schwarz()  : tpi.schwarz2();
 
 #endif
 
@@ -1520,14 +1520,14 @@ namespace ChronusQ {
     engines[0].set_precision(
       std::min(
         std::numeric_limits<double>::epsilon(),
-        threshSchwartz/maxShBlkNorm
+        threshSchwarz/maxShBlkNorm
       )/maxnPrim4
     );
 #else
     engines[0].set_precision(
       std::max(
         std::numeric_limits<double>::epsilon(),
-        tpi.threshSchwartz()/(maxShBlkNorm*maxnPrim4))
+        tpi.threshSchwarz()/(maxShBlkNorm*maxnPrim4))
       );
 #endif
 
@@ -1632,7 +1632,7 @@ namespace ChronusQ {
 #ifdef _SHZ_SCREEN
       double shz12 = 0, shMax12 = 0;
       if( screen ) {
-        shz12 = schwartz1[s1 + s2*nShell];
+        shz12 = schwarz1[s1 + s2*nShell];
         shMax12 = ShBlkNorms[0][s1 + s2*nShell];
       }
 #endif
@@ -1712,12 +1712,12 @@ namespace ChronusQ {
 #endif
 
           if (&basisSet_ != &basisSet2_) {
-            if((shMax * shz12 * schwartz2[s3 + s4*snShell]) <
-               tpi.threshSchwartz()) { nSkip[thread_id]++; continue; }
+            if((shMax * shz12 * schwarz2[s3 + s4*snShell]) <
+               tpi.threshSchwarz()) { nSkip[thread_id]++; continue; }
           }
           else {
-            if((shMax *shMax * shz12 * schwartz1[s3 + s4*snShell]) <
-               tpi.threshSchwartz()) { nSkip[thread_id]++; continue; }           
+            if((shMax *shMax * shz12 * schwarz1[s3 + s4*snShell]) <
+               tpi.threshSchwarz()) { nSkip[thread_id]++; continue; }           
           }
         }
       
