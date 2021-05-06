@@ -53,50 +53,14 @@ namespace ChronusQ {
 
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
-    int iAtom, iShell, off;
 
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3+nShells*basisSet_.maxPrim*2);
-    double sNorm;
+    double *env = memManager_.template malloc<double>(basisSet_.getLibcintEnvLength(molecule_));
 
-    off = PTR_ENV_START; // = 20
 
-    for(iAtom = 0; iAtom < nAtoms; iAtom++) {
-
-      atm[CHARGE_OF + ATM_SLOTS * iAtom] = molecule_.atoms[iAtom].atomicNumber;
-      atm[PTR_COORD + ATM_SLOTS * iAtom] = off;
-      env[off + 0] = molecule_.atoms[iAtom].coord[0]; // x (Bohr)
-      env[off + 1] = molecule_.atoms[iAtom].coord[1]; // y (Bohr)
-      env[off + 2] = molecule_.atoms[iAtom].coord[2]; // z (Bohr)
-      off += 3;
-
-    }
-
-    for(iShell = 0; iShell < nShells; iShell++) {
-
-      bas[ATOM_OF  + BAS_SLOTS * iShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * iShell]  = 1;
-      bas[PTR_EXP  + BAS_SLOTS * iShell]  = off;
-
-      for(int iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-
-      off +=basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * iShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-      for(int iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++){
-        env[off + iCoeff] = basisSet_.shells[iShell].contr[0].coeff[iCoeff]*sNorm;
-     }
-
-      off += basisSet_.shells[iShell].alpha.size();
-    }
+    basisSet_.setLibcintEnv(molecule_, atm, bas, env);
 
 
     // Determine the number of OpenMP threads
@@ -242,63 +206,18 @@ namespace ChronusQ {
                                        [](libint2::Shell &a, libint2::Shell &b) {
                                          return a.size() < b.size();
                                        })->size();
-    size_t countExpCoef = std::accumulate(basisSet_.shells.begin(),
-                                          basisSet_.shells.end(),
-                                          0,
-                                          [](const size_t &count, const libint2::Shell &sh) {
-                                            return count + sh.alpha.size() * (1 + sh.contr.size());
-                                          });
 
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
-    int iAtom, iShell, off;
 
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
-    double sNorm;
+    double *env = memManager_.template malloc<double>(basisSet_.getLibcintEnvLength(molecule_));
 
-    off = PTR_ENV_START; // = 20
 
-    for(iAtom = 0; iAtom < nAtoms; iAtom++) {
+    basisSet_.setLibcintEnv(molecule_, atm, bas, env);
 
-      atm[CHARGE_OF + ATM_SLOTS * iAtom] = molecule_.atoms[iAtom].atomicNumber;
-      atm[PTR_COORD + ATM_SLOTS * iAtom] = off;
-      env[off + 0] = molecule_.atoms[iAtom].coord[0]; // x (Bohr)
-      env[off + 1] = molecule_.atoms[iAtom].coord[1]; // y (Bohr)
-      env[off + 2] = molecule_.atoms[iAtom].coord[2]; // z (Bohr)
-      off += 3;
-
-    }
-
-    for(iShell = 0; iShell < nShells; iShell++) {
-
-      int nContr = basisSet_.shells[iShell].contr.size();
-
-      bas[ATOM_OF  + BAS_SLOTS * iShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * iShell]  = nContr;
-      bas[PTR_EXP  + BAS_SLOTS * iShell]  = off;
-
-      for(int iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-
-      off +=basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * iShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-      for (size_t i = 0; i < nContr; i++) {
-        for(int iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++){
-          env[off + iCoeff] = basisSet_.shells[iShell].contr[i].coeff[iCoeff]*sNorm;
-        }
-        off += basisSet_.shells[iShell].alpha.size();
-      }
-
-    }
 
     size_t cache_size = 0;
     for (int i = 0; i < nShells; i++) {
@@ -1055,63 +974,18 @@ namespace ChronusQ {
                                        [](libint2::Shell &a, libint2::Shell &b) {
                                          return a.size() < b.size();
                                        })->size();
-    size_t countExpCoef = std::accumulate(basisSet_.shells.begin(),
-                                          basisSet_.shells.end(),
-                                          0,
-                                          [](const size_t &count, const libint2::Shell &sh) {
-                                            return count + sh.alpha.size() * (1 + sh.contr.size());
-                                          });
 
     int nAtoms = molecule_.nAtoms;
     int nShells = basisSet_.nShell;
-    int iAtom, iShell, off;
 
     // ATM_SLOTS = 6; BAS_SLOTS = 8;
     int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
     int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-    double *env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
-    double sNorm;
+    double *env = memManager_.template malloc<double>(basisSet_.getLibcintEnvLength(molecule_));
 
-    off = PTR_ENV_START; // = 20
 
-    for(iAtom = 0; iAtom < nAtoms; iAtom++) {
+    basisSet_.setLibcintEnv(molecule_, atm, bas, env);
 
-      atm[CHARGE_OF + ATM_SLOTS * iAtom] = molecule_.atoms[iAtom].atomicNumber;
-      atm[PTR_COORD + ATM_SLOTS * iAtom] = off;
-      env[off + 0] = molecule_.atoms[iAtom].coord[0]; // x (Bohr)
-      env[off + 1] = molecule_.atoms[iAtom].coord[1]; // y (Bohr)
-      env[off + 2] = molecule_.atoms[iAtom].coord[2]; // z (Bohr)
-      off += 3;
-
-    }
-
-    for(iShell = 0; iShell < nShells; iShell++) {
-
-      int nContr = basisSet_.shells[iShell].contr.size();
-
-      bas[ATOM_OF  + BAS_SLOTS * iShell]  = basisSet_.mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * iShell]  = basisSet_.shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * iShell]  = nContr;
-      bas[PTR_EXP  + BAS_SLOTS * iShell]  = off;
-
-      for(int iPrim=0; iPrim<basisSet_.shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = basisSet_.shells[iShell].alpha[iPrim];
-
-      off +=basisSet_.shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * iShell] = off;
-
-      // Spherical GTO normalization constant missing in Libcint
-      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*basisSet_.shells[iShell].contr[0].l+1.0);
-      for (size_t i = 0; i < nContr; i++) {
-        for(int iCoeff=0; iCoeff<basisSet_.shells[iShell].alpha.size(); iCoeff++){
-          env[off + iCoeff] = basisSet_.shells[iShell].contr[i].coeff[iCoeff]*sNorm;
-        }
-        off += basisSet_.shells[iShell].alpha.size();
-      }
-
-    }
 
     size_t cache_size = 0;
     for (int i = 0; i < nShells; i++) {

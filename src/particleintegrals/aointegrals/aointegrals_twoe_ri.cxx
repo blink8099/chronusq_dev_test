@@ -5015,13 +5015,6 @@ namespace ChronusQ {
 
       groupedBasisSet = basisSet.groupGeneralContractionBasis();
 
-      size_t countExpCoef = std::accumulate(groupedBasisSet.shells.begin(),
-                                            groupedBasisSet.shells.end(),
-                                            0,
-                                            [](const size_t &count, const libint2::Shell &sh) {
-                                              return count + sh.alpha.size() * (1 + sh.contr.size());
-                                            });
-
       // Clear objects
       for (double *p : coefBlocks_) {
         if (p) memManager_.free(p);
@@ -5080,58 +5073,13 @@ namespace ChronusQ {
 
         nAtoms = mol.nAtoms;
         nShells = groupedBasisSet.nShell;
-        int iAtom, iShell, off;
 
         // ATM_SLOTS = 6; BAS_SLOTS = 8;
         atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
         bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-        env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
-        double sNorm;
+        env = memManager_.template malloc<double>(groupedBasisSet.getLibcintEnvLength(mol));
 
-        off = PTR_ENV_START; // = 20
-
-        for(iAtom = 0; iAtom < nAtoms; iAtom++) {
-
-          atm[CHARGE_OF + ATM_SLOTS * iAtom] = mol.atoms[iAtom].atomicNumber;
-          atm[PTR_COORD + ATM_SLOTS * iAtom] = off;
-          env[off + 0] = mol.atoms[iAtom].coord[0]; // x (Bohr)
-          env[off + 1] = mol.atoms[iAtom].coord[1]; // y (Bohr)
-          env[off + 2] = mol.atoms[iAtom].coord[2]; // z (Bohr)
-          off += 3;
-
-        }
-
-        int maxContr = 0;
-
-        for(iShell = 0; iShell < nShells; iShell++) {
-
-          int nContr = groupedBasisSet.shells[iShell].contr.size();
-
-          bas[ATOM_OF  + BAS_SLOTS * iShell]  = groupedBasisSet.mapSh2Cen[iShell];
-          bas[ANG_OF   + BAS_SLOTS * iShell]  = groupedBasisSet.shells[iShell].contr[0].l;
-          bas[NPRIM_OF + BAS_SLOTS * iShell]  = groupedBasisSet.shells[iShell].alpha.size();
-          bas[NCTR_OF  + BAS_SLOTS * iShell]  = nContr;
-          bas[PTR_EXP  + BAS_SLOTS * iShell]  = off;
-
-          maxContr = std::max(maxContr, nContr);
-
-          for(int iPrim=0; iPrim<groupedBasisSet.shells[iShell].alpha.size(); iPrim++)
-            env[off + iPrim] = groupedBasisSet.shells[iShell].alpha[iPrim];
-
-          off +=groupedBasisSet.shells[iShell].alpha.size();
-
-          bas[PTR_COEFF+ BAS_SLOTS * iShell] = off;
-
-          // Spherical GTO normalization constant missing in Libcint
-          sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*groupedBasisSet.shells[iShell].contr[0].l+1.0);
-          for (size_t i = 0; i < nContr; i++) {
-            for(int iCoeff=0; iCoeff<groupedBasisSet.shells[iShell].alpha.size(); iCoeff++){
-              env[off + iCoeff] = groupedBasisSet.shells[iShell].contr[i].coeff[iCoeff]*sNorm;
-            }
-            off += groupedBasisSet.shells[iShell].alpha.size();
-          }
-
-        }
+        groupedBasisSet.setLibcintEnv(mol, atm, bas, env);
 
         // Get threads result buffer
         buffN4 = maxNcontrAMSize_*maxNcontrAMSize_*maxNcontrAMSize_*maxNcontrAMSize_;

@@ -26,6 +26,8 @@
 #include <basisset/reference.hpp>
 #include <cxxapi/output.hpp>
 
+#include <libcint.hpp>
+
 #include <util/matout.hpp>
 #include <cqlinalg/blas1.hpp>
 #include <cqlinalg/blas3.hpp>
@@ -342,6 +344,66 @@ namespace ChronusQ {
 
   };
 
+
+
+  size_t BasisSet::getLibcintEnvLength(const Molecule &mol) {
+    return PTR_ENV_START +
+        mol.nAtoms +
+        std::accumulate(shells.begin(),
+                        shells.end(),
+                        0,
+                        [](const size_t &count, const libint2::Shell &sh) {
+                          return count + sh.alpha.size() * (1 + sh.contr.size());
+                        });
+  }
+
+  void BasisSet::setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env) {
+
+    double sNorm;
+
+    int nAtoms = mol.nAtoms;
+    int nShells = nShell;
+    int off = PTR_ENV_START; // = 20
+
+    for(int iAtom = 0; iAtom < nAtoms; iAtom++) {
+
+      atm[CHARGE_OF + ATM_SLOTS * iAtom] = mol.atoms[iAtom].atomicNumber;
+      atm[PTR_COORD + ATM_SLOTS * iAtom] = off;
+      env[off + 0] = mol.atoms[iAtom].coord[0]; // x (Bohr)
+      env[off + 1] = mol.atoms[iAtom].coord[1]; // y (Bohr)
+      env[off + 2] = mol.atoms[iAtom].coord[2]; // z (Bohr)
+      off += 3;
+
+    }
+
+    for(int iShell = 0; iShell < nShells; iShell++) {
+
+      int nContr = shells[iShell].contr.size();
+
+      bas[ATOM_OF  + BAS_SLOTS * iShell]  = mapSh2Cen[iShell];
+      bas[ANG_OF   + BAS_SLOTS * iShell]  = shells[iShell].contr[0].l;
+      bas[NPRIM_OF + BAS_SLOTS * iShell]  = shells[iShell].alpha.size();
+      bas[NCTR_OF  + BAS_SLOTS * iShell]  = nContr;
+      bas[PTR_EXP  + BAS_SLOTS * iShell]  = off;
+
+      for(int iPrim=0; iPrim < shells[iShell].alpha.size(); iPrim++)
+        env[off + iPrim] = shells[iShell].alpha[iPrim];
+
+      off += shells[iShell].alpha.size();
+
+      bas[PTR_COEFF+ BAS_SLOTS * iShell] = off;
+
+      // Spherical GTO normalization constant missing in Libcint
+      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*shells[iShell].contr[0].l+1.0);
+      for (size_t i = 0; i < nContr; i++) {
+        for(int iCoeff=0; iCoeff<shells[iShell].alpha.size(); iCoeff++){
+          env[off + iCoeff] = shells[iShell].contr[i].coeff[iCoeff]*sNorm;
+        }
+        off += shells[iShell].alpha.size();
+      }
+
+    }
+  }
 
 
 

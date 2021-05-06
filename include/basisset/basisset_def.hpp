@@ -190,6 +190,8 @@ namespace ChronusQ {
 
     BasisSet uncontractBasis();
     BasisSet groupGeneralContractionBasis();
+    size_t getLibcintEnvLength(const Molecule &mol);
+    void setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env);
 
 
     // Update BasisSet object member data (nBasis, etc).
