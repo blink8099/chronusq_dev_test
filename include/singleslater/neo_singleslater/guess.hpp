@@ -75,12 +75,21 @@ namespace ChronusQ {
 
     EMPerturbation pert; // Dummy EM perturbation
     formFock(pert, false);
-    this->aux_neoss->formFock(pert, false);
+    //this->aux_neoss->formFock(pert, false);
     
     // Common to all guess, form new set of orbitals from 
     // initial guess at Fock
-    this->getNewOrbitals(pert,false);
-    this->aux_neoss->getNewOrbitals(pert,false);
+//    this->modifyOrbitals->getNewOrbitals(pert,false);
+    this->ao2orthoFock();
+    this->diagOrthoFock();
+    this->formDensity();
+    this->ortho2aoDen();
+    this->ortho2aoMOs();
+    this->aux_neoss->ao2orthoFock();
+    this->aux_neoss->diagOrthoFock();
+    this->aux_neoss->formDensity();
+    this->aux_neoss->ortho2aoDen();
+    this->aux_neoss->ortho2aoMOs();
 
   }; // NEOSingleSlater<T>::formGuess()
 

@@ -80,5 +80,19 @@ namespace ChronusQ {
     int LDB, dcomplex *ALPHA, _F *BETA, double hLim, double SIMGA, _F *VSL, 
     int LDVSL, _F *VSR, int LDVSR, CQMemManager &mem);
 
+  
+  // Execption object for SVDInverse function
+  struct SVD_Failed{};
+
+  /*
+   *   Brief: This function computes an approximate matrix inverse. If the matrix
+   *          is singular then it approximates the inverse by removing
+   *          the singular columns from the matrix. Result is stored
+   *          in place (A). num is the threshold to consider a singular
+   *          value to be zero.
+   */
+  template<typename MatsT>
+  void SVDInverse(const size_t N, MatsT* A, const size_t LDA, const double num, CQMemManager& memManager);
+  
 }; // namespace ChronusQ
 

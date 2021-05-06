@@ -466,5 +466,39 @@ namespace ChronusQ {
     int LDB, dcomplex *ALPHA, dcomplex *BETA, double SIMGA, dcomplex *VSL, 
     int LDVSL, dcomplex *VSR, int LDVSR, CQMemManager &mem);
 
+  template<typename MatsT>
+  void SVDInverse(const size_t N, MatsT* A, const size_t LDA, const double num, CQMemManager& memManager) {
+  
+    // Compute SVD to determine which vectors are singular
+    MatsT* U = memManager.template malloc<MatsT>(N*N);
+    MatsT* VT = memManager.template malloc<MatsT>(N*N);
+    double* sV = memManager.template malloc<double>(N);
+  
+    int info = lapack::gesvd(lapack::Job::AllVec, lapack::Job::AllVec, N, N, A, LDA, 
+            sV, U, N, VT, N);
+    if( info != 0 ) throw SVD_Failed{};
+  
+    // Zero out vectors that are singular or scale by inverse sing. value
+    for( size_t i = 0; i < N; i++ ) {
+      if( sV[i] > num ) {
+        blas::scal(N, MatsT(1. / sV[i]), U + i * N, 1);
+      } else {
+        blas::scal(N, MatsT(0.),  U + i * N, 1);
+        blas::scal(N, MatsT(0.), VT + i * N, 1);
+      }
+    }
+  
+    // Compute Matrix Inverse
+    blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, 
+        N, N, N, 
+        MatsT(1.), U, N, 
+        VT, N, 
+        MatsT(0.), A, LDA);
+  
+    memManager.free(U,VT,sV);
+  }
+
+  template void SVDInverse(const size_t N, double* A, const size_t LDA, const double num, CQMemManager& memManager);
+  template void SVDInverse(const size_t N, dcomplex* A, const size_t LDA, const double num, CQMemManager& memManager);
 
 }; // namespace ChronusQ

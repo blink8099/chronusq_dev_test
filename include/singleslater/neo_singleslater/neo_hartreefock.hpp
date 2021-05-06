@@ -75,7 +75,9 @@ namespace ChronusQ {
       NEOHartreeFock(const NEOHartreeFock<MatsU,IntsT> &other, int dummy = 0) :
         NEOSingleSlater<MatsT,IntsT>(dynamic_cast<const NEOSingleSlater<MatsU,IntsT>&>(other),dummy),
         HartreeFock<MatsT,IntsT>(dynamic_cast<const HartreeFock<MatsU,IntsT>&>(other),dummy),
-        SingleSlater<MatsT,IntsT>(dynamic_cast<const SingleSlater<MatsU,IntsT>&>(other),dummy)
+        SingleSlater<MatsT,IntsT>(dynamic_cast<const SingleSlater<MatsU,IntsT>&>(other),dummy),
+        QuantumBase(dynamic_cast<const QuantumBase&>(other)),
+        WaveFunctionBase(dynamic_cast<const WaveFunctionBase&>(other))
         //aux_neohf(std::make_shared<NEOHartreeFock<MatsT,IntsT>>(*other.aux_neohf))
         { };
 
@@ -83,7 +85,9 @@ namespace ChronusQ {
       NEOHartreeFock(NEOHartreeFock<MatsU,IntsT> &&other, int dummy = 0) :
         NEOSingleSlater<MatsT,IntsT>(dynamic_cast<NEOSingleSlater<MatsU,IntsT>&&>(std::move(other)),dummy),
         HartreeFock<MatsT,IntsT>(dynamic_cast<HartreeFock<MatsU,IntsT>&&>(std::move(other)),dummy),
-        SingleSlater<MatsT,IntsT>(dynamic_cast<SingleSlater<MatsU,IntsT>&&>(std::move(other)),dummy)
+        SingleSlater<MatsT,IntsT>(dynamic_cast<SingleSlater<MatsU,IntsT>&&>(std::move(other)),dummy),
+        QuantumBase(dynamic_cast<const QuantumBase&&>(std::move(other))),
+        WaveFunctionBase(dynamic_cast<const WaveFunctionBase&&>(std::move(other)))
         //aux_neohf(std::make_shared<NEOHartreeFock<MatsT,IntsT>>(std::move(*other.aux_neohf)))
         { };
 
@@ -98,6 +102,9 @@ namespace ChronusQ {
       aux_neohf = neo_hf; 
       NEOSingleSlater<MatsT,IntsT>::getAux(neo_hf);
     };
+
+    // SCF Functions
+    void buildModifyOrbitals();
 
   }; // NEOHartreeFock class
 

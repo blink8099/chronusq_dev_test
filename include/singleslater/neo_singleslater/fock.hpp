@@ -67,6 +67,13 @@ namespace ChronusQ {
 
   }; // NEOSingleSlater::fockFock
 
+  template<typename MatsT, typename IntsT>
+  void NEOSingleSlater<MatsT,IntsT> :: formBothFock(
+    EMPerturbation &pert, bool increment, double xHFX ) {
+      this->formFock(pert,increment,xHFX);
+      this->aux_neoss->formFock(pert,increment,xHFX);
+  }; // NEOSingleSlater::formBothFock
+
 
   /**
    *  \brief Compute the Core Hamiltonian.

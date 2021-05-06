@@ -30,37 +30,6 @@
 namespace ChronusQ {
 
   /**
-   *  \brief Initializes the environment for the NEO-SCF calculation
-   *
-   *  Allocate memory for extrapolation and compute the energy
-   */
-  template <typename MatsT, typename IntsT>
-  void NEOSingleSlater<MatsT,IntsT>::SCFInit() {
-
-    // main system
-    this->SingleSlater<MatsT,IntsT>::SCFInit();
-
-    // auxiliary system
-    this->aux_neoss->SingleSlater<MatsT,IntsT>::SCFInit();
-
-  }; // NEOSingleSlater<MatsT>::SCFInit
-
-  /**
-   *  \brief Finalizes the environment for the NEO-SCF calculation
-   *
-   */
-  template <typename MatsT, typename IntsT>
-  void NEOSingleSlater<MatsT,IntsT>::SCFFin() {
-
-    // main system
-    this->SingleSlater<MatsT,IntsT>::SCFFin();
-
-    // auxiliary system
-    this->aux_neoss->SingleSlater<MatsT,IntsT>::SCFFin();
-
-  }; // NEOSingleSlater<MatsT>::SCFFin
-
-  /**
    *  \brief Save the current state for the NEO-SCF calculation
    *
    *  Allocate memory for extrapolation and compute the energy
@@ -76,168 +45,217 @@ namespace ChronusQ {
 
   }; // NEOSingleSlater<MatsT>::saveCurrentState
 
-  /**
-   *  \brief Performs the NEO self-consistent field procedure given set of 
-   *  orbitals.
-   */
+  /*
+  *   Brief: Function for the ModifyOrbitals object to get the vector of
+  *          Fock matrices in the alpha/beta basis
+  */
   template <typename MatsT, typename IntsT>
-  void NEOSingleSlater<MatsT,IntsT>::SCF(EMPerturbation &pert) {
+  std::vector<std::shared_ptr<SquareMatrix<MatsT>>> NEOSingleSlater<MatsT,IntsT>::getFock() {
 
-    this->printLevel = 1;
-    this->aux_neoss->printLevel = 1;
+    std::vector<std::shared_ptr<SquareMatrix<MatsT>>> fock;
 
-    // initialization
-    SCFInit(); 
-
-    // Initialize type independent parameters
-    bool isConverged = false;
-    this->scfControls.dampParam = this->scfControls.dampStartParam;
-    
-    this->scfControls.doIncFock = false;
-
-    if( this->scfControls.scfAlg == _NEWTON_RAPHSON_SCF )
-      this->scfControls.doExtrap = false;
-
-    if( this->scfControls.scfAlg == _SKIP_SCF )
-      isConverged = true;
-
-    // Compute initial properties
-    this->computeTotalProperties(pert);
-
-    if ( this->printLevel > 0 and MPIRank(this->comm) == 0 ) {
-      this->printSCFHeader(std::cout,pert);
-      printSCFMacroProg(std::cout,false);
+    // Handle this set of fock Matrices
+    if( this->nC == 1 and this->iCS) {
+      fock.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->fockMatrix->S()));
+    } else if( this->nC == 1 ) {
+      fock.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->fockMatrix->S()+MatsT(0.5)*this->fockMatrix->Z()));
+      fock.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->fockMatrix->S()-MatsT(0.5)*this->fockMatrix->Z()));
+    } else {
+      fock.emplace_back(std::make_shared<SquareMatrix<MatsT>>(this->fockMatrix->template spinGather<MatsT>()));
     }
 
-    for( this->scfConv.nSCFMacroIter = 0; this->scfConv.nSCFMacroIter < this->scfControls.maxSCFIter; 
-         this->scfConv.nSCFMacroIter++) {
+    // Handle Auxiliary system
+    if( this->aux_neoss->nC == 1 and this->aux_neoss->iCS) {
+      fock.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->aux_neoss->fockMatrix->S()));
+    } else if( this->aux_neoss->nC == 1 ) {
+      fock.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->aux_neoss->fockMatrix->S()+MatsT(0.5)*this->aux_neoss->fockMatrix->Z()));
+      fock.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->aux_neoss->fockMatrix->S()-MatsT(0.5)*this->aux_neoss->fockMatrix->Z()));
+    } else {
+      fock.emplace_back(std::make_shared<SquareMatrix<MatsT>>(this->aux_neoss->fockMatrix->template spinGather<MatsT>()));
+    }
+    return fock;
+  };
 
-      // Save current state of the wave function (method specific)
-      saveCurrentState();
+  /*
+  *   Brief: Function for the ModifyOrbitals object to get the vector of
+  *          onePDM matrices in the alpha/beta basis
+  */
+  template <typename MatsT, typename IntsT>
+  std::vector<std::shared_ptr<SquareMatrix<MatsT>>> NEOSingleSlater<MatsT,IntsT>::getOnePDM() {
 
-      // Converge proton SCF
-      this->aux_neoss->SingleSlaterBase::SCF(pert);
+    std::vector<std::shared_ptr<SquareMatrix<MatsT>>> den;
 
-      // Converge electron SCF
-      this->SingleSlaterBase::SCF(pert);
+    // Handle this set of fock Matrices
+    if( this->nC == 1 and this->iCS) {
+      den.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->onePDM->S()));
+    } else if( this->nC == 1 ) {
+      den.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->onePDM->S()+MatsT(0.5)*this->onePDM->Z()));
+      den.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->onePDM->S()-MatsT(0.5)*this->onePDM->Z()));
+    } else {
+      den.emplace_back(std::make_shared<SquareMatrix<MatsT>>(this->onePDM->template spinGather<MatsT>()));
+    }
 
-      // Exit loop on convergence
-      if(isConverged) break;
+    // Handle Auxiliary system
+    if( this->aux_neoss->nC == 1 and this->aux_neoss->iCS) {
+      den.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->aux_neoss->onePDM->S()));
+    } else if( this->aux_neoss->nC == 1 ) {
+      den.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->aux_neoss->onePDM->S()+MatsT(0.5)*this->aux_neoss->onePDM->Z()));
+      den.emplace_back(std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5)*this->aux_neoss->onePDM->S()-MatsT(0.5)*this->aux_neoss->onePDM->Z()));
+    } else {
+      den.emplace_back(std::make_shared<SquareMatrix<MatsT>>(this->aux_neoss->onePDM->template spinGather<MatsT>()));
+    }
+    return den;
+  };
 
-      // Evaluate convergence
-      isConverged = evalMacroConver(pert);
+  /*
+  *     Brief: Returns the orthogonalization objects for both this and the auxiliary
+  *            to be used for SCF
+  *
+  */
+  template<typename MatsT, typename IntsT>
+  std::vector<std::shared_ptr<Orthogonalization<MatsT>>> NEOSingleSlater<MatsT,IntsT>::getOrtho(){
+    std::vector<std::shared_ptr<Orthogonalization<MatsT>>> ortho;
+    
+    // Handle this orthogonalization
+    if( this->nC == 1 and this->iCS) {
+      ortho.push_back(this->orthoAB);
+    } else if( this->nC == 1) {
+      ortho.push_back(this->orthoAB);
+      ortho.push_back(this->orthoAB);
+    } else {
+      ortho.push_back(this->orthoAB);
+    }
 
-      // Print out iteration information
-      if ( this->printLevel > 0 and (MPIRank(this->comm) == 0)) printSCFMacroProg(std::cout,true);
+    // Handle aux
+    if( this->aux_neoss->nC == 1 and this->aux_neoss->iCS) {
+      ortho.push_back(this->aux_neoss->orthoAB);
+    } else if( this->aux_neoss->nC == 1) {
+      ortho.push_back(this->aux_neoss->orthoAB);
+      ortho.push_back(this->aux_neoss->orthoAB);
+    } else {
+      ortho.push_back(this->aux_neoss->orthoAB);
+    }
+    return ortho;
+  }
 
-    }; // Iteration loop
+  template<typename MatsT, typename IntsT>
+  void NEOSingleSlater<MatsT, IntsT>::runModifyOrbitals(EMPerturbation& pert) {
 
-    // Save current state of the wave function (method specific)
+    bool iRO = false;
+
+    std::vector<std::reference_wrapper<SquareMatrix<MatsT>>> moRefs;
+    for( auto& m : this->mo )
+      moRefs.emplace_back(m);
+    for( auto& m : this->aux_neoss->mo)
+      moRefs.emplace_back(m);
+
+    std::vector<double*> epsVec;
+
+    // This set of eigenvalues
+    if( this->mo.size() == 2 ) {
+      epsVec = {this->eps1,this->eps2};
+    } else {
+      epsVec = {this->eps1};
+    }
+    // Aux set of eigenvalues
+    if( this->aux_neoss->mo.size() == 2 ){
+      epsVec.emplace_back(this->aux_neoss->eps1);
+      epsVec.emplace_back(this->aux_neoss->eps2);
+    } else {
+      epsVec.emplace_back(this->aux_neoss->eps1);
+    }
+
+    // Run modify orbitals
+    this->modifyOrbitals->runModifyOrbitals(pert, moRefs, epsVec);
+
     saveCurrentState();
+    this->ao2orthoFock();   // SCF Does not update the fockMatrixOrtho
+    this->MOFOCK();
+    this->aux_neoss->ao2orthoFock();
+    this->aux_neoss->MOFOCK();
+  };   // NEOSingleSlater<MatsT,IntsT> :: runModifyOrbitals
 
-    // finalize SCF
-    SCFFin();
-
-    // Compute initial properties
-    this->computeTotalProperties(pert);
-
-    if(not isConverged)
-      CErr(std::string("NEO-SCF Failed to converge within ") + 
-        std::to_string(this->scfControls.maxSCFIter) + 
-        std::string(" iterations"));
-    else if ( this->printLevel > 0 ) {
-      std::cout << std::endl << "NEO-SCF Completed: E("
-                << this->refShortName_ << ") = " << std::fixed
-                << std::setprecision(10) << this->totalMacroEnergy
-                << " Eh after " << this->scfConv.nSCFMacroIter
-                << " SCF Iteration" << std::endl;
-    }
-
-    if( this->printLevel > 0 ) std::cout << BannerEnd << std::endl;
-
-    if( this->printLevel > 0 ) {
-      this->printMOInfo(std::cout);
-      this->printMultipoles(std::cout);
-      this->printSpin(std::cout);
-      this->printMiscProperties(std::cout);
-
-      this->aux_neoss->printMOInfo(std::cout);
-      this->aux_neoss->printMultipoles(std::cout);
-      this->aux_neoss->printSpin(std::cout);
-    }
-
-  }; // NEOSingleSlater::SCF()
-
-  /**
-   *  \brief Evaluate the Macro NEO-SCF convergence based on various criteria
-   *  
-   *  Checks change in energy and density between macro SCF iterations,
-   */
-  template <typename MatsT, typename IntsT>
-  bool NEOSingleSlater<MatsT,IntsT>::evalMacroConver(EMPerturbation &pert) {
-
-    bool isConverged; 
-
-    // Compute all SCF convergence information on root process
-    if( MPIRank(this->comm) == 0 ) {
-      
-      // Save copy of old energy
-      double oldEnergy = totalMacroEnergy;
-
-      // Compute new energy
-      computeTotalProperties(pert);
-
-      // Compute the difference between current and old energy
-      this->scfConv.deltaEnergy = totalMacroEnergy - oldEnergy;
-
-      bool energyConv = std::abs(this->scfConv.deltaEnergy) < 
-                        this->scfControls.eneConvTol;
-
-      isConverged = energyConv;
-    }
-
-#ifdef CQ_ENABLE_MPI
-    // Broadcast whether or not we're converged to ensure that all
-    // MPI processes exit the NEO-SCF simultaneously
-    if( MPISize(this->comm) > 1 ) MPIBCast(isConverged,0,this->comm);
-#endif
+  template<typename MatsT, typename IntsT>
+  std::vector<NRRotOptions> NEOSingleSlater<MatsT,IntsT>:: buildRotOpt(){
     
-    return isConverged;
+    std::vector<NRRotOptions> rotOpt;
 
-  }; 
-
-  /**
-   *  \brief Print the current macro convergence information of the NEO-SCF
-   *  procedure
-   */ 
-  template <typename MatsT, typename IntsT>
-  void NEOSingleSlater<MatsT,IntsT>::printSCFMacroProg(std::ostream &out,
-    bool printDiff) {
-
-    // SCF Iteration
-    out << "  SCFIt Macro: " <<std::setw(6) << std::left;
-
-    if( printDiff ) out << this->scfConv.nSCFMacroIter + 1;
-    else            out << 0;
-
-    // Current Total Energy
-    out << std::setw(18) << std::fixed << std::setprecision(10)
-                         << std::left << totalMacroEnergy;
-
-    if( printDiff ) {
-      out << std::scientific << std::setprecision(7);
-      // Current Change in Energy
-      out << std::setw(14) << std::right << this->scfConv.deltaEnergy;
-      out << "   ";
-      //out << std::setw(13) << std::right << scfConv.RMSDenScalar;
-      //if(not iCS or nC > 1) {
-      //  out << "   ";
-      //  out << std::setw(13) << std::right << scfConv.RMSDenMag;
-      //}
+    // Generate rotation information for this object
+    size_t NB = this->nC*this->basisSet().nBasis;
+    int cnt = 0;
+    if( this->nC == 1 and this->iCS ){
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 0;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(this->nOA, NB);
+      ++cnt;
+    } else if( this->nC == 1 ) {
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 0;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(this->nOA, NB);
+      ++cnt;
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 1;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(this->nOB, NB);
+      ++cnt;
+    } else if( this->nC == 2 ){
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 0;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(this->nO, NB);
+      cnt++;
+    } else if( this->nC == 4 ){
+      size_t N = NB/2;
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 0;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(this->nO, N, N); // only rotate the positive energy orbitals
+      ++cnt;
     }
-  
-    out << std::endl;
-  }; // NEOSingleSlater<T>::printSCFMacroProg
 
+    // Generate Rotation information for the auxilliary object
+    NB = aux_neoss->nC*aux_neoss->basisSet().nBasis;
+    if( this->nC == 1 and this->iCS ){
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 0;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(aux_neoss->nOA, NB);
+      ++cnt;
+    } else if( this->nC == 1 ) {
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 0;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(aux_neoss->nOA, NB);
+      ++cnt;
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 1;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(aux_neoss->nOB, NB);
+      ++cnt;
+    } else if( this->nC == 2 ){
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 0;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(aux_neoss->nO, NB);
+      cnt++;
+    } else if( this->nC == 4 ){
+      size_t N = NB/2;
+      rotOpt.emplace_back();
+      rotOpt[cnt].spaceIndex = 0;
+      rotOpt[cnt].rotIndices = ssNRRotIndices(aux_neoss->nO, N, N); // only rotate the positive energy orbitals
+      ++cnt;
+    }
+    return rotOpt;
+  }
+
+  template<typename MatsT, typename IntsT>
+  void NEOSingleSlater<MatsT,IntsT>::formDensity(bool computeAuxDen){
+
+    SingleSlater<MatsT,IntsT>::formDensity();
+    if( computeAuxDen )
+      this->aux_neoss->formDensity(false);
+
+  }
+
+  template<typename MatsT, typename IntsT>
+  void NEOSingleSlater<MatsT,IntsT>::printProperties(){
+
+    this->SingleSlater<MatsT,IntsT>::printProperties();
+    //aux_neoss->SingleSlater<MatsT,IntsT>>::printProperties();
+
+  }
 
 }; // namespace ChronusQ

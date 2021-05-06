@@ -797,7 +797,7 @@ namespace ChronusQ {
       else if( refOptions.refType == isX2CRef )
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<HartreeFock<dcomplex,double>>(
-              "Exact Two Component","X2C-",HF_LIST(double)
+              "Exact Two Component Hartree-Fock","X2C-HF",HF_LIST(double)
             )
           );
       else if( refOptions.refType == isRORef )
@@ -809,7 +809,7 @@ namespace ChronusQ {
       else if( refOptions.refType == isFourCRef )
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<HartreeFock<dcomplex,double>>(
-              "Four Component","4C-",HF_LIST(double)
+              "Four Component","4C-HF",HF_LIST(double)
             )
           );
       else // isGRef or isTwoCRef
@@ -830,7 +830,7 @@ namespace ChronusQ {
       else if( refOptions.refType == isX2CRef )
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<HartreeFock<dcomplex,dcomplex>>(
-              "Exact Two Component","X2C-",HF_LIST(dcomplex)
+              "Exact Two Component","X2C-HF",HF_LIST(dcomplex)
             )
           );
       else if( refOptions.refType == isRORef )
@@ -842,7 +842,7 @@ namespace ChronusQ {
       else if( refOptions.refType == isFourCRef )
         ss = std::dynamic_pointer_cast<SingleSlaterBase>(
             std::make_shared<HartreeFock<dcomplex,dcomplex>>(
-              "Four Component","4C-",HF_LIST(dcomplex)
+              "Four Component","4C-HF",HF_LIST(dcomplex)
             )
           );
       else // isGRef or isTwoCRef

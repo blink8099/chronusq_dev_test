@@ -16,7 +16,6 @@ job = RESP
 
 [SCF]
 guess=fchkmo
-diis=false
 damperror=0.0
 
 [RESPONSE]

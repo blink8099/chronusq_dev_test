@@ -114,5 +114,8 @@ namespace ChronusQ {
 #include <singleslater/neo_singleslater/scf.hpp>          // SCF heeader
 #include <singleslater/neo_singleslater/fock.hpp>         // Fock matrix header
 
+#include <singleslater/neo_singleslater/neo_hartreefock/scf.hpp> 
+
 #include <singleslater/neo_singleslater/neo_kohnsham.hpp> // NEO-KS headers
 #include <singleslater/neo_singleslater/neo_kohnsham/impl.hpp> // NEO-KS headers
+#include <singleslater/neo_singleslater/neo_kohnsham/scf.hpp>

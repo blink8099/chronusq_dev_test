@@ -44,7 +44,7 @@ namespace ChronusQ {
     ROOT_ONLY(ss.comm);
 
     //construct focka and fockb
-    ss.mo = ss.fockMatrix->template spinGatherToBlocks<MatsT>(false);
+    std::vector<SquareMatrix<MatsT>> SCR = ss.fockMatrix->template spinGatherToBlocks<MatsT>(false);
 
     //construct projectors for closed, open, virtual
     //pc = dmb * S
@@ -90,9 +90,9 @@ namespace ChronusQ {
     blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
          pv,NB,MatsT(0.),tmp2,NB);
     blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(0.5),pv,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
-    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),ss.mo[1].pointer(),NB,pc,NB,MatsT(0.),tmp2,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),SCR[1].pointer(),NB,pc,NB,MatsT(0.),tmp2,NB);
     blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
-    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),ss.mo[0].pointer(),NB,pv,NB,MatsT(0.),tmp2,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),SCR[0].pointer(),NB,pv,NB,MatsT(0.),tmp2,NB);
     blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
     MatAdd('C','N',NB,NB,MatsT(1.),tmp.pointer(),NB,MatsT(1.),
            tmp.pointer(),NB,ss.fockMatrix->S().pointer(),NB);
