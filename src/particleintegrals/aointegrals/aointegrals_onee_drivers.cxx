@@ -457,8 +457,10 @@ namespace ChronusQ {
       OnePDriverLibint(libint2::Operator::overlap,mol,basis.shells,tmp,options.particle);
       break;
     case KINETIC:
-//      OnePDriverLibint(libint2::Operator::kinetic,mol,basis.shells,tmp,options.particle);
-      OnePDriverLibcint(op, mol, basis, options.particle);
+      if (basis.forceCart)
+        OnePDriverLibint(libint2::Operator::kinetic,mol,basis.shells,tmp,options.particle);
+      else
+        OnePDriverLibcint(op, mol, basis, options.particle);
       //output(std::cout,"",true);
       break;
     case NUCLEAR_POTENTIAL:
