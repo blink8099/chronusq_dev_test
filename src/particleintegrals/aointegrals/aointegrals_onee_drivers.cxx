@@ -36,6 +36,7 @@
 #include <Eigen/Core>
 
 #include <particleintegrals/onepints/aoonepints.hpp>
+#include <libcint.hpp>
 
 // Debug directives
 //#define _DEBUGORTHO
@@ -208,6 +209,121 @@ namespace ChronusQ {
   }; // OnePInts::OnePDriver
 
 
+  /**
+   *  \brief A general wrapper for 1-e (2 index) integral evaluation by libcint
+   *
+   *
+   *  \param [in] op     Operator for which to calculate the 1-e integrals
+   *
+   */
+  template <>
+  void OnePInts<dcomplex>::OnePDriverLibcint(OPERATOR, const Molecule&,
+      const BasisSet&, const Particle&, bool finiteWidthNuc) {
+    CErr("Only real GTOs are allowed",std::cout);
+  };
+
+  template <>
+  void OnePInts<double>::OnePDriverLibcint(OPERATOR op,
+      const Molecule &molecule_, const BasisSet &originalBasisSet,
+      const Particle &p, bool finiteWidthNuc) {
+
+    if (originalBasisSet.forceCart)
+      CErr("Libcint + cartesian GTO NYI.");
+
+    BasisSet basisSet_ = originalBasisSet.groupGeneralContractionBasis();
+
+    size_t buffSize = std::max_element(basisSet_.shells.begin(),
+                                       basisSet_.shells.end(),
+                                       [](libint2::Shell &a, libint2::Shell &b) {
+                                         return a.size() < b.size();
+                                       })->size();
+    buffSize *= buffSize;
+
+    int nAtoms = molecule_.nAtoms;
+    int nShells = basisSet_.nShell;
+
+    // ATM_SLOTS = 6; BAS_SLOTS = 8;
+    int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
+    int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
+    double *env = memManager_.template malloc<double>(basisSet_.getLibcintEnvLength(molecule_));
+
+
+    basisSet_.setLibcintEnv(molecule_, atm, bas, env);
+
+    // Determine the number of OpenMP threads
+    int nthreads = GetNumThreads();
+
+    double *buffAll = memManager_.template malloc<double>(buffSize*nthreads);
+
+    clear();
+    Eigen::Map<
+      Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
+    > matMap(mat_.pointer(), NB, NB);
+
+
+    #pragma omp parallel
+    {
+      int thread_id = GetThreadID();
+      size_t n1,n2;
+      int shls[2];
+      double *buff = buffAll + buffSize * thread_id;
+
+      // Loop over unique shell pairs
+      for(size_t s1(0), bf1_s(0), s12(0); s1 < basisSet_.nShell; bf1_s+=n1, s1++){
+        n1 = basisSet_.shells[s1].size(); // Size of Shell 1
+      for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++, s12++) {
+        n2 = basisSet_.shells[s2].size(); // Size of Shell 2
+
+        // Round Robbin work distribution
+        #ifdef _OPENMP
+        if( s12 % nthreads != thread_id ) continue;
+        #endif
+
+        shls[0] = int(s2);
+        shls[1] = int(s1);
+
+        // Compute the integrals
+        if(cint1e_kin_sph(buff, shls, atm, nAtoms, bas, nShells, env)==0) continue;
+
+        // Place integral blocks into their respective matricies
+        Eigen::Map<
+          const Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,
+            Eigen::RowMajor>
+        > bufMat(buff, n1, n2);
+
+        matMap.block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
+
+      } // Loop over s2 <= s1
+      } // Loop over s1
+
+    } // end OpenMP context
+
+
+    // Symmetrize the matricies
+    matMap = matMap.template selfadjointView<Eigen::Lower>();
+
+
+    // If engine is K, prescale it by 1/m
+    if (op == KINETIC)
+      mat_ *= 1.0 / p.mass;
+
+//    // If engine is V, define nuclear charges (pseudo molecule is used for NEO)
+//    if(op == NUCLEAR_POTENTIAL){
+//      std::vector<std::pair<double,std::array<double,3>>> q;
+//      for (auto ind : mol.atomsC) // loop over classical atoms
+//        q.push_back( { -1.0 * p.charge * mol.atoms[ind].nucCharge, mol.atoms[ind].coord } );
+
+//      engines[0].set_params(q);
+
+//    }
+
+    // for multipoles, prescale it by charge
+//    if (op == libint2::Operator::emultipole1 or op == libint2::Operator::emultipole2 or op == libint2::Operator::emultipole3)
+//      engines[0].prescale_by(-1.0 * p.charge);
+
+  }; // OnePInts::OnePDriver
+
+
   template <>
   template <size_t NOPER, bool SYMM, typename F>
   void OnePInts<double>::OnePDriverLocal(
@@ -341,7 +457,8 @@ namespace ChronusQ {
       OnePDriverLibint(libint2::Operator::overlap,mol,basis.shells,tmp,options.particle);
       break;
     case KINETIC:
-      OnePDriverLibint(libint2::Operator::kinetic,mol,basis.shells,tmp,options.particle);
+//      OnePDriverLibint(libint2::Operator::kinetic,mol,basis.shells,tmp,options.particle);
+      OnePDriverLibcint(op, mol, basis, options.particle);
       //output(std::cout,"",true);
       break;
     case NUCLEAR_POTENTIAL:

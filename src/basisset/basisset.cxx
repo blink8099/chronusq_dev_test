@@ -284,7 +284,7 @@ namespace ChronusQ {
   }; // BasisSet::uncontractShells
 
 
-  BasisSet BasisSet::uncontractBasis() {
+  BasisSet BasisSet::uncontractBasis() const {
 
 
     // Copy basis
@@ -297,7 +297,7 @@ namespace ChronusQ {
 
     std::sort(newBasis.shells.begin(), newBasis.shells.end(),
       [this](const libint2::Shell &a, const libint2::Shell &b)->bool {
-        return primitives[a] < primitives[b];
+        return primitives.at(a) < primitives.at(b);
     });
 
     newBasis.update();
@@ -307,7 +307,7 @@ namespace ChronusQ {
   };
 
 
-  BasisSet BasisSet::groupGeneralContractionBasis() {
+  BasisSet BasisSet::groupGeneralContractionBasis() const {
 
 
     // Copy basis
@@ -346,7 +346,7 @@ namespace ChronusQ {
 
 
 
-  size_t BasisSet::getLibcintEnvLength(const Molecule &mol) {
+  size_t BasisSet::getLibcintEnvLength(const Molecule &mol) const {
     return PTR_ENV_START +
         mol.nAtoms +
         std::accumulate(shells.begin(),
@@ -357,7 +357,7 @@ namespace ChronusQ {
                         });
   }
 
-  void BasisSet::setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env) {
+  void BasisSet::setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env) const {
 
     double sNorm;
 
@@ -407,7 +407,7 @@ namespace ChronusQ {
 
 
 
-  void BasisSet::makeMapPrim2Cont(const double *SUn, double *MAP, CQMemManager &mem) {
+  void BasisSet::makeMapPrim2Cont(const double *SUn, double *MAP, CQMemManager &mem) const {
 
     memset(MAP,0,nPrimitive * nBasis * sizeof(double));
 
@@ -428,7 +428,7 @@ namespace ChronusQ {
             { {shells[iSh].contr[iC].l, shells[iSh].contr[iC].pure, { 1.0 } } },
             { { shells[iSh].O[0], shells[iSh].O[1], shells[iSh].O[2] } }
           };
-          size_t primIdx = primitives[prim];
+          size_t primIdx = primitives.at(prim);
           for(size_t iB = 0; iB < nBf; iB++) {
             MAP[cumeNBf+iB + (primIdx+iB)*nBasis] = unNormCont[iSh][iP];
           }
