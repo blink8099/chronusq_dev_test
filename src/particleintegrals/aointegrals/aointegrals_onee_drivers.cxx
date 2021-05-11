@@ -222,20 +222,6 @@ namespace ChronusQ {
 
     size_t NBSQ = NB*NB;
 
-    // Determine the maximum angular momentum of the passed shell set
-    int maxL = std::max_element(shells.begin(), shells.end(),
-      [](libint2::Shell &sh1, libint2::Shell &sh2){
-        return sh1.contr[0].l < sh2.contr[0].l;
-      }
-    )->contr[0].l;
-
-    // Determine the maximum contraction depth of the passed shell set
-    int maxPrim = std::max_element(shells.begin(), shells.end(),
-      [](libint2::Shell &sh1, libint2::Shell &sh2){
-        return sh1.alpha.size() < sh2.alpha.size();
-      }
-    )->alpha.size();
-
     std::vector<
       Eigen::Map<
         Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor> 
