@@ -218,14 +218,13 @@ namespace ChronusQ {
    */
   template <>
   void OnePInts<dcomplex>::OnePDriverLibcint(OPERATOR, const Molecule&,
-      const BasisSet&, const Particle&, bool finiteWidthNuc) {
+      const BasisSet&, const HamiltonianOptions&) {
     CErr("Only real GTOs are allowed",std::cout);
   };
-
   template <>
   void OnePInts<double>::OnePDriverLibcint(OPERATOR op,
       const Molecule &molecule_, const BasisSet &originalBasisSet,
-      const Particle &p, bool finiteWidthNuc) {
+      const HamiltonianOptions &options) {
 
     if (originalBasisSet.forceCart)
       CErr("Libcint + cartesian GTO NYI.");
@@ -248,7 +247,7 @@ namespace ChronusQ {
     double *env = memManager_.template malloc<double>(basisSet_.getLibcintEnvLength(molecule_));
 
 
-    basisSet_.setLibcintEnv(molecule_, atm, bas, env, finiteWidthNuc);
+    basisSet_.setLibcintEnv(molecule_, atm, bas, env, options.finiteWidthNuc);
 
     // Determine the number of OpenMP threads
     int nthreads = GetNumThreads();
@@ -317,17 +316,114 @@ namespace ChronusQ {
     matMap = matMap.template selfadjointView<Eigen::Lower>();
 
 
-    // If engine is K, prescale it by 1/m
+    // If engine is K, scale it by 1/m
     if (op == KINETIC)
-      mat_ *= 1.0 / p.mass;
+      mat_ *= 1.0 / options.particle.mass;
 
-    // If engine is V, define nuclear charges (pseudo molecule is used for NEO)
+    // If engine is V, scale it by charge
     if(op == NUCLEAR_POTENTIAL)
-      mat_ *= -1.0 * p.charge;
+      mat_ *= -1.0 * options.particle.charge;
 
     // for multipoles, prescale it by charge
 //    if (op == libint2::Operator::emultipole1 or op == libint2::Operator::emultipole2 or op == libint2::Operator::emultipole3)
-//      engines[0].prescale_by(-1.0 * p.charge);
+//      engines[0].prescale_by(-1.0 * options.particle.charge);
+
+  }; // OnePInts::OnePDriver
+
+
+  /**
+   *  \brief A general wrapper for relativistic nuclear potential
+   *         integral evaluation by libcint
+   *
+   *
+   *  \param [in] op     Operator for which to calculate the 1-e integrals
+   *
+   */
+  template <>
+  void OnePRelInts<dcomplex>::OnePRelDriverLibcint(const Molecule&,
+      const BasisSet&, const HamiltonianOptions&) {
+    CErr("Only real GTOs are allowed",std::cout);
+  };
+  template <>
+  void OnePRelInts<double>::OnePRelDriverLibcint(const Molecule &molecule_,
+      const BasisSet &originalBasisSet, const HamiltonianOptions &options) {
+
+    if (originalBasisSet.forceCart)
+      CErr("Libcint + cartesian GTO NYI.");
+
+    BasisSet basisSet_ = originalBasisSet.groupGeneralContractionBasis();
+
+    size_t buffSize = std::max_element(basisSet_.shells.begin(),
+                                       basisSet_.shells.end(),
+                                       [](libint2::Shell &a, libint2::Shell &b) {
+                                         return a.size() < b.size();
+                                       })->size();
+    buffSize *= buffSize;
+
+    int nAtoms = molecule_.nAtoms;
+    int nShells = basisSet_.nShell;
+
+    // ATM_SLOTS = 6; BAS_SLOTS = 8;
+    int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
+    int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
+    double *env = memManager_.template malloc<double>(basisSet_.getLibcintEnvLength(molecule_));
+
+
+    basisSet_.setLibcintEnv(molecule_, atm, bas, env, options.finiteWidthNuc);
+
+    // Determine the number of OpenMP threads
+    int nthreads = GetNumThreads();
+
+    double *buffAll = memManager_.template malloc<double>(buffSize*nthreads);
+
+    clear();
+    Eigen::Map<
+      Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
+    > matMap(mat_.pointer(), NB, NB);
+
+    #pragma omp parallel
+    {
+      int thread_id = GetThreadID();
+      size_t n1,n2;
+      int shls[2];
+      double *buff = buffAll + buffSize * thread_id;
+
+      // Loop over unique shell pairs
+      for(size_t s1(0), bf1_s(0), s12(0); s1 < basisSet_.nShell; bf1_s+=n1, s1++){
+        n1 = basisSet_.shells[s1].size(); // Size of Shell 1
+      for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++, s12++) {
+        n2 = basisSet_.shells[s2].size(); // Size of Shell 2
+
+        // Round Robbin work distribution
+        #ifdef _OPENMP
+        if( s12 % nthreads != thread_id ) continue;
+        #endif
+
+        shls[0] = int(s2);
+        shls[1] = int(s1);
+
+        // Compute the integrals
+        if(cint1e_nuc_sph(buff, shls, atm, nAtoms, bas, nShells, env)==0) continue;
+
+        // Place integral blocks into their respective matricies
+        Eigen::Map<
+          const Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,
+            Eigen::RowMajor>
+        > bufMat(buff, n1, n2);
+
+        matMap.block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
+
+      } // Loop over s2 <= s1
+      } // Loop over s1
+
+    } // end OpenMP context
+
+
+    // Symmetrize the matricies
+    matMap = matMap.template selfadjointView<Eigen::Lower>();
+
+    // scale it by charge
+    mat_ *= -1.0 * options.particle.charge;
 
   }; // OnePInts::OnePDriver
 
@@ -500,7 +596,7 @@ namespace ChronusQ {
     case OVERLAP:
     case KINETIC:
     case NUCLEAR_POTENTIAL:
-      OnePDriverLibcint(op, mol, basis, options.particle, options.finiteWidthNuc);
+      OnePDriverLibcint(op, mol, basis, options);
       break;
     case ELECTRON_REPULSION:
       CErr("Electron repulsion integrals are not implemented in OnePInts,"
@@ -678,7 +774,7 @@ namespace ChronusQ {
     else
       OnePDriverLibint(libint2::Operator::nuclear,mol,basis.shells,_potential,options.particle);
     } else {
-      OnePDriverLibcint(op, mol, basis, options.particle, options.finiteWidthNuc);
+      OnePRelDriverLibcint(mol, basis, options);
     }
 
     // Point nuclei is used when chargeDist is empty

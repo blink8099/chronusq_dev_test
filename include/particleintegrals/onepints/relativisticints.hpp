@@ -122,6 +122,9 @@ namespace ChronusQ {
     virtual void computeAOInts(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const HamiltonianOptions&);
 
+    void OnePRelDriverLibcint(const Molecule&,
+        const BasisSet&, const HamiltonianOptions &options);
+
     virtual void clear() {
       OnePInts<IntsT>::clear();
       for (OnePInts<IntsT>& c : components_)
