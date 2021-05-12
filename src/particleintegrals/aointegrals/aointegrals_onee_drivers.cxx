@@ -328,7 +328,7 @@ namespace ChronusQ {
 //    if (op == libint2::Operator::emultipole1 or op == libint2::Operator::emultipole2 or op == libint2::Operator::emultipole3)
 //      engines[0].prescale_by(-1.0 * options.particle.charge);
 
-  }; // OnePInts::OnePDriver
+  }; // OnePInts::OnePDriverLibcint
 
 
   /**
@@ -377,9 +377,29 @@ namespace ChronusQ {
     double *buffAll = memManager_.template malloc<double>(buffSize*nthreads);
 
     clear();
+
     Eigen::Map<
       Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
-    > matMap(mat_.pointer(), NB, NB);
+    > VMap(mat_.pointer(), NB, NB), pVpMap(scalar().pointer(), NB, NB);
+
+    std::vector<
+      Eigen::Map<
+        Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
+      >
+    > pxVpMaps;
+    if (options.OneESpinOrbit) {
+
+      if (not hasSpinOrbit())
+        CErr("OnePRelDriverLibcint: Requested spin-orbit integrals, "
+             "but the OnePRelInts object does not contain spin-orbit components");
+
+      buffSize *= 3;
+      pxVpMaps.reserve(3);
+      pxVpMaps.emplace_back(SOZ().pointer(), NB, NB);
+      pxVpMaps.emplace_back(SOY().pointer(), NB, NB);
+      pxVpMaps.emplace_back(SOX().pointer(), NB, NB);
+    }
+
 
     #pragma omp parallel
     {
@@ -402,16 +422,21 @@ namespace ChronusQ {
         shls[0] = int(s2);
         shls[1] = int(s1);
 
-        // Compute the integrals
-        if(cint1e_nuc_sph(buff, shls, atm, nAtoms, bas, nShells, env)==0) continue;
-
         // Place integral blocks into their respective matricies
         Eigen::Map<
           const Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,
             Eigen::RowMajor>
         > bufMat(buff, n1, n2);
 
-        matMap.block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
+        // Compute the bare potential integrals
+        if(cint1e_nuc_sph(buff, shls, atm, nAtoms, bas, nShells, env)) {
+          VMap.block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
+        }
+
+        // Compute the pVp integrals
+        if(cint1e_pnucp_sph(buff, shls, atm, nAtoms, bas, nShells, env)) {
+          pVpMap.block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
+        }
 
       } // Loop over s2 <= s1
       } // Loop over s1
@@ -420,12 +445,16 @@ namespace ChronusQ {
 
 
     // Symmetrize the matricies
-    matMap = matMap.template selfadjointView<Eigen::Lower>();
+    VMap = VMap.template selfadjointView<Eigen::Lower>();
+    pVpMap = pVpMap.template selfadjointView<Eigen::Lower>();
+    if (options.OneESpinOrbit)
+      for(auto nMat = 0; nMat < pxVpMaps.size(); nMat++)
+        pxVpMaps[nMat] = pxVpMaps[nMat].template selfadjointView<Eigen::Lower>();
 
     // scale it by charge
     mat_ *= -1.0 * options.particle.charge;
 
-  }; // OnePInts::OnePDriver
+  }; // OnePRelInts::OnePRelDriverLibcint
 
 
   template <>
@@ -773,9 +802,6 @@ namespace ChronusQ {
             }, basis.shells,_potential);
     else
       OnePDriverLibint(libint2::Operator::nuclear,mol,basis.shells,_potential,options.particle);
-    } else {
-      OnePRelDriverLibcint(mol, basis, options);
-    }
 
     // Point nuclei is used when chargeDist is empty
     const std::vector<libint2::Shell> &chargeDist = options.finiteWidthNuc ?
@@ -788,8 +814,18 @@ namespace ChronusQ {
             return RealGTOIntEngine::computepVdotp(chargeDist,
                 pair,sh1,sh2,mol);
             }, basis.shells, _PVdP);
+    } else {
+      OnePRelDriverLibcint(mol, basis, options);
+    }
 
-    if (options.OneESpinOrbit and components_.size() >=4) {
+    if (options.OneESpinOrbit) {
+      if (not hasSpinOrbit())
+        CErr("computeAOInts: Requested spin-orbit integrals, "
+             "but the OnePRelInts object does not contain spin-orbit components");
+
+      // Point nuclei is used when chargeDist is empty
+      const std::vector<libint2::Shell> &chargeDist = options.finiteWidthNuc ?
+          mol.chargeDist : std::vector<libint2::Shell>();
 
       OnePInts<double>::OnePDriverLocal<3,false>(
             [&](libint2::ShellPair& pair, libint2::Shell& sh1,
