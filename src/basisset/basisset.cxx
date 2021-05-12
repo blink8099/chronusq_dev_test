@@ -403,7 +403,15 @@ namespace ChronusQ {
 
       int nContr = shells[iShell].contr.size();
 
-      bas(ATOM_OF , iShell)  = mapSh2Cen[iShell];
+      bas(ATOM_OF , iShell)  = std::distance(mol.atoms.begin(),
+          std::find_if( mol.atoms.begin(),
+                        mol.atoms.end(),
+                        [this, iShell](const Atom &a){
+                          return a.coord == shells[iShell].O;
+                        }));
+      if (bas(ATOM_OF , iShell) >= nAtoms) {
+        CErr("setLibcintEnv: Cannot find corresponding atom for shell");
+      }
       bas(ANG_OF  , iShell)  = shells[iShell].contr[0].l;
       bas(NPRIM_OF, iShell)  = shells[iShell].alpha.size();
       bas(NCTR_OF , iShell)  = nContr;
