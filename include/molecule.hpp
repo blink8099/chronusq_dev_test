@@ -146,6 +146,14 @@ namespace ChronusQ {
     }
 
 
+    bool containFractionalNucCharge() const {
+      return std::find_if(atoms.begin(), atoms.end(),
+                          [](const Atom &a) {
+                            return a.fractionalNucCharge();
+                          }) != atoms.end();
+    }
+
+
     private:
 
       // Functions to compute member data for Molecule object

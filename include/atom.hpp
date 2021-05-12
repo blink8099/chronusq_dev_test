@@ -128,6 +128,15 @@ namespace ChronusQ {
      */ 
     Atom& operator=(Atom &&)      = default;
 
+    bool fractionalNucCharge() const {
+      return std::fabs(nucCharge - std::round(nucCharge))
+          > std::numeric_limits<double>::epsilon();
+    }
+
+    int integerNucCharge() const {
+      return std::lround(nucCharge);
+    }
+
   }; // Atom struct
 
 

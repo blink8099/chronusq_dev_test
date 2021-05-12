@@ -348,7 +348,7 @@ namespace ChronusQ {
 
   size_t BasisSet::getLibcintEnvLength(const Molecule &mol) const {
     return PTR_ENV_START +
-        mol.nAtoms +
+        mol.nAtoms * 4 +
         std::accumulate(shells.begin(),
                         shells.end(),
                         0,
@@ -357,7 +357,8 @@ namespace ChronusQ {
                         });
   }
 
-  void BasisSet::setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env) const {
+  void BasisSet::setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env,
+                               bool finiteWidthNuc) const {
 
     double sNorm;
 
@@ -367,12 +368,29 @@ namespace ChronusQ {
 
     for(int iAtom = 0; iAtom < nAtoms; iAtom++) {
 
-      atm[CHARGE_OF + ATM_SLOTS * iAtom] = mol.atoms[iAtom].atomicNumber;
-      atm[PTR_COORD + ATM_SLOTS * iAtom] = off;
-      env[off + 0] = mol.atoms[iAtom].coord[0]; // x (Bohr)
-      env[off + 1] = mol.atoms[iAtom].coord[1]; // y (Bohr)
-      env[off + 2] = mol.atoms[iAtom].coord[2]; // z (Bohr)
-      off += 3;
+      atm(CHARGE_OF, iAtom) = mol.atoms[iAtom].integerNucCharge();
+
+      atm(PTR_COORD, iAtom) = off;
+      env[off++] = mol.atoms[iAtom].coord[0]; // x (Bohr)
+      env[off++] = mol.atoms[iAtom].coord[1]; // y (Bohr)
+      env[off++] = mol.atoms[iAtom].coord[2]; // z (Bohr)
+
+      if (finiteWidthNuc) {
+        if (mol.atoms[iAtom].fractionalNucCharge()) {
+          CErr("Libcint cannot handle finite nucleus + fractional nuclear charge.");
+        }
+        atm(NUC_MOD_OF, iAtom) = GAUSSIAN_NUC;
+        atm(PTR_ZETA  , iAtom) = off;
+        env[off++] = mol.chargeDist[iAtom].alpha[0];
+      } else {
+        if (mol.atoms[iAtom].fractionalNucCharge()) {
+          atm(NUC_MOD_OF     , iAtom) = FRAC_CHARGE_NUC;
+          atm(PTR_FRAC_CHARGE, iAtom) = off;
+          env[off++] = mol.atoms[iAtom].nucCharge;
+        } else {
+          atm(NUC_MOD_OF, iAtom) = POINT_NUC;
+        }
+      }
 
     }
 
@@ -380,26 +398,24 @@ namespace ChronusQ {
 
       int nContr = shells[iShell].contr.size();
 
-      bas[ATOM_OF  + BAS_SLOTS * iShell]  = mapSh2Cen[iShell];
-      bas[ANG_OF   + BAS_SLOTS * iShell]  = shells[iShell].contr[0].l;
-      bas[NPRIM_OF + BAS_SLOTS * iShell]  = shells[iShell].alpha.size();
-      bas[NCTR_OF  + BAS_SLOTS * iShell]  = nContr;
-      bas[PTR_EXP  + BAS_SLOTS * iShell]  = off;
+      bas(ATOM_OF , iShell)  = mapSh2Cen[iShell];
+      bas(ANG_OF  , iShell)  = shells[iShell].contr[0].l;
+      bas(NPRIM_OF, iShell)  = shells[iShell].alpha.size();
+      bas(NCTR_OF , iShell)  = nContr;
+      bas(KAPPA_OF, iShell)  = 0;
+      bas(PTR_EXP , iShell)  = off;
 
       for(int iPrim=0; iPrim < shells[iShell].alpha.size(); iPrim++)
-        env[off + iPrim] = shells[iShell].alpha[iPrim];
+        env[off++] = shells[iShell].alpha[iPrim];
 
-      off += shells[iShell].alpha.size();
-
-      bas[PTR_COEFF+ BAS_SLOTS * iShell] = off;
+      bas(PTR_COEFF, iShell) = off;
 
       // Spherical GTO normalization constant missing in Libcint
       sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*shells[iShell].contr[0].l+1.0);
       for (size_t i = 0; i < nContr; i++) {
         for(int iCoeff=0; iCoeff<shells[iShell].alpha.size(); iCoeff++){
-          env[off + iCoeff] = shells[iShell].contr[i].coeff[iCoeff]*sNorm;
+          env[off++] = shells[iShell].contr[i].coeff[iCoeff]*sNorm;
         }
-        off += shells[iShell].alpha.size();
       }
 
     }

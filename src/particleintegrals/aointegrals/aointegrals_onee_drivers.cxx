@@ -260,6 +260,20 @@ namespace ChronusQ {
       Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
     > matMap(mat_.pointer(), NB, NB);
 
+    auto intFunc = &cint1e_kin_sph;
+    switch (op) {
+    case OVERLAP:
+      intFunc = &cint1e_ovlp_sph;
+      break;
+    case KINETIC:
+      intFunc = &cint1e_kin_sph;
+      break;
+    case NUCLEAR_POTENTIAL:
+      intFunc = &cint1e_nuc_sph;
+      break;
+    default:
+      CErr("Requested OPERATOR type not implemented in OnePDriverLibcint");
+    }
 
     #pragma omp parallel
     {
@@ -283,7 +297,7 @@ namespace ChronusQ {
         shls[1] = int(s1);
 
         // Compute the integrals
-        if(cint1e_kin_sph(buff, shls, atm, nAtoms, bas, nShells, env)==0) continue;
+        if(intFunc(buff, shls, atm, nAtoms, bas, nShells, env)==0) continue;
 
         // Place integral blocks into their respective matricies
         Eigen::Map<
@@ -307,15 +321,9 @@ namespace ChronusQ {
     if (op == KINETIC)
       mat_ *= 1.0 / p.mass;
 
-//    // If engine is V, define nuclear charges (pseudo molecule is used for NEO)
-//    if(op == NUCLEAR_POTENTIAL){
-//      std::vector<std::pair<double,std::array<double,3>>> q;
-//      for (auto ind : mol.atomsC) // loop over classical atoms
-//        q.push_back( { -1.0 * p.charge * mol.atoms[ind].nucCharge, mol.atoms[ind].coord } );
-
-//      engines[0].set_params(q);
-
-//    }
+    // If engine is V, define nuclear charges (pseudo molecule is used for NEO)
+    if(op == NUCLEAR_POTENTIAL)
+      mat_ *= -1.0 * p.charge;
 
     // for multipoles, prescale it by charge
 //    if (op == libint2::Operator::emultipole1 or op == libint2::Operator::emultipole2 or op == libint2::Operator::emultipole3)
@@ -452,15 +460,13 @@ namespace ChronusQ {
 
     std::vector<double*> tmp(1, pointer());
 
+    if (basis.forceCart)
     switch (op) {
     case OVERLAP:
       OnePDriverLibint(libint2::Operator::overlap,mol,basis.shells,tmp,options.particle);
       break;
     case KINETIC:
-      if (basis.forceCart)
-        OnePDriverLibint(libint2::Operator::kinetic,mol,basis.shells,tmp,options.particle);
-      else
-        OnePDriverLibcint(op, mol, basis, options.particle);
+      OnePDriverLibint(libint2::Operator::kinetic,mol,basis.shells,tmp,options.particle);
       //output(std::cout,"",true);
       break;
     case NUCLEAR_POTENTIAL:
@@ -474,6 +480,27 @@ namespace ChronusQ {
       }
       else
         OnePDriverLibint(libint2::Operator::nuclear,mol,basis.shells,tmp,options.particle);
+      break;
+    case ELECTRON_REPULSION:
+      CErr("Electron repulsion integrals are not implemented in OnePInts,"
+           " they are implemented in TwoEInts",std::cout);
+      break;
+    case LEN_ELECTRIC_MULTIPOLE:
+    case VEL_ELECTRIC_MULTIPOLE:
+    case MAGNETIC_MULTIPOLE:
+      CErr("Requested operator is not implemented in OnePInts,"
+           " it is implemented in MultipoleInts",std::cout);
+      break;
+    default:
+      CErr("Requested operator is not implemented in OneEInts.");
+      break;
+    }
+    else
+    switch (op) {
+    case OVERLAP:
+    case KINETIC:
+    case NUCLEAR_POTENTIAL:
+      OnePDriverLibcint(op, mol, basis, options.particle, options.finiteWidthNuc);
       break;
     case ELECTRON_REPULSION:
       CErr("Electron repulsion integrals are not implemented in OnePInts,"
@@ -639,6 +666,7 @@ namespace ChronusQ {
     if (not options.OneEScalarRelativity or op != NUCLEAR_POTENTIAL)
       CErr("Only relativistic nuclear potential is implemented in OnePRelInts.",std::cout);
 
+    if (basis.forceCart) {
     std::vector<double*> _potential(1, pointer());
     if (options.finiteWidthNuc)
       OnePDriverLocal<1,true>(
@@ -649,6 +677,9 @@ namespace ChronusQ {
             }, basis.shells,_potential);
     else
       OnePDriverLibint(libint2::Operator::nuclear,mol,basis.shells,_potential,options.particle);
+    } else {
+      OnePDriverLibcint(op, mol, basis, options.particle, options.finiteWidthNuc);
+    }
 
     // Point nuclei is used when chargeDist is empty
     const std::vector<libint2::Shell> &chargeDist = options.finiteWidthNuc ?
