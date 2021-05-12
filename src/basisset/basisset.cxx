@@ -394,6 +394,11 @@ namespace ChronusQ {
 
     }
 
+    for (size_t iAtom : mol.atomsQ) {
+      atm(CHARGE_OF , iAtom) = 0;
+      atm(NUC_MOD_OF, iAtom) = POINT_NUC;
+    }
+
     for(int iShell = 0; iShell < nShells; iShell++) {
 
       int nContr = shells[iShell].contr.size();
