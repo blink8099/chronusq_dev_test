@@ -248,7 +248,7 @@ namespace ChronusQ {
     double *env = memManager_.template malloc<double>(basisSet_.getLibcintEnvLength(molecule_));
 
 
-    basisSet_.setLibcintEnv(molecule_, atm, bas, env);
+    basisSet_.setLibcintEnv(molecule_, atm, bas, env, finiteWidthNuc);
 
     // Determine the number of OpenMP threads
     int nthreads = GetNumThreads();
@@ -460,7 +460,7 @@ namespace ChronusQ {
 
     std::vector<double*> tmp(1, pointer());
 
-    if (basis.forceCart)
+    if (basis.forceCart or (options.finiteWidthNuc and mol.containFractionalNucCharge()))
     switch (op) {
     case OVERLAP:
       OnePDriverLibint(libint2::Operator::overlap,mol,basis.shells,tmp,options.particle);
@@ -666,7 +666,7 @@ namespace ChronusQ {
     if (not options.OneEScalarRelativity or op != NUCLEAR_POTENTIAL)
       CErr("Only relativistic nuclear potential is implemented in OnePRelInts.",std::cout);
 
-    if (basis.forceCart) {
+    if (basis.forceCart or (options.finiteWidthNuc and mol.containFractionalNucCharge())) {
     std::vector<double*> _potential(1, pointer());
     if (options.finiteWidthNuc)
       OnePDriverLocal<1,true>(
