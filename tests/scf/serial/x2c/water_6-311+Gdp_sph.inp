@@ -22,6 +22,9 @@ x2ctype = OneE
 [BASIS]
 basis = 6-311+G(d,p) 
 
+[INTS]
+libcint = true
+
 [MISC]
 nsmp = 1
 mem = 200 MB

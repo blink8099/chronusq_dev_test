@@ -76,6 +76,20 @@ TEST( RHF, PAR_Water_631Gd ) {
  
 };
 
+// H2S cc-pVDZ incore ERI test
+TEST( RHF, PAR_H2S_ccpvdz ) {
+
+  CQSCFTEST( "scf/parallel/rhf/H2S_cc-pvdz", "H2S_cc-pvdz.bin.ref" );
+
+};
+
+// H2S cc-pVDZ incore Libcint ERI test
+TEST( RHF, PAR_H2S_ccpvdz_libcint ) {
+
+  CQSCFTEST( "scf/parallel/rhf/H2S_cc-pvdz_libcint", "H2S_cc-pvdz.bin.ref" );
+
+};
+
 #endif
 
 
