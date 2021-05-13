@@ -630,9 +630,33 @@ namespace ChronusQ {
       CErr("Relativistic nuclear potential is not implemented in OnePInts,"
            " they are implemented in OnePRelInts",std::cout);
 
+
+    if (options.Libcint) {
+      switch (op) {
+      case OVERLAP:
+      case KINETIC:
+      case NUCLEAR_POTENTIAL:
+        OnePDriverLibcint(op, mol, basis, options);
+        break;
+      case ELECTRON_REPULSION:
+        CErr("Electron repulsion integrals are not implemented in OnePInts,"
+             " they are implemented in TwoEInts",std::cout);
+        break;
+      case LEN_ELECTRIC_MULTIPOLE:
+      case VEL_ELECTRIC_MULTIPOLE:
+      case MAGNETIC_MULTIPOLE:
+        CErr("Requested operator is not implemented in OnePInts,"
+             " it is implemented in MultipoleInts",std::cout);
+        break;
+      default:
+        CErr("Requested operator is not implemented in OneEInts.");
+        break;
+      }
+      return;
+    }
+
     std::vector<double*> tmp(1, pointer());
 
-    if (basis.forceCart or (options.finiteWidthNuc and mol.containFractionalNucCharge()))
     switch (op) {
     case OVERLAP:
       OnePDriverLibint(libint2::Operator::overlap,mol,basis.shells,tmp,options.particle);
@@ -652,27 +676,6 @@ namespace ChronusQ {
       }
       else
         OnePDriverLibint(libint2::Operator::nuclear,mol,basis.shells,tmp,options.particle);
-      break;
-    case ELECTRON_REPULSION:
-      CErr("Electron repulsion integrals are not implemented in OnePInts,"
-           " they are implemented in TwoEInts",std::cout);
-      break;
-    case LEN_ELECTRIC_MULTIPOLE:
-    case VEL_ELECTRIC_MULTIPOLE:
-    case MAGNETIC_MULTIPOLE:
-      CErr("Requested operator is not implemented in OnePInts,"
-           " it is implemented in MultipoleInts",std::cout);
-      break;
-    default:
-      CErr("Requested operator is not implemented in OneEInts.");
-      break;
-    }
-    else
-    switch (op) {
-    case OVERLAP:
-    case KINETIC:
-    case NUCLEAR_POTENTIAL:
-      OnePDriverLibcint(op, mol, basis, options);
       break;
     case ELECTRON_REPULSION:
       CErr("Electron repulsion integrals are not implemented in OnePInts,"
@@ -838,7 +841,12 @@ namespace ChronusQ {
     if (not options.OneEScalarRelativity or op != NUCLEAR_POTENTIAL)
       CErr("Only relativistic nuclear potential is implemented in OnePRelInts.",std::cout);
 
-    if (basis.forceCart or (options.finiteWidthNuc and mol.containFractionalNucCharge())) {
+
+    if (options.Libcint) {
+      OnePRelDriverLibcint(mol, basis, options);
+      return;
+    }
+
     std::vector<double*> _potential(1, pointer());
     if (options.finiteWidthNuc)
       OnePDriverLocal<1,true>(
@@ -873,10 +881,6 @@ namespace ChronusQ {
               return RealGTOIntEngine::computeSL(chargeDist,
                   pair,sh1,sh2,mol);
               }, basis.shells, SOXYZPointers());
-    }
-
-    } else {
-      OnePRelDriverLibcint(mol, basis, options);
     }
 
   };
