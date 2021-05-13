@@ -249,30 +249,40 @@ namespace ChronusQ {
 
     basisSet_.setLibcintEnv(molecule_, atm, bas, env, options.finiteWidthNuc);
 
+    auto intFunc = &int1e_kin_sph;
+    switch (op) {
+    case OVERLAP:
+      intFunc = &int1e_ovlp_sph;
+      break;
+    case KINETIC:
+      intFunc = &int1e_kin_sph;
+      break;
+    case NUCLEAR_POTENTIAL:
+      intFunc = &int1e_nuc_sph;
+      break;
+    default:
+      CErr("Requested OPERATOR type not implemented in OnePDriverLibcint");
+    }
+
+
+    size_t cache_size = 0;
+    for (int i = 0; i < nShells; i++) {
+      size_t n;
+      int shls[2]{i,i};
+      n = intFunc(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+      cache_size = std::max(cache_size, n);
+    }
+
     // Determine the number of OpenMP threads
     int nthreads = GetNumThreads();
 
     double *buffAll = memManager_.template malloc<double>(buffSize*nthreads);
+    double *cacheAll = memManager_.template malloc<double>(cache_size*nthreads);
 
     clear();
     Eigen::Map<
       Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
     > matMap(pointer(), NB, NB);
-
-    auto intFunc = &cint1e_kin_sph;
-    switch (op) {
-    case OVERLAP:
-      intFunc = &cint1e_ovlp_sph;
-      break;
-    case KINETIC:
-      intFunc = &cint1e_kin_sph;
-      break;
-    case NUCLEAR_POTENTIAL:
-      intFunc = &cint1e_nuc_sph;
-      break;
-    default:
-      CErr("Requested OPERATOR type not implemented in OnePDriverLibcint");
-    }
 
     #pragma omp parallel
     {
@@ -280,6 +290,7 @@ namespace ChronusQ {
       size_t n1,n2;
       int shls[2];
       double *buff = buffAll + buffSize * thread_id;
+      double *cache = cacheAll + cache_size * thread_id;
 
       // Loop over unique shell pairs
       for(size_t s1(0), bf1_s(0), s12(0); s1 < basisSet_.nShell; bf1_s+=n1, s1++){
@@ -296,7 +307,7 @@ namespace ChronusQ {
         shls[1] = int(s1);
 
         // Compute the integrals
-        if(intFunc(buff, shls, atm, nAtoms, bas, nShells, env)==0) continue;
+        if(intFunc(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
 
         // Place integral blocks into their respective matricies
         Eigen::Map<
@@ -310,6 +321,8 @@ namespace ChronusQ {
       } // Loop over s1
 
     } // end OpenMP context
+
+    memManager_.free(cacheAll, buffAll, env, bas, atm);
 
 
     // Symmetrize the matricies
@@ -394,10 +407,25 @@ namespace ChronusQ {
         pxVpMaps.emplace_back(ptr, NB, NB);
     }
 
+    size_t cache_size = 0;
+    for (int i = 0; i < nShells; i++) {
+      size_t n;
+      int shls[2]{i,i};
+      n = int1e_nuc_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+      cache_size = std::max(cache_size, n);
+      n = int1e_pnucp_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+      cache_size = std::max(cache_size, n);
+      if (options.OneESpinOrbit) {
+        n = int1e_pnucxp_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+      }
+    }
+
     // Determine the number of OpenMP threads
     int nthreads = GetNumThreads();
 
     double *buffAll = memManager_.template malloc<double>(buffSize*nthreads);
+    double *cacheAll = memManager_.template malloc<double>(cache_size*nthreads);
 
 
     #pragma omp parallel
@@ -406,6 +434,7 @@ namespace ChronusQ {
       size_t n1,n2;
       int shls[2];
       double *buff = buffAll + buffSize * thread_id;
+      double *cache = cacheAll + cache_size * thread_id;
 
       // Loop over unique shell pairs
       for(size_t s1(0), bf1_s(0), s12(0); s1 < basisSet_.nShell; bf1_s+=n1, s1++){
@@ -429,18 +458,18 @@ namespace ChronusQ {
         > bufMat(buff, n1, n2);
 
         // Compute the bare potential integrals
-        if(cint1e_nuc_sph(buff, shls, atm, nAtoms, bas, nShells, env)) {
+        if(int1e_nuc_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)) {
           VMap.block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
         }
 
         // Compute the pVp integrals
-        if(cint1e_pnucp_sph(buff, shls, atm, nAtoms, bas, nShells, env)) {
+        if(int1e_pnucp_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)) {
           pVpMap.block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
         }
 
         // Compute the pxVp integrals
         if(options.OneESpinOrbit and
-           cint1e_pnucxp_sph(buff, shls, atm, nAtoms, bas, nShells, env)) {
+           int1e_pnucxp_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)) {
           size_t n1n2 = n1*n2;
           // Place integral blocks into their respective matricies
           for(auto iMat = 0; iMat < 3; iMat++){
@@ -459,6 +488,8 @@ namespace ChronusQ {
       } // Loop over s1
 
     } // end OpenMP context
+
+    memManager_.free(cacheAll, buffAll, env, bas, atm);
 
 
     // Symmetrize the matricies
