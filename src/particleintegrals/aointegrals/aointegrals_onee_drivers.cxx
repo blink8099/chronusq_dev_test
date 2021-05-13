@@ -211,6 +211,7 @@ namespace ChronusQ {
 
   /**
    *  \brief A general wrapper for 1-e (2 index) integral evaluation by libcint
+   *         Currently support overlap, kinetic, and bare nuclear potential
    *
    *
    *  \param [in] op     Operator for which to calculate the 1-e integrals
@@ -337,19 +338,12 @@ namespace ChronusQ {
     if(op == NUCLEAR_POTENTIAL)
       matrix() *= -1.0 * options.particle.charge;
 
-    // for multipoles, prescale it by charge
-//    if (op == libint2::Operator::emultipole1 or op == libint2::Operator::emultipole2 or op == libint2::Operator::emultipole3)
-//      engines[0].prescale_by(-1.0 * options.particle.charge);
-
   }; // OnePInts::OnePDriverLibcint
 
 
   /**
-   *  \brief A general wrapper for relativistic nuclear potential
-   *         integral evaluation by libcint
-   *
-   *
-   *  \param [in] op     Operator for which to calculate the 1-e integrals
+   *  \brief Computes relativistic nuclear potential integrals,
+   *         including V, pVp, and pxVp by libcint
    *
    */
   template <>

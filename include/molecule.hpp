@@ -146,6 +146,9 @@ namespace ChronusQ {
     }
 
 
+    /**
+     *  Test if the molecule contains an atom that has a fractional nuclear charge.
+     */
     bool containFractionalNucCharge() const {
       return std::find_if(atoms.begin(), atoms.end(),
                           [](const Atom &a) {

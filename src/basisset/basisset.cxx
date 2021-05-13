@@ -284,6 +284,10 @@ namespace ChronusQ {
   }; // BasisSet::uncontractShells
 
 
+  /**
+   * @brief Return a new BasisSet object with only the primitives
+   *
+   */
   BasisSet BasisSet::uncontractBasis() const {
 
 
@@ -307,6 +311,12 @@ namespace ChronusQ {
   };
 
 
+  /**
+   * @brief Generates a new BasisSet object,
+   *        where basis functions sharing the same set of primitives
+   *        are grouped together in one libint2::Shell
+   *
+   */
   BasisSet BasisSet::groupGeneralContractionBasis() const {
 
 
@@ -345,7 +355,10 @@ namespace ChronusQ {
   };
 
 
-
+  /**
+   * @brief computes the necessary length of the env vector for libcint computation
+   *
+   */
   size_t BasisSet::getLibcintEnvLength(const Molecule &mol) const {
     return PTR_ENV_START +
         mol.nAtoms * 4 +
@@ -357,6 +370,10 @@ namespace ChronusQ {
                         });
   }
 
+
+  /**
+   * @brief sets up the atm, bas, and env vectors for libcint computation
+   */
   void BasisSet::setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env,
                                bool finiteWidthNuc) const {
 
