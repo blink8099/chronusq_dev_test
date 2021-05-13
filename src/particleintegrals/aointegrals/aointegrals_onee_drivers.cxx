@@ -257,7 +257,7 @@ namespace ChronusQ {
     clear();
     Eigen::Map<
       Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
-    > matMap(mat_.pointer(), NB, NB);
+    > matMap(pointer(), NB, NB);
 
     auto intFunc = &cint1e_kin_sph;
     switch (op) {
@@ -318,11 +318,11 @@ namespace ChronusQ {
 
     // If engine is K, scale it by 1/m
     if (op == KINETIC)
-      mat_ *= 1.0 / options.particle.mass;
+      matrix() *= 1.0 / options.particle.mass;
 
     // If engine is V, scale it by charge
     if(op == NUCLEAR_POTENTIAL)
-      mat_ *= -1.0 * options.particle.charge;
+      matrix() *= -1.0 * options.particle.charge;
 
     // for multipoles, prescale it by charge
 //    if (op == libint2::Operator::emultipole1 or op == libint2::Operator::emultipole2 or op == libint2::Operator::emultipole3)
@@ -371,16 +371,11 @@ namespace ChronusQ {
 
     basisSet_.setLibcintEnv(molecule_, atm, bas, env, options.finiteWidthNuc);
 
-    // Determine the number of OpenMP threads
-    int nthreads = GetNumThreads();
-
-    double *buffAll = memManager_.template malloc<double>(buffSize*nthreads);
-
     clear();
 
     Eigen::Map<
       Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>
-    > VMap(mat_.pointer(), NB, NB), pVpMap(scalar().pointer(), NB, NB);
+    > VMap(pointer(), NB, NB), pVpMap(scalar().pointer(), NB, NB);
 
     std::vector<
       Eigen::Map<
@@ -395,10 +390,14 @@ namespace ChronusQ {
 
       buffSize *= 3;
       pxVpMaps.reserve(3);
-      pxVpMaps.emplace_back(SOZ().pointer(), NB, NB);
-      pxVpMaps.emplace_back(SOY().pointer(), NB, NB);
-      pxVpMaps.emplace_back(SOX().pointer(), NB, NB);
+      for (double *ptr : SOXYZPointers())
+        pxVpMaps.emplace_back(ptr, NB, NB);
     }
+
+    // Determine the number of OpenMP threads
+    int nthreads = GetNumThreads();
+
+    double *buffAll = memManager_.template malloc<double>(buffSize*nthreads);
 
 
     #pragma omp parallel
@@ -419,6 +418,7 @@ namespace ChronusQ {
         if( s12 % nthreads != thread_id ) continue;
         #endif
 
+        // Assign shells, note row-major in libcint
         shls[0] = int(s2);
         shls[1] = int(s1);
 
@@ -438,6 +438,23 @@ namespace ChronusQ {
           pVpMap.block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
         }
 
+        // Compute the pxVp integrals
+        if(options.OneESpinOrbit and
+           cint1e_pnucxp_sph(buff, shls, atm, nAtoms, bas, nShells, env)) {
+          size_t n1n2 = n1*n2;
+          // Place integral blocks into their respective matricies
+          for(auto iMat = 0; iMat < 3; iMat++){
+            Eigen::Map<
+              const Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,
+                Eigen::RowMajor>>
+              bufMat(buff + iMat * n1n2,n1,n2);
+
+            // Negetive sign reflects row-major to column-major switch
+            pxVpMaps[iMat].block(bf1_s,bf2_s,n1,n2) = -bufMat.template cast<double>();
+            pxVpMaps[iMat].block(bf2_s,bf1_s,n2,n1) = bufMat.transpose().template cast<double>();
+          }
+        }
+
       } // Loop over s2 <= s1
       } // Loop over s1
 
@@ -447,12 +464,11 @@ namespace ChronusQ {
     // Symmetrize the matricies
     VMap = VMap.template selfadjointView<Eigen::Lower>();
     pVpMap = pVpMap.template selfadjointView<Eigen::Lower>();
-    if (options.OneESpinOrbit)
-      for(auto nMat = 0; nMat < pxVpMaps.size(); nMat++)
-        pxVpMaps[nMat] = pxVpMaps[nMat].template selfadjointView<Eigen::Lower>();
 
     // scale it by charge
-    mat_ *= -1.0 * options.particle.charge;
+    matrix() *= -1.0 * options.particle.charge;
+    for (OnePInts<double> &opi : components_)
+      opi.matrix() *= -1.0 * options.particle.charge;
 
   }; // OnePRelInts::OnePRelDriverLibcint
 
@@ -814,18 +830,11 @@ namespace ChronusQ {
             return RealGTOIntEngine::computepVdotp(chargeDist,
                 pair,sh1,sh2,mol);
             }, basis.shells, _PVdP);
-    } else {
-      OnePRelDriverLibcint(mol, basis, options);
-    }
 
     if (options.OneESpinOrbit) {
       if (not hasSpinOrbit())
         CErr("computeAOInts: Requested spin-orbit integrals, "
              "but the OnePRelInts object does not contain spin-orbit components");
-
-      // Point nuclei is used when chargeDist is empty
-      const std::vector<libint2::Shell> &chargeDist = options.finiteWidthNuc ?
-          mol.chargeDist : std::vector<libint2::Shell>();
 
       OnePInts<double>::OnePDriverLocal<3,false>(
             [&](libint2::ShellPair& pair, libint2::Shell& sh1,
@@ -833,6 +842,10 @@ namespace ChronusQ {
               return RealGTOIntEngine::computeSL(chargeDist,
                   pair,sh1,sh2,mol);
               }, basis.shells, SOXYZPointers());
+    }
+
+    } else {
+      OnePRelDriverLibcint(mol, basis, options);
     }
 
   };
