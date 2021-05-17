@@ -53,6 +53,20 @@ TEST( RHF, HeKr_sto3G ) {
 
 };
 
+// H2S cc-pVDZ incore ERI test
+TEST( RHF, H2S_ccpvdz ) {
+
+  CQSCFTEST( "scf/serial/rhf/H2S_cc-pvdz", "H2S_cc-pvdz.bin.ref" );
+
+};
+
+// H2S cc-pVDZ incore Libcint ERI test
+TEST( RHF, H2S_ccpvdz_libcint ) {
+
+  CQSCFTEST( "scf/serial/rhf/H2S_cc-pvdz_libcint", "H2S_cc-pvdz.bin.ref" );
+
+};
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-31G(d) test
@@ -60,6 +74,20 @@ TEST( RHF, PAR_Water_631Gd ) {
 
   CQSCFTEST( "scf/parallel/rhf/water_6-31Gd", "water_6-31Gd.bin.ref" );
  
+};
+
+// H2S cc-pVDZ incore ERI test
+TEST( RHF, PAR_H2S_ccpvdz ) {
+
+  CQSCFTEST( "scf/parallel/rhf/H2S_cc-pvdz", "H2S_cc-pvdz.bin.ref" );
+
+};
+
+// H2S cc-pVDZ incore Libcint ERI test
+TEST( RHF, PAR_H2S_ccpvdz_libcint ) {
+
+  CQSCFTEST( "scf/parallel/rhf/H2S_cc-pvdz_libcint", "H2S_cc-pvdz.bin.ref" );
+
 };
 
 #endif

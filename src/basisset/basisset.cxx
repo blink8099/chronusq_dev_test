@@ -26,6 +26,8 @@
 #include <basisset/reference.hpp>
 #include <cxxapi/output.hpp>
 
+#include <libcint.hpp>
+
 #include <util/matout.hpp>
 #include <cqlinalg/blas1.hpp>
 #include <cqlinalg/blas3.hpp>
@@ -282,7 +284,11 @@ namespace ChronusQ {
   }; // BasisSet::uncontractShells
 
 
-  BasisSet BasisSet::uncontractBasis() {
+  /**
+   * @brief Return a new BasisSet object with only the primitives
+   *
+   */
+  BasisSet BasisSet::uncontractBasis() const {
 
 
     // Copy basis
@@ -295,7 +301,7 @@ namespace ChronusQ {
 
     std::sort(newBasis.shells.begin(), newBasis.shells.end(),
       [this](const libint2::Shell &a, const libint2::Shell &b)->bool {
-        return primitives[a] < primitives[b];
+        return primitives.at(a) < primitives.at(b);
     });
 
     newBasis.update();
@@ -305,9 +311,149 @@ namespace ChronusQ {
   };
 
 
+  /**
+   * @brief Generates a new BasisSet object,
+   *        where basis functions sharing the same set of primitives
+   *        are grouped together in one libint2::Shell
+   *
+   */
+  BasisSet BasisSet::groupGeneralContractionBasis() const {
 
 
-  void BasisSet::makeMapPrim2Cont(const double *SUn, double *MAP, CQMemManager &mem) {
+    // Copy basis
+    BasisSet GCBasis(*this);
+
+    std::vector<libint2::Shell> shells;
+
+    shells.push_back(*GCBasis.shells.begin());
+
+    for (auto it = ++GCBasis.shells.begin(); it != GCBasis.shells.end(); it++) {
+
+      if (shells.back().O == it->O and
+          shells.back().alpha == it->alpha and
+          shells.back().contr[0].l == it->contr[0].l) {
+        // This shell has the same origin, set of exponents, and angular momentum
+        // as the previous shell, merge to previous contraction coefficients.
+
+        shells.back().contr.push_back(it->contr[0]);
+
+      } else {
+        // A different shell
+
+        shells.push_back(*it);
+      }
+
+    }
+
+    GCBasis.shells = shells;
+
+    GCBasis.update(false); // Update, but do not compute shell pair data.
+                           // Computing shell pair data does not work with GC
+
+    return GCBasis;
+
+  };
+
+
+  /**
+   * @brief computes the necessary length of the env vector for libcint computation
+   *
+   */
+  size_t BasisSet::getLibcintEnvLength(const Molecule &mol) const {
+    return PTR_ENV_START +
+        mol.nAtoms * 4 +
+        std::accumulate(shells.begin(),
+                        shells.end(),
+                        0,
+                        [](const size_t &count, const libint2::Shell &sh) {
+                          return count + sh.alpha.size() * (1 + sh.contr.size());
+                        });
+  }
+
+
+  /**
+   * @brief sets up the atm, bas, and env vectors for libcint computation
+   */
+  void BasisSet::setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env,
+                               bool finiteWidthNuc) const {
+
+    double sNorm;
+
+    int nAtoms = mol.nAtoms;
+    int nShells = nShell;
+    int off = PTR_ENV_START; // = 20
+
+    for(int iAtom = 0; iAtom < nAtoms; iAtom++) {
+
+      atm(CHARGE_OF, iAtom) = mol.atoms[iAtom].integerNucCharge();
+
+      atm(PTR_COORD, iAtom) = off;
+      env[off++] = mol.atoms[iAtom].coord[0]; // x (Bohr)
+      env[off++] = mol.atoms[iAtom].coord[1]; // y (Bohr)
+      env[off++] = mol.atoms[iAtom].coord[2]; // z (Bohr)
+
+      if (finiteWidthNuc) {
+        if (mol.atoms[iAtom].fractionalNucCharge()) {
+          CErr("Libcint cannot handle finite nucleus + fractional nuclear charge.");
+        }
+        atm(NUC_MOD_OF, iAtom) = GAUSSIAN_NUC;
+        atm(PTR_ZETA  , iAtom) = off;
+        env[off++] = mol.chargeDist[iAtom].alpha[0];
+      } else {
+        if (mol.atoms[iAtom].fractionalNucCharge()) {
+          atm(NUC_MOD_OF     , iAtom) = FRAC_CHARGE_NUC;
+          atm(PTR_FRAC_CHARGE, iAtom) = off;
+          env[off++] = mol.atoms[iAtom].nucCharge;
+        } else {
+          atm(NUC_MOD_OF, iAtom) = POINT_NUC;
+        }
+      }
+
+    }
+
+    for (size_t iAtom : mol.atomsQ) {
+      atm(CHARGE_OF , iAtom) = 0;
+      atm(NUC_MOD_OF, iAtom) = POINT_NUC;
+    }
+
+    for(int iShell = 0; iShell < nShells; iShell++) {
+
+      int nContr = shells[iShell].contr.size();
+
+      bas(ATOM_OF , iShell)  = std::distance(mol.atoms.begin(),
+          std::find_if( mol.atoms.begin(),
+                        mol.atoms.end(),
+                        [this, iShell](const Atom &a){
+                          return a.coord == shells[iShell].O;
+                        }));
+      if (bas(ATOM_OF , iShell) >= nAtoms) {
+        CErr("setLibcintEnv: Cannot find corresponding atom for shell");
+      }
+      bas(ANG_OF  , iShell)  = shells[iShell].contr[0].l;
+      bas(NPRIM_OF, iShell)  = shells[iShell].alpha.size();
+      bas(NCTR_OF , iShell)  = nContr;
+      bas(KAPPA_OF, iShell)  = 0;
+      bas(PTR_EXP , iShell)  = off;
+
+      for(int iPrim=0; iPrim < shells[iShell].alpha.size(); iPrim++)
+        env[off++] = shells[iShell].alpha[iPrim];
+
+      bas(PTR_COEFF, iShell) = off;
+
+      // Spherical GTO normalization constant missing in Libcint
+      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*shells[iShell].contr[0].l+1.0);
+      for (size_t i = 0; i < nContr; i++) {
+        for(int iCoeff=0; iCoeff<shells[iShell].alpha.size(); iCoeff++){
+          env[off++] = shells[iShell].contr[i].coeff[iCoeff]*sNorm;
+        }
+      }
+
+    }
+  }
+
+
+
+  void BasisSet::makeMapPrim2Cont(const double *SUn, double *MAP, CQMemManager &mem) const {
 
     memset(MAP,0,nPrimitive * nBasis * sizeof(double));
 
@@ -328,7 +474,7 @@ namespace ChronusQ {
             { {shells[iSh].contr[iC].l, shells[iSh].contr[iC].pure, { 1.0 } } },
             { { shells[iSh].O[0], shells[iSh].O[1], shells[iSh].O[2] } }
           };
-          size_t primIdx = primitives[prim];
+          size_t primIdx = primitives.at(prim);
           for(size_t iB = 0; iB < nBf; iB++) {
             MAP[cumeNBf+iB + (primIdx+iB)*nBasis] = unNormCont[iSh][iP];
           }

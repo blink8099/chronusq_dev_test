@@ -185,10 +185,14 @@ namespace ChronusQ {
     // Misc functions
       
     void uncontractShells();
-    void makeMapPrim2Cont(const double*, double*, CQMemManager&);
+    void makeMapPrim2Cont(const double*, double*, CQMemManager&) const;
 
 
-    BasisSet uncontractBasis();
+    BasisSet uncontractBasis() const;
+    BasisSet groupGeneralContractionBasis() const;
+    size_t getLibcintEnvLength(const Molecule &mol) const;
+    void setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env,
+                       bool finiteWidthNuc = false) const;
 
 
     // Update BasisSet object member data (nBasis, etc).

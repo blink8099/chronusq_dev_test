@@ -1,24 +1,29 @@
 #
-#  Water X2CHF/6-311+G(d,p) : SCF
+#  AgBr DLHX2CHF/sto-3g : SCF
 #  SERIAL
 #
-#  Molecule Specification 
+#  Molecule Specification
 [Molecule]
 charge = 0
 mult = 1
 geom: 
- Hg  0  0  0
+ Ag  0.0  0.0   1.0 
+ Br  0.0  0.0  -1.0
 
-# 
+#
 #  Job Specification
 #
 [QM]
 reference = 2CHF
 job = SCF
 x2ctype = OneE
+atomicx2c = DLH
+
+[SCF]
+guess = core
 
 [BASIS]
-basis = SAPPORO-DKH3-DZP-2012-SP 
+basis = sto-3g
 
 [INTS]
 libcint = true

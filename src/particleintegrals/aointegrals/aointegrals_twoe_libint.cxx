@@ -351,27 +351,9 @@ namespace ChronusQ {
     if (options.basisType != REAL_GTO)
       CErr("Only Real GTOs are allowed in InCore4indexTPI<double>",std::cout);
 
-    BasisSet basisSet(originalBasisSet);
+    BasisSet basisSet = originalBasisSet.groupGeneralContractionBasis();
 
-    std::vector<libint2::Shell> shells;
-
-    shells.push_back(*basisSet.shells.begin());
-
-    for (auto it = ++basisSet.shells.begin(); it != basisSet.shells.end(); it++) {
-
-      if (shells.back().O == it->O and
-          shells.back().alpha == it->alpha and
-          shells.back().contr[0].l == it->contr[0].l) {
-
-        shells.back().contr.push_back(it->contr[0]);
-
-      } else {
-        shells.push_back(*it);
-      }
-
-    }
-
-    bool segmented = shells.size() == originalBasisSet.nShell;
+    bool segmented = basisSet.nShell == originalBasisSet.nShell;
 
     // Determine the number of OpenMP threads
     size_t nthreads = GetNumThreads();
@@ -398,9 +380,6 @@ namespace ChronusQ {
     size_t maxNcontrAMSize = 1, maxNprimAMSize = 1, maxAMSize = 1;
 
     if (not segmented) {
-
-      basisSet.shells = shells;
-      basisSet.update(false);
 
       // Compute the mappings from primitives to CGTOs
       BasisSet primitives(originalBasisSet.uncontractBasis());

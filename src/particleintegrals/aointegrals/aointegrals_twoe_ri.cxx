@@ -4999,96 +4999,13 @@ namespace ChronusQ {
     BasisSet groupedBasisSet(basisSet);
     if (generalContraction_) {
 
-      // Compute the mappings from primitives to CGTOs
-      BasisSet primitives(basisSet.uncontractBasis());
-      OnePInts<double> overlap(memManager_, primitives.nBasis);
+      groupedBasisSet = basisSet.groupGeneralContractionBasis();
 
-      overlap.computeAOInts(primitives, mol, emPert, OVERLAP, options);
-
-      double *mapPrim2Cont = memManager_.malloc<double>(primitives.nBasis*basisSet.nBasis);
-      basisSet.makeMapPrim2Cont(overlap.pointer(), mapPrim2Cont, memManager_);
-
-#ifdef __DEBUGERI__
-      prettyPrintSmart(std::cout, "mapPrim2Cont", mapPrim2Cont,
-                       basisSet.nBasis, basisSet.nPrimitive, basisSet.nBasis);
-#endif
-
-      std::vector<libint2::Shell> shells;
-
-      shells.push_back(*groupedBasisSet.shells.begin());
-      size_t countExpCoef = shells.back().alpha.size() * 2;
-
-      for (auto it = ++groupedBasisSet.shells.begin(); it != groupedBasisSet.shells.end(); it++) {
-
-        if (shells.back().O == it->O
-            and shells.back().contr[0].l == it->contr[0].l
-            and shells.back().alpha == it->alpha) {
-
-          shells.back().contr.push_back(it->contr[0]);
-          countExpCoef += shells.back().alpha.size();
-
-        } else {
-          shells.push_back(*it);
-          countExpCoef += shells.back().alpha.size() * 2;
-        }
-
-      }
-
-      groupedBasisSet.shells = shells;
-
-      groupedBasisSet.update(false);
-
-      // Clear objects
-      for (double *p : coefBlocks_) {
-        if (p) memManager_.free(p);
-      }
-      coefBlocks_.clear();
-      coefBlocks_.resize(groupedBasisSet.nShell, nullptr);
-      shellPrims_.clear();
-      shellPrims_.reserve(groupedBasisSet.nShell);
-
-      for (size_t P(0); P < groupedBasisSet.nShell; P++) {
-        // Gather contraction coefficients
-        libint2::Shell &shellP = groupedBasisSet.shells[P];
-        maxNcontrAMSize_ = std::max(maxNcontrAMSize_, shellP.size());
-        size_t pContrSize = shellP.ncontr();
-        size_t pAMSize = shellP.contr[0].size();
-        if (pContrSize == 1) {
-          maxNprimAMSize_ = std::max(maxNprimAMSize_, pAMSize);
-          shellPrims_.emplace_back(1, shellP);
-          coefBlocks_[P] = memManager_.malloc<double>(1);
-          coefBlocks_[P][0] = 1.0;
-          continue;
-        }
-
-        size_t pNprim = shellP.nprim();
-
-        std::vector<libint2::Shell> primsP;
-        primsP.reserve(pNprim);
-
-        for(auto &a : shellP.alpha) {// Loop over primitives
-          libint2::Shell newShell{
-            { a },
-            { { shellP.contr[0].l, shellP.contr[0].pure, { 1.0 } } },
-            { { shellP.O[0], shellP.O[1], shellP.O[2] } }
-          };
-          primsP.push_back(std::move(newShell));
-        }
-
-        maxNprimAMSize_ = std::max(maxNprimAMSize_, pNprim * pAMSize);
-
-        size_t pBegin = groupedBasisSet.mapSh2Bf[P];
-        coefBlocks_[P] = memManager_.malloc<double>(pContrSize * pNprim);
-        for (size_t c = 0; c < pContrSize; c++) {
-          for (size_t i = 0; i < pNprim; i++) {
-            coefBlocks_[P][i + c * pNprim]
-                = mapPrim2Cont[pBegin + c * pAMSize +
-                                groupedBasisSet.primitives[primsP[i]] * basisSet.nBasis];
-          }
-        }
-        shellPrims_.push_back(std::move(primsP));
-      }
-      memManager_.free(mapPrim2Cont);
+      maxNcontrAMSize_ = std::max_element(groupedBasisSet.shells.begin(),
+                                          groupedBasisSet.shells.end(),
+                                          [](libint2::Shell &a, libint2::Shell &b) {
+                                            return a.size() < b.size();
+                                          })->size();
 
       if (options.Libcint) {
         if (basisSet.forceCart)
@@ -5096,58 +5013,13 @@ namespace ChronusQ {
 
         nAtoms = mol.nAtoms;
         nShells = groupedBasisSet.nShell;
-        int iAtom, iShell, off;
 
         // ATM_SLOTS = 6; BAS_SLOTS = 8;
         atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
         bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
-        env = memManager_.template malloc<double>(PTR_ENV_START + nAtoms*3 + countExpCoef);
-        double sNorm;
+        env = memManager_.template malloc<double>(groupedBasisSet.getLibcintEnvLength(mol));
 
-        off = PTR_ENV_START; // = 20
-
-        for(iAtom = 0; iAtom < nAtoms; iAtom++) {
-
-          atm[CHARGE_OF + ATM_SLOTS * iAtom] = mol.atoms[iAtom].atomicNumber;
-          atm[PTR_COORD + ATM_SLOTS * iAtom] = off;
-          env[off + 0] = mol.atoms[iAtom].coord[0]; // x (Bohr)
-          env[off + 1] = mol.atoms[iAtom].coord[1]; // y (Bohr)
-          env[off + 2] = mol.atoms[iAtom].coord[2]; // z (Bohr)
-          off += 3;
-
-        }
-
-        int maxContr = 0;
-
-        for(iShell = 0; iShell < nShells; iShell++) {
-
-          int nContr = groupedBasisSet.shells[iShell].contr.size();
-
-          bas[ATOM_OF  + BAS_SLOTS * iShell]  = groupedBasisSet.mapSh2Cen[iShell];
-          bas[ANG_OF   + BAS_SLOTS * iShell]  = groupedBasisSet.shells[iShell].contr[0].l;
-          bas[NPRIM_OF + BAS_SLOTS * iShell]  = groupedBasisSet.shells[iShell].alpha.size();
-          bas[NCTR_OF  + BAS_SLOTS * iShell]  = nContr;
-          bas[PTR_EXP  + BAS_SLOTS * iShell]  = off;
-
-          maxContr = std::max(maxContr, nContr);
-
-          for(int iPrim=0; iPrim<groupedBasisSet.shells[iShell].alpha.size(); iPrim++)
-            env[off + iPrim] = groupedBasisSet.shells[iShell].alpha[iPrim];
-
-          off +=groupedBasisSet.shells[iShell].alpha.size();
-
-          bas[PTR_COEFF+ BAS_SLOTS * iShell] = off;
-
-          // Spherical GTO normalization constant missing in Libcint
-          sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*groupedBasisSet.shells[iShell].contr[0].l+1.0);
-          for (size_t i = 0; i < nContr; i++) {
-            for(int iCoeff=0; iCoeff<groupedBasisSet.shells[iShell].alpha.size(); iCoeff++){
-              env[off + iCoeff] = groupedBasisSet.shells[iShell].contr[i].coeff[iCoeff]*sNorm;
-            }
-            off += groupedBasisSet.shells[iShell].alpha.size();
-          }
-
-        }
+        groupedBasisSet.setLibcintEnv(mol, atm, bas, env);
 
         // Get threads result buffer
         buffN4 = maxNcontrAMSize_*maxNcontrAMSize_*maxNcontrAMSize_*maxNcontrAMSize_;
@@ -5167,6 +5039,71 @@ namespace ChronusQ {
         cacheAll = memManager_.malloc<double>(cache_size*nthreads);
 
       } else {
+
+        // Compute the mappings from primitives to CGTOs
+        BasisSet primitives(basisSet.uncontractBasis());
+        OnePInts<double> overlap(memManager_, primitives.nBasis);
+
+        overlap.computeAOInts(primitives, mol, emPert, OVERLAP, options);
+
+        double *mapPrim2Cont = memManager_.malloc<double>(primitives.nBasis*basisSet.nBasis);
+        basisSet.makeMapPrim2Cont(overlap.pointer(), mapPrim2Cont, memManager_);
+
+#ifdef __DEBUGERI__
+        prettyPrintSmart(std::cout, "mapPrim2Cont", mapPrim2Cont,
+                         basisSet.nBasis, basisSet.nPrimitive, basisSet.nBasis);
+#endif
+
+        // Clear objects
+        for (double *p : coefBlocks_) {
+          if (p) memManager_.free(p);
+        }
+        coefBlocks_.clear();
+        coefBlocks_.resize(groupedBasisSet.nShell, nullptr);
+        shellPrims_.clear();
+        shellPrims_.reserve(groupedBasisSet.nShell);
+
+        for (size_t P(0); P < groupedBasisSet.nShell; P++) {
+          // Gather contraction coefficients
+          libint2::Shell &shellP = groupedBasisSet.shells[P];
+          size_t pContrSize = shellP.ncontr();
+          size_t pAMSize = shellP.contr[0].size();
+          if (pContrSize == 1) {
+            maxNprimAMSize_ = std::max(maxNprimAMSize_, pAMSize);
+            shellPrims_.emplace_back(1, shellP);
+            coefBlocks_[P] = memManager_.malloc<double>(1);
+            coefBlocks_[P][0] = 1.0;
+            continue;
+          }
+
+          size_t pNprim = shellP.nprim();
+
+          std::vector<libint2::Shell> primsP;
+          primsP.reserve(pNprim);
+
+          for(auto &a : shellP.alpha) {// Loop over primitives
+            libint2::Shell newShell{
+              { a },
+              { { shellP.contr[0].l, shellP.contr[0].pure, { 1.0 } } },
+              { { shellP.O[0], shellP.O[1], shellP.O[2] } }
+            };
+            primsP.push_back(std::move(newShell));
+          }
+
+          maxNprimAMSize_ = std::max(maxNprimAMSize_, pNprim * pAMSize);
+
+          size_t pBegin = groupedBasisSet.mapSh2Bf[P];
+          coefBlocks_[P] = memManager_.malloc<double>(pContrSize * pNprim);
+          for (size_t c = 0; c < pContrSize; c++) {
+            for (size_t i = 0; i < pNprim; i++) {
+              coefBlocks_[P][i + c * pNprim]
+                  = mapPrim2Cont[pBegin + c * pAMSize +
+                                  groupedBasisSet.primitives[primsP[i]] * basisSet.nBasis];
+            }
+          }
+          shellPrims_.push_back(std::move(primsP));
+        }
+        memManager_.free(mapPrim2Cont);
 
         workBlocks.resize(nthreads, nullptr);
 

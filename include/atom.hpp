@@ -128,6 +128,21 @@ namespace ChronusQ {
      */ 
     Atom& operator=(Atom &&)      = default;
 
+    /**
+     *  Test if the atom has a fractional nuclear charge.
+     */
+    bool fractionalNucCharge() const {
+      return std::fabs(nucCharge - std::round(nucCharge))
+          > std::numeric_limits<double>::epsilon();
+    }
+
+    /**
+     *  Round the nuclear charge to the nearest integer.
+     */
+    int integerNucCharge() const {
+      return std::lround(nucCharge);
+    }
+
   }; // Atom struct
 
 
