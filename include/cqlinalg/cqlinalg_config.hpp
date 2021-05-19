@@ -252,7 +252,9 @@ dcomplex    zdotc_(int*, const dcomplex  *, int *, const dcomplex  *, int *);
 void dsyr2k_(const char *uplo, const char *trans, const TA_INT *n, const TA_INT *k,
             const double *alpha, const double *a, const TA_INT *lda, const double *b, const TA_INT *ldb,
             const double *beta, double *c, const TA_INT *ldc);
-
+void zsyr2k_(const char *uplo, const char *trans, const TA_INT *n, const TA_INT *k,
+            const TA_Complex16 *alpha, const TA_Complex16 *a, const TA_INT *lda, const TA_Complex16 *b,
+            const TA_INT *ldb,const TA_Complex16 *beta, TA_Complex16 *c, const TA_INT *ldc);
 }
 #endif
 
