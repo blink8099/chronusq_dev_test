@@ -216,8 +216,8 @@ namespace ChronusQ {
     virtual bool evalConver(EMPerturbation &) = 0;
 
     //   Print SCF header, footer and progress
-    void printSCFHeader(std::ostream &out, EMPerturbation &);
-    void printSCFProg(std::ostream &out = std::cout,
+    virtual void printSCFHeader(std::ostream &out, EMPerturbation &);
+    virtual void printSCFProg(std::ostream &out = std::cout,
       bool printDiff = true);
 
     //   Initialize and finalize the SCF environment

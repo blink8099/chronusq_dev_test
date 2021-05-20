@@ -21,6 +21,7 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
+#include <singleslater/neoss.hpp>
 #include <singleslater/impl.hpp>
 #include <corehbuilder/impl.hpp>
 #include <fockbuilder/impl.hpp>
@@ -79,5 +80,7 @@ namespace ChronusQ {
 
   template void KohnSham<dcomplex,double>::formFXC(MPI_Comm,std::vector<TwoBodyContraction<dcomplex>> &);
   template void KohnSham<dcomplex,dcomplex>::formFXC(MPI_Comm,std::vector<TwoBodyContraction<dcomplex>> &);
+
+  template class NEOSS<double,double>;
 
 }; // namespace ChronusQ
