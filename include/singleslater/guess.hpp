@@ -851,7 +851,7 @@ namespace ChronusQ {
 
     if( printLevel > 0 ){
       std::cout << "    * Reading in guess orbitals from file " << fchkFileName << "\n";
-      std::cout << "      See documentation of fchkToCQMO() if any problems" << "\n";
+      std::cout << "      Please check that IOp(3/60=-1) was included in your Gaussian calculation." << "\n";
     }
 
     std::vector<int> shellList;
