@@ -282,7 +282,8 @@ namespace ChronusQ {
 
         // d0
         if( dcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dzeromove] = tmo[i];
+          this->mo[sp].pointer()[i + dzeromove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + dzeromove] = tmo[i+1];
           moentry = moentry + skipl;
           dcounter = dcounter + 1;
           continue;
@@ -290,7 +291,8 @@ namespace ChronusQ {
 
         // d+1
         if( dcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dponemove] = tmo[i];
+          this->mo[sp].pointer()[i + dponemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + dponemove] = tmo[i+1];
           moentry = moentry + skipl;
           dcounter = dcounter + 1;
           continue;
@@ -298,7 +300,8 @@ namespace ChronusQ {
 
         // d-1
         if( dcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dmonemove] = tmo[i];
+          this->mo[sp].pointer()[i + dmonemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + dmonemove] = tmo[i+1];
           moentry = moentry + skipl;
           dcounter = dcounter + 1;
           continue;
@@ -306,7 +309,8 @@ namespace ChronusQ {
 
         // d+2
         if( dcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dptwomove] = tmo[i];
+          this->mo[sp].pointer()[i + dptwomove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + dptwomove] = tmo[i+1];
           moentry = moentry + skipl;
           dcounter = dcounter + 1;
           continue;
@@ -314,7 +318,8 @@ namespace ChronusQ {
 
         // d-2
         if( dcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dmtwomove] = tmo[i];
+          this->mo[sp].pointer()[i + dmtwomove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + dmtwomove] = tmo[i+1];
           moentry = moentry + skipl;
           // Reset d counter
           dcounter = 0;
@@ -328,7 +333,8 @@ namespace ChronusQ {
 
         // dxx
         if( cdcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdxxmove] = tmo[i];
+          this->mo[sp].pointer()[i + cdxxmove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + cdxxmove] = tmo[i+1];
           moentry = moentry + skipl;
           cdcounter = cdcounter + 1;
           continue;
@@ -336,7 +342,8 @@ namespace ChronusQ {
 
         // dyy
         if( cdcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdyymove] = tmo[i];
+          this->mo[sp].pointer()[i + cdyymove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + cdyymove] = tmo[i+1];
           moentry = moentry + skipl;
           cdcounter = cdcounter + 1;
           continue;
@@ -344,7 +351,8 @@ namespace ChronusQ {
 
         // dzz
         if( cdcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdzzmove] = tmo[i];
+          this->mo[sp].pointer()[i + cdzzmove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + cdzzmove] = tmo[i+1];
           moentry = moentry + skipl;
           cdcounter = cdcounter + 1;
           continue;
@@ -352,7 +360,8 @@ namespace ChronusQ {
 
         // dxy
         if( cdcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdxymove] = tmo[i];
+          this->mo[sp].pointer()[i + cdxymove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + cdxymove] = tmo[i+1];
           moentry = moentry + skipl;
           cdcounter = cdcounter + 1;
           continue;
@@ -360,7 +369,8 @@ namespace ChronusQ {
 
         // dxz
         if( cdcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdxzmove] = tmo[i];
+          this->mo[sp].pointer()[i + cdxzmove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + cdxzmove] = tmo[i+1];
           moentry = moentry + skipl;
           cdcounter = cdcounter + 1;
           continue;
@@ -368,7 +378,8 @@ namespace ChronusQ {
 
         // dyz
         if( cdcounter == 5 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdyzmove] = tmo[i];
+          this->mo[sp].pointer()[i + cdyzmove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + cdyzmove] = tmo[i+1];
           moentry = moentry + skipl;
           // Reset d counter
           cdcounter = 0;
@@ -382,7 +393,8 @@ namespace ChronusQ {
 
         // f0
         if( fcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fzeromove] = tmo[i];
+          this->mo[sp].pointer()[i + fzeromove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + fzeromove] = tmo[i+1];
           moentry = moentry + skipl;
           fcounter = fcounter + 1;
           continue;
@@ -390,7 +402,8 @@ namespace ChronusQ {
 
         // f+1
         if( fcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fponemove] = tmo[i];
+          this->mo[sp].pointer()[i + fponemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + fponemove] = tmo[i+1];
           moentry = moentry + skipl;
           fcounter = fcounter + 1;
           continue;
@@ -398,7 +411,8 @@ namespace ChronusQ {
 
         // f-1
         if( fcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fmonemove] = tmo[i];
+          this->mo[sp].pointer()[i + fmonemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + fmonemove] = tmo[i+1];
           moentry = moentry + skipl;
           fcounter = fcounter + 1;
           continue;
@@ -406,7 +420,8 @@ namespace ChronusQ {
 
         // f+2
         if( fcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fptwomove] = tmo[i];
+          this->mo[sp].pointer()[i + fptwomove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + fptwomove] = tmo[i+1];
           moentry = moentry + skipl;
           fcounter = fcounter + 1;
           continue;
@@ -414,7 +429,8 @@ namespace ChronusQ {
 
         // f-2
         if( fcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fmtwomove] = tmo[i];
+          this->mo[sp].pointer()[i + fmtwomove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + fmtwomove] = tmo[i+1];
           moentry = moentry + skipl;
           fcounter = fcounter + 1;
           continue;
@@ -422,7 +438,8 @@ namespace ChronusQ {
 
         // f+3
         if( fcounter == 5 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fpthreemove] = tmo[i];
+          this->mo[sp].pointer()[i + fpthreemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + fpthreemove] = tmo[i+1];
           moentry = moentry + skipl;
           fcounter = fcounter + 1;
           continue;
@@ -430,7 +447,8 @@ namespace ChronusQ {
 
         // f-3
         if( fcounter == 6 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fmthreemove] = tmo[i];
+          this->mo[sp].pointer()[i + fmthreemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + fmthreemove] = tmo[i+1];
           moentry = moentry + skipl;
           // Reset f counter
           fcounter = 0;
@@ -444,7 +462,8 @@ namespace ChronusQ {
 
         // g0
         if( gcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gzeromove] = tmo[i];
+          this->mo[sp].pointer()[i + gzeromove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + gzeromove] = tmo[i+1];
           moentry = moentry + skipl;
           gcounter = gcounter + 1;
           continue;
@@ -452,7 +471,8 @@ namespace ChronusQ {
 
         // g+1
         if( gcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gponemove] = tmo[i];
+          this->mo[sp].pointer()[i + gponemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + gponemove] = tmo[i+1];
           moentry = moentry + skipl;
           gcounter = gcounter + 1;
           continue;
@@ -460,7 +480,8 @@ namespace ChronusQ {
 
         // g-1
         if( gcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gmonemove] = tmo[i];
+          this->mo[sp].pointer()[i + gmonemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + gmonemove] = tmo[i+1];
           moentry = moentry + skipl;
           gcounter = gcounter + 1;
           continue;
@@ -468,7 +489,8 @@ namespace ChronusQ {
 
         // g+2
         if( gcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gptwomove] = tmo[i];
+          this->mo[sp].pointer()[i + gptwomove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + gptwomove] = tmo[i+1];
           moentry = moentry + skipl;
           gcounter = gcounter + 1;
           continue;
@@ -476,7 +498,8 @@ namespace ChronusQ {
 
         // g-2
         if( gcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gmtwomove] = tmo[i];
+          this->mo[sp].pointer()[i + gmtwomove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + gptwomove] = tmo[i+1];
           moentry = moentry + skipl;
           gcounter = gcounter + 1;
           continue;
@@ -484,7 +507,8 @@ namespace ChronusQ {
 
         // g+3
         if( gcounter == 5 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gpthreemove] = tmo[i];
+          this->mo[sp].pointer()[i + gpthreemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + gpthreemove] = tmo[i+1];
           moentry = moentry + skipl;
           gcounter = gcounter + 1;
           continue;
@@ -492,7 +516,8 @@ namespace ChronusQ {
 
         // g-3
         if( gcounter == 6 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gmthreemove] = tmo[i];
+          this->mo[sp].pointer()[i + gmthreemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + gmthreemove] = tmo[i+1];
           moentry = moentry + skipl;
           gcounter = gcounter + 1;
           continue;
@@ -500,7 +525,8 @@ namespace ChronusQ {
 
         // g+4
         if( gcounter == 7 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gpfourmove] = tmo[i];
+          this->mo[sp].pointer()[i + gpfourmove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + gpfourmove] = tmo[i+1];
           moentry = moentry + skipl;
           gcounter = gcounter + 1;
           continue;
@@ -508,7 +534,8 @@ namespace ChronusQ {
 
         // g-4
         if( gcounter == 8 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gmfourmove] = tmo[i];
+          this->mo[sp].pointer()[i + gmfourmove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + gmfourmove] = tmo[i+1];
           moentry = moentry + skipl;
           // Reset g counter
           gcounter = 0;
@@ -522,7 +549,8 @@ namespace ChronusQ {
 
         // h0
         if( hcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hzeromove] = tmo[i];
+          this->mo[sp].pointer()[i + hzeromove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hzeromove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -530,7 +558,8 @@ namespace ChronusQ {
 
         // h+1
         if( hcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hponemove] = tmo[i];
+          this->mo[sp].pointer()[i + hponemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hponemove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -538,7 +567,8 @@ namespace ChronusQ {
 
         // h-1
         if( hcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmonemove] = tmo[i];
+          this->mo[sp].pointer()[i + hmonemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hmonemove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -546,7 +576,8 @@ namespace ChronusQ {
 
         // h+2
         if( hcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hptwomove] = tmo[i];
+          this->mo[sp].pointer()[i + hptwomove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hptwomove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -554,7 +585,8 @@ namespace ChronusQ {
 
         // h-2
         if( hcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmtwomove] = tmo[i];
+          this->mo[sp].pointer()[i + hmtwomove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hmtwomove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -562,7 +594,8 @@ namespace ChronusQ {
 
         // h+3
         if( hcounter == 5 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hpthreemove] = tmo[i];
+          this->mo[sp].pointer()[i + hpthreemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hpthreemove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -570,7 +603,8 @@ namespace ChronusQ {
 
         // h-3
         if( hcounter == 6 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmthreemove] = tmo[i];
+          this->mo[sp].pointer()[i + hmthreemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hmthreemove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -578,7 +612,8 @@ namespace ChronusQ {
 
         // h+4
         if( hcounter == 7 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hpfourmove] = tmo[i];
+          this->mo[sp].pointer()[i + hpfourmove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hpfourmove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -586,7 +621,8 @@ namespace ChronusQ {
 
         // h-4
         if( hcounter == 8 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmfourmove] = tmo[i];
+          this->mo[sp].pointer()[i + hmfourmove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hmfourmove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -594,7 +630,8 @@ namespace ChronusQ {
 
         // h+5
         if( hcounter == 9 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hpfivemove] = tmo[i];
+          this->mo[sp].pointer()[i + hpfivemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hpfivemove] = tmo[i+1];
           moentry = moentry + skipl;
           hcounter = hcounter + 1;
           continue;
@@ -602,7 +639,8 @@ namespace ChronusQ {
 
         // h-5
         if( hcounter == 10 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmfivemove] = tmo[i];
+          this->mo[sp].pointer()[i + hmfivemove] = tmo[i];
+          if( this->nC==2 ) this->mo[sp].pointer()[i + 1 + hmfivemove] = tmo[i+1];
           moentry = moentry + skipl;
           // Reset h counter
           hcounter = 0;
