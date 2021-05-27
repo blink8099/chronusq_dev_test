@@ -32,7 +32,7 @@ namespace ChronusQ {
 
   // Pure virtual class for only interface functions
   struct NEOBase {
-    virtual std::shared_ptr<SingleSlaterBase> getSubSSBase(std::string& label) = 0;
+    virtual std::shared_ptr<SingleSlaterBase> getSubSSBase(std::string label) = 0;
   };
 
   template <typename MatsT, typename IntsT>
@@ -89,16 +89,16 @@ namespace ChronusQ {
       NEOSS(const NEOSS<MatsT,IntsT>&);
       NEOSS(NEOSS<MatsT,IntsT>&&);
 
-      // Sub-single slater constructors
-      template <template <typename, typename> class T, typename... Args>
-      void addSubsystem(std::string label, Args... args) {
-        subsystems[label] =
-          std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>>(
-            std::make_shared<T<MatsT,IntsT>>(args...)
-          );
-      }
 
       void addSubsystem(std::string label, std::shared_ptr<SingleSlater<MatsT,IntsT>> ss) {
+
+        auto NB = ss->basisSet().nBasis;
+
+        std::unordered_map<std::string, SquareMatrix<MatsT>> newCoulombs;
+        for( auto& x: subsystems ) {
+          newCoulombs.insert({x.first, SquareMatrix<MatsT>(ss->memManager, NB)});
+        }
+
         subsystems[label] = ss;
       }
 
@@ -108,10 +108,10 @@ namespace ChronusQ {
 
       // Getters
       template <template <typename, typename> class T>
-      std::shared_ptr<T<MatsT,IntsT>> getSubsystem(std::string& label) {
+      std::shared_ptr<T<MatsT,IntsT>> getSubsystem(std::string label) {
         return std::dynamic_pointer_cast<T<MatsT,IntsT>>(subsystems.at(label));
       }
-      std::shared_ptr<SingleSlaterBase> getSubSSBase(std::string& label) {
+      std::shared_ptr<SingleSlaterBase> getSubSSBase(std::string label) {
         return std::dynamic_pointer_cast<SingleSlaterBase>(subsystems.at(label));
       }
 
@@ -127,6 +127,31 @@ namespace ChronusQ {
       void saveCurrentState() {
         applyToEach([](SubSSPtr& ss){ ss->saveCurrentState(); });
       }
+
+      void formGuess() {
+        applyToEach([](SubSSPtr& ss){ ss->formGuess(); });
+      }
+
+      void formCoreH(EMPerturbation& emPert) {
+        applyToEach([&](SubSSPtr& ss){ ss->formCoreH(emPert); });
+      }
+
+      // Properties
+      void computeEnergy() {
+
+        applyToEach([](SubSSPtr& ss){ ss->computeEnergy(); });
+
+        this->totalEnergy = 0.;
+        applyToEach([&](SubSSPtr& ss){ 
+            std::cout << "Sub energy: " << ss->totalEnergy << std::endl;
+            this->totalEnergy += ss->totalEnergy;
+        });
+
+      }
+
+      void computeMultipole(EMPerturbation&) { }
+      void computeSpin() { }
+      void methodSpecificProperties() { }
 
       // Overrides specific to a NEO-SCF
       void printSCFProg(std::ostream& out = std::cout, bool printDiff = true) {

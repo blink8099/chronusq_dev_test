@@ -604,9 +604,6 @@ namespace ChronusQ {
   bool parseAtomicType(std::ostream &out, CQInputFile &input, 
     ATOMIC_X2C_TYPE &atomicX2CType, std::string section) {
 
-    if( section != "QM" )
-      CErr("Non-electronic X2C NYI");
-
     // Parse Atomic X2C option
     // AtomicX2C  = ALH, ALU, DLH, DLU, OFF (default)
     bool atomic = false;
@@ -1404,11 +1401,11 @@ namespace ChronusQ {
       if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(EPAI)) {
         p->EPAI = std::make_shared<GTODirectTPIContraction<double,double>>(*eri_typed);
         q->EPAI = std::make_shared<GTODirectTPIContraction<double,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
+        q->EPAI->contractSecond = true;
       } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(EPAI)) {
         p->EPAI = std::make_shared<InCore4indexTPIContraction<double,double>>(*eri_typed);
         q->EPAI = std::make_shared<InCore4indexTPIContraction<double,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
+        q->EPAI->contractSecond = true;
       } else {
         CErr("Invalid ERInts type for Wavefunction<double,double>",std::cout);
       }
@@ -1447,11 +1444,11 @@ namespace ChronusQ {
       if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(EPAI)) {
         p->EPAI = std::make_shared<GTODirectTPIContraction<dcomplex,double>>(*eri_typed);
         q->EPAI = std::make_shared<GTODirectTPIContraction<dcomplex,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
+        q->EPAI->contractSecond = true;
       } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(EPAI)) {
         p->EPAI = std::make_shared<InCore4indexTPIContraction<dcomplex,double>>(*eri_typed);
         q->EPAI = std::make_shared<InCore4indexTPIContraction<dcomplex,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
+        q->EPAI->contractSecond = true;
       } else {
         CErr("Invalid ERInts type for Wavefunction<dcomplex,double>",std::cout);
       }
@@ -1597,7 +1594,7 @@ namespace ChronusQ {
       else
         CErr("Electrons and protons must use the same field (real/real) or (complex/complex)");
     }
-    if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ess)) {
+    else if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ess)) {
       if(auto pss_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(pss)) {
         auto neoss_t = std::make_shared<NEOSS<dcomplex,double>>(NEO_LIST(double));
         neoss_t->addSubsystem("electronic", ess_t);

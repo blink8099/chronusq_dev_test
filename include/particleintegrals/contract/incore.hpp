@@ -121,7 +121,7 @@ namespace ChronusQ {
     size_t sNB2 = sNB*sNB;
 
     // need to swap NB and sNB if contraction is done in aux
-    if (this->auxContract) {
+    if (this->contractSecond) {
       std::swap(NB,sNB);
       std::swap(NB2,sNB2);
     }
@@ -141,7 +141,7 @@ namespace ChronusQ {
 
     if( extractRealPartX ) {
 
-      size_t Xdim = this->auxContract ? sNB2 : NB2;
+      size_t Xdim = this->contractSecond ? sNB2 : NB2;
       X = memManager_.malloc<IntsT>(Xdim);
       for(auto k = 0ul; k < Xdim; k++) X[k] = std::real(C.X[k]);
     }
@@ -169,7 +169,7 @@ namespace ChronusQ {
     if( std::is_same<IntsT,dcomplex>::value )
       Gemm('C','N',NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
     else 
-      if (not this->auxContract)
+      if (not this->contractSecond)
         Gemm('N','N',NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
       else
         Gemm('C','N',NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),sNB2,X,sNB2,IntsT(0.),AX,NB2);

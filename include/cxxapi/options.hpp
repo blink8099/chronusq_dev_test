@@ -118,6 +118,14 @@ namespace ChronusQ {
       std::shared_ptr<IntegralsBase> paoints,
       std::shared_ptr<IntegralsBase> epaoints);
 
+  std::shared_ptr<SingleSlaterBase> CQNEOSSOptions(
+      std::ostream &, CQInputFile &,
+      CQMemManager &mem, Molecule &mol,
+      BasisSet &ebasis, BasisSet &pbasis,
+      std::shared_ptr<IntegralsBase> eaoints,
+      std::shared_ptr<IntegralsBase> paoints,
+      std::shared_ptr<IntegralsBase> epaoints);
+
   void CQQM_VALID(std::ostream&, CQInputFile &);
   void CQDFTINT_VALID(std::ostream&, CQInputFile &);
 

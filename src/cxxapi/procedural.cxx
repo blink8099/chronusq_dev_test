@@ -50,6 +50,9 @@
 
 #include <physcon.hpp>
 
+// TEMPORARY
+#include <singleslater/neoss.hpp>
+
 
 //#include <cubegen.hpp>
 
@@ -129,6 +132,8 @@ namespace ChronusQ {
     }
 
 
+    // TEMPORARY
+    bool doTemp = false;
 
 
     // Determine JOB type
@@ -171,6 +176,9 @@ namespace ChronusQ {
     std::shared_ptr<SingleSlaterBase> ss  = nullptr;
     std::shared_ptr<SingleSlaterBase> pss = nullptr;
 
+    // TEMPORARY
+    std::shared_ptr<SingleSlaterBase> neoss = nullptr;
+
     // NEO calculation
     if (doNEO) {
       
@@ -184,6 +192,12 @@ namespace ChronusQ {
       ss  = neo_vec[0]; // electron
       pss = neo_vec[1]; // proton
 
+      if( doTemp ) 
+        neoss = CQNEOSSOptions(output,input,*memManager,mol,
+                                         *basis,*prot_basis,
+                                         aoints, prot_aoints,
+                                         ep_aoints);
+
     }
     else
       ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
@@ -194,9 +208,24 @@ namespace ChronusQ {
     // SCF options for electrons
     CQSCFOptions(output,input,*ss,emPert);
 
+    // TEMPORARY
+    std::shared_ptr<NEOBase> neobase;
+    std::shared_ptr<SingleSlaterBase> essbase;
+    std::shared_ptr<SingleSlaterBase> pssbase;
+
     // SCF options for protons
-    if (doNEO)
+    if (doNEO) {
       CQSCFOptions(output,input,*pss,emPert);
+
+      // TEMPORARY
+      if( doTemp ) {
+        neobase = std::dynamic_pointer_cast<NEOBase>(neoss);
+        essbase = neobase->getSubSSBase("electronic");
+        pssbase = neobase->getSubSSBase("protonic");
+        CQSCFOptions(output,input,*essbase,emPert);
+        CQSCFOptions(output,input,*pssbase,emPert);
+      }
+    }
 
     bool rstExists = false;
     if( ss->scfControls.guess == READMO or 
@@ -227,6 +256,12 @@ namespace ChronusQ {
         pss->savFile         = rstFile;
         prot_aoints->savFile = rstFile;
         ep_aoints->savFile   = rstFile;
+
+        // TEMPORARY
+        if( doTemp ) {
+          essbase->savFile = rstFile;
+          pssbase->savFile = rstFile;
+        }
       }
     }
 
@@ -253,6 +288,13 @@ namespace ChronusQ {
 
       ss->formGuess();
       ss->SCF(emPert);
+
+      // TEMPORARY
+      if (doNEO and doTemp) {
+        neoss->formCoreH(emPert);
+        neoss->formGuess();
+        neoss->SCF(emPert);
+      }
     }
 
 
