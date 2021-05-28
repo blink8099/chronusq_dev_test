@@ -36,7 +36,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void NEOSS<MatsT,IntsT>::SCF(EMPerturbation &pert) {
 
-    applyToEach([](SubSSPtr& ss){ ss->printLevel = 1; });
+    applyToEach([](SubSSPtr& ss){ ss->printLevel = 0; });
 
     // initialization
     SCFInit(); 

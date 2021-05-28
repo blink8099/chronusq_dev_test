@@ -27,6 +27,10 @@
 #include <singleslater.hpp>
 #include <matrix.hpp>
 
+#include <fockbuilder/neofock.hpp>
+#include <particleintegrals/twopints/gtodirecttpi.hpp>
+#include <particleintegrals/twopints/incore4indextpi.hpp>
+
 
 namespace ChronusQ {
 
@@ -70,6 +74,9 @@ namespace ChronusQ {
       //   protonic coulomb potential.
       std::unordered_map<std::string, std::unordered_map<std::string, SquareMatrix<MatsT>>> interCoulomb;
 
+      // Storage for FockBuilders (determines lifetime)
+      std::unordered_map<std::string, std::vector<std::shared_ptr<FockBuilder<MatsT,IntsT>>>> fockBuilders;
+
     public:
 
       // Main constructor
@@ -92,14 +99,77 @@ namespace ChronusQ {
 
       void addSubsystem(std::string label, std::shared_ptr<SingleSlater<MatsT,IntsT>> ss) {
 
+        // HamiltonianOptions is not relevant for the NEO builders
+        HamiltonianOptions options;
+
         auto NB = ss->basisSet().nBasis;
 
+        // Add a FockBuilder and Coulomb matrix:
+        //   - For the new system's interaction with each other system
+        //   - For each other system's interaction with the new system
+
+        // Add the base fockBuilder to make sure it has a persistent lifetime
+        fockBuilders.insert({label, {ss->fockBuilder}});
+        // New coulomb matrices to be added to the _new_ system
         std::unordered_map<std::string, SquareMatrix<MatsT>> newCoulombs;
+
+        // Loop over other subsystems
         for( auto& x: subsystems ) {
+
+          auto other_NB = x.second->basisSet().nBasis;
+
+          // Add a new coulomb matrix to the new system
           newCoulombs.insert({x.first, SquareMatrix<MatsT>(ss->memManager, NB)});
+          // Add a new coulomb matrix to the other system
+          interCoulomb.at(x.first).insert({label, SquareMatrix<MatsT>(ss->memManager, other_NB)});
+
+
+          // New fock builders
+          auto this_newFock = std::make_shared<NEOFockBuilder<MatsT,IntsT>>(options);
+          auto other_newFock = std::make_shared<NEOFockBuilder<MatsT,IntsT>>(options);
+
+          this_newFock->setAux(x.second.get());
+          this_newFock->setOutput(&newCoulombs.at(x.first));
+          this_newFock->setUpstream(fockBuilders[label].back().get());
+
+          other_newFock->setAux(ss.get());
+          other_newFock->setOutput(&interCoulomb.at(x.first).at(label));
+          other_newFock->setUpstream(fockBuilders[x.first].back().get());
+
+          // Contractions
+          std::shared_ptr<TPIContractions<MatsT,IntsT>> this_cont;
+          std::shared_ptr<TPIContractions<MatsT,IntsT>> other_cont;
+          if( auto tpi_t = std::dynamic_pointer_cast<DirectTPI<IntsT>>(this->aoints.TPI) ) {
+            this_cont = std::make_shared<GTODirectTPIContraction<MatsT,IntsT>>(*tpi_t);
+            other_cont = std::make_shared<GTODirectTPIContraction<MatsT,IntsT>>(*tpi_t);
+          }
+          else if( auto tpi_t = std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(this->aoints.TPI) ) {
+            this_cont = std::make_shared<InCore4indexTPIContraction<MatsT,IntsT>>(*tpi_t);
+            other_cont = std::make_shared<InCore4indexTPIContraction<MatsT,IntsT>>(*tpi_t);
+          }
+          else {
+            CErr("Invalid TPInts type for NEO!");
+          }
+          // Assume that the ones added second will always be the "second" basis set
+          this_cont->contractSecond = true;
+
+          this_newFock->setContraction(this_cont);
+          other_newFock->setContraction(other_cont);
+
+          fockBuilders[label].push_back(this_newFock);
+          fockBuilders[x.first].push_back(other_newFock);
         }
 
+        // Add the other system's coulomb matrices to the coulomb matrix storage
+        interCoulomb.insert({label, std::move(newCoulombs)});
+
+        // Add the single slater object to the list of systems
         subsystems[label] = ss;
+
+        // Update all FockBuilders used to the most recent version
+        for( auto& x: subsystems ) {
+          x.second->fockBuilder = fockBuilders.at(x.first).back();
+        }
       }
 
       void setOrder(std::vector<std::string> labels) {
@@ -143,9 +213,10 @@ namespace ChronusQ {
 
         this->totalEnergy = 0.;
         applyToEach([&](SubSSPtr& ss){ 
-            std::cout << "Sub energy: " << ss->totalEnergy << std::endl;
-            this->totalEnergy += ss->totalEnergy;
+            this->totalEnergy += ss->totalEnergy - this->molecule().nucRepEnergy;
         });
+
+        this->totalEnergy += this->molecule().nucRepEnergy;
 
       }
 
@@ -155,7 +226,17 @@ namespace ChronusQ {
 
       // Overrides specific to a NEO-SCF
       void printSCFProg(std::ostream& out = std::cout, bool printDiff = true) {
-        out << "  Macro SCFIt: " << std::setw(6) << std::left;
+        if( printLevel > 1 )
+          for( auto& x: subsystems ) {
+            out << "  " << std::setw(14) << std::left << x.first << " SCF: ";
+            auto nIter = x.second->scfConv.nSCFIter;
+            out << nIter << " iteration" << (nIter > 1 ? "s" : "") << "; ";
+            out << "E = " << std::setw(14) << std::right;
+            out << x.second->totalEnergy - this->molecule().nucRepEnergy;
+            out << std::endl;
+          }
+
+        out << "  SCFIt: " << std::setw(6) << std::left;
 
         if( printDiff ) out << this->scfConv.nSCFMacroIter + 1;
         else            out << 0;

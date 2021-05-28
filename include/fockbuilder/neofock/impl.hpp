@@ -61,7 +61,12 @@ namespace ChronusQ {
     SingleSlater<MatsT,IntsT>& ss, EMPerturbation& empert, bool increment,
     double xHFX)
   {
-    FockBuilder<MatsT,IntsT>::formFock(ss, empert, increment, xHFX);
+
+    if( upstream == nullptr )
+      CErr("Upstream FockBuilder uninitialized in formepJ!");
+
+    // Call all upstream FockBuilders
+    upstream->formFock(ss, empert, increment, xHFX);
 
     formepJ(ss, increment);
 

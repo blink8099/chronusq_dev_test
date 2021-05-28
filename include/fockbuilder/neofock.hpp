@@ -35,10 +35,11 @@ namespace ChronusQ {
 
     protected:
 
-      // "Other" single slater with which to contract
-      SingleSlater<MatsT,IntsT>* aux_ss = nullptr;
-      SquareMatrix<MatsT>* outMat = nullptr;
-      TPIContractions<MatsT,IntsT>* contraction = nullptr;
+    // "Other" single slater with which to contract
+    SingleSlater<MatsT,IntsT>* aux_ss = nullptr;
+    SquareMatrix<MatsT>* outMat = nullptr;
+    std::shared_ptr<TPIContractions<MatsT,IntsT>> contraction = nullptr;
+    FockBuilder<MatsT, IntsT>* upstream = nullptr;
 
     public:
 
@@ -70,8 +71,12 @@ namespace ChronusQ {
       outMat = out;
     }
 
-    void setContraction(TPIContractions<MatsT,IntsT>* cont) {
+    void setContraction(std::shared_ptr<TPIContractions<MatsT,IntsT>> cont) {
       contraction = cont;
+    }
+
+    void setUpstream(FockBuilder<MatsT,IntsT>* up) {
+      upstream = up;
     }
 
     // Inter-SingleSlater interaction

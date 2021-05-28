@@ -133,7 +133,7 @@ namespace ChronusQ {
 
 
     // TEMPORARY
-    bool doTemp = false;
+    bool doTemp = true;
 
 
     // Determine JOB type
@@ -220,8 +220,8 @@ namespace ChronusQ {
       // TEMPORARY
       if( doTemp ) {
         neobase = std::dynamic_pointer_cast<NEOBase>(neoss);
-        essbase = neobase->getSubSSBase("electronic");
-        pssbase = neobase->getSubSSBase("protonic");
+        essbase = neobase->getSubSSBase("Electronic");
+        pssbase = neobase->getSubSSBase("Protonic");
         CQSCFOptions(output,input,*essbase,emPert);
         CQSCFOptions(output,input,*pssbase,emPert);
       }

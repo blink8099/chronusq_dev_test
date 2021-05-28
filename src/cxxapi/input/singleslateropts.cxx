@@ -816,6 +816,7 @@ namespace ChronusQ {
 
     // Parse hamiltonianOptions
     parseHamiltonianOptions(out,input,basis,aoints,refOptions,hamiltonianOptions,section);
+    hamiltonianOptions.particle = p;
 
     // Parse Atomic X2C
     bool atomic = parseAtomicType(out,input,atomicX2CType,section);
@@ -1586,9 +1587,9 @@ namespace ChronusQ {
     if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<double,double>>(ess)) {
       if(auto pss_t = std::dynamic_pointer_cast<SingleSlater<double,double>>(pss)) {
         auto neoss_t = std::make_shared<NEOSS<double,double>>(NEO_LIST(double));
-        neoss_t->addSubsystem("electronic", ess_t);
-        neoss_t->addSubsystem("protonic", pss_t);
-        neoss_t->setOrder({"electronic", "protonic"});
+        neoss_t->addSubsystem("Electronic", ess_t);
+        neoss_t->addSubsystem("Protonic", pss_t);
+        neoss_t->setOrder({"Protonic", "Electronic"});
         neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
       }
       else
@@ -1597,9 +1598,9 @@ namespace ChronusQ {
     else if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ess)) {
       if(auto pss_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(pss)) {
         auto neoss_t = std::make_shared<NEOSS<dcomplex,double>>(NEO_LIST(double));
-        neoss_t->addSubsystem("electronic", ess_t);
-        neoss_t->addSubsystem("protonic", pss_t);
-        neoss_t->setOrder({"electronic", "protonic"});
+        neoss_t->addSubsystem("Electronic", ess_t);
+        neoss_t->addSubsystem("Protonic", pss_t);
+        neoss_t->setOrder({"Protonic", "Electronic"});
         neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
       }
       else
