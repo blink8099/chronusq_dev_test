@@ -79,6 +79,16 @@ namespace ChronusQ {
       upstream = up;
     }
 
+    // Find the first non-NEO fockbuilder upstream and return it
+    FockBuilder<MatsT,IntsT>* getNonNEOUpstream() {
+      if( auto p = dynamic_cast<NEOFockBuilder<MatsT,IntsT>*>(upstream) ) {
+        return p->getNonNEOUpstream();
+      }
+      else {
+        return upstream;
+      }
+    }
+
     // Inter-SingleSlater interaction
     void formepJ(SingleSlater<MatsT,IntsT>&, bool increment = false);
 

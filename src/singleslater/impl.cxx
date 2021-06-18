@@ -82,5 +82,11 @@ namespace ChronusQ {
   template void KohnSham<dcomplex,dcomplex>::formFXC(MPI_Comm,std::vector<TwoBodyContraction<dcomplex>> &);
 
   template class NEOSS<double,double>;
+  template class NEOSS<dcomplex,double>;
+  template class NEOSS<dcomplex,dcomplex>;
+  template NEOSS<dcomplex,double>::NEOSS(const NEOSS<double, double>&, int);
+  template NEOSS<dcomplex,dcomplex>::NEOSS(const NEOSS<dcomplex, dcomplex>&, int);
+  
+  template NEOSS<dcomplex,double>::NEOSS(NEOSS<double, double>&&, int);
 
 }; // namespace ChronusQ

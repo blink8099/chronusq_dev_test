@@ -90,11 +90,20 @@ namespace ChronusQ {
 
       // Copy/move constructors
       template <typename MatsU>
-        NEOSS(const NEOSS<MatsU,IntsT>&, int dummy = 0);
+        NEOSS(const NEOSS<MatsU,IntsT>& other, int dummy = 0) :
+          SingleSlater<MatsT,IntsT>(dynamic_cast<const SingleSlater<MatsU,IntsT>&>(other), dummy),
+          WaveFunctionBase(dynamic_cast<const WaveFunctionBase&>(other)),
+          QuantumBase(dynamic_cast<const QuantumBase&>(other)),
+          order_(other.order_) {};
       template <typename MatsU>
-        NEOSS(NEOSS<MatsU,IntsT>&&, int dummy = 0);
-      NEOSS(const NEOSS<MatsT,IntsT>&);
-      NEOSS(NEOSS<MatsT,IntsT>&&);
+        NEOSS(NEOSS<MatsU,IntsT>&& other, int dummy = 0) :
+          SingleSlater<MatsT,IntsT>(dynamic_cast<SingleSlater<MatsU,IntsT>&&>(other), dummy),
+          WaveFunctionBase(dynamic_cast<WaveFunctionBase&&>(other)),
+          QuantumBase(dynamic_cast<QuantumBase&&>(other)),
+          order_(other.order_) {};
+
+      NEOSS(const NEOSS<MatsT,IntsT>& other) : NEOSS(other, 0) {};
+      NEOSS(NEOSS<MatsT,IntsT>&& other) : NEOSS(other, 0) {};
 
 
       void addSubsystem(std::string label, std::shared_ptr<SingleSlater<MatsT,IntsT>> ss) {
@@ -184,6 +193,25 @@ namespace ChronusQ {
       std::shared_ptr<SingleSlaterBase> getSubSSBase(std::string label) {
         return std::dynamic_pointer_cast<SingleSlaterBase>(subsystems.at(label));
       }
+      template <template <typename, typename> class T>
+      std::vector<std::shared_ptr<T<MatsT,IntsT>>> getAllSubsystems() {
+        std::vector<std::shared_ptr<T<MatsT,IntsT>>> results;
+        applyToEach([&](SubSSPtr& ss){
+          results.push_back(std::dynamic_pointer_cast<T<MatsT,IntsT>>(ss));
+        });
+        return results;
+      }
+      std::vector<std::shared_ptr<SingleSlaterBase>> getAllSubSSBase() {
+        std::vector<std::shared_ptr<SingleSlaterBase>> results;
+        applyToEach([&](SubSSPtr& ss){
+          results.push_back(std::dynamic_pointer_cast<SingleSlaterBase>(ss));
+        });
+        return results;
+      }
+
+      const std::unordered_map<std::string, SubSSPtr>& getSubsystemMap() {
+        return subsystems;
+      }
 
       // Pass-through to each functions
       void SCFInit() {
@@ -226,7 +254,7 @@ namespace ChronusQ {
 
       // Overrides specific to a NEO-SCF
       void printSCFProg(std::ostream& out = std::cout, bool printDiff = true) {
-        if( printLevel > 1 )
+        if( this->printLevel > 1 )
           for( auto& x: subsystems ) {
             out << "  " << std::setw(14) << std::left << x.first << " SCF: ";
             auto nIter = x.second->scfConv.nSCFIter;

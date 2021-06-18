@@ -133,7 +133,7 @@ namespace ChronusQ {
 
 
     // TEMPORARY
-    bool doTemp = true;
+    bool doTemp = false;
 
 
     // Determine JOB type
@@ -301,8 +301,8 @@ namespace ChronusQ {
     if( not jobType.compare("RT") ) {
 
       // FIXME: Need to implement RT-NEO
-      if (doNEO)
-        CErr("RT-NEO NYI!",output);
+      // if (doNEO)
+      //   CErr("RT-NEO NYI!",output);
 
       if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
 

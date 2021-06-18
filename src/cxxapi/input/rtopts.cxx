@@ -102,6 +102,9 @@ namespace ChronusQ {
 
 
     // Construct RT object
+    CONSTRUCT_RT( NEOSS, double, double     );
+    CONSTRUCT_RT( NEOSS, dcomplex, double   );
+    CONSTRUCT_RT( NEOSS, dcomplex, dcomplex );
 
     CONSTRUCT_RT( HartreeFock, double, double     );
     CONSTRUCT_RT( HartreeFock, dcomplex, double   );
