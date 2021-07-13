@@ -484,9 +484,9 @@ namespace ChronusQ {
       std::cout << "    * Reading in guess density from file "
         << savFile.fName() << "\n";
 
-    size_t t_hash = typeid(MatsT).hash_code();
-    size_t d_hash = typeid(double).hash_code();
-    size_t c_hash = typeid(dcomplex).hash_code();
+    size_t t_hash = std::is_same<MatsT,double>::value ? 1 : 2;
+    size_t d_hash = 1;
+    size_t c_hash = 2;
 
     size_t savHash;
     try{
@@ -518,6 +518,7 @@ namespace ChronusQ {
  
     // dimension of 1PDM 
     auto NB = basisSet().nBasis;
+    if( this->nC == 4 ) NB=2*NB;
     auto NB2 = NB*NB;
 
 
@@ -629,7 +630,7 @@ namespace ChronusQ {
     }
 
 
-    if( this->nC == 2 ) {
+    if( this->nC == 2 or this->nC == 4 ) {
 
       if( not hasDY ) {
 
@@ -715,10 +716,12 @@ namespace ChronusQ {
     if( printLevel > 0 )
       std::cout << "    * Reading in guess orbitals from file "
         << savFile.fName() << "\n";
+
+    if( this->nC == 4 ) CErr("READMO NYI for 4c",std::cout);
  
-    size_t t_hash = typeid(MatsT).hash_code();
-    size_t d_hash = typeid(double).hash_code();
-    size_t c_hash = typeid(dcomplex).hash_code();
+    size_t t_hash = std::is_same<MatsT,double>::value ? 1 : 2;
+    size_t d_hash = 1;
+    size_t c_hash = 2;
 
     size_t savHash; 
 
@@ -828,6 +831,9 @@ namespace ChronusQ {
 
     }
 
+    // MO coefficients from AO to othonormalized basis
+    orthoAOMO();
+
     // Form density from MOs
     formDensity();
 
@@ -853,6 +859,8 @@ namespace ChronusQ {
       std::cout << "    * Reading in guess orbitals from file " << fchkFileName << "\n";
       std::cout << "      Please check that IOp(3/60=-1) was included in your Gaussian calculation." << "\n";
     }
+
+    if( this->nC == 4 ) CErr("FCHKMO NYI for 4c",std::cout);
 
     std::vector<int> shellList;
 
@@ -880,6 +888,9 @@ namespace ChronusQ {
 
     // Reorder spin components
     if( this->nC == 2 ) reorderSpinMO();
+
+    // MO coefficients from AO to othonormalized basis
+    orthoAOMO();
 
     // Form density from MOs
     formDensity();
