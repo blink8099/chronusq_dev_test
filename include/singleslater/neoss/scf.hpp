@@ -108,12 +108,11 @@ namespace ChronusQ {
     if( this->printLevel > 0 ) {
       applyToEach([](SubSSPtr& ss) {
         ss->printMOInfo(std::cout);
-        ss->printMultipoles(std::cout);
         ss->printSpin(std::cout);
         ss->printMiscProperties(std::cout);
       });
     }
-
+    this->printMultipoles(std::cout);
   }; // NEOSingleSlater::SCF()
 
 }; // namespace ChronusQ

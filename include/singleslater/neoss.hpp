@@ -240,19 +240,96 @@ namespace ChronusQ {
       // Properties
       void computeEnergy() {
 
-        applyToEach([](SubSSPtr& ss){ ss->computeEnergy(); });
-
         this->totalEnergy = 0.;
-        applyToEach([&](SubSSPtr& ss){ 
+        applyToEach([&](SubSSPtr& ss){
+            ss->computeEnergy(); 
             this->totalEnergy += ss->totalEnergy - this->molecule().nucRepEnergy;
         });
 
         this->totalEnergy += this->molecule().nucRepEnergy;
 
       }
+    
+      void computeMultipole(EMPerturbation& emPert) {
+      // Zeroing our Dipole, Quadrupole, and Octopole
+        for (auto iXYZ = 0; iXYZ < 3; iXYZ++) {
 
-      void computeMultipole(EMPerturbation&) { }
-      void computeSpin() { }
+          this->elecDipole[iXYZ] = 0.;
+          
+          for (auto jXYZ = 0; jXYZ < 3; jXYZ++){
+
+            this->elecQuadrupole[iXYZ][jXYZ] = 0.;
+
+            for (auto kXYZ = 0; kXYZ < 3; kXYZ++){
+
+              this->elecOctupole[iXYZ][jXYZ][kXYZ] = 0.;
+
+            }
+          }
+        }
+
+        applyToEach([&](SubSSPtr& ss){
+      // Computing the Multipole for each subsystem and then adding to the overall multipoles
+          ss->computeMultipole(emPert);
+          for (auto iXYZ = 0; iXYZ < 3; iXYZ++) {
+
+            this->elecDipole[iXYZ] += ss->elecDipole[iXYZ];
+            
+            for (auto jXYZ = 0; jXYZ < 3; jXYZ++){
+
+              this->elecQuadrupole[iXYZ][jXYZ] += ss->elecQuadrupole[iXYZ][jXYZ];
+
+              for (auto kXYZ = 0; kXYZ < 3; kXYZ++){
+
+                this->elecOctupole[iXYZ][jXYZ][kXYZ] += ss->elecOctupole[iXYZ][jXYZ][kXYZ];
+
+              }
+            }
+          }
+        });
+      // Nuclear contributions to the dipoles
+        for(auto &atom : this->molecule().atoms){
+
+          if (atom.quantum){
+          continue;
+          } 
+          for (int iXYZ = 0; iXYZ < 3; iXYZ++) this->elecDipole[iXYZ] -= atom.nucCharge*atom.coord[iXYZ]*(subsystems.size()-1);
+        
+        }
+
+        // Nuclear contributions to the quadrupoles
+        for(auto &atom : this->molecule().atoms){
+          if (atom.quantum) {
+            continue;
+          }
+
+        for(size_t iXYZ = 0; iXYZ < 3; iXYZ++)
+        for(size_t jXYZ = 0; jXYZ < 3; jXYZ++) 
+          this->elecQuadrupole[iXYZ][jXYZ] -=
+             (subsystems.size()-1) * atom.nucCharge * atom.coord[iXYZ] * atom.coord[jXYZ];
+        } 
+
+        // Nuclear contributions to the octupoles
+        for(auto &atom : this->molecule().atoms){
+          
+          if (atom.quantum){
+            continue;
+          }
+     
+        for(size_t iXYZ = 0; iXYZ < 3; iXYZ++)
+        for(size_t jXYZ = 0; jXYZ < 3; jXYZ++)
+        for(size_t kXYZ = 0; kXYZ < 3; kXYZ++)
+          this->elecOctupole[iXYZ][jXYZ][kXYZ] -=
+            (subsystems.size()-1) * atom.nucCharge * atom.coord[iXYZ] * atom.coord[jXYZ] *
+            atom.coord[kXYZ];
+        }
+       
+      };
+      void computeSpin() { 
+
+      applyToEach([](SubSSPtr& ss){ ss->computeSpin(); });      
+
+      }
       void methodSpecificProperties() { }
 
       // Overrides specific to a NEO-SCF
