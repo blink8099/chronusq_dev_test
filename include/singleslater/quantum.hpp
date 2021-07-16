@@ -204,7 +204,6 @@ namespace ChronusQ {
 
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::computeMultipole(EMPerturbation &pert) {
-
     ROOT_ONLY(comm);
     // Compute elecric contribution to the dipoles
     for(auto iXYZ = 0; iXYZ < 3; iXYZ++) 
@@ -212,10 +211,11 @@ namespace ChronusQ {
 
 
     // Nuclear contributions to the dipoles
-    for(auto &atom : this->molecule().atoms)
-      MatAdd('N','N',3,1,1.,&this->elecDipole[0],3,atom.nucCharge,
+    for(auto &atom : this->molecule().atoms){
+    if (atom.quantum) continue;  
+    MatAdd('N','N',3,1,1.,&this->elecDipole[0],3,atom.nucCharge,
         &atom.coord[0],3,&this->elecDipole[0],3);
-
+    }
     // Electric contribution to the quadrupoles
     for(size_t iXYZ = 0, iX = 0; iXYZ < 3; iXYZ++)
     for(size_t jXYZ = iXYZ     ; jXYZ < 3; jXYZ++, iX++){
@@ -227,12 +227,15 @@ namespace ChronusQ {
     }
     
     // Nuclear contributions to the quadrupoles
-    for(auto &atom : this->molecule().atoms)
+    for(auto &atom : this->molecule().atoms){
+    
+    if (atom.quantum) continue;
+
     for(size_t iXYZ = 0; iXYZ < 3; iXYZ++)
     for(size_t jXYZ = 0; jXYZ < 3; jXYZ++) 
       this->elecQuadrupole[iXYZ][jXYZ] +=
         atom.nucCharge * atom.coord[iXYZ] * atom.coord[jXYZ];
-
+    }
     // Electric contribution to the octupoles
     for(size_t iXYZ = 0, iX = 0; iXYZ < 3; iXYZ++)
     for(size_t jXYZ = iXYZ     ; jXYZ < 3; jXYZ++)
@@ -254,13 +257,17 @@ namespace ChronusQ {
     }
 
     // Nuclear contributions to the octupoles
-    for(auto &atom : this->molecule().atoms)
+    for(auto &atom : this->molecule().atoms){
+
+    if (atom.quantum) continue;
+
     for(size_t iXYZ = 0; iXYZ < 3; iXYZ++)
     for(size_t jXYZ = 0; jXYZ < 3; jXYZ++)
     for(size_t kXYZ = 0; kXYZ < 3; kXYZ++)
       this->elecOctupole[iXYZ][jXYZ][kXYZ] +=
         atom.nucCharge * atom.coord[iXYZ] * atom.coord[jXYZ] *
         atom.coord[kXYZ];
+    }
   };
 
 

@@ -272,9 +272,8 @@ namespace ChronusQ {
       // Computing the Multipole for each subsystem and then adding to the overall multipoles
           ss->computeMultipole(emPert);
           for (auto iXYZ = 0; iXYZ < 3; iXYZ++) {
-
             this->elecDipole[iXYZ] += ss->elecDipole[iXYZ];
-            
+             
             for (auto jXYZ = 0; jXYZ < 3; jXYZ++){
 
               this->elecQuadrupole[iXYZ][jXYZ] += ss->elecQuadrupole[iXYZ][jXYZ];
@@ -293,7 +292,9 @@ namespace ChronusQ {
           if (atom.quantum){
           continue;
           } 
-          for (int iXYZ = 0; iXYZ < 3; iXYZ++) this->elecDipole[iXYZ] -= atom.nucCharge*atom.coord[iXYZ]*(subsystems.size()-1);
+          for (int iXYZ = 0; iXYZ < 3; iXYZ++){
+            this->elecDipole[iXYZ] -= atom.nucCharge*atom.coord[iXYZ]*(subsystems.size()-1);
+        }
         
         }
 
