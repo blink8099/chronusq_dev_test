@@ -22,7 +22,7 @@
  *  
  */
 #pragma once
-
+#include <fockbuilder/impl.hpp>
 #include <realtime.hpp>
 
 
@@ -42,7 +42,7 @@ namespace ChronusQ {
 
       // Assume all subsystems are the same type
       bool isHF = std::dynamic_pointer_cast<HartreeFock<MatsT,IntsT>>(
-        map.begin()->second);
+        map.begin()->second) != nullptr;
 
       for( auto& system: map ) {
 
@@ -70,8 +70,8 @@ namespace ChronusQ {
         newSS->fockBuilder = newFock;
 
         // Stupid, stupid C++
-        auto casted = dynamic_cast<NEOSS<dcomplex,IntsT>&>(propagator_);
-        casted.addSubsystem(system.first, newSS);
+        auto casted = dynamic_cast<NEOSS<dcomplex,IntsT>*>(&propagator_);
+        casted->addSubsystem(system.first, newSS);
 
         // Information for RealTime only
         size_t NB = newSS->onePDM->dimension();

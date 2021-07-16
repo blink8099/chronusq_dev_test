@@ -71,6 +71,7 @@ namespace ChronusQ {
       applyToEach([&](SubSSPtr& ss){ ss->SCF(pert); });
 
       // Exit loop on convergence
+      // NOTE: "Break" can be placed after isCovnerged
       if(isConverged) break;
 
       // Evaluate convergence

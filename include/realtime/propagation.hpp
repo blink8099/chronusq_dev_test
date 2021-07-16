@@ -133,7 +133,7 @@ namespace ChronusQ {
             
           // DOSav(k) = DO(k)
           // DO(k)    = DO(k-1)
-          std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> tmp = DOSav[0];
+          std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> tmp = DOSav[idx];
           DOSav[idx] = systems_[idx]->onePDMOrtho;
           systems_[idx]->onePDMOrtho = tmp;
 

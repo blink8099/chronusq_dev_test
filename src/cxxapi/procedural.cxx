@@ -133,7 +133,7 @@ namespace ChronusQ {
 
 
     // TEMPORARY
-    bool doTemp = false;
+    bool doTemp = true;
 
 
     // Determine JOB type
@@ -269,32 +269,36 @@ namespace ChronusQ {
     if( not jobType.compare("SCF") or not jobType.compare("RT") or 
         not jobType.compare("RESP") or not jobType.compare("CC") ) {
 
-      ss->formCoreH(emPert);
+      aoints->computeAOTwoE(*basis, mol, emPert); // If INCORE, compute and store the ERIs
 
-      // If INCORE, compute and store the ERIs
-      aoints->computeAOTwoE(*basis, mol, emPert);
+      if (doNEO) {
 
-      if (doNEO) { 
-
-        if(auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
+        if (auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
           prot_aoints->computeAOTwoE(*prot_basis, mol, emPert);
         else
-          CErr("NEO with complex integrals NYI!",output);
+          CErr("NEO with complex integrals NYI!", output);
 
-        if(auto p = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints))
-          ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert); 
+        if (auto p = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints))
+          ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert);
+
 
       }
-
-      ss->formGuess();
-      ss->SCF(emPert);
 
       // TEMPORARY
       if (doNEO and doTemp) {
+
         neoss->formCoreH(emPert);
         neoss->formGuess();
         neoss->SCF(emPert);
+
+      } else {
+
+        ss->formCoreH(emPert);
+        ss->formGuess();
+        ss->SCF(emPert);
+
       }
+
     }
 
 
@@ -306,7 +310,12 @@ namespace ChronusQ {
 
       if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
 
-      auto rt = CQRealTimeOptions(output,input,ss,emPert);
+      std::shared_ptr<RealTimeBase> rt = nullptr;
+      if (doTemp) 
+        rt = CQRealTimeOptions(output,input,neoss,emPert);
+      else 
+        rt = CQRealTimeOptions(output,input,ss,emPert);
+
       rt->savFile = rstFile;
       rt->doPropagation();
 

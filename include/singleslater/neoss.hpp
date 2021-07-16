@@ -125,6 +125,8 @@ namespace ChronusQ {
         // Loop over other subsystems
         for( auto& x: subsystems ) {
 
+          // first = label;
+	        // second = SingleSlater;
           auto other_NB = x.second->basisSet().nBasis;
 
           // Add a new coulomb matrix to the new system
@@ -146,6 +148,7 @@ namespace ChronusQ {
           other_newFock->setUpstream(fockBuilders[x.first].back().get());
 
           // Contractions
+	        // TODO: all interCoulomb TPI for different types of particles should be stored
           std::shared_ptr<TPIContractions<MatsT,IntsT>> this_cont;
           std::shared_ptr<TPIContractions<MatsT,IntsT>> other_cont;
           if( auto tpi_t = std::dynamic_pointer_cast<DirectTPI<IntsT>>(this->aoints.TPI) ) {
