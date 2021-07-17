@@ -48,7 +48,9 @@ namespace ChronusQ {
     // Zero out J and K[i]
     if(not increment)
       outMat->clear();
-  
+ 
+    //contract1PDM.S().output(std::cout, "", true);
+
     std::vector<TwoBodyContraction<MatsT>> contract =
       { {contract1PDM.S().pointer(), outMat->pointer(), true, COULOMB} };
 
@@ -68,10 +70,14 @@ namespace ChronusQ {
     // Call all upstream FockBuilders
     upstream->formFock(ss, empert, increment, xHFX);
 
+    //ss.computeEnergy();
+    //std::cout<<"xsli test 1 "<<ss.totalEnergy<<std::endl;
     formepJ(ss, increment);
 
     *ss.twoeH -= 2. * *outMat;
     *ss.fockMatrix -= 2. * *outMat;
+    //ss.computeEnergy();
+    //std::cout<<"xsli test 2 "<<ss.totalEnergy<<std::endl;
   }
 
 }

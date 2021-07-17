@@ -154,9 +154,8 @@ namespace ChronusQ {
 
         // Form the Fock matrix at the current time
       for(auto idx = 0; idx < systems_.size(); idx++) {
-        formFock(false,curState.xTime,idx);
+        this->formFock(false,curState.xTime,idx);
       }
-
 
       // Compute properties for D(k) 
       propagator_.computeProperties(pert_t);

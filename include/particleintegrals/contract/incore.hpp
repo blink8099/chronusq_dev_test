@@ -138,10 +138,10 @@ namespace ChronusQ {
     // Allocate scratch if IntsT and MatsT are different
     const bool allocAXScratch = not std::is_same<IntsT,MatsT>::value;
 
-
     if( extractRealPartX ) {
 
-      size_t Xdim = this->contractSecond ? sNB2 : NB2;
+      //size_t Xdim = this->contractSecond ? sNB2 : NB2;
+      size_t Xdim = this->contractSecond ? NB2 : sNB2;
       X = memManager_.malloc<IntsT>(Xdim);
       for(auto k = 0ul; k < Xdim; k++) X[k] = std::real(C.X[k]);
     }
@@ -153,6 +153,11 @@ namespace ChronusQ {
 
     }
 
+
+    //prettyPrintSmart(std::cout,"Raw X",X,sNB,sNB,sNB);
+    //std::cout<<"xsli test bool "<<this->contractSecond<<" "<<extractRealPartX<<" "<<allocAXScratch<<" "<<C.HER<<std::endl;
+    //prettyPrintSmart(std::cout,"Raw AX",AX,NB,NB,NB);
+    //prettyPrintSmart(std::cout,"Raw TPI",tpi4I.pointer(),NB2,sNB2,NB*sNB);
 
     #ifdef _BULLET_PROOF_INCORE
 
@@ -166,13 +171,18 @@ namespace ChronusQ {
 
     #else
 
-    if( std::is_same<IntsT,dcomplex>::value )
+    if( std::is_same<IntsT,dcomplex>::value ) {
       Gemm('C','N',NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
-    else 
-      if (not this->contractSecond)
+    } else { 
+      if (not this->contractSecond){
+        //std::cout<<"xsli B "<<NB2<<" "<<sNB2<<" "<<tpi4I.pointer()<<std::endl;
         Gemm('N','N',NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
-      else
+      }else{
         Gemm('C','N',NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),sNB2,X,sNB2,IntsT(0.),AX,NB2);
+      }
+    }
+
+    //prettyPrintSmart(std::cout,"Raw AX",AX,NB,NB,NB);
 
     // if Complex ints + Hermitian, conjugate
     if( std::is_same<IntsT,dcomplex>::value and C.HER )
@@ -187,6 +197,7 @@ namespace ChronusQ {
 
     #endif
 
+
     // Cleanup temporaries
     if( extractRealPartX ) memManager_.free(X);
     if( allocAXScratch ) {
@@ -195,6 +206,7 @@ namespace ChronusQ {
       memManager_.free(AX);
 
     }
+
 
     ProgramTimer::tock("J Contract");
 
