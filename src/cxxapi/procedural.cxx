@@ -312,7 +312,7 @@ namespace ChronusQ {
       if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
 
       std::shared_ptr<RealTimeBase> rt = nullptr;
-      if (doTemp) 
+      if (doTemp and doNEO) 
         rt = CQRealTimeOptions(output,input,neoss,emPert);
       else 
         rt = CQRealTimeOptions(output,input,ss,emPert);
