@@ -232,6 +232,7 @@ namespace ChronusQ {
 
     // Fchk-related functions 
     std::vector<int> fchkToCQMO();
+    std::unordered_map<int,std::vector<int>> returnAngReorder();
     void reorderAngMO(std::vector<int> sl, MatsT* tmo, int sp);
     void reorderSpinMO();
 
