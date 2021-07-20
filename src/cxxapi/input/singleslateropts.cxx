@@ -1587,8 +1587,9 @@ namespace ChronusQ {
     if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<double,double>>(ess)) {
       if(auto pss_t = std::dynamic_pointer_cast<SingleSlater<double,double>>(pss)) {
         auto neoss_t = std::make_shared<NEOSS<double,double>>(NEO_LIST(double));
-        neoss_t->addSubsystem("Electronic", ess_t);
-        neoss_t->addSubsystem("Protonic", pss_t);
+        auto epaoints_t = std::dynamic_pointer_cast<Integrals<double>>(epaoints);
+        neoss_t->addSubsystem("Electronic", ess_t, {});
+        neoss_t->addSubsystem("Protonic", pss_t, {{"Electronic", {true, epaoints_t->TPI}}});
         neoss_t->setOrder({"Protonic", "Electronic"});
         neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
       }
@@ -1598,8 +1599,9 @@ namespace ChronusQ {
     else if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ess)) {
       if(auto pss_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(pss)) {
         auto neoss_t = std::make_shared<NEOSS<dcomplex,double>>(NEO_LIST(double));
-        neoss_t->addSubsystem("Electronic", ess_t);
-        neoss_t->addSubsystem("Protonic", pss_t);
+        auto epaoints_t = std::dynamic_pointer_cast<Integrals<double>>(epaoints);
+        neoss_t->addSubsystem("Electronic", ess_t, {});
+        neoss_t->addSubsystem("Protonic", pss_t, {{"Electronic", {true, epaoints_t->TPI}}});
         neoss_t->setOrder({"Protonic", "Electronic"});
         neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
       }

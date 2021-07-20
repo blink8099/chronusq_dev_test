@@ -28,6 +28,7 @@
 #include <matrix.hpp>
 
 #include <fockbuilder/neofock.hpp>
+#include <particleintegrals/twopints.hpp>
 #include <particleintegrals/twopints/gtodirecttpi.hpp>
 #include <particleintegrals/twopints/incore4indextpi.hpp>
 
@@ -59,8 +60,15 @@ namespace ChronusQ {
 
     protected:
 
+      // typedefs
       using SubSSPtr = std::shared_ptr<SingleSlater<MatsT,IntsT>>;
 
+      template <typename T>
+      using LabeledMap = std::unordered_map<std::string, T>;
+
+      //
+      // MAIN STORAGE
+      //
       std::unordered_map<std::string,SubSSPtr> subsystems;
 
       // Optional order
@@ -72,10 +80,14 @@ namespace ChronusQ {
       // EXAMPLE: interCoulomb["electron"]["proton"] is the coulomb matrix for
       //   the electronic subsystem (in the electronic basis) coming from the
       //   protonic coulomb potential.
-      std::unordered_map<std::string, std::unordered_map<std::string, SquareMatrix<MatsT>>> interCoulomb;
+      LabeledMap<LabeledMap<SquareMatrix<MatsT>>> interCoulomb;
+
+      // Two particle intergral objects (same storage scheme as above)
+      // Boolean is contractSecond
+      LabeledMap<LabeledMap<std::pair<bool, std::shared_ptr<TwoPInts<IntsT>>>>> interIntegrals;
 
       // Storage for FockBuilders (determines lifetime)
-      std::unordered_map<std::string, std::vector<std::shared_ptr<FockBuilder<MatsT,IntsT>>>> fockBuilders;
+      LabeledMap<std::vector<std::shared_ptr<FockBuilder<MatsT,IntsT>>>> fockBuilders;
 
     public:
 
@@ -90,23 +102,29 @@ namespace ChronusQ {
 
       // Copy/move constructors
       template <typename MatsU>
-        NEOSS(const NEOSS<MatsU,IntsT>& other, int dummy = 0) :
-          SingleSlater<MatsT,IntsT>(dynamic_cast<const SingleSlater<MatsU,IntsT>&>(other), dummy),
-          WaveFunctionBase(dynamic_cast<const WaveFunctionBase&>(other)),
-          QuantumBase(dynamic_cast<const QuantumBase&>(other)),
-          order_(other.order_) {};
+      NEOSS(const NEOSS<MatsU,IntsT>& other, int dummy = 0);
+
       template <typename MatsU>
-        NEOSS(NEOSS<MatsU,IntsT>&& other, int dummy = 0) :
-          SingleSlater<MatsT,IntsT>(dynamic_cast<SingleSlater<MatsU,IntsT>&&>(other), dummy),
-          WaveFunctionBase(dynamic_cast<WaveFunctionBase&&>(other)),
-          QuantumBase(dynamic_cast<QuantumBase&&>(other)),
-          order_(other.order_) {};
+      NEOSS(NEOSS<MatsU,IntsT>&& other, int dummy = 0);
 
       NEOSS(const NEOSS<MatsT,IntsT>& other) : NEOSS(other, 0) {};
       NEOSS(NEOSS<MatsT,IntsT>&& other) : NEOSS(other, 0) {};
 
 
-      void addSubsystem(std::string label, std::shared_ptr<SingleSlater<MatsT,IntsT>> ss) {
+      // Add a subsystem to the NEO object
+      //
+      // label  Unique name for this subsystem
+      // ss     SingleSlater object representing this subsystem
+      // ints   Two particle integrals for interacting with all other subsystems
+      void addSubsystem(
+        std::string label,
+        std::shared_ptr<SingleSlater<MatsT,IntsT>> ss,
+        const LabeledMap<std::pair<bool,std::shared_ptr<TwoPInts<IntsT>>>>& ints)
+      {
+
+        // Check that we have at least the same number of integrals as other systems
+        if(ints.size() < subsystems.size())
+          CErr("Subsystem and integral number mismatch in addSubsystem!");
 
         // HamiltonianOptions is not relevant for the NEO builders
         HamiltonianOptions options;
@@ -147,23 +165,28 @@ namespace ChronusQ {
           other_newFock->setOutput(&interCoulomb.at(x.first).at(label));
           other_newFock->setUpstream(fockBuilders[x.first].back().get());
 
+          // Add integrals to other system (mostly for consistency)
+          auto& contractSecond = ints.at(x.first).first;
+          auto& tpi = ints.at(x.first).second;
+          interIntegrals[x.first].insert({label, {not contractSecond, tpi}});
+
           // Contractions
-	        // TODO: all interCoulomb TPI for different types of particles should be stored
           std::shared_ptr<TPIContractions<MatsT,IntsT>> this_cont;
           std::shared_ptr<TPIContractions<MatsT,IntsT>> other_cont;
-          if( auto tpi_t = std::dynamic_pointer_cast<DirectTPI<IntsT>>(this->aoints.TPI) ) {
+          if( auto tpi_t = std::dynamic_pointer_cast<DirectTPI<IntsT>>(tpi) ) {
             this_cont = std::make_shared<GTODirectTPIContraction<MatsT,IntsT>>(*tpi_t);
             other_cont = std::make_shared<GTODirectTPIContraction<MatsT,IntsT>>(*tpi_t);
           }
-          else if( auto tpi_t = std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(this->aoints.TPI) ) {
+          else if( auto tpi_t = std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(tpi) ) {
             this_cont = std::make_shared<InCore4indexTPIContraction<MatsT,IntsT>>(*tpi_t);
             other_cont = std::make_shared<InCore4indexTPIContraction<MatsT,IntsT>>(*tpi_t);
           }
           else {
-            CErr("Invalid TPInts type for NEO!");
+            CErr("Invalid TwoPInts type for NEO!");
           }
-          // Assume that the ones added second will always be the "second" basis set
-          this_cont->contractSecond = true;
+          // Set contractSecond
+          this_cont->contractSecond = contractSecond;
+          other_cont->contractSecond = not contractSecond;
 
           this_newFock->setContraction(this_cont);
           other_newFock->setContraction(other_cont);
@@ -177,6 +200,9 @@ namespace ChronusQ {
 
         // Add the single slater object to the list of systems
         subsystems[label] = ss;
+
+        // Add the integrals to this system
+        interIntegrals.insert({label, ints});
 
         // Update all FockBuilders used to the most recent version
         for( auto& x: subsystems ) {
