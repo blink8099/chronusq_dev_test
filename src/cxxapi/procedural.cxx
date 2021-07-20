@@ -219,6 +219,7 @@ namespace ChronusQ {
 
       // TEMPORARY
       if( doTemp ) {
+        CQSCFOptions(output,input,*neoss,emPert);
         neobase = std::dynamic_pointer_cast<NEOBase>(neoss);
         essbase = neobase->getSubSSBase("Electronic");
         pssbase = neobase->getSubSSBase("Protonic");
