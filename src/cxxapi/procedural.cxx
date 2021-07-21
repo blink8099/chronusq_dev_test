@@ -290,7 +290,7 @@ namespace ChronusQ {
     //     {KINETIC,1}, {NUCLEAR_POTENTIAL,1}, {ELECTRON_REPULSION,1}},
     //     {basis->basisType, false, false, false});
 
-    auto ssd = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss);
+    auto ssd = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss);
 
     size_t NB = basis->nBasis;
 

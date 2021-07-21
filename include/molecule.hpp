@@ -176,6 +176,28 @@ namespace ChronusQ {
            << "total electrons = " << nTotalE;
         CErr(ss.str(),std::cout);
       }
+      // Compute the total number of quantum protons 
+      nTotalP = 0;
+      size_t ind = 0;
+      for ( Atom& atom : atoms ) {
+        if ( atom.quantum ) {
+          // return an error if not hydrogen
+          if ( atom.atomicNumber != 1 )
+            CErr("Non-Hydrogen quantum nuclei NYI.");
+
+          nTotalP += 1;
+          atomsQ.push_back(ind);
+        }
+        else 
+          atomsC.push_back(ind);
+        ind += 1;
+      }
+
+      if (nTotalP > 1)
+        CErr("NEO with multiple quantum protons NYI.");
+
+      // assume high-spin open-shell for protons 
+      multip_proton = (size_t)(2 * nTotalP * 0.5 + 1);
 
       computeRIJ();
       computeNNRep();
@@ -184,8 +206,9 @@ namespace ChronusQ {
       computeCOC();
       computeMOI();
       computeCDist();
-
+  
     }
+
 
     private:
 
