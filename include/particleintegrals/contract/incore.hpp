@@ -32,6 +32,7 @@
 #include <particleintegrals/twopints/incore4indextpi.hpp>
 #include <particleintegrals/twopints/incoreritpi.hpp>
 #include <particleintegrals/twopints/incore4indexreleri.hpp>
+#include <particleintegrals/gradints/incore.hpp>
 
 // Use stupid but bullet proof incore contraction for debug
 //#define _BULLET_PROOF_INCORE
@@ -560,6 +561,26 @@ namespace ChronusQ {
 
   }; // InCoreRIERIContraction::KCoefContract
 
+
+  // Contraction into separate storages
+  template <typename MatsT, typename IntsT>
+  void InCore4indexGradContraction<MatsT,IntsT>::gradTwoBodyContract(
+    MPI_Comm comm,
+    const bool screen,
+    std::vector<std::vector<TwoBodyContraction<MatsT>>>& list,
+    EMPerturbation& pert) const {
+
+    // Contract over each 3N gradient component
+    size_t nGrad = this->grad_.size();
+    assert(nGrad == list.size());
+
+    for (auto i = 0; i < nGrad; i++) {
+      auto casted = std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(this->grad_[i]);
+      InCore4indexTPIContraction<MatsT,IntsT> contraction(*casted);
+      contraction.twoBodyContract(comm, screen, list[i], pert);
+    }
+
+  }; // InCore4indexGradContraction::gradTwoBodyContract
+
+
 }; // namespace ChronusQ
-
-

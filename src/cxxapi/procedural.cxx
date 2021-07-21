@@ -45,6 +45,13 @@
 #include <itersolver.hpp>
 #include <coupledcluster.hpp>
 
+#include <findiff/geomgrad.hpp>
+#include <particleintegrals/gradints.hpp>
+#include <particleintegrals/twopints/incore4indextpi.hpp>
+#include <particleintegrals/twopints/gtodirecttpi.hpp>
+#include <particleintegrals/gradints/incore.hpp>
+#include <particleintegrals/gradints/direct.hpp>
+
 #include <cqlinalg/blasext.hpp>
 #include <cqlinalg/eig.hpp>
 
@@ -255,6 +262,42 @@ namespace ChronusQ {
       ss->SCF(emPert);
     }
 
+    std::cout << "Energy: " << ss->totalEnergy;
+    std::cout << "OneE Energy: " << ss->OBEnergy;
+    std::cout << "TwoE Energy: " << ss->MBEnergy;
+
+    // Numerical gradient
+    size_t acc = 8;
+    if ( acc != 0 ) {
+      NumGradient grad(input, ss, basis);
+      grad.doGrad(acc);
+      // grad.eriGrad<double>(acc);
+    }
+
+    std::vector<std::shared_ptr<InCore4indexTPI<double>>> ints;
+    for ( auto i = 0; i < mol.atoms.size() * 3; i++ )
+      ints.push_back(
+        std::make_shared<InCore4indexTPI<double>>(*memManager, basis->nBasis)
+      );
+
+    auto casted = std::dynamic_pointer_cast<Integrals<double>>(aoints);
+    casted->gradERI = std::make_shared<GradInts<TwoPInts,double>>(
+      *memManager, basis->nBasis, mol.atoms.size(), ints
+    );
+
+
+    // aoints->computeGradInts(*memManager, mol, *basis, emPert, {{OVERLAP,1},
+    //     {KINETIC,1}, {NUCLEAR_POTENTIAL,1}, {ELECTRON_REPULSION,1}},
+    //     {basis->basisType, false, false, false});
+
+    auto ssd = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss);
+
+    size_t NB = basis->nBasis;
+
+    auto grad = ssd->getGrad(emPert, false, false);
+    std::cout << std::endl;
+    for( auto &X: grad )
+      std::cout << "Grad: " << X << std::endl;
 
     if( not jobType.compare("RT") ) {
 

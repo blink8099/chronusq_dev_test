@@ -22,7 +22,7 @@
  *  
  */
 
-#include <integrals.hpp>
+#include <integrals/impl.hpp>
 #include <particleintegrals/inhouseaointegral.hpp>
 #include <cqlinalg.hpp>
 #include <cqlinalg/svd.hpp>
@@ -34,7 +34,6 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 
-#include <particleintegrals/onepints/aoonepints.hpp>
 
 // Debug directives
 //#define _DEBUGORTHO
@@ -320,6 +319,15 @@ namespace ChronusQ {
       CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,
       const std::vector<std::pair<OPERATOR,size_t>>&,
       const HamiltonianOptions&);
+
+
+  template <>
+  void Integrals<dcomplex>::computeGradInts(
+      CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,
+      const std::vector<std::pair<OPERATOR,size_t>>&,
+      const HamiltonianOptions&) {
+    CErr("Gradient integrals for GIAOs not yet implemented");
+  };
 
 
 }; // namespace ChronusQ

@@ -22,6 +22,7 @@
  *
  */
 #pragma once
+
 #include <integrals.hpp>
 #include <particleintegrals/twopints/incore4indextpi.hpp>
 #include <particleintegrals/twopints/incoreritpi.hpp>
@@ -164,5 +165,67 @@ namespace ChronusQ {
       }
 
   }; // AOIntegrals<IntsT>::computeAOOneP
+
+
+
+  // Computes the integrals necessary for the gradients
+  template <typename IntsT>
+  void Integrals<IntsT>::computeGradInts(CQMemManager &mem,
+      Molecule &mol, BasisSet &basis, EMPerturbation &emPert,
+      const std::vector<std::pair<OPERATOR,size_t>> &ops,
+      const HamiltonianOptions &options) {
+
+    size_t NB = basis.nBasis;
+    size_t NAt = mol.nAtoms;
+
+    auto computeOneE = [&](std::shared_ptr<GradInts<OnePInts,IntsT>>& p, OPERATOR o) {
+      if (p == nullptr)
+        p = std::make_shared<GradInts<OnePInts,IntsT>>(mem, NB, NAt);
+      else
+        p->clear();
+
+      p->computeAOInts(basis, mol, emPert, o, options);
+    };
+
+    for ( auto& op: ops ) {
+
+
+      switch (op.first) {
+
+        case OVERLAP:
+          computeOneE(gradOverlap, op.first);
+          break;
+
+        case KINETIC:
+          computeOneE(gradKinetic, op.first);
+          break;
+
+        case NUCLEAR_POTENTIAL:
+          if ( options.OneEScalarRelativity )
+            CErr("Relativistic gradients not yet implemented!");
+          computeOneE(gradPotential, op.first);
+          break;
+
+        case MAGNETIC_MULTIPOLE:
+        case LEN_ELECTRIC_MULTIPOLE:
+        case VEL_ELECTRIC_MULTIPOLE:
+          CErr("Gradients of multipoles are not yet implemented");
+          break;
+
+        case ELECTRON_REPULSION:
+          if ( gradERI == nullptr )
+            CErr("ERI gradients must be allocated outside of computeGradInts!");
+
+          gradERI->computeAOInts(basis, mol, emPert, op.first, options);
+          break;
+      }
+
+      // TODO: Write code to save gradient integrals to binary file. Should be
+      //   toggleable with default off to keep binary file to reasonable size.
+
+    }
+
+  }; // AOIntegrals<IntsT>::computeGradInts
+
 
 }; // namespace ChronusQ

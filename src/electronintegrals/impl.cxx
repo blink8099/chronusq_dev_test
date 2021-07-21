@@ -23,62 +23,52 @@
  */
 
 #include <integrals.hpp>
-#include <particleintegrals/contract/incore.hpp>
-#include <particleintegrals/contract/direct.hpp>
-#include <particleintegrals/contract/direct3index.hpp>
-#include <particleintegrals/contract/direct4C.hpp>
-#include <particleintegrals/onepints/relativisticints.hpp>
+#include <electronintegrals/contract/incore.hpp>
+#include <electronintegrals/contract/direct.hpp>
+#include <electronintegrals/relativisticints.hpp>
 
 
 namespace ChronusQ {
 
   template <>
-  void InCore4indexTPIContraction<double,dcomplex>::JContract(
+  void InCore4indexERIContraction<double,dcomplex>::JContract(
       MPI_Comm, TwoBodyContraction<double>&) const { CErr("NYI"); }
   template <>
-  void InCore4indexTPIContraction<double,dcomplex>::KContract(
+  void InCore4indexERIContraction<double,dcomplex>::KContract(
       MPI_Comm, TwoBodyContraction<double>&) const { CErr("NYI"); }
 
   template <>
-  void InCoreRITPIContraction<double,dcomplex>::JContract(
+  void InCoreRIERIContraction<double,dcomplex>::JContract(
       MPI_Comm, TwoBodyContraction<double>&) const { CErr("NYI"); }
   template <>
-  void InCoreRITPIContraction<double,dcomplex>::KContract(
+  void InCoreRIERIContraction<double,dcomplex>::KContract(
       MPI_Comm, TwoBodyContraction<double>&) const { CErr("NYI"); }
 
-  template class OnePInts<double>;
-  template class OnePInts<dcomplex>;
+  template class OneEInts<double>;
+  template class OneEInts<dcomplex>;
 
-  template class OnePRelInts<double>;
-  template class OnePRelInts<dcomplex>;
+  template class OneERelInts<double>;
+  template class OneERelInts<dcomplex>;
 
-  template OnePInts<dcomplex>::OnePInts(const OnePInts<double>&, int);
-  template OnePRelInts<dcomplex>::OnePRelInts(const OnePRelInts<double>&, int);
+  template OneEInts<dcomplex>::OneEInts(const OneEInts<double>&, int);
+  template OneERelInts<dcomplex>::OneERelInts(const OneERelInts<double>&, int);
   template MultipoleInts<dcomplex>::MultipoleInts(const MultipoleInts<double>&, int);
-  template DirectTPI<dcomplex>::DirectTPI(const DirectTPI<double>&, int);
-  template InCore4indexTPI<dcomplex>::InCore4indexTPI(const InCore4indexTPI<double>&, int);
-  template InCoreRITPI<dcomplex>::InCoreRITPI(const InCoreRITPI<double>&, int);
+  template DirectERI<dcomplex>::DirectERI(const DirectERI<double>&, int);
+  template InCore4indexERI<dcomplex>::InCore4indexERI(const InCore4indexERI<double>&, int);
+  template InCoreRIERI<dcomplex>::InCoreRIERI(const InCoreRIERI<double>&, int);
   template InCoreAuxBasisRIERI<dcomplex>::InCoreAuxBasisRIERI(const InCoreAuxBasisRIERI<double>&, int);
 
-  template class InCore4indexTPIContraction<double, double>;
-  template class InCore4indexTPIContraction<dcomplex, double>;
-  template class InCore4indexTPIContraction<dcomplex, dcomplex>;
+  template class InCore4indexERIContraction<double, double>;
+  template class InCore4indexERIContraction<dcomplex, double>;
+  template class InCore4indexERIContraction<dcomplex, dcomplex>;
 
-  template class InCoreRITPIContraction<double, double>;
-  template class InCoreRITPIContraction<dcomplex, double>;
-  template class InCoreRITPIContraction<dcomplex, dcomplex>;
+  template class InCoreRIERIContraction<double, double>;
+  template class InCoreRIERIContraction<dcomplex, double>;
+  template class InCoreRIERIContraction<dcomplex, dcomplex>;
 
-  template class GTODirectTPIContraction<double, double>;
-  template class GTODirectTPIContraction<dcomplex, double>;
-  template class GTODirectTPIContraction<dcomplex, dcomplex>;
-
-  template class InCore4indexRelERIContraction<double, double>;
-  template class InCore4indexRelERIContraction<dcomplex, double>;
-  template class InCore4indexRelERIContraction<dcomplex, dcomplex>;
-
-  template class GTODirectRelERIContraction<double, double>;
-  template class GTODirectRelERIContraction<dcomplex, double>;
-  template class GTODirectRelERIContraction<dcomplex, dcomplex>;
+  template class GTODirectERIContraction<double, double>;
+  template class GTODirectERIContraction<dcomplex, double>;
+  template class GTODirectERIContraction<dcomplex, dcomplex>;
 
   template class Integrals<double>;
   template class Integrals<dcomplex>;
@@ -94,6 +84,5 @@ namespace ChronusQ {
   template class DirectGradContraction<double, double>;
   template class DirectGradContraction<dcomplex, double>;
   template class DirectGradContraction<dcomplex, dcomplex>;
-
 
 }; // namespace ChronusQ

@@ -72,8 +72,8 @@ namespace ChronusQ {
     // Form a fock matrix (see include/fockbuilder/impl.hpp for docs)
     virtual void formFock(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
 
-    // Compute the gradient
-    virtual void getGrad() {}
+    // Compute the 2e gradient
+    virtual std::vector<double> getGDGrad(SingleSlater<MatsT,IntsT>&, EMPerturbation&, double xHFX = 1.);
 
     // Pointer convertor
     template <typename MatsU>
