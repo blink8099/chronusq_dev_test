@@ -298,23 +298,49 @@ namespace ChronusQ {
 
 
 
-    auto grad = ssd->getGrad(emPert, false, false);
-    std::cout << std::endl;
-    for( auto &X: grad )
-      std::cout << "Grad: " << X << std::endl;
+    //std::cout << std::endl;
+    //for( auto &X: grad )
+      //std::cout << "Grad: " << X << std::endl;
 
     MolecularOptions molecularOptions;
     mol.geometryModifier = std::make_shared<MolecularDynamics>(molecularOptions,mol);
     auto MD = std::dynamic_pointer_cast<MolecularDynamics>(mol.geometryModifier);
     MD->initializeMD(mol);
-    MD->updateNuclearCoordinates(mol,grad,true);
 
-    auto totalTime = 0.0;
-    std::cout << std::scientific << std::setprecision(12);
-    std::cout << "Dynamic Information at Time = "<< totalTime << " a.u."<<std::endl;
-    std::cout << "Potential Energy = "<<ssd->totalEnergy<<" a.u."
-              <<"Kinetic Energy = "<<MD->nuclearKineticEnergy<<" a.u."
-              <<"Total Energy = "<<ssd->totalEnergy+MD->nuclearKineticEnergy<<" a.u."<<std::endl;
+    auto totalTimeFS = 0.0;
+    auto totalTimeAU = 0.0;
+    auto ETot0 = 0.0;
+    auto ETot = 0.0;
+    for(auto iStep = 0; iStep < molecularOptions.numberSteps; iStep++){
+
+      ssd->formGuess();
+      ssd->SCF(emPert);
+ 
+      std::cout << std::endl;
+      std::cout << "MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD"<<std::endl;
+      std::cout << "Molecular Dynamics Information for Step "<<std::setw(8)<<iStep<<std::endl;
+
+      std::cout << std::defaultfloat<<std::setprecision(8);
+      std::cout << std::endl<<"Time (fs): "<< std::right<<std::setw(16)<<totalTimeFS
+                << "  Time (au): "<<std::right<< std::setw(16)<<totalTimeAU<<std::endl;
+
+      std::cout << std::scientific<<std::setprecision(8);
+      std::cout <<  "EKin= " << std::right << std::setw(16) << MD->nuclearKineticEnergy
+                << "  EPot= " << std::right << std::setw(16) << ssd->totalEnergy<<" a.u."<<std::endl;
+
+      ETot = ssd->totalEnergy+MD->nuclearKineticEnergy;
+      if(iStep == 0) ETot0 = ETot;
+      std::cout << "ETot= " << std::right << std::setw(16) << ETot
+                << " ΔETot= " << std::right << std::setw(16)<< ETot-ETot0<< " a.u."<<std::endl;
+
+      auto grad = ssd->getGrad(emPert, false, false);
+
+      MD->updateNuclearCoordinates(mol,grad,iStep==0);
+
+      totalTimeFS += molecularOptions.timeStepFS;
+      totalTimeAU += molecularOptions.timeStepAU;
+
+    }
 
 
 

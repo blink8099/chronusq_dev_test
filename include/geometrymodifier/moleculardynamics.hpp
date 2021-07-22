@@ -66,6 +66,7 @@ namespace ChronusQ {
       std::vector<double> velocityHalfTime(3*molecule.nAtoms, 0.);
       std::vector<double> velocityCurrent(3*molecule.nAtoms, 0.);
       std::vector<double> acceleration(3*molecule.nAtoms, 0.);
+      nuclearKineticEnergy = 0.0;
 
     }
 
@@ -78,8 +79,22 @@ namespace ChronusQ {
      */
     void updateNuclearCoordinates(Molecule &molecule, std::vector<double> gradientCurrent, bool firstStep) {
 
+      std::cout << std::scientific << std::setprecision(8);
+
+      std::cout << std::endl<<"Molecular Geometry: (Bohr)"<<std::endl;
+      size_t i = 0;
+      for( Atom& atom : molecule.atoms ) {
+
+        std::cout << std::right <<"AtomicNumber = " << std::setw(4) << atom.atomicNumber 
+                  << std::right <<"  X= "<< std::setw(16) << atom.coord[0]
+                  << std::right <<"  Y= "<< std::setw(16) << atom.coord[1]
+                  << std::right <<"  Z= "<< std::setw(16) << atom.coord[2] <<std::endl;
+        i += 3;
+ 
+      }
+
       // if velocity Verlet
-      velocityVerlet(molecule, gradientCurrent, molecularOptions_.timeStep, firstStep);
+      velocityVerlet(molecule, gradientCurrent, molecularOptions_.timeStepAU, firstStep);
 
       // update other quantities
       molecule.update();
@@ -88,23 +103,29 @@ namespace ChronusQ {
       computeKineticEnergy(molecule);
 
       // output important dynamic information
-      std::cout << std::scientific << std::setprecision(12);
 
-      size_t i = 0;
+      std::cout << "Velocity:"<<std::endl;
+      i = 0;
       for( Atom& atom : molecule.atoms ) {
 
-        std::cout << "Molecular Geometry:"<<std::endl;
-        std::cout << "AtomicNumber = " << atom.atomicNumber 
-                  <<"X = "<< atom.coord[0]
-                  <<"Y = "<< atom.coord[1]
-                  <<"Z = "<< atom.coord[2]<<std::endl;
-        std::cout << std::endl<<"Velocity:"<<std::endl;
-        std::cout << "AtomicNumber = " << atom.atomicNumber 
-                  <<"X = "<< velocityCurrent[i  ]
-                  <<"Y = "<< velocityCurrent[i+1]
-                  <<"Z = "<< velocityCurrent[i+2]<<std::endl;
+        std::cout << std::right <<"AtomicNumber = " << std::setw(4) << atom.atomicNumber 
+                  << std::right <<"  X= "<< std::setw(16) <<  velocityCurrent[i  ]
+                  << std::right <<"  Y= "<< std::setw(16) <<  velocityCurrent[i+1]
+                  << std::right <<"  Z= "<< std::setw(16) <<  velocityCurrent[i+2]<<std::endl;
+        i += 3;
+ 
+      }
 
-	i += 3;
+      std::cout << "Forces: (Hartrees/Bohr)"<<std::endl;
+      i = 0;
+      for( Atom& atom : molecule.atoms ) {
+
+        std::cout <<"AtomicNumber = " << std::setw(4) <<  atom.atomicNumber 
+                  << std::right <<"  X= "<< std::setw(16) <<  -gradientCurrent[i  ]
+                  << std::right <<"  Y= "<< std::setw(16) <<  -gradientCurrent[i+1]
+                  << std::right <<"  Z= "<< std::setw(16) <<  -gradientCurrent[i+2]<<std::endl;
+
+        i += 3;
  
       }
 

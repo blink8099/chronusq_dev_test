@@ -22,17 +22,23 @@
  *  
  */
 #pragma once
-
+#include <physcon.hpp>
 
 namespace ChronusQ {
 
 
   struct MolecularOptions {
 
-    //Molecular Dynamics Options
-    double timeStep = 5.0;     // timestep for molecular dynamics in a.u.
-    size_t numberSteps = 1000; // number of steps for molecular dynamics
+    size_t numberSteps;    // number of steps for molecular dynamics
 
+    //Molecular Dynamics Options
+    double timeStepAU;          // timestep for molecular dynamics in a.u.
+    double timeStepFS;    // timestep for molecular dynamics in fs
+
+    MolecularOptions(const double step = 0.1, const size_t nsteps = 10) :
+      timeStepFS(0.1), numberSteps(nsteps) {
+      timeStepAU = timeStepFS/FSPerAUTime;
+    }
     //Geometry Optimization Options
 
   }; // struct MolecularOptions
