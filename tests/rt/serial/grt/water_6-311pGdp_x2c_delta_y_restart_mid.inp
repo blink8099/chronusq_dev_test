@@ -24,7 +24,7 @@ basis = 6-311+g(d,p)
 
 
 [RT]
-TMAX   = 2.
+TMAX   = 1.
 DELTAT = 0.05
 IRSTRT = 20
 FIELD:

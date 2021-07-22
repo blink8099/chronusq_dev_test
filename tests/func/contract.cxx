@@ -155,8 +155,8 @@ void CONTRACT_TEST(TWOBODY_CONTRACTION_TYPE type, std::string storage) {
   refFile.safeWriteData(storage + "/X",Rand,{NB,NB});
   
   // Perform incore ERI contraction and write result to disk
-  GTODirectERIContraction<FIELD,double> ERI(*aoints.ERI);
-  ERI.twoBodyContract(MPI_COMM_WORLD,true,cont,pert);
+  GTODirectTPIContraction<FIELD,double> TPI(*aoints.TPI);
+  TPI.twoBodyContract(MPI_COMM_WORLD,true,cont,pert);
   refFile.safeWriteData(storage + "/AX",SX,{NB,NB});
 
 #else

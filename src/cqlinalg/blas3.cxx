@@ -192,9 +192,13 @@ namespace ChronusQ {
 #ifdef _CQ_MKL
     zsyr2k(&UPLO,&TRANS,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
 #else
+#ifdef CQ_HAS_TA
+    zsyr2k_(&UPLO,&TRANS,&N,&K,&ALPHA,A,&LDA,B,&LDB,&BETA,C,&LDC);
+#else
     zsyr2k_(&UPLO,&TRANS,&N,&K,reinterpret_cast<double*>(&ALPHA),
       reinterpret_cast<double*>(A),&LDA,reinterpret_cast<double*>(B),&LDB,
       reinterpret_cast<double*>(&BETA),reinterpret_cast<double*>(C),&LDC);
+#endif
 #endif
       
   }; // SYR2K

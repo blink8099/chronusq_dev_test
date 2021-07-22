@@ -30,6 +30,40 @@
 namespace ChronusQ {
 
   /**
+   *  \brief Map used for Gaussian to CQ ordering of angular
+   *  momentum functions.
+   *
+   *  Takes shell value stored on fchk file and returns where that
+   *  function will be in CQ ordering.
+   *
+   *  spherical d: 0,+1,-1,+2,-2 to -2,-1,0,+1,+2
+   *  Cartesian d: xx,yy,zz,xy,xz,yz to xx,xy,xz,yy,yz,zz
+   *  spherical f: 0,+1,-1,+2,-2,+3,-3 to -3,-2,-1,0,+1,+2,+3
+   *  spherical g: 0,+1,-1,+2,-2,+3,-3,+4,-4 to -4,-3,-2,-1,0,+1,+2,+3,+4
+   *  spherical h: 0,+1,-1,+2,-2,+3,-3,+4,-4,+5,-5 to
+   *              -5,-4,-3,-2,-1,0,+1,+2,+3,+4,+5
+   */
+  template <typename MatsT, typename IntsT>
+  std::unordered_map<int,std::vector<int>> SingleSlater<MatsT,IntsT>::returnAngReorder(){
+
+    std::unordered_map<int,std::vector<int>> angReorder(
+      {
+        { 0 , {0} },                          // s function
+        { 1 , {0,0,0} },                      // p function
+        {-1 , {0,0,0,0} },                    // s and p function
+        {-2 , {2,2,-1,1,-4} },                // sph. d function
+        { 2 , {0,2,3,-2,-2,-1} },             // Cart. d function
+        {-3 , {3,3,0,2,-3,1,-6} },            // sph. f function
+        {-4 , {4,4,1,3,-2,2,-5,1,-8} },       // sph. g function
+        {-5 , {5,5,2,4,-1,3,-4,2,-7,1,-10} }  // sph. h function
+      }
+    );
+
+    return angReorder;
+
+  }
+
+  /**
    *  \brief Parses the fchk file and overwrites mo1(mo2) 
    *
    *  If using internally-stored correlation-consistent basis
@@ -211,414 +245,49 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::reorderAngMO(std::vector<int> sl, MatsT* tmo, int sp) {
 
-    // Dimension of mo1
+    // Dimension of mo
     auto NB = basisSet().nBasis;
     auto NBC = this->nC * NB;
     auto NBC2 = NBC*NBC;
 
-    // Angular momentum reordered by using tons of counters for now
-    // Basic counters for shells and MOs
-    auto shellcounter=0, moentry=0;
-    // Lines skipped is different for 2c
+    if( this->nC == 4 ) CErr("reorderAngMO NYI for 4c",std::cout);
+
+    // Skip past beta part if 2c
     int skipl = this->nC;
-    // Spherical d function reordering
-    // 0,+1,-1,+2,-2 to -2,-1,0,+1,+2
-    int dcounter=0,dzeromove=2*skipl,dponemove=2*skipl;
-    int dmonemove=-skipl,dptwomove=skipl,dmtwomove=-4*skipl;
-    // Cartesian d function reordering
-    int cdcounter=0,cdxxmove=0,cdyymove=2*skipl,cdzzmove=3*skipl;
-    int cdxymove=-2*skipl,cdxzmove=-2*skipl,cdyzmove=-skipl;
-    // Spherical f function reordering
-    // 0,+1,-1,+2,-2,+3,-3 to -3,-2,-1,0,+1,+2,+3
-    int fcounter=0,fzeromove=3*skipl,fponemove=3*skipl,fmonemove=0;
-    int fptwomove=2*skipl,fmtwomove=-3*skipl,fpthreemove=skipl;
-    int fmthreemove=-6*skipl;
-    // Spherical g function reordering
-    // 0,+1,-1,+2,-2,+3,-3,+4,-4 to -4,-3,-2,-1,0,+1,+2,+3,+4
-    int gcounter=0,gzeromove=4*skipl,gponemove=4*skipl,gmonemove=skipl;
-    int gptwomove=3*skipl,gmtwomove=-2*skipl,gpthreemove=2*skipl;
-    int gmthreemove=-5*skipl,gpfourmove=skipl,gmfourmove=-8*skipl;
-    // Spherical h function reordering
-    // 0,+1,-1,+2,-2,+3,-3,+4,-4,+5,-5 to -5,-4,-3,-2,-1,0,+1,+2,+3,+4,+5
-    int hcounter=0,hzeromove=5*skipl,hponemove=5*skipl,hmonemove=2*skipl;
-    int hptwomove=4*skipl,hmtwomove=-1*skipl,hpthreemove=3*skipl;
-    int hmthreemove=-4*skipl,hpfourmove=2*skipl,hmfourmove=-7*skipl;
-    int hpfivemove=1*skipl,hmfivemove=-10*skipl;
 
-    // Loop over mo
-    for( int i=0; i<NBC2; i++){
+    // Obtain map for angular momentum ordering between Gaussian and CQ
+    std::unordered_map<int,std::vector<int>> angReorder = returnAngReorder();
 
-      // Reset shellcounter for each MO
-      if( i % NBC == 0 ) shellcounter=0;
+    // Loop over each MO
+    for( auto iMO=0; iMO<NBC; iMO++){
 
-      // Sanity check on shellcounter
-      if( shellcounter > sl.size() ){
-        std::cout << "shellcounter > size of sl " << "\n";
-        continue;
+      // Loop over each shell entry in sl
+      for( auto iSh=0, iAO=0; iSh<sl.size(); iSh++){
+
+        // Check that shell entry is implemented
+        bool contains = angReorder.find(sl[iSh]) != angReorder.end();
+        if( not contains ){
+          std::cout << "Cannot find shell entry: " << sl[iSh] << std::endl;
+          CErr("Shell value for FCHKMO NYI!",std::cout);
+        }
+
+        const std::vector<int>& reorder = angReorder[sl[iSh]];
+
+        // Loop over each function per shell
+        for( auto iML=0; iML<reorder.size(); iML++){
+
+          this->mo[sp].pointer()[iMO*NBC+iAO+skipl*(iML+reorder[iML])] = tmo[iMO*NBC+iAO+iML*skipl];
+          // Beta part
+          if( this->nC==2 ) 
+            this->mo[sp].pointer()[iMO*NBC+1+iAO+skipl*(iML+reorder[iML])] = tmo[iMO*NBC+1+iAO+iML*skipl];
+
+        }
+
+        iAO=iAO+reorder.size()*skipl;
+
       }
 
-      // Skipping through s and p and beta d, f, g
-      if( i < moentry ) continue;
-
-      // Conditional for shell types
-      // s functions
-      if( sl[shellcounter] == 0 ){
-        moentry = moentry + skipl;
-        shellcounter = shellcounter + 1;
-        continue;
-      // Spherical p functions
-      }else if( sl[shellcounter] == 1 ){
-        moentry = moentry + 3*skipl;
-        shellcounter = shellcounter + 1;
-        continue;
-      // Cartesian p functions
-      }else if( sl[shellcounter] == -1 ){
-        // Factor of 4 instead of 3 because grouped as SP
-        moentry = moentry + 4*skipl;
-        shellcounter = shellcounter + 1;
-        continue;
-      // Spherical d functions
-      }else if( sl[shellcounter] == -2 ){
-
-        // d0
-        if( dcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dzeromove] = tmo[i];
-          moentry = moentry + skipl;
-          dcounter = dcounter + 1;
-          continue;
-        }
-
-        // d+1
-        if( dcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dponemove] = tmo[i];
-          moentry = moentry + skipl;
-          dcounter = dcounter + 1;
-          continue;
-        }
-
-        // d-1
-        if( dcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dmonemove] = tmo[i];
-          moentry = moentry + skipl;
-          dcounter = dcounter + 1;
-          continue;
-        }
-
-        // d+2
-        if( dcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dptwomove] = tmo[i];
-          moentry = moentry + skipl;
-          dcounter = dcounter + 1;
-          continue;
-        }
-
-        // d-2
-        if( dcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + dmtwomove] = tmo[i];
-          moentry = moentry + skipl;
-          // Reset d counter
-          dcounter = 0;
-          // Going to next shell
-          shellcounter = shellcounter + 1;
-          continue;
-        }
-
-      // Cartesian d functions
-      }else if( sl[shellcounter] == 2 ){
-
-        // dxx
-        if( cdcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdxxmove] = tmo[i];
-          moentry = moentry + skipl;
-          cdcounter = cdcounter + 1;
-          continue;
-        }
-
-        // dyy
-        if( cdcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdyymove] = tmo[i];
-          moentry = moentry + skipl;
-          cdcounter = cdcounter + 1;
-          continue;
-        }
-
-        // dzz
-        if( cdcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdzzmove] = tmo[i];
-          moentry = moentry + skipl;
-          cdcounter = cdcounter + 1;
-          continue;
-        }
-
-        // dxy
-        if( cdcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdxymove] = tmo[i];
-          moentry = moentry + skipl;
-          cdcounter = cdcounter + 1;
-          continue;
-        }
-
-        // dxz
-        if( cdcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdxzmove] = tmo[i];
-          moentry = moentry + skipl;
-          cdcounter = cdcounter + 1;
-          continue;
-        }
-
-        // dyz
-        if( cdcounter == 5 ){
-          this->mo[sp].pointer()[i + skipl - 1 + cdyzmove] = tmo[i];
-          moentry = moentry + skipl;
-          // Reset d counter
-          cdcounter = 0;
-          // Going to next shell
-          shellcounter = shellcounter + 1;
-          continue;
-        }
-
-      // Spherical f functions
-      }else if( sl[shellcounter] == -3 ){
-
-        // f0
-        if( fcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fzeromove] = tmo[i];
-          moentry = moentry + skipl;
-          fcounter = fcounter + 1;
-          continue;
-        }
-
-        // f+1
-        if( fcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fponemove] = tmo[i];
-          moentry = moentry + skipl;
-          fcounter = fcounter + 1;
-          continue;
-        }
-
-        // f-1
-        if( fcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fmonemove] = tmo[i];
-          moentry = moentry + skipl;
-          fcounter = fcounter + 1;
-          continue;
-        }
-
-        // f+2
-        if( fcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fptwomove] = tmo[i];
-          moentry = moentry + skipl;
-          fcounter = fcounter + 1;
-          continue;
-        }
-
-        // f-2
-        if( fcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fmtwomove] = tmo[i];
-          moentry = moentry + skipl;
-          fcounter = fcounter + 1;
-          continue;
-        }
-
-        // f+3
-        if( fcounter == 5 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fpthreemove] = tmo[i];
-          moentry = moentry + skipl;
-          fcounter = fcounter + 1;
-          continue;
-        }
-
-        // f-3
-        if( fcounter == 6 ){
-          this->mo[sp].pointer()[i + skipl - 1 + fmthreemove] = tmo[i];
-          moentry = moentry + skipl;
-          // Reset f counter
-          fcounter = 0;
-          // Going to next shell
-          shellcounter = shellcounter + 1;
-          continue;
-        }
-
-      // Spherical g functions
-      }else if( sl[shellcounter] == -4 ){
-
-        // g0
-        if( gcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gzeromove] = tmo[i];
-          moentry = moentry + skipl;
-          gcounter = gcounter + 1;
-          continue;
-        }
-
-        // g+1
-        if( gcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gponemove] = tmo[i];
-          moentry = moentry + skipl;
-          gcounter = gcounter + 1;
-          continue;
-        }
-
-        // g-1
-        if( gcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gmonemove] = tmo[i];
-          moentry = moentry + skipl;
-          gcounter = gcounter + 1;
-          continue;
-        }
-
-        // g+2
-        if( gcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gptwomove] = tmo[i];
-          moentry = moentry + skipl;
-          gcounter = gcounter + 1;
-          continue;
-        }
-
-        // g-2
-        if( gcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gmtwomove] = tmo[i];
-          moentry = moentry + skipl;
-          gcounter = gcounter + 1;
-          continue;
-        }
-
-        // g+3
-        if( gcounter == 5 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gpthreemove] = tmo[i];
-          moentry = moentry + skipl;
-          gcounter = gcounter + 1;
-          continue;
-        }
-
-        // g-3
-        if( gcounter == 6 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gmthreemove] = tmo[i];
-          moentry = moentry + skipl;
-          gcounter = gcounter + 1;
-          continue;
-        }
-
-        // g+4
-        if( gcounter == 7 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gpfourmove] = tmo[i];
-          moentry = moentry + skipl;
-          gcounter = gcounter + 1;
-          continue;
-        }
-
-        // g-4
-        if( gcounter == 8 ){
-          this->mo[sp].pointer()[i + skipl - 1 + gmfourmove] = tmo[i];
-          moentry = moentry + skipl;
-          // Reset g counter
-          gcounter = 0;
-          // Going to next shell
-          shellcounter = shellcounter + 1;
-          continue;
-        }
-
-      // Spherical h functions
-      }else if( sl[shellcounter] == -5 ){
-
-        // h0
-        if( hcounter == 0 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hzeromove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h+1
-        if( hcounter == 1 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hponemove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h-1
-        if( hcounter == 2 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmonemove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h+2
-        if( hcounter == 3 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hptwomove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h-2
-        if( hcounter == 4 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmtwomove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h+3
-        if( hcounter == 5 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hpthreemove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h-3
-        if( hcounter == 6 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmthreemove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h+4
-        if( hcounter == 7 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hpfourmove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h-4
-        if( hcounter == 8 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmfourmove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h+5
-        if( hcounter == 9 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hpfivemove] = tmo[i];
-          moentry = moentry + skipl;
-          hcounter = hcounter + 1;
-          continue;
-        }
-
-        // h-5
-        if( hcounter == 10 ){
-          this->mo[sp].pointer()[i + skipl - 1 + hmfivemove] = tmo[i];
-          moentry = moentry + skipl;
-          // Reset h counter
-          hcounter = 0;
-          // Going to next shell
-          shellcounter = shellcounter + 1;
-          continue;
-        }
-
-      // If shell value is not yet implemented
-      } else{
-        std::cout << "Current shell entry: " << sl[shellcounter] << "\n";
-        CErr("Current shell value NYI!");
-
-      } // End of shell checking
-
-    } // Loop over mo
+    }
 
   } // SingleSlater<T>::reorderAngMO()
 

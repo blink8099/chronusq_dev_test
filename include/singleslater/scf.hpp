@@ -53,7 +53,7 @@ namespace ChronusQ {
       size_t NB = this->nAlphaOrbital();
       size_t NBC = this->nC * NB;
 
-      size_t t_hash = typeid(MatsT).hash_code();
+      size_t t_hash = std::is_same<MatsT,double>::value ? 1 : 2;
 
       // Save Field type
       std::string prefix = "SCF/";
@@ -69,6 +69,10 @@ namespace ChronusQ {
       savFile.safeWriteData(prefix + "1PDM_ORTHO", *onePDMOrtho);
 
       savFile.safeWriteData(prefix + "FOCK_ORTHO", *fockMatrixOrtho);
+
+      savFile.safeWriteData("SCF/ORTHO", ortho[0].pointer(), {NB,NB});
+
+      savFile.safeWriteData("SCF/ORTHO_INV", ortho[1].pointer(), {NB,NB});
 
       // Save MOs
       savFile.safeWriteData(prefix + "MO1", this->mo[0].pointer(), {NBC,NBC});
@@ -799,46 +803,77 @@ namespace ChronusQ {
     const size_t NBC  = this->nC * NB;
     const size_t NBC2 = NBC * NBC;
 
-    // Reorthogonalize MOs wrt S
-    MatsT* SCR  = this->memManager.template malloc<MatsT>(NBC*NBC);
-    MatsT* SCR2 = this->memManager.template malloc<MatsT>(NBC*NBC);
+    if( this->nC == 4 ) CErr("orthoAOMO NYI for 4c",std::cout);
 
-    // SCR2 = C**H S C
-    Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-         this->mo[0].pointer(),NBC,MatsT(0.),SCR,NBC);
-    if( this->nC == 2 )
+    // Transform MOs on MPI root as slave processes do not have
+    // updated MO coefficients
+    if( MPIRank(comm) == 0 ) {
+      // Reorthogonalize MOs wrt S
+      MatsT* SCR  = this->memManager.template malloc<MatsT>(NBC*NBC);
+      MatsT* SCR2 = this->memManager.template malloc<MatsT>(NBC*NBC);
+
+      // SCR2 = C**H S C
       Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-           this->mo[0].pointer()+NB,NBC,MatsT(0.),SCR+NB,NBC);
+           this->mo[0].pointer(),NBC,MatsT(0.),SCR,NBC);
+      if( this->nC == 2 )
+        Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+             this->mo[0].pointer()+NB,NBC,MatsT(0.),SCR+NB,NBC);
 
-    Gemm('C','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
-
-    // SCR2 = L L**H -> L
-    int INFO = Cholesky('L',NBC,SCR2,NBC);
-
-    // SCR2 = L^-1
-    INFO = TriInv('L','N',NBC,SCR2,NBC);
-
-    // MO1 = MO1 * L^-H
-    Trmm('R','L','C','N',NBC,NBC,MatsT(1.),SCR2,NBC,this->mo[0].pointer(),NBC);
-
-    // Reorthogonalize MOB
-    if( this->nC == 1 and not this->iCS ) {
-      Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-           this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
-      Gemm('C','N',NB,NB,NB,MatsT(1.),this->mo[1].pointer(),NBC,SCR,NB,MatsT(0.),SCR2,NB);
+      Gemm('C','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
 
       // SCR2 = L L**H -> L
-      INFO = Cholesky('L',NB,SCR2,NB);
+      int INFO = Cholesky('L',NBC,SCR2,NBC);
 
       // SCR2 = L^-1
-      INFO = TriInv('L','N',NB,SCR2,NB);
+      INFO = TriInv('L','N',NBC,SCR2,NBC);
 
-      // MO2 = MO2 * L^-H
-      Trmm('R','L','C','N',NB,NB,MatsT(1.),SCR2,NB,this->mo[1].pointer(),NB);
+      // MO1 = MO1 * L^-H
+      Trmm('R','L','C','N',NBC,NBC,MatsT(1.),SCR2,NBC,this->mo[0].pointer(),NBC);
+
+      // Reorthogonalize MOB
+      if( this->nC == 1 and not this->iCS ) {
+        Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+             this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
+        Gemm('C','N',NB,NB,NB,MatsT(1.),this->mo[1].pointer(),NBC,SCR,NB,MatsT(0.),SCR2,NB);
+
+        // SCR2 = L L**H -> L
+        INFO = Cholesky('L',NB,SCR2,NB);
+
+        // SCR2 = L^-1
+        INFO = TriInv('L','N',NB,SCR2,NB);
+
+        // MO2 = MO2 * L^-H
+        Trmm('R','L','C','N',NB,NB,MatsT(1.),SCR2,NB,this->mo[1].pointer(),NB);
+
+      }
+
+      this->memManager.free(SCR,SCR2);
+    }
+
+#ifdef CQ_ENABLE_MPI
+
+
+    // Broadcast the updated MOs to all MPI processes
+    if( MPISize(comm) > 1 ) {
+
+      std::cerr  << "  *** Scattering the AO-MOs ***\n";
+      MPIBCast(this->mo[0].pointer(),nC*nC*NB*NB,0,comm);
+      if( nC == 1 and not iCS )
+        MPIBCast(this->mo[1].pointer(),nC*nC*NB*NB,0,comm);
+
+      std::cerr  << "  *** Scattering EPS ***\n";
+      MPIBCast(this->eps1,nC*NB,0,comm);
+      if( nC == 1 and not iCS )
+        MPIBCast(this->eps2,nC*NB,0,comm);
+
+      std::cerr  << "  *** Scattering FOCK ***\n";
+      for(MatsT *mat : fockMatrix->SZYXPointers())
+        MPIBCast(mat,NB*NB,0,comm);
 
     }
 
-    this->memManager.free(SCR,SCR2);
+#endif
+
   }
 
 }; // namespace ChronusQ
