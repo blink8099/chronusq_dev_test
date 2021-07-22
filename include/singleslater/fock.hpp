@@ -165,6 +165,7 @@ namespace ChronusQ {
     std::vector<double> gradient(nGrad, 0.);
 
     HamiltonianOptions opts;
+    opts.OneEScalarRelativity = false;
 
     // Core H contribution
     this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
