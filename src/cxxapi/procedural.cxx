@@ -55,6 +55,8 @@
 #include <cqlinalg/blasext.hpp>
 #include <cqlinalg/eig.hpp>
 
+#include <geometrymodifier.hpp>
+#include <geometrymodifier/moleculardynamics.hpp>
 #include <physcon.hpp>
 
 
@@ -267,7 +269,7 @@ namespace ChronusQ {
     std::cout << "TwoE Energy: " << ss->MBEnergy;
 
     // Numerical gradient
-    size_t acc = 8;
+    size_t acc = 0;
     if ( acc != 0 ) {
       NumGradient grad(input, ss, basis);
       grad.doGrad(acc);
@@ -292,12 +294,30 @@ namespace ChronusQ {
 
     auto ssd = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss);
 
-    size_t NB = basis->nBasis;
+    //size_t NB = basis->nBasis;
+
+
 
     auto grad = ssd->getGrad(emPert, false, false);
     std::cout << std::endl;
     for( auto &X: grad )
       std::cout << "Grad: " << X << std::endl;
+
+    MolecularOptions molecularOptions;
+    mol.geometryModifier = std::make_shared<MolecularDynamics>(molecularOptions,mol);
+    auto MD = std::dynamic_pointer_cast<MolecularDynamics>(mol.geometryModifier);
+    MD->initializeMD(mol);
+    MD->updateNuclearCoordinates(mol,grad,true);
+
+    auto totalTime = 0.0;
+    std::cout << std::scientific << std::setprecision(12);
+    std::cout << "Dynamic Information at Time = "<< totalTime << " a.u."<<std::endl;
+    std::cout << "Potential Energy = "<<ssd->totalEnergy<<" a.u."
+              <<"Kinetic Energy = "<<MD->nuclearKineticEnergy<<" a.u."
+              <<"Total Energy = "<<ssd->totalEnergy+MD->nuclearKineticEnergy<<" a.u."<<std::endl;
+
+
+
 
     if( not jobType.compare("RT") ) {
 

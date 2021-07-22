@@ -32,6 +32,7 @@
 #include <particleintegrals/gradints/incore.hpp>
 #include <particleintegrals/gradints/direct.hpp>
 #include <fockbuilder/rofock/impl.hpp>
+#include <quantum/properties.hpp>
 
 #include <typeinfo>
 

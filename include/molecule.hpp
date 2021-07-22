@@ -27,6 +27,7 @@
 #include <util/typedefs.hpp>
 #include <atom.hpp>
 #include <cerr.hpp>
+#include <geometrymodifier.hpp>
 
 #include <libint2/shell.h>
 
@@ -63,6 +64,7 @@ namespace ChronusQ {
 
     std::vector<libint2::Shell> chargeDist;
 
+    std::shared_ptr<GeometryModifier> geometryModifier; ///< Opt or MD
 
 
     /**
