@@ -51,7 +51,7 @@ namespace ChronusQ {
     ProgramTimer::timeOp("Form Fock", [&]() {
 
       // Get perturbation for the current time and build a Fock matrix
-      EMPerturbation pert_t = pert.getPert(curState.xTime);
+      EMPerturbation pert_t = pert.getPert(t);
 
       // Add on the SCF Perturbation
       if ( intScheme.includeSCFField )
