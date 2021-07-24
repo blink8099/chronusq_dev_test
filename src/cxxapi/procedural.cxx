@@ -311,16 +311,29 @@ namespace ChronusQ {
     auto totalTimeAU = 0.0;
     auto ETot0 = 0.0;
     auto ETot = 0.0;
+    auto ETotPre = 0.0;
     for(auto iStep = 0; iStep < molecularOptions.numberSteps; iStep++){
 
-      ssd->formGuess();
+      aoints->computeAOTwoE(*basis, mol, emPert);
+      ssd->formCoreH(emPert);
+      //ssd->formGuess();
       ssd->SCF(emPert);
- 
+      auto grad = ssd->getGrad(emPert, false, false);
+
+      //molecularOptions.timeStepFS = 0.0;
+      //molecularOptions.timeStepAU = 0.0;
+
       std::cout << std::endl;
       std::cout << "MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD"<<std::endl;
       std::cout << "Molecular Dynamics Information for Step "<<std::setw(8)<<iStep<<std::endl;
 
+      std::cout << std::scientific<<std::setprecision(12);
+
+      std::cout << "Nuclear Repulsion Energy = "<<mol.nucRepEnergy<<std::endl;
+
       std::cout << std::defaultfloat<<std::setprecision(8);
+      MD->updateNuclearCoordinates(mol,grad,iStep==0);
+
       std::cout << std::endl<<"Time (fs): "<< std::right<<std::setw(16)<<totalTimeFS
                 << "  Time (au): "<<std::right<< std::setw(16)<<totalTimeAU<<std::endl;
 
@@ -329,13 +342,19 @@ namespace ChronusQ {
                 << "  EPot= " << std::right << std::setw(16) << ssd->totalEnergy<<" a.u."<<std::endl;
 
       ETot = ssd->totalEnergy+MD->nuclearKineticEnergy;
-      if(iStep == 0) ETot0 = ETot;
+      if(iStep == 0) {
+        ETot0   = ETot;
+	ETotPre = ETot;
+      }
       std::cout << "ETot= " << std::right << std::setw(16) << ETot
-                << " ΔETot= " << std::right << std::setw(16)<< ETot-ETot0<< " a.u."<<std::endl;
+                << " ΔETot (current-previous)= " << std::right << std::setw(16)<< ETot-ETotPre
+                << " ΔETot (cumulative)= " << std::right << std::setw(16)<< ETot-ETot0<< " a.u."<<std::endl;
+      ETotPre = ETot;
 
-      auto grad = ssd->getGrad(emPert, false, false);
 
-      MD->updateNuclearCoordinates(mol,grad,iStep==0);
+
+      basis->updateNuclearCoordinates(mol);
+      //std::cout << *basis;
 
       totalTimeFS += molecularOptions.timeStepFS;
       totalTimeAU += molecularOptions.timeStepAU;

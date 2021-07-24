@@ -49,7 +49,7 @@ namespace ChronusQ {
       velocityCurrent(3*molecule.nAtoms, 0.),
       acceleration(3*molecule.nAtoms, 0.) {};
 
-    MolecularDynamics(MolecularOptions molecularOptions):
+    MolecularDynamics(MolecularOptions &molecularOptions):
         GeometryModifier(molecularOptions) {}
 
     // Different type
@@ -79,16 +79,16 @@ namespace ChronusQ {
      */
     void updateNuclearCoordinates(Molecule &molecule, std::vector<double> gradientCurrent, bool firstStep) {
 
-      std::cout << std::scientific << std::setprecision(8);
+      std::cout << std::scientific << std::setprecision(12);
 
       std::cout << std::endl<<"Molecular Geometry: (Bohr)"<<std::endl;
       size_t i = 0;
       for( Atom& atom : molecule.atoms ) {
 
         std::cout << std::right <<"AtomicNumber = " << std::setw(4) << atom.atomicNumber 
-                  << std::right <<"  X= "<< std::setw(16) << atom.coord[0]
-                  << std::right <<"  Y= "<< std::setw(16) << atom.coord[1]
-                  << std::right <<"  Z= "<< std::setw(16) << atom.coord[2] <<std::endl;
+                  << std::right <<"  X= "<< std::setw(19) << atom.coord[0]
+                  << std::right <<"  Y= "<< std::setw(19) << atom.coord[1]
+                  << std::right <<"  Z= "<< std::setw(19) << atom.coord[2] <<std::endl;
         i += 3;
  
       }
@@ -109,9 +109,9 @@ namespace ChronusQ {
       for( Atom& atom : molecule.atoms ) {
 
         std::cout << std::right <<"AtomicNumber = " << std::setw(4) << atom.atomicNumber 
-                  << std::right <<"  X= "<< std::setw(16) <<  velocityCurrent[i  ]
-                  << std::right <<"  Y= "<< std::setw(16) <<  velocityCurrent[i+1]
-                  << std::right <<"  Z= "<< std::setw(16) <<  velocityCurrent[i+2]<<std::endl;
+                  << std::right <<"  X= "<< std::setw(19) <<  velocityCurrent[i  ]
+                  << std::right <<"  Y= "<< std::setw(19) <<  velocityCurrent[i+1]
+                  << std::right <<"  Z= "<< std::setw(19) <<  velocityCurrent[i+2]<<std::endl;
         i += 3;
  
       }
@@ -121,13 +121,26 @@ namespace ChronusQ {
       for( Atom& atom : molecule.atoms ) {
 
         std::cout <<"AtomicNumber = " << std::setw(4) <<  atom.atomicNumber 
-                  << std::right <<"  X= "<< std::setw(16) <<  -gradientCurrent[i  ]
-                  << std::right <<"  Y= "<< std::setw(16) <<  -gradientCurrent[i+1]
-                  << std::right <<"  Z= "<< std::setw(16) <<  -gradientCurrent[i+2]<<std::endl;
+                  << std::right <<"  X= "<< std::setw(19) <<  -gradientCurrent[i  ]
+                  << std::right <<"  Y= "<< std::setw(19) <<  -gradientCurrent[i+1]
+                  << std::right <<"  Z= "<< std::setw(19) <<  -gradientCurrent[i+2]<<std::endl;
 
         i += 3;
  
       }
+
+      std::cout << std::endl<<"Predicted Molecular Geometry: (Bohr)"<<std::endl;
+      i = 0;
+      for( Atom& atom : molecule.atoms ) {
+
+        std::cout << std::right <<"AtomicNumber = " << std::setw(4) << atom.atomicNumber 
+                  << std::right <<"  X= "<< std::setw(19) << atom.coord[0]
+                  << std::right <<"  Y= "<< std::setw(19) << atom.coord[1]
+                  << std::right <<"  Z= "<< std::setw(19) << atom.coord[2] <<std::endl;
+        i += 3;
+ 
+      }
+
 
     }
 
@@ -138,9 +151,9 @@ namespace ChronusQ {
       size_t i = 0;
       for( Atom& atom : molecule.atoms ) {
         //compute acceleration = -g/m
-	acceleration[i  ] = -gradientCurrent[i  ]/atom.atomicMass;
-	acceleration[i+1] = -gradientCurrent[i+1]/atom.atomicMass;
-	acceleration[i+2] = -gradientCurrent[i+2]/atom.atomicMass;
+	acceleration[i  ] = -gradientCurrent[i  ]/(AUPerAMU*atom.atomicMass);
+	acceleration[i+1] = -gradientCurrent[i+1]/(AUPerAMU*atom.atomicMass);
+	acceleration[i+2] = -gradientCurrent[i+2]/(AUPerAMU*atom.atomicMass);
 
         //advance the half-time velocity to the current step 
         //v(t+1) = v(t+1/2) + 1/2dT∙a(t+1)
@@ -182,9 +195,9 @@ namespace ChronusQ {
       size_t i = 0;
       for( Atom& atom : molecule.atoms ) {
         if (not atom.quantum) {
-          nuclearKineticEnergy += 0.5*velocityCurrent[i  ]*velocityCurrent[i  ]*atom.atomicMass;
-          nuclearKineticEnergy += 0.5*velocityCurrent[i+1]*velocityCurrent[i+1]*atom.atomicMass;
-          nuclearKineticEnergy += 0.5*velocityCurrent[i+2]*velocityCurrent[i+2]*atom.atomicMass;
+          nuclearKineticEnergy += 0.5*velocityCurrent[i  ]*velocityCurrent[i  ]*atom.atomicMass*AUPerAMU;
+          nuclearKineticEnergy += 0.5*velocityCurrent[i+1]*velocityCurrent[i+1]*atom.atomicMass*AUPerAMU;
+          nuclearKineticEnergy += 0.5*velocityCurrent[i+2]*velocityCurrent[i+2]*atom.atomicMass*AUPerAMU;
 	}
 	i += 3;
       }

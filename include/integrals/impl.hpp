@@ -65,6 +65,24 @@ namespace ChronusQ {
 
     std::string prefix = electron ? "INTS/" : "PINTS/";
 
+#if 0
+      std::cout << std::endl<<"Molecular Geometry in ComputeOneP: (Bohr)"<<std::endl;
+      size_t i = 0;
+      for( Atom& atom : mol.atoms ) {
+
+        std::cout << std::right <<"AtomicNumber = " << std::setw(4) << atom.atomicNumber 
+                  << std::right <<"  X= "<< std::setw(16) << atom.coord[0]
+                  << std::right <<"  Y= "<< std::setw(16) << atom.coord[1]
+                  << std::right <<"  Z= "<< std::setw(16) << atom.coord[2] <<std::endl;
+        i += 3;
+ 
+      }
+
+      for(auto& shell: basis.shells)
+        for(i = 0; i < 3; i++)
+          std::cout << shell.O[i] << std::endl;
+#endif
+
     for (const std::pair<OPERATOR,size_t> &op : ops)
       switch (op.first) {
       case OVERLAP:

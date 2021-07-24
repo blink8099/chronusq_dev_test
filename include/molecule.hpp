@@ -178,7 +178,11 @@ namespace ChronusQ {
            << "total electrons = " << nTotalE;
         CErr(ss.str(),std::cout);
       }
+
       // Compute the total number of quantum protons 
+      atomsQ.clear();
+      atomsC.clear();
+
       nTotalP = 0;
       size_t ind = 0;
       for ( Atom& atom : atoms ) {

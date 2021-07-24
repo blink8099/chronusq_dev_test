@@ -76,18 +76,23 @@ namespace ChronusQ {
 
     ProgramTimer::tick("Form Core H");
 
-    if( coreH != nullptr )
-      CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
-
     size_t NB = basisSet().nBasis;
     if( nC == 4 ) NB = 2 * NB;
 
-    if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
-    else if(nC == 2 or nC == 4)
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
-    else
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
+    if( coreH != nullptr ) {
+      //CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
+      coreH->clear();
+
+    } else {
+
+      if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
+      else if(nC == 2 or nC == 4)
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
+      else
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
+
+    }
 
 
     // Make a copy of HamiltonianOptions

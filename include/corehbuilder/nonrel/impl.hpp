@@ -132,13 +132,12 @@ namespace ChronusQ {
       addMagPert(emPert,coreH);
 
 
-  #ifdef _DEBUGGIAOONEE
-      // prettyPrintSmart(std::cout,"Core H",CH[0],NB,NB,NB);
-      for ( auto ii = 0 ; ii < CH.size() ; ii++ ) {
-        std::cout<<"ii= "<<ii<<std::endl;
-        prettyPrintSmart(std::cout,"Core H",CH[ii],NB,NB,NB);
-      }
-  #endif
+#ifdef _DEBUGGIAOONEE
+      this->aoints_.kinetic->matrix().output(std::cout, "Kinetic", true);
+      this->aoints_.potential->matrix().output(std::cout, "Potential", true);
+      this->aoints_.overlap->matrix().output(std::cout, "Overlap", true);
+      coreH->output(std::cout, "Core Ham", true);
+#endif
 
   };  // void NRCoreH::computeCoreH(std::vector<MatsT*> &CH)
 

@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2019 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,29 +21,10 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#pragma once
-#include <physcon.hpp>
+#ifndef __INCLUDED_EHRENFEST_IMPL_HPP__
+#define __INCLUDED_EHRENFEST_IMPL_HPP__
 
-namespace ChronusQ {
+#include <ehrenfest/print.hpp>
+#include <ehrenfest/simulation.hpp>
 
-
-  struct MolecularOptions {
-
-    size_t numberSteps;    // number of steps for molecular dynamics
-
-    //Molecular Dynamics Options
-    double timeStepAU;          // timestep for molecular dynamics in a.u.
-    double timeStepFS;    // timestep for molecular dynamics in fs
-
-    MolecularOptions(const double step = 0.05, const size_t nsteps = 2000) :
-      timeStepFS(0.05), numberSteps(nsteps) {
-      timeStepAU = timeStepFS/FSPerAUTime;
-    }
-    //Geometry Optimization Options
-
-  }; // struct MolecularOptions
-
-  std::ostream& operator<<(std::ostream&, const MolecularOptions&);
-
-}; // namespace ChronusQ
-
+#endif

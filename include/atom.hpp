@@ -36,7 +36,7 @@ namespace ChronusQ {
     size_t atomicNumber; ///< Atomic Number (# of protons)
     double nucCharge;    ///< Nuclear Charge
     size_t massNumber;   ///< Mass Number
-    double atomicMass;   ///< Atomic Mass (in a.u.)
+    double atomicMass;   ///< Atomic Mass (in a.m.u. NOT a.u.)
     double slaterRadius; ///< Slater radius (in Bohr)
     bool   quantum;      ///< Whether this atom is treated quantum mechanically
 
