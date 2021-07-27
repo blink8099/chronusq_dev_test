@@ -153,7 +153,7 @@ if ( NOT TARGET ChronusQ::Libcint )
       FetchContent_Declare (
         Libcint
         GIT_REPOSITORY "https://github.com/sunqm/libcint"
-        GIT_TAG "v4.2.0"
+        GIT_TAG "v4.4.3"
         UPDATE_COMMAND cd ${FETCHCONTENT_BASE_DIR}/libcint-src && patch -N < ${PROJECT_SOURCE_DIR}/external/libcint/patch/CMakeLists.txt.patch || patch -N < ${PROJECT_SOURCE_DIR}/external/libcint/patch/CMakeLists.txt.patch | grep "Skipping patch" -q
       )
   
