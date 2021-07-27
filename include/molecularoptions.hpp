@@ -29,15 +29,19 @@ namespace ChronusQ {
 
   struct MolecularOptions {
 
-    size_t numberSteps;    // number of steps for molecular dynamics
+    size_t nNuclearSteps;      // number of steps for molecular dynamics
+    size_t nMidpointFockSteps; // number of elctronic steps for electronic dynamics
+    size_t nElectronicSteps;   // number of elctronic steps for electronic dynamics
 
     //Molecular Dynamics Options
     double timeStepAU;          // timestep for molecular dynamics in a.u.
     double timeStepFS;    // timestep for molecular dynamics in fs
 
     MolecularOptions(const double step = 0.05, const size_t nsteps = 2000) :
-      timeStepFS(0.05), numberSteps(nsteps) {
+      timeStepFS(0.05), nNuclearSteps(nsteps) {
       timeStepAU = timeStepFS/FSPerAUTime;
+      nMidpointFockSteps = 1;
+      nElectronicSteps = 50;
     }
     //Geometry Optimization Options
 

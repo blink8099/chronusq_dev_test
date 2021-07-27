@@ -497,7 +497,7 @@ namespace ChronusQ {
     }
 
 #ifndef __IN_HOUSE_INT__
-    std::cout<<"  Using Libint "<<std::endl;
+    //std::cout<<"  Using Libint "<<std::endl;
 #else
     std::cout<<"  Using In-house Integral Engine "<<std::endl;
 #endif
@@ -662,7 +662,7 @@ namespace ChronusQ {
     }; // omp region
 
     auto durERI4 = tock(topERI4);
-    std::cout << "  Libint-ERI4 duration   = " << durERI4 << std::endl;
+    //std::cout << "  Libint-ERI4 duration   = " << durERI4 << std::endl;
 
     for (double *p : coefBlocks) {
       if (p) memManager_.free(p);

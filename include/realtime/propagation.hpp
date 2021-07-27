@@ -58,8 +58,12 @@ namespace ChronusQ {
     if ( savFile.exists() )
       if ( restart )
         restoreState();
-      else
-        createRTDataSets();
+      else { ;}
+        //createRTDataSets();
+
+    propagator_.computeOrtho();
+    propagator_.ortho2aoDen();
+    propagator_.ortho2aoMOs();
 
     bool Start(false); // Start the MMUT iterations
     bool FinMM(false); // Wrap up the MMUT iterations
@@ -165,7 +169,7 @@ namespace ChronusQ {
       propagator_.computeProperties(pert_t);
 
       // Save data
-      saveState(pert_t);
+      //saveState(pert_t);
 
       // Save D(k) if doing Magnus 2
       std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> den_k;

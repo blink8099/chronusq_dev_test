@@ -292,31 +292,23 @@ namespace ChronusQ {
     //     {KINETIC,1}, {NUCLEAR_POTENTIAL,1}, {ELECTRON_REPULSION,1}},
     //     {basis->basisType, false, false, false});
 
+#if 0 //BOMD
     auto ssd = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss);
-
-    //size_t NB = basis->nBasis;
-
-
-
-    //std::cout << std::endl;
-    //for( auto &X: grad )
-      //std::cout << "Grad: " << X << std::endl;
 
     MolecularOptions molecularOptions;
     mol.geometryModifier = std::make_shared<MolecularDynamics>(molecularOptions,mol);
-    auto MD = std::dynamic_pointer_cast<MolecularDynamics>(mol.geometryModifier);
-    MD->initializeMD(mol);
+    auto BOMD = std::dynamic_pointer_cast<MolecularDynamics>(mol.geometryModifier);
+    BOMD->initializeMD(mol);
 
     auto totalTimeFS = 0.0;
     auto totalTimeAU = 0.0;
     auto ETot0 = 0.0;
     auto ETot = 0.0;
-    auto ETotPre = 0.0;
-    for(auto iStep = 0; iStep < molecularOptions.numberSteps; iStep++){
+    auto ETotPrevious = 0.0;
+    for(auto iStep = 0; iStep < molecularOptions.nNulcearSteps; iStep++){
 
       aoints->computeAOTwoE(*basis, mol, emPert);
       ssd->formCoreH(emPert);
-      //ssd->formGuess();
       ssd->SCF(emPert);
       auto grad = ssd->getGrad(emPert, false, false);
 
@@ -332,35 +324,126 @@ namespace ChronusQ {
       std::cout << "Nuclear Repulsion Energy = "<<mol.nucRepEnergy<<std::endl;
 
       std::cout << std::defaultfloat<<std::setprecision(8);
-      MD->updateNuclearCoordinates(mol,grad,iStep==0);
+      BOMD->updateNuclearCoordinates(true,mol,grad,iStep==0,iStep==molecularOptions.nNulcearSteps);
 
       std::cout << std::endl<<"Time (fs): "<< std::right<<std::setw(16)<<totalTimeFS
                 << "  Time (au): "<<std::right<< std::setw(16)<<totalTimeAU<<std::endl;
 
       std::cout << std::scientific<<std::setprecision(8);
-      std::cout <<  "EKin= " << std::right << std::setw(16) << MD->nuclearKineticEnergy
+      std::cout <<  "EKin= " << std::right << std::setw(16) << BOMD->nuclearKineticEnergy
                 << "  EPot= " << std::right << std::setw(16) << ssd->totalEnergy<<" a.u."<<std::endl;
 
-      ETot = ssd->totalEnergy+MD->nuclearKineticEnergy;
+      ETot = ssd->totalEnergy+BOMD->nuclearKineticEnergy;
       if(iStep == 0) {
         ETot0   = ETot;
-	ETotPre = ETot;
+	ETotPrevious = ETot;
       }
       std::cout << "ETot= " << std::right << std::setw(16) << ETot
-                << " ΔETot (current-previous)= " << std::right << std::setw(16)<< ETot-ETotPre
+                << " ΔETot (current-previous)= " << std::right << std::setw(16)<< ETot-ETotPrevious
                 << " ΔETot (cumulative)= " << std::right << std::setw(16)<< ETot-ETot0<< " a.u."<<std::endl;
-      ETotPre = ETot;
-
+      ETotPrevious = ETot;
 
 
       basis->updateNuclearCoordinates(mol);
-      //std::cout << *basis;
+
+      totalTimeFS += molecularOptions.timeStepFS;
+      totalTimeAU += molecularOptions.timeStepAU;
+
+    }
+#endif //BOMD
+
+#if 1 //Ehrenfest
+    auto ssd = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss);
+    auto rt = CQRealTimeOptions(output,input,ss,emPert);
+    rt->savFile = rstFile;
+
+
+    MolecularOptions molecularOptions;
+    mol.geometryModifier = std::make_shared<MolecularDynamics>(molecularOptions,mol);
+    auto BOMD = std::dynamic_pointer_cast<MolecularDynamics>(mol.geometryModifier);
+    BOMD->initializeMD(mol);
+
+    auto totalTimeFS = 0.0;
+    auto totalTimeAU = 0.0;
+    auto ETot0 = 0.0;
+    auto ETot = 0.0;
+    auto ETotPrevious = 0.0;
+
+    rt->intScheme.deltaT = molecularOptions.timeStepAU/
+                           (molecularOptions.nMidpointFockSteps*molecularOptions.nElectronicSteps);
+
+    for(auto outerStep = 0; outerStep < molecularOptions.nNuclearSteps; outerStep++){
+
+      basis->updateNuclearCoordinates(mol);
+      aoints->computeAOTwoE(*basis, mol, emPert);
+      rt->formCoreH(emPert);
+
+      std::cout << std::endl;
+      std::cout << "MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD"<<std::endl;
+      std::cout << "Molecular Dynamics Information for Step "<<std::setw(8)<<outerStep<<std::endl;
+
+
+
+      std::cout << std::defaultfloat<<std::setprecision(8);
+
+      std::cout << std::endl<<"Time (fs): "<< std::right<<std::setw(16)<<totalTimeFS
+                << "  Time (au): "<<std::right<< std::setw(16)<<totalTimeAU<<std::endl;
+
+      ETot = rt->totalEnergy()+BOMD->nuclearKineticEnergy;
+      if(outerStep == 0) {
+        ETot0   = ETot;
+	ETotPrevious = ETot;
+      }
+
+      std::cout << std::scientific<<std::setprecision(8);
+      std::cout <<  "EKin= " << std::right << std::setw(16) << BOMD->nuclearKineticEnergy
+                << "  EPot= " << std::right << std::setw(16) << rt->totalEnergy()
+                << " ETot= " << std::right << std::setw(16) << ETot << " a.u."<<std::endl;
+      std::cout << "ΔETot (current-previous)= " << std::right << std::setw(16)<< ETot-ETotPrevious
+                << " ΔETot (cumulative)= " << std::right << std::setw(16)<< ETot-ETot0<< " a.u."<<std::endl;
+      ETotPrevious = ETot;
+
+
+      auto grad = rt->getGrad(emPert);
+
+      for(auto middleStep = 0; middleStep < molecularOptions.nMidpointFockSteps+1; middleStep++) {
+
+        molecularOptions.timeStepAU = molecularOptions.timeStepAU/(molecularOptions.nMidpointFockSteps+1);
+        BOMD->updateNuclearCoordinates(middleStep==0, mol,grad,middleStep==0,middleStep==molecularOptions.nMidpointFockSteps);
+        molecularOptions.timeStepAU = molecularOptions.timeStepAU*(molecularOptions.nMidpointFockSteps+1);
+
+
+        basis->updateNuclearCoordinates(mol);
+        aoints->computeAOTwoE(*basis, mol, emPert);
+        rt->formCoreH(emPert);
+
+
+        rt->intScheme.restoreStep = outerStep*molecularOptions.nMidpointFockSteps*molecularOptions.nElectronicSteps
+                                  + middleStep*molecularOptions.nElectronicSteps;
+
+        // the last step is used to advance nuclear positions and compute energy only
+        if(middleStep != molecularOptions.nMidpointFockSteps)
+          rt->intScheme.tMax = molecularOptions.timeStepAU*outerStep
+                             + (middleStep+1)*molecularOptions.timeStepAU/molecularOptions.nMidpointFockSteps;
+	else rt->intScheme.tMax = molecularOptions.timeStepAU*(outerStep+1);
+
+
+        rt->doPropagation();
+        std::cout << std::scientific<<std::setprecision(12);
+        std::cout << "Nuclear Repulsion Energy = "<<mol.nucRepEnergy<<std::endl;
+
+      }
+
+
+      //molecularOptions.timeStepFS = 0.0;
+      //molecularOptions.timeStepAU = 0.0;
 
       totalTimeFS += molecularOptions.timeStepFS;
       totalTimeAU += molecularOptions.timeStepAU;
 
     }
 
+#endif //Ehrenfest
 
 
 

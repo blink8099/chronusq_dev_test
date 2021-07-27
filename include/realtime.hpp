@@ -113,6 +113,9 @@ namespace ChronusQ {
 
     // RealTimeBase procedural functions
     virtual void doPropagation()         = 0;
+    virtual double totalEnergy()         = 0;
+    virtual std::vector<double> getGrad(EMPerturbation&) = 0;
+    virtual void formCoreH(EMPerturbation&)              = 0;
 
     // Progress functions
     void printRTHeader();
@@ -183,6 +186,19 @@ namespace ChronusQ {
   
     ~RealTime(){ dealloc(); }
 
+
+    inline double totalEnergy(){
+      //propagator_.computeEnergy();
+      return propagator_.totalEnergy;
+    }
+
+    inline void formCoreH(EMPerturbation &emPert) {
+      return propagator_.formCoreH(emPert);
+    }
+
+    inline std::vector<double> getGrad(EMPerturbation &emPert) {
+      return propagator_.getGrad(emPert,false,false);
+    }
 
     // RealTime procedural functions
     void doPropagation(); // From RealTimeBase
