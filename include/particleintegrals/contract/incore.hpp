@@ -157,13 +157,14 @@ namespace ChronusQ {
 
     #ifdef _BULLET_PROOF_INCORE
 
-    size_t NB3 = sNB * NB2;
+    size_t NB3 = NB * NB2;
+    #pragma omp parallel for
     for(auto i = 0; i < NB; ++i)
     for(auto j = 0; j < NB; ++j)
     for(auto k = 0; k < sNB; ++k)
     for(auto l = 0; l < sNB; ++l)
 
-      C.AX[i + j*NB] += tpi4I(i, j, l, k) * C.X[k + l*NB];
+      AX[i + j*NB] += tpi4I.pointer()[i+j*NB+k*NB2+l*NB3] * X[l + k*NB];
 
     #else
 
@@ -215,13 +216,17 @@ namespace ChronusQ {
     size_t NB2 = NB*NB;
     size_t NB3 = NB * NB2;
 
-    #ifdef _BULLET_PROOF_INCORE
+    //#ifdef _BULLET_PROOF_INCORE
+    #if 1
 
+    std::fill_n(C.AX,NB2,0.);
+
+    #pragma omp parallel for
     for(auto i = 0; i < NB; ++i)
     for(auto j = 0; j < NB; ++j)
     for(auto k = 0; k < NB; ++k)
     for(auto l = 0; l < NB; ++l) {
-      C.AX[i + j*NB] += tpi4I(i, k, l, j) * C.X[k + l*NB];
+      C.AX[i + j*NB] += tpi4I.pointer()[i+l*NB+k*NB2+j*NB3] * C.X[l + k*NB];
     }
 
     #else

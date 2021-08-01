@@ -153,6 +153,8 @@ namespace ChronusQ {
     GradInts<OnePInts,IntsT>& gradK = *this->aoints_.gradKinetic;
     GradInts<OnePInts,IntsT>& gradV = *this->aoints_.gradPotential;
 
+    //gradK.output(std::cout, "gradKinetic", true); 
+    //gradV.output(std::cout, "gradPotential", true);
 
     size_t NB = ss.basisSet().nBasis;
     size_t nGrad = 3*ss.molecule().nAtoms;

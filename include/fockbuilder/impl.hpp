@@ -350,6 +350,16 @@ namespace ChronusQ {
       // G[S] = 2 * J[S] + alpha * K[S]
       twoEGrad.S() += 2. * JList[iGrad];
 
+#if 0
+    double gradVal = 0;
+
+    for(auto i = 0; i < NB; ++i)
+    for(auto j = 0; j < NB; ++j) {
+      gradVal += std::real(twoEGrad.S().pointer()[i+j*NB] 
+               * ss.onePDM->S().pointer()[i+j*NB]);
+    }
+
+#else
       double gradVal = ss.template computeOBProperty<double,SCALAR>(
         twoEGrad.S().pointer()
       );
@@ -365,7 +375,7 @@ namespace ChronusQ {
           twoEGrad.X().pointer()
         );
       }
-
+#endif
       gradient.push_back(0.25*gradVal);
 
     }

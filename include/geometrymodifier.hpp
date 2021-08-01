@@ -61,7 +61,7 @@ namespace ChronusQ {
       return molecularOptions_;
     }
 
-    virtual void updateNuclearCoordinates(bool, Molecule&, std::vector<double>, bool, bool)=0;
+    virtual void updateNuclearCoordinates(bool, Molecule&, std::vector<double>, bool, bool, bool)=0;
 
     // Pointer convertor
     static std::shared_ptr<GeometryModifier>

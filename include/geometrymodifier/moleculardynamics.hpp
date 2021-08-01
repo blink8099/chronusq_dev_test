@@ -77,7 +77,12 @@ namespace ChronusQ {
      *
      *  \param[in] pos  An array holding the new positions
      */
-    void updateNuclearCoordinates(bool print, Molecule &molecule, std::vector<double> gradientCurrent, bool firstStep, bool lastStep) {
+    void updateNuclearCoordinates(bool print, 
+                                  Molecule &molecule, 
+                                  std::vector<double> gradientCurrent,
+                                  bool firstStep, 
+                                  bool moveGeometry,
+                                  bool moveVelocity) {
 
       size_t i = 0;
 
@@ -97,13 +102,16 @@ namespace ChronusQ {
       }
 
       // if velocity Verlet
-      velocityVerlet(molecule, gradientCurrent, molecularOptions_.timeStepAU, firstStep, lastStep);
+      if(moveVelocity) {
+        velocityVV(molecule, gradientCurrent, molecularOptions_.timeStepAU, firstStep);
+        // compute kinetic energy
+        computeKineticEnergy(molecule);
+      }
+      if(moveGeometry) geometryVV(molecule, gradientCurrent, molecularOptions_.timeStepAU);
 
       // update other quantities
       molecule.update();
 
-      // compute kinetic energy
-      computeKineticEnergy(molecule);
 
 
       // output important dynamic information
@@ -149,8 +157,8 @@ namespace ChronusQ {
 
     }
 
-    //Velocity Verlet
-    void velocityVerlet(Molecule &molecule, std::vector<double> gradientCurrent, double timeStep, bool firstStep, bool lastStep){
+    // Advance the velocity using the Verlet
+    void velocityVV(Molecule &molecule, std::vector<double> gradientCurrent, double timeStep, bool firstStep){
 
       size_t i = 0;
 
@@ -175,22 +183,29 @@ namespace ChronusQ {
 	velocityHalfTime[i+1] = velocityCurrent[i+1] + 0.5*timeStep*acceleration[i+1];
 	velocityHalfTime[i+2] = velocityCurrent[i+2] + 0.5*timeStep*acceleration[i+2];
 
+        i+=3;
+      }
+
+    }
+
+    // Advance the geometry using the velocity
+    void geometryVV(Molecule &molecule, std::vector<double> gradientCurrent, double timeStep){
+
+      size_t i = 0;
+
+      // loop over atoms
+      for( Atom& atom : molecule.atoms ) {
         //advance the geometry to the next time 
         //r(t+1) = r(t) + dT∙v(t+1/2)
         atom.coord[0] += timeStep*velocityHalfTime[i  ]; // x
         atom.coord[1] += timeStep*velocityHalfTime[i+1]; // y
         atom.coord[2] += timeStep*velocityHalfTime[i+2]; // z
 
-        if (lastStep){
-          velocityCurrent[i  ] = velocityHalfTime[i  ] + 0.5*timeStep*acceleration[i  ];
-          velocityCurrent[i+1] = velocityHalfTime[i+1] + 0.5*timeStep*acceleration[i+1];
-          velocityCurrent[i+2] = velocityHalfTime[i+2] + 0.5*timeStep*acceleration[i+2];
-        }
-
         i+=3;
       }
  
     }
+
 
     /**
     *  \brief Compute the nuclear-nuclear repulsion energy for classical

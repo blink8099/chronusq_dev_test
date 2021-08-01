@@ -34,8 +34,8 @@ namespace ChronusQ {
     size_t nElectronicSteps;   // number of elctronic steps for electronic dynamics
 
     //Molecular Dynamics Options
-    double timeStepAU;          // timestep for molecular dynamics in a.u.
-    double timeStepFS;    // timestep for molecular dynamics in fs
+    double timeStepAU;         // timestep for molecular dynamics in a.u.
+    double timeStepFS;         // timestep for molecular dynamics in fs
 
     MolecularOptions(const double step = 0.05, const size_t nsteps = 2000) :
       timeStepFS(0.05), nNuclearSteps(nsteps) {

@@ -47,7 +47,7 @@ std::array<T,N> valarray2array(const std::valarray<T> &x) {
 namespace ChronusQ {
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::doPropagation() {
+  void RealTime<_SSTyp,IntsT>::doPropagation(bool doGradient) {
 
     ProgramTimer::tick("Real Time Total");
 
@@ -68,10 +68,31 @@ namespace ChronusQ {
     bool Start(false); // Start the MMUT iterations
     bool FinMM(false); // Wrap up the MMUT iterations
 
-    for( curState.xTime = intScheme.restoreStep * intScheme.deltaT,
-         curState.iStep = intScheme.restoreStep; 
-         curState.xTime <= (intScheme.tMax + intScheme.deltaT/4); 
-         curState.xTime += intScheme.deltaT, curState.iStep++ ) {
+    if(doGradient) {
+
+      EMPerturbation pert_t = pert.getPert(curState.xTime);
+
+      // Form the Fock matrix at the current time
+      formFock(false,curState.xTime);
+
+      // Compute properties for D(k) 
+      propagator_.computeProperties(pert_t);
+
+      // Save data
+      //saveState(pert_t);
+
+      // Print progress line in the output file
+      printRTStep();
+
+    }
+
+    size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/2)/intScheme.deltaT);
+
+    curState.xTime = intScheme.restoreStep * intScheme.deltaT;
+
+    for( curState.iStep = intScheme.restoreStep; 
+         curState.iStep < maxStep;
+         curState.iStep++ ) {
 
       ProgramTimer::tick("Real Time Iter");
 
@@ -96,7 +117,7 @@ namespace ChronusQ {
           Start = Start or ( curState.iStep % intScheme.iRstrt == 0 );
 
         // "Finish" the MMUT if this is the last step
-        FinMM = ( curState.iStep == (intScheme.tMax / intScheme.deltaT) );
+        FinMM = ( curState.iStep == maxStep );
 
         // TODO: "Finish" the MMUT if the field turns on or off
         FinMM = FinMM or pert.isFieldDiscontinuous(curState.xTime, intScheme.deltaT);
@@ -234,6 +255,8 @@ namespace ChronusQ {
         propagateWFN();
 
       }  // End 2nd order magnus
+
+      curState.xTime += intScheme.deltaT;
 
       ProgramTimer::tock("Real Time Iter");
 

@@ -378,11 +378,14 @@ namespace ChronusQ {
       aoints->computeAOTwoE(*basis, mol, emPert);
       rt->formCoreH(emPert);
 
+      // get the gradient and finish the previous velocity without advancing the geometry
+      auto grad = rt->getGrad(emPert);
+
       std::cout << std::endl;
       std::cout << "MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD"<<std::endl;
       std::cout << "Molecular Dynamics Information for Step "<<std::setw(8)<<outerStep<<std::endl;
 
-
+      BOMD->updateNuclearCoordinates(true, mol, grad, outerStep==0, false, true);
 
       std::cout << std::defaultfloat<<std::setprecision(8);
 
@@ -404,12 +407,10 @@ namespace ChronusQ {
       ETotPrevious = ETot;
 
 
-      auto grad = rt->getGrad(emPert);
-
-      for(auto middleStep = 0; middleStep < molecularOptions.nMidpointFockSteps+1; middleStep++) {
+      for(auto middleStep = 0; middleStep <= molecularOptions.nMidpointFockSteps; middleStep++) {
 
         molecularOptions.timeStepAU = molecularOptions.timeStepAU/(molecularOptions.nMidpointFockSteps+1);
-        BOMD->updateNuclearCoordinates(middleStep==0, mol,grad,middleStep==0,middleStep==molecularOptions.nMidpointFockSteps);
+        BOMD->updateNuclearCoordinates(false, mol, grad, false, true, false);
         molecularOptions.timeStepAU = molecularOptions.timeStepAU*(molecularOptions.nMidpointFockSteps+1);
 
 
@@ -428,7 +429,7 @@ namespace ChronusQ {
 	else rt->intScheme.tMax = molecularOptions.timeStepAU*(outerStep+1);
 
 
-        rt->doPropagation();
+        rt->doPropagation(middleStep==molecularOptions.nMidpointFockSteps);
         std::cout << std::scientific<<std::setprecision(12);
         std::cout << "Nuclear Repulsion Energy = "<<mol.nucRepEnergy<<std::endl;
 
@@ -457,7 +458,7 @@ namespace ChronusQ {
 
       auto rt = CQRealTimeOptions(output,input,ss,emPert);
       rt->savFile = rstFile;
-      rt->doPropagation();
+      rt->doPropagation(false);
 
     }
 

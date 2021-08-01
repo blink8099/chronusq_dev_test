@@ -152,17 +152,6 @@ namespace ChronusQ {
       std::cout << "Libint duration   = " << libint_duration.count() << std::endl;
 
     // Debug output of the ERIs
-#ifdef __DEBUGERI__
-    std::cout << "Two-Electron Integrals (ERIs)" << std::endl;
-    for(auto i = 0ul; i < NB; i++)
-    for(auto j = 0ul; j < NB; j++)
-    for(auto k = 0ul; k < NB; k++)
-    for(auto l = 0ul; l < NB; l++){
-      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
-      std::cout << ERI[i + j*NB  + k*NB2 + l*NB3] << std::endl;
-    };
-#endif
-
 
   };
 
@@ -234,6 +223,19 @@ namespace ChronusQ {
     };
 
     doERIInCore(0, {TPI}, computeAndPlace, basisSet, op, options);
+
+#ifdef __DEBUGERI__
+//#if 1
+    std::cout << "Two-Electron Integrals (ERIs)" << std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << TPI[i + j*NB  + k*NB2 + l*NB3] << std::endl;
+    };
+#endif
+
 
   }; // InCore4indexTPI<double>::computeTPI
 
@@ -677,6 +679,7 @@ namespace ChronusQ {
     // Debug output of the ERIs
 #ifdef __DEBUGERI__
     std::cout << "Two-Electron Integrals (ERIs)" << std::endl;
+    std::cout << std::setprecision(12);
     for(auto i = 0ul; i < NB; i++)
     for(auto j = 0ul; j < NB; j++)
     for(auto k = 0ul; k < NB; k++)
@@ -2016,6 +2019,11 @@ namespace ChronusQ {
       }
     );
 
+    size_t NB = basisSet.nBasis;
+    size_t NB2 = NB * NB;
+    size_t NB3 = NB2 * NB;
+
+
 
     auto computeAndPlace = [&](size_t sh1, size_t sh2, size_t sh3, size_t sh4,
                                size_t b1s, size_t b2s, size_t b3s, size_t b4s,
@@ -2107,6 +2115,19 @@ namespace ChronusQ {
     };
 
     doERIInCore(1, eris, computeAndPlace, basisSet, op, options);
+
+#ifdef __DEBUGERI__
+    std::cout << "Two-Electron Integral Derivatives (ERIs)" << std::endl;
+    for(auto iGrad = 0; iGrad < eris.size(); iGrad++ )
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << eris[iGrad][i + j*NB  + k*NB2 + l*NB3] << std::endl;
+    };
+#endif
+
 
   };
 

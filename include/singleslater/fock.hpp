@@ -172,15 +172,33 @@ namespace ChronusQ {
     HamiltonianOptions opts;
     opts.OneEScalarRelativity = false;
 
+    auto printGrad = [&](std::string name, std::vector<double>& vecgrad) {
+      std::cout << name << std::endl;
+      std::cout << std::setprecision(12);
+      for( auto iAt = 0; iAt < nAtoms; iAt++ ) {
+        std::cout << " Gradient@I = " << iAt << ":";
+        for( auto iCart = 0; iCart < 3; iCart++ ) {
+          std::cout << "  " << vecgrad[iAt*3 + iCart];
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+    };
+
+
     // Core H contribution
     this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
       {{OVERLAP, 1},
        {KINETIC, 1},
-       {NUCLEAR_POTENTIAL, 1}},
+       {NUCLEAR_POTENTIAL, 1}
+       },
        opts
     );
 
+
     std::vector<double> coreGrad = coreHBuilder->getGrad(pert, *this);
+    printGrad("Core H Gradient:", coreGrad);
+
 
     // 2e contribution
     this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
@@ -188,6 +206,8 @@ namespace ChronusQ {
       opts
     );
     std::vector<double> twoEGrad = fockBuilder->getGDGrad(*this, pert);
+    std::vector<double> pulayGrad;
+    std::vector<double> nucGrad;
 
     // Pulay contribution
     //
@@ -240,13 +260,21 @@ namespace ChronusQ {
           );
         }
 
+	pulayGrad.push_back(-0.5*gradVal);
         size_t iAt = iGrad/3;
         size_t iXYZ = iGrad%3;
         gradient[iGrad] = coreGrad[iGrad] + twoEGrad[iGrad] - 0.5*gradVal
                           + this->molecule().nucRepForce[iAt][iXYZ];
+	nucGrad.push_back(this->molecule().nucRepForce[iAt][iXYZ]);
       }
 
     }
+
+    printGrad("Nuclear Gradient:", nucGrad);
+    printGrad("G Gradient:", twoEGrad);
+    printGrad("Pulay Gradient:", pulayGrad);
+
+    this->onePDM->output(std::cout, "OnePDM in Gradient Contractions", true);
 
     return gradient;
 

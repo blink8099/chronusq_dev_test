@@ -112,7 +112,7 @@ namespace ChronusQ {
 
 
     // RealTimeBase procedural functions
-    virtual void doPropagation()         = 0;
+    virtual void doPropagation(bool)         = 0;
     virtual double totalEnergy()         = 0;
     virtual std::vector<double> getGrad(EMPerturbation&) = 0;
     virtual void formCoreH(EMPerturbation&)              = 0;
@@ -201,7 +201,7 @@ namespace ChronusQ {
     }
 
     // RealTime procedural functions
-    void doPropagation(); // From RealTimeBase
+    void doPropagation(bool); // From RealTimeBase
     void formPropagator();
     void formFock(bool,double t);
     void propagateWFN();
