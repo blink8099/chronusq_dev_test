@@ -160,6 +160,9 @@ namespace ChronusQ {
     void printMO(std::ostream&) ;
     void printEPS(std::ostream&);
 
+    // Swap Function
+    void swapMOs(std::vector<std::vector<std::pair<size_t, size_t>>>&, SpinType sp);
+
   }; // class WaveFunction
 
 }; // namespace ChronusQ

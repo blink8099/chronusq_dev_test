@@ -156,6 +156,8 @@ namespace ChronusQ {
       ortho.emplace_back(memManager, NB);
       ortho.emplace_back(memManager, NB);
 
+      moPairs.resize(2, {});
+
       SPIN_OPERATOR_ALLOC(NB,exchangeMatrix);
       SPIN_OPERATOR_ALLOC(NB,twoeH);
 

@@ -47,7 +47,8 @@ namespace ChronusQ {
       "FIELD",
       "PRINTMOS",
       "NEO",
-      "PROT_GUESS"
+      "PROT_GUESS",
+      "SWAPMO"
     };
 
     // Specified keywords
@@ -82,6 +83,48 @@ namespace ChronusQ {
       out << std::endl;
       ss.scfControls.guess = READMO;
       ss.scfControls.scfAlg = _SKIP_SCF;
+    }
+
+  }
+
+  std::unordered_map<std::string,int> SpinMap = {
+    { "A" , 0  },
+    { "B" , 1  }
+  };
+
+  void HandleOrbitalSwaps(std::ostream &out, CQInputFile &input,
+    SingleSlaterBase &ss) {
+
+    // MO swapping
+    std::string swapMOStrings;
+    OPTOPT( swapMOStrings = input.getData<std::string>("SCF.SWAPMO"));
+    if ( not swapMOStrings.empty() ) {
+      std::cout << "  * Manually MO Swapping Detected: " << std::endl;
+
+      if( ss.scfControls.guess != READMO and ss.scfControls.guess != FCHKMO )
+        CErr("MO swapping only for user-specified guess MOs");
+
+      std::vector<std::string> moTokens;
+      //Loop over lines of mo swapping
+      std::istringstream moStream(swapMOStrings);
+
+      for( std::string line; std::getline(moStream, line); ) {
+        split(moTokens, line, " \t,");
+
+        if( moTokens.size() == 0 ) continue;
+        else if( moTokens.size() != 2 and moTokens.size() != 3 ) CErr("Need 2 or 3 entries in single line for swapping");
+
+        // Parse spin if present
+        std::string spinDir("A");
+        if( moTokens.size() == 3 ) spinDir=moTokens[2];
+        trim(spinDir);
+
+        // mo[1] only present for unrestricted calcs
+        if( spinDir == "B" and not (ss.nC == 1 and not ss.iCS) ) CErr("Swapping of beta MOs is only valid for open-shell 1c");
+
+        ss.moPairs[SpinMap[spinDir]].emplace_back(std::stoul(moTokens[0]), std::stoul(moTokens[1]));
+      }
+
     }
 
   }
@@ -157,6 +200,8 @@ namespace ChronusQ {
         CErr("Unrecognized entry for SCF.PROT_GUESS");
     )
 
+    // MO swapping
+    HandleOrbitalSwaps(out, input, ss);
 
     // ALGORITHM
     OPTOPT(

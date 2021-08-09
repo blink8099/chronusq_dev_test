@@ -35,162 +35,85 @@
 
 using namespace ChronusQ;
 
+static void CQNORMALSCF( std::string in, std::string ref ) {
 
-inline void CQSCFTEST( std::string in, std::string ref,
-  double tol        = 1e-8,
-  bool checkSEXP    = true,
-  bool checkSSq     = true,
-  bool checkOctLen  = true,
-  bool checkQuadLen = true,
-  bool checkDipLen  = true,
-  bool checkEne     = true ) {
 
 #ifdef _CQ_GENERATE_TESTS
 
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
+  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
     SCF_TEST_REF + ref, TEST_OUT + in + ".scr");
-
-  MPI_Barrier(MPI_COMM_WORLD);
-  if(MPIRank(MPI_COMM_WORLD) != 0) return;
 
 #else
 
-  MPI_Barrier(MPI_COMM_WORLD);
-
-
-  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
+  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
     TEST_OUT + in + ".bin",
     TEST_OUT + in + ".scr");
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  if(MPIRank(MPI_COMM_WORLD) != 0) return;
-
-  SafeFile refFile(SCF_TEST_REF + ref,true);
-  SafeFile resFile(TEST_OUT + in + ".bin",true);
-  
-  double xDummy, yDummy;
-  std::array<double,3> xDummy3, yDummy3; 
-  std::array<std::array<double,3>,3> xDummy33, yDummy33;
-  std::array<std::array<std::array<double,3>,3>,3> xDummy333, yDummy333;
-  
-  /* Check Energy */ 
-  if( checkEne ) { 
-
-    std::cout << " * PERFORMING SCF ENERGY CHECK " << std::endl;
-
-    refFile.readData("SCF/TOTAL_ENERGY",&xDummy);
-    resFile.readData("SCF/TOTAL_ENERGY",&yDummy);
-
-    EXPECT_NEAR( xDummy, yDummy, tol ) << "ENERGY TEST FAILED ";
-
-  }
-  
-  /* Check Multipoles */ 
-
-  if( checkDipLen ) {
-
-    std::cout << " * PERFORMING SCF DIPOLE (LEN) CHECK " << std::endl;
-
-    refFile.readData("SCF/LEN_ELECTRIC_DIPOLE",&xDummy3[0]);
-    resFile.readData("SCF/LEN_ELECTRIC_DIPOLE",&yDummy3[0]);
-    for(auto i = 0; i < 3; i++)
-      EXPECT_NEAR(yDummy3[i], xDummy3[i], tol ) << 
-        "DIPOLE TEST FAILED IXYZ = " << i; 
-
-
-  }
-  
-
-  if( checkQuadLen ) {
-
-    std::cout << " * PERFORMING SCF QUADRUPOLE (LEN) CHECK " << std::endl;
-
-    refFile.readData("SCF/LEN_ELECTRIC_QUADRUPOLE",&xDummy33[0][0]);
-    resFile.readData("SCF/LEN_ELECTRIC_QUADRUPOLE",&yDummy33[0][0]);
-    for(auto i = 0; i < 3; i++)
-    for(auto j = 0; j < 3; j++)
-      EXPECT_NEAR(yDummy33[i][j], xDummy33[i][j],  tol) << 
-        "QUADRUPOLE TEST FAILED IXYZ = " << i 
-                           << " JXYZ = " << j; 
-
-  }
-  
-  if( checkOctLen ) {
-
-    std::cout << " * PERFORMING SCF OCTUPOLE (LEN) CHECK " << std::endl;
-
-    refFile.readData("SCF/LEN_ELECTRIC_OCTUPOLE",&xDummy333[0][0][0]);
-    resFile.readData("SCF/LEN_ELECTRIC_OCTUPOLE",&yDummy333[0][0][0]);
-    for(auto i = 0; i < 3; i++)
-    for(auto j = 0; j < 3; j++)
-    for(auto k = 0; k < 3; k++)
-      EXPECT_NEAR(yDummy333[i][j][k],  xDummy333[i][j][k],  tol) <<
-        "OCTUPOLE TEST FAILED IXYZ = " << i 
-                                       << " JXYZ = " << j 
-                                       << " KXYZ = " << k; 
-
-  }
-  
-  /* Check Spin */
-
-  if( checkSEXP ) {
-
-    std::cout << " * PERFORMING SCF <S> CHECK " << std::endl;
-
-    refFile.readData("SCF/S_EXPECT",&xDummy3[0]);
-    resFile.readData("SCF/S_EXPECT",&yDummy3[0]);
-    for(auto i = 0; i < 3; i++)
-      EXPECT_NEAR(yDummy3[i], xDummy3[i], tol ) << 
-        "<S> TEST FAILED IXYZ = " << i; 
-
-  }
-  
-  if( checkSSq ) {
-
-    std::cout << " * PERFORMING SCF <S^2> CHECK " << std::endl;
-
-    refFile.readData("SCF/S_SQUARED",&xDummy);
-    resFile.readData("SCF/S_SQUARED",&yDummy);
-    EXPECT_NEAR(yDummy,  xDummy, tol) << "<S^2> TEST FAILED " ;
-
-  }
-
 #endif
 
-}
+};
 
-inline void CQSCFFCHKTEST( std::string in, std::string ref, std::string fchk,
-  double tol        = 1e-8,
-  bool checkSEXP    = true,
-  bool checkSSq     = true,
-  bool checkOctLen  = true,
-  bool checkQuadLen = true,
-  bool checkDipLen  = true,
-  bool checkEne     = true ) {
+static void CQBINSCF( std::string in, std::string ref ) {
 
 #ifdef _CQ_GENERATE_TESTS
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
+    SCF_TEST_REF + ref, TEST_OUT + in + ".scr");
+
+#else
+
+  std::ifstream  src(SCF_TEST_REF + ref, std::ios::binary);
+  std::ofstream  dst(TEST_OUT + in + ".bin", std::ios::binary);
+  dst << src.rdbuf();
+  dst.flush();
+
+  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
+    TEST_OUT + in + ".bin",
+    TEST_OUT + in + ".scr");
+
+#endif
+
+};
+
+static void CQFCHKSCF( std::string in, std::string ref, std::string fchk ) {
+
+#ifdef _CQ_GENERATE_TESTS
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
     SCF_TEST_REF + ref, SCF_TEST_REF + fchk);
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  if(MPIRank(MPI_COMM_WORLD) != 0) return;
-
 #else
-
-  MPI_Barrier(MPI_COMM_WORLD);
-
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
     TEST_OUT + in + ".bin",
     SCF_TEST_REF + fchk);
 
+#endif
+
+};
+
+static void CQSCFTEST( std::string in, std::string ref,
+  double tol        = 1e-8,
+  bool checkSEXP    = true,
+  bool checkSSq     = true,
+  bool checkOctLen  = true,
+  bool checkQuadLen = true,
+  bool checkDipLen  = true,
+  bool checkEne     = true,
+  bool readBin      = false,
+  std::string fchk  = "no" ) {
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  if( !readBin and fchk=="no" ) CQNORMALSCF(in,ref);
+  else if( readBin ) CQBINSCF(in,ref);
+  else CQFCHKSCF(in,ref,fchk);
+
   MPI_Barrier(MPI_COMM_WORLD);
   if(MPIRank(MPI_COMM_WORLD) != 0) return;
+
+
+#ifndef _CQ_GENERATE_TESTS
 
   SafeFile refFile(SCF_TEST_REF + ref,true);
   SafeFile resFile(TEST_OUT + in + ".bin",true);
@@ -285,8 +208,5 @@ inline void CQSCFFCHKTEST( std::string in, std::string ref, std::string fchk,
 #endif
 
 }
-
-
-
 
 
