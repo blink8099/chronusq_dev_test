@@ -21,18 +21,37 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#include <wavefunction/impl.hpp>
-#include <wavefunction/swap.hpp>
+#pragma once
+
+#include <wavefunction/base.hpp>
+#include <matrix.hpp>
 
 namespace ChronusQ {
 
-  template class WaveFunction<double,double>;
-  template class WaveFunction<dcomplex,double>;
-  template class WaveFunction<dcomplex,dcomplex>;
+  template <typename MatsT, typename IntsT>
+  void WaveFunction<MatsT,IntsT>::swapMOs(
+      std::vector<std::vector<std::pair<size_t, size_t>>> & moP, SpinType spin){
+ 
+    auto MO = mo[spin].pointer();
+    size_t LDMO = mo[spin].dimension();
+    MatsT * SCR = this->memManager.template malloc<MatsT>(LDMO);
 
-  // Instantiate copy constructors
-  template WaveFunction<dcomplex,double>::WaveFunction(const WaveFunction<double,double> &, int);
-  // Instantiate copy ructors
-  template WaveFunction<dcomplex,double>::WaveFunction( WaveFunction<double,double> &&,int);
+    if( spin==0 ) std::cout << "  * the following mos are swapped" << std::endl;
+    else if( spin==1 ) std::cout << "  * the following beta mos are swapped" << std::endl;
+
+    for( auto & pair: moP[spin] ){
+
+      std::cout << "    " << pair.first << "    " << pair.second << std::endl;
+
+      MatsT * first_p = MO + (pair.first-1) * LDMO;
+      MatsT * second_p = MO + (pair.second-1) * LDMO;
+
+      std::copy_n(first_p,  LDMO, SCR);
+      std::copy_n(second_p, LDMO, first_p);
+      std::copy_n(SCR,      LDMO, second_p);
+
+    }
+
+  }; // MCWaveFunction:::swapMOs
 
 }; // namespace ChronusQ

@@ -174,6 +174,9 @@ namespace ChronusQ {
     SCFControls    scfControls; ///< Controls for the SCF procedure
     SCFConvergence scfConv;     ///< Current status of SCF convergence
 
+    // Pair function for SingleSlater MO swap
+    std::vector<std::vector<std::pair<size_t, size_t>>> moPairs;
+
     // Constructors (all defaulted)
     SingleSlaterBase(const SingleSlaterBase &) = default;
     SingleSlaterBase(SingleSlaterBase &&)      = default;

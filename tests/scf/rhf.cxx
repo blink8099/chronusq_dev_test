@@ -49,7 +49,9 @@ TEST( RHF, NeHe_RHF_STO3G_ISO ) {
 // HeKr sto-3g test for fchk parsing
 TEST( RHF, HeKr_sto3G ) {
 
-  CQSCFFCHKTEST( "scf/serial/rhf/HeKr_sto-3G", "HeKr_sto-3G.bin.ref", "HeKr_sto-3G.fchk" );
+  CQSCFTEST( "scf/serial/rhf/HeKr_sto-3G", "HeKr_sto-3G.bin.ref",
+      1e-8, true, true, true, true, true, true,
+      false, "HeKr_sto-3G.fchk" );
 
 };
 

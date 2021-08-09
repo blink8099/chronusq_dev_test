@@ -49,7 +49,9 @@ TEST( UHF, RbHe_sto3G ) {
 // KCaKrK sto-3g test for fchk parsing
 TEST( UHF, KCaKrK_sto3G ) {
 
-  CQSCFFCHKTEST( "scf/serial/uhf/KCaKrK_sto-3G", "KCaKrK_sto-3G.bin.ref", "KCaKrK_sto-3G.fchk" );
+  CQSCFTEST( "scf/serial/uhf/KCaKrK_sto-3G", "KCaKrK_sto-3G.bin.ref", 1e-8,
+              true, true, true, true, true, true,
+              false, "KCaKrK_sto-3G.fchk");
 
 };
 
@@ -65,6 +67,15 @@ TEST( UHF, H_321G ) {
 TEST( UHF, NeHeH_fracZ_sto3G ) {
 
   CQSCFTEST( "scf/serial/uhf/NeHeH_fracZ_uhf_sto-3G", "NeHeH_fracZ_uhf_sto-3G.bin.ref" );
+
+};
+
+// B sto-3g test for MO swapping
+TEST( UHF, B_swap_UHF_sto3G ) {
+
+  CQSCFTEST( "scf/serial/uhf/B_swap_UHF_sto-3g", "B_swap_UHF_sto-3g.bin.ref",
+    1e-8, true, true, true, true, true, true,
+    true );
 
 };
 

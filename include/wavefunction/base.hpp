@@ -28,6 +28,13 @@
 
 namespace ChronusQ {
 
+
+  // Type of spin
+  enum SpinType {
+    isAlpha= 0,  // default orbital manifold
+    isBeta = 1,  // beta manifold for unrestricted
+  };
+
   /**
    *  \brief The WaveFunctionBase class. The abstraction of information
    *  relating to the WaveFunction class which are independent of storage
@@ -78,6 +85,9 @@ namespace ChronusQ {
     virtual void printEPS(std::ostream&) = 0;
 
     virtual void printMOInfo(std::ostream&) = 0;
+
+    // MO swap functions
+    virtual void swapMOs(std::vector<std::vector<std::pair<size_t, size_t>>>&, SpinType sp) = 0;
 
   }; // class WaveFunctionBase
 
