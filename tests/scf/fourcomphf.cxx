@@ -93,6 +93,24 @@ TEST( FOURCHF, UPu_184_plus_P_DCG_finitenuc ) {
 
 };
 
+// Two electron U-Pu 184+ test Dirac-Couloumb-Gaunt-Gauge-SSSS AO Direct
+TEST( FOURCHF, UPu_184_plus_P_DCGGS_finitenuc_direct ) {
+
+  CQSCFTEST( "scf/serial/fourcomp/UPu_184+_P_DCGGS_finitenuc_direct",
+    "UPu_184+_P_DCGGS_finitenuc.bin.ref",1e-8,
+    false, false, false, false, false, true);
+
+};
+
+// Two electron U-Pu 184+ test Dirac-Couloumb-Gaunt-Gauge-SSSS
+TEST( FOURCHF, UPu_184_plus_P_DCGGS_finitenuc ) {
+
+  CQSCFTEST( "scf/serial/fourcomp/UPu_184+_P_DCGGS_finitenuc",
+    "UPu_184+_P_DCGGS_finitenuc.bin.ref",1e-8,
+    false, false, false, false, false, true);
+
+};
+
 // Distorted CuH3 to test C1 symmetry Dirac-Coulomb-Gaunt
 TEST( FOURCHF, CuH3_321g_DCG ) {
 
@@ -174,6 +192,24 @@ TEST( FOURCHF, PAR_UPu_184_plus_P_DCG_finitenuc ) {
 
   CQSCFTEST( "scf/parallel/fourcomp/UPu_184+_P_DCG_finitenuc",
     "UPu_184+_P_DCG_finitenuc.bin.ref",1e-8,
+    false, false, false, false, false, true);
+
+};
+
+// Two electron U-Pu 184+ test Dirac-Couloumb-Gaunt-Gauge-SSSS AO Direct
+TEST( FOURCHF, PAR_UPu_184_plus_P_DCGGS_finitenuc_direct ) {
+
+  CQSCFTEST( "scf/parallel/fourcomp/UPu_184+_P_DCGGS_finitenuc_direct",
+    "UPu_184+_P_DCGGS_finitenuc.bin.ref",1e-8,
+    false, false, false, false, false, true);
+
+};
+
+// Two electron U-Pu 184+ test Dirac-Couloumb-Gaunt-Gauge-SSSS
+TEST( FOURCHF, PAR_UPu_184_plus_P_DCGGS_finitenuc ) {
+
+  CQSCFTEST( "scf/parallel/fourcomp/UPu_184+_P_DCGGS_finitenuc",
+    "UPu_184+_P_DCGGS_finitenuc.bin.ref",1e-8,
     false, false, false, false, false, true);
 
 };

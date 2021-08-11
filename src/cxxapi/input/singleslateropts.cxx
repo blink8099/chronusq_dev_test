@@ -586,6 +586,11 @@ namespace ChronusQ {
 
     }
 
+    if ((hamiltonianOptions.Gauge or hamiltonianOptions.DiracCoulombSSSS)
+        and not hamiltonianOptions.Libcint)
+      CErr("4C Gauge and SSSS terms NYI with libint. "
+            "Please use libcint = true instead.", out);
+
   }
 
   /**
@@ -927,8 +932,14 @@ namespace ChronusQ {
     if(refOptions.refType == isFourCRef) {
 
       size_t nERI4DCB = 0; // Bare-Coulomb
+
       if( hamiltonianOptions.Gaunt ) nERI4DCB = 23; // Dirac-Coulomb-Gaunt
       else if( hamiltonianOptions.DiracCoulomb ) nERI4DCB = 4; // Dirac-Coulomb
+
+      
+      if( hamiltonianOptions.DiracCoulombSSSS ) nERI4DCB += 16; // Dirac-Coulomb-SSSS
+
+      if( hamiltonianOptions.Gauge ) nERI4DCB += 26; // Gauge
 
 
       if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {

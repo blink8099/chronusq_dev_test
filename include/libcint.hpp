@@ -806,48 +806,65 @@ CQ_CINT_OPT_WRAPPER(int2e_gauge_r1_ssp1ssp2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_ssp1ssp2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_ssp1ssp2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_ssp1ssp2_spinor);
+CQ_INT_WRAPPER(int2e_gauge_r1_ssp1ssp2_cart);
+CQ_INT_WRAPPER(int2e_gauge_r1_ssp1ssp2_sph);
 
 /* (i R0 SIGMA DOT P j|BREIT-R1 |SIGMA DOT P k l) */
 CQ_CINT_OPT_WRAPPER(int2e_gauge_r1_ssp1sps2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_ssp1sps2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_ssp1sps2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_ssp1sps2_spinor);
+CQ_INT_WRAPPER(int2e_gauge_r1_ssp1sps2_sph);
+CQ_INT_WRAPPER(int2e_gauge_r1_ssp1sps2_cart);
+
 
 /* (SIGMA DOT P i R0 j|BREIT-R1 |k SIGMA DOT P l) */
 CQ_CINT_OPT_WRAPPER(int2e_gauge_r1_sps1ssp2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_sps1ssp2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_sps1ssp2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_sps1ssp2_spinor);
+CQ_INT_WRAPPER(int2e_gauge_r1_sps1ssp2_cart);
+CQ_INT_WRAPPER(int2e_gauge_r1_sps1ssp2_sph);
 
 /* (SIGMA DOT P i R0 j|BREIT-R1 |SIGMA DOT P k l) */
 CQ_CINT_OPT_WRAPPER(int2e_gauge_r1_sps1sps2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_sps1sps2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_sps1sps2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r1_sps1sps2_spinor);
+CQ_INT_WRAPPER(int2e_gauge_r1_sps1sps2_cart);
+CQ_INT_WRAPPER(int2e_gauge_r1_sps1sps2_sph);
 
 /* (i SIGMA DOT P j|BREIT-R2 |k R0 SIGMA DOT P l) */
 CQ_CINT_OPT_WRAPPER(int2e_gauge_r2_ssp1ssp2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_ssp1ssp2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_ssp1ssp2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_ssp1ssp2_spinor);
+CQ_INT_WRAPPER(int2e_gauge_r2_ssp1ssp2_cart);
+CQ_INT_WRAPPER(int2e_gauge_r2_ssp1ssp2_sph);
 
 /* (i SIGMA DOT P j|BREIT-R2 |SIGMA DOT P k R0 l) */
 CQ_CINT_OPT_WRAPPER(int2e_gauge_r2_ssp1sps2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_ssp1sps2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_ssp1sps2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_ssp1sps2_spinor);
+CQ_INT_WRAPPER(int2e_gauge_r2_ssp1sps2_cart);
+CQ_INT_WRAPPER(int2e_gauge_r2_ssp1sps2_sph);
 
 /* (SIGMA DOT P i j|BREIT-R2 |k R0 SIGMA DOT P l) */
 CQ_CINT_OPT_WRAPPER(int2e_gauge_r2_sps1ssp2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_sps1ssp2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_sps1ssp2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_sps1ssp2_spinor);
+CQ_INT_WRAPPER(int2e_gauge_r2_sps1ssp2_cart);
+CQ_INT_WRAPPER(int2e_gauge_r2_sps1ssp2_sph);
 
 /* (SIGMA DOT P i j|BREIT-R2 |SIGMA DOT P k R0 l) */
 CQ_CINT_OPT_WRAPPER(int2e_gauge_r2_sps1sps2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_sps1sps2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_sps1sps2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_gauge_r2_sps1sps2_spinor);
+CQ_INT_WRAPPER(int2e_gauge_r2_sps1sps2_cart);
+CQ_INT_WRAPPER(int2e_gauge_r2_sps1sps2_sph);
 
 /* <NABLA NABLA i|OVLP |j> */
 CQ_CINT_OPT_WRAPPER(int1e_ipipovlp_optimizer);
@@ -978,6 +995,8 @@ CQ_CINT_OPT_WRAPPER(int2e_ipvip1ipvip2_optimizer);
 CQ_CINT_INT2E_WRAPPER(int2e_ipvip1ipvip2_cart);
 CQ_CINT_INT2E_WRAPPER(int2e_ipvip1ipvip2_sph);
 CQ_CINT_INT2E_WRAPPER(int2e_ipvip1ipvip2_spinor);
+CQ_INT_WRAPPER(int2e_ipvip1ipvip2_cart);
+CQ_INT_WRAPPER(int2e_ipvip1ipvip2_sph);
 
 /* (NABLA i j|R12 |k) */
 CQ_CINT_OPT_WRAPPER(int3c2e_ip1_optimizer);

@@ -30,13 +30,20 @@ namespace ChronusQ {
   enum TWOBODY_CONTRACTION_TYPE {
     COULOMB, ///< (mn | kl) X(lk)
     EXCHANGE,///< (mn | kl) X(nk)
-    PAIR     ///< (mn | kl) X(nl)
+    PAIR,    ///< (mn | kl) X(nl)
+    BARE_COULOMB,
+    LLLL,
+    LLSS,
+    SSSS,
+    GAUNT,
+    GAUGE
   }; ///< 2-Body Tensor Contraction Specification
 
 
   // ERI transpose type
   enum INTEGRAL_TRANSPOSE {
     TRANS_NONE,
+    TRANS_MN_TRANS_KL,
     TRANS_MNKL,
     TRANS_KL,
     TRANS_MN

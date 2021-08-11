@@ -26,7 +26,8 @@
 #include <particleintegrals/contract/incore.hpp>
 #include <particleintegrals/contract/direct.hpp>
 #include <particleintegrals/contract/direct3index.hpp>
-#include <particleintegrals/contract/direct4C.hpp>
+#include <particleintegrals/contract/direct4C_libint.hpp>
+#include <particleintegrals/contract/direct4C_libcint.hpp>
 #include <particleintegrals/onepints/relativisticints.hpp>
 
 
