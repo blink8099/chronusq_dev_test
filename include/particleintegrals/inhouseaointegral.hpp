@@ -234,13 +234,25 @@ namespace ChronusQ {
     static std::vector<double> BottomupHGP( 
       libint2::ShellPair &, libint2::ShellPair &, 
       libint2::Shell &, libint2::Shell &,
-      libint2::Shell &, libint2::Shell &);
+      libint2::Shell &, libint2::Shell &,
+      int, int, int, int);
 
     // HBL 4C:  Bottomup HGP for 2e SOC ERI
     static std::vector<std::vector<double>> BottomupHGP_TwoESP( 
       libint2::ShellPair &, libint2::ShellPair &, 
       libint2::Shell &, libint2::Shell &,
       libint2::Shell &, libint2::Shell &);
+
+    // SS shit : gradient of AC atoms for ERI
+    static std::vector<std::vector<double>> ACderiv( 
+      libint2::ShellPair &, libint2::ShellPair &, 
+      libint2::Shell &, libint2::Shell &,
+      libint2::Shell &, libint2::Shell &);
+
+    // SS: bottom up integral code 
+    static std::vector<double> bottomupERI(libint2::ShellPair&,
+      libint2::ShellPair&,libint2::Shell&,libint2::Shell&,libint2::Shell&,libint2::Shell&,
+      int, int, int, int );
 
     // compute ERI of shell pair 1 and 2
     static std::vector<double> computeERIabcd(libint2::ShellPair&,libint2::ShellPair&,
@@ -271,6 +283,49 @@ namespace ChronusQ {
     static double twoeSSSS0( libint2::ShellPair&, libint2::ShellPair&, libint2::Shell&,
       libint2::Shell&, libint2::Shell&, libint2::Shell& ); 
 
+
+
+    // compute gauge integral of shell pair 1 and 2
+    static std::vector<std::vector<double>> computegaugeabcd(libint2::ShellPair&,libint2::ShellPair&,
+      libint2::Shell&,libint2::Shell&,libint2::Shell&,libint2::Shell&, int, int, int, int );
+
+    // horizontal recursion (ab||cd)
+    static double twoegaugehRRabcd( libint2::ShellPair&, libint2::ShellPair&, int, int, 
+      libint2::Shell& , libint2::Shell&, libint2::Shell&, libint2::Shell&, 
+      std::vector<std::vector<std::vector<double>>>&, int, int*, int, int*, int, 
+      int*, int, int* );
+
+
+    // horizontal recursion (a0||cd)
+    static double twoegaugehRRa0cd( libint2::ShellPair&, libint2::ShellPair&, int, int, 
+      libint2::Shell& ,  libint2::Shell&, libint2::Shell&, libint2::Shell&, 
+      std::vector<std::vector<std::vector<double>>>&,int, int*, int, int*, int, int* );
+
+    // vertical recursion (a0||c0)
+    static double twoegaugevRRa0c0( libint2::ShellPair::PrimPairData&,  
+      libint2::ShellPair::PrimPairData&, int, int, std::vector<double>&, 
+      libint2::Shell& , libint2::Shell&, int, int, int*, int, int* );
+
+    // vertical recursion (a0||00)
+    static double twoegaugevRRa000( libint2::ShellPair::PrimPairData&,  
+      libint2::ShellPair::PrimPairData&, int, int, std::vector<double>&, 
+      libint2::Shell& , libint2::Shell& ,int, int, int* );
+
+    // (ss||ss) type integral with m=0 
+    static double twoegaugeSSSS0( libint2::ShellPair&, libint2::ShellPair&, int, int, 
+      libint2::Shell&, libint2::Shell&, libint2::Shell&, libint2::Shell& ); 
+
+    // SS shit : gradient of AC atoms for gauge integral
+    static std::vector<std::vector<std::vector<double>>> ACgaugederiv( 
+      libint2::ShellPair &, libint2::ShellPair &, 
+      libint2::Shell &, libint2::Shell &,
+      libint2::Shell &, libint2::Shell &);
+
+    // SS shit : gradient of BC atoms for gauge integral
+    static std::vector<std::vector<std::vector<double>>> BCgaugederiv( 
+      libint2::ShellPair &, libint2::ShellPair &, 
+      libint2::Shell &, libint2::Shell &,
+      libint2::Shell &, libint2::Shell &);
 
     // Taylor intrapolation of Boys function
     static void computeFmTTaylor(double*,double,int,int);

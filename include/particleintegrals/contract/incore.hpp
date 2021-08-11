@@ -318,7 +318,19 @@ namespace ChronusQ {
 
     memset(C.AX,0.,NB2*sizeof(MatsT));
 
-    if( C.intTrans == TRANS_KL ) {
+    if ( C.intTrans == TRANS_MN_TRANS_KL ) {
+
+      // D(μν) = D(λκ)([μλ]^T|[κν]^T) = D(λκ)(λμ|νκ)
+      #pragma omp parallel for
+      for (auto m = 0; m < NB; ++m)
+      for (auto n = 0; n < NB; ++n)
+      for (auto k = 0; k < NB; ++k)
+      for (auto l = 0; l < NB; ++l) {
+
+        C.AX[m + n*NB] += C.ERI4[l + m * NB + n * NB2 + k * NB3] * C.X[l + k * NB];
+
+      }
+    } else if( C.intTrans == TRANS_KL ) {
 
       // D(μν) = D(λκ)(μλ|[κν]^T) = D(λκ)(μλ|νκ)
       #pragma omp parallel for

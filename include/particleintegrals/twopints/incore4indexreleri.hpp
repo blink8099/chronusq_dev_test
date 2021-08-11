@@ -108,23 +108,32 @@ namespace ChronusQ {
 
       if(hamiltonianOptions.Libcint) {
 
-	// Use Libcint to compute nonrelativistic and DCB integrals
+        // Use Libcint to compute nonrelativistic and DCB integrals
         computeERICINT(basisSet, mol, emPert, op, hamiltonianOptions);
+
+        //if( hamiltonianOptions.Gauge )
+          //computeERIGauge(basisSet, mol, emPert, op, hamiltonianOptions);
 
       } else {
 
-	// Use Libint to compute nonrelativistic
+        // Use Libint to compute nonrelativistic
         InCore4indexTPI<IntsT>::computeAOInts(basisSet, mol, emPert, op, hamiltonianOptions);
 
-  // Use Libint to compute DCB integrals
-        if( hamiltonianOptions.DiracCoulomb or hamiltonianOptions.Gaunt ) 
+        // Use Libint to compute DCB integrals
+        if (hamiltonianOptions.DiracCoulomb or hamiltonianOptions.Gaunt)
           computeERIDCB(basisSet, mol, emPert, op, hamiltonianOptions);
+
+        // use in house code to compute gauge integral
+        if (hamiltonianOptions.Gauge)
+          computeERIGauge(basisSet, mol, emPert, op, hamiltonianOptions);
       }
 
     }
 
     /// Evaluate Spin-Own-Orbit ERIs in the CGTO basis
     void computeERIDCB(BasisSet&, Molecule&, EMPerturbation&,
+        OPERATOR, const HamiltonianOptions&);
+    void computeERIGauge(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const HamiltonianOptions&);
     void computeERICINT(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const HamiltonianOptions&);
