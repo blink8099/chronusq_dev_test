@@ -206,7 +206,7 @@ namespace ChronusQ {
     virtual std::vector<double> getEnergySummary();
 
     // Compute various core Hamitlonian
-    void formCoreH(EMPerturbation&); // Compute the CH
+    void formCoreH(EMPerturbation&, bool); // Compute the CH
 //  void updateCoreH(EMPerturbation &);
     void computeOrtho();  // Evaluate orthonormalization transformations
     void computeOrthoGrad(); // Evaluate gradient of orthonormalization
@@ -225,8 +225,8 @@ namespace ChronusQ {
     virtual void formFock(EMPerturbation &, bool increment = false, double xHFX = 1.);
 
     // Get the total gradient
-    virtual std::vector<double> getGrad(EMPerturbation&, bool equil = false,
-      bool saveInts = false);
+    virtual std::vector<double> getGrad(EMPerturbation&, bool equil,
+      bool saveInts);
 
     // Form initial guess orbitals
     // see include/singleslater/guess.hpp for docs)

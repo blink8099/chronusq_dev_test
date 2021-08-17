@@ -70,7 +70,7 @@ namespace ChronusQ {
    *  \param [in] typ Which Hamiltonian to build
    */ 
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert) {
+  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert, bool save) {
 
     ROOT_ONLY(comm);
 
@@ -133,7 +133,7 @@ namespace ChronusQ {
 
 
     // Save the Core Hamiltonian
-    if( savFile.exists() ) {
+    if( savFile.exists() && save) {
 
       const std::array<std::string,4> spinLabel =
         { "SCALAR", "MZ", "MY", "MX" };

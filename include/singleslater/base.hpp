@@ -197,7 +197,7 @@ namespace ChronusQ {
     virtual void formGuess() = 0;
 
     //   Form the core Hamiltonian
-    virtual void formCoreH(EMPerturbation&) = 0;
+    virtual void formCoreH(EMPerturbation&, bool) = 0;
 
     //   Obtain a new set of orbitals / densities from current
     //   set of densities

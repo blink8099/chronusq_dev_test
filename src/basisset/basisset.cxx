@@ -197,6 +197,10 @@ namespace ChronusQ {
    */
   void BasisSet::updateNuclearCoordinates(const Molecule &mol) {
 
+    // Early return if this basis set doesn't actually contain anything
+    if( basisName == "" and basisDef == "" and shells.size() == 0 )
+      return;
+
     // Generate the reference basis set of that keyword
     ReferenceBasisSet ref(basisName, basisDef, inputDef, forceCart, false, nucBasis);
 

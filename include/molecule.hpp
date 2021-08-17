@@ -49,6 +49,7 @@ namespace ChronusQ {
     int  charge;   ///< Overall charge of the Molecule (atomic units)
 
     double   nucRepEnergy; ///< Nuclear-Nuclear repulsion energy
+    double   nucKinEnergy = 0;
     
     cart_t    COM; ///< Center-of-mass of the Molecule
     cart_t    COC; ///< Center-of-charge of the Molecule

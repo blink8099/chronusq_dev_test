@@ -36,8 +36,6 @@ namespace ChronusQ {
    */
   class GeometryModifier {
 
-    friend class GeometryModifier;
-
   protected:
     MolecularOptions& molecularOptions_;
 
@@ -61,12 +59,8 @@ namespace ChronusQ {
       return molecularOptions_;
     }
 
-    virtual void updateNuclearCoordinates(bool, Molecule&, std::vector<double>, bool, bool, bool)=0;
-
-    // Pointer convertor
-    static std::shared_ptr<GeometryModifier>
-    convert(const std::shared_ptr<GeometryModifier>&);
-
+    virtual bool hasNext() = 0;
+    virtual void update(bool, Molecule&, bool) = 0;
 
   };
 

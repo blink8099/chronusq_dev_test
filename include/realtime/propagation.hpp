@@ -58,12 +58,14 @@ namespace ChronusQ {
     if ( savFile.exists() )
       if ( restart )
         restoreState();
-      else { ;}
-        //createRTDataSets();
 
+    // Upon entry to RT, assume only the orthonormal density is valid
     propagator_.computeOrtho();
     propagator_.ortho2aoDen();
     propagator_.ortho2aoMOs();
+
+    // propagator_.onePDMOrtho->output(std::cout, "TD 1PDM Ortho", true);
+    // propagator_.onePDM->output(std::cout, "TD 1PDM", true);
 
     bool Start(false); // Start the MMUT iterations
     bool FinMM(false); // Wrap up the MMUT iterations
@@ -78,21 +80,19 @@ namespace ChronusQ {
       // Compute properties for D(k) 
       propagator_.computeProperties(pert_t);
 
-      // Save data
-      //saveState(pert_t);
-
       // Print progress line in the output file
       printRTStep();
 
     }
 
-    size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/2)/intScheme.deltaT);
+    // size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/2)/intScheme.deltaT);
+    size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/4)/intScheme.deltaT);
 
     curState.xTime = intScheme.restoreStep * intScheme.deltaT;
 
     for( curState.iStep = intScheme.restoreStep; 
          curState.iStep < maxStep;
-         curState.iStep++ ) {
+         curState.xTime += intScheme.deltaT, curState.iStep++) {
 
       ProgramTimer::tick("Real Time Iter");
 
@@ -190,7 +190,8 @@ namespace ChronusQ {
       propagator_.computeProperties(pert_t);
 
       // Save data
-      //saveState(pert_t);
+      // TODO: Fix this when we have a stable definition of MD + electronic steps
+      // saveState(pert_t);
 
       // Save D(k) if doing Magnus 2
       std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> den_k;
@@ -255,8 +256,6 @@ namespace ChronusQ {
         propagateWFN();
 
       }  // End 2nd order magnus
-
-      curState.xTime += intScheme.deltaT;
 
       ProgramTimer::tock("Real Time Iter");
 
@@ -452,9 +451,11 @@ namespace ChronusQ {
 
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::createRTDataSets() {
+  void RealTime<_SSTyp,IntsT>::createRTDataSets(size_t maxPoints) {
+    std::cout << "create datasets with size: " << maxPoints << std::endl;
 
-    hsize_t maxPoints = intScheme.tMax / intScheme.deltaT + 1;
+    if( maxPoints == 0 ) 
+      maxPoints = intScheme.tMax / intScheme.deltaT + 1;
     
     savFile.createGroup("RT");
 
@@ -521,8 +522,8 @@ namespace ChronusQ {
 
       if (curState.iStep % intScheme.iSave == 0 
           and curState.iStep != intScheme.restoreStep)
-        nSteps = intScheme.iSave + 1;
-      else if ( curState.iStep == intScheme.tMax / intScheme.deltaT )
+        nSteps = intScheme.iSave;
+      else if ( curState.iStep >= intScheme.tMax / intScheme.deltaT )
         nSteps = curState.iStep % intScheme.iSave + 1;
 
       hsize_t lastPos = curState.iStep - nSteps + 1;
@@ -551,6 +552,20 @@ namespace ChronusQ {
     }
   }; // RealTime::saveState
 
+
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::updateAOProperties(double t) {
+    // Form AO density
+    propagator_.computeOrtho();
+    propagator_.ortho2aoDen();
+
+    // Form fock matrix
+    formFock(false, t);
+    // Compute properties
+    EMPerturbation pert_t = pert.getPert(t);
+    propagator_.computeProperties(pert_t);
+
+  }; // RealTime::orthoAndFock
 
 }; // namespace ChronusQ
 

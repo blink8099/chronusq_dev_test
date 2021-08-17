@@ -33,8 +33,14 @@ namespace ChronusQ {
    */
   class MolecularDynamics : public GeometryModifier {
 
+    IntegrationProgress curState;
+    double tMax;
+
   public:
 
+    std::function<std::vector<double>()> gradientGetter;
+    std::function<void(double)> finalMidpointFock;
+    std::vector<double> gradientCurrent;
     std::vector<double> velocityHalfTime;  ///< nuclear velocity at half time, (t-1/2) upon entry and (t+1/2) upon exist
     std::vector<double> velocityCurrent;   ///< nuclear velocity at the current time (t)
     std::vector<double> acceleration;      ///< acceleration at the current time (t)
@@ -45,12 +51,14 @@ namespace ChronusQ {
     MolecularDynamics() = delete;
     MolecularDynamics(MolecularOptions& molecularOptions, Molecule& molecule) :
       GeometryModifier(molecularOptions),
+      gradientCurrent(3*molecule.nAtoms, 0.),
       velocityHalfTime(3*molecule.nAtoms, 0.),
       velocityCurrent(3*molecule.nAtoms, 0.),
-      acceleration(3*molecule.nAtoms, 0.) {};
-
-    MolecularDynamics(MolecularOptions &molecularOptions):
-        GeometryModifier(molecularOptions) {}
+      acceleration(3*molecule.nAtoms, 0.)
+    {
+      curState.stepSize = molecularOptions.timeStepAU;
+      tMax = molecularOptions.timeStepAU * molecularOptions.nNuclearSteps;
+    };
 
     // Different type
     MolecularDynamics(const MolecularDynamics &other):
@@ -77,17 +85,26 @@ namespace ChronusQ {
      *
      *  \param[in] pos  An array holding the new positions
      */
-    void updateNuclearCoordinates(bool print, 
-                                  Molecule &molecule, 
-                                  std::vector<double> gradientCurrent,
-                                  bool firstStep, 
-                                  bool moveGeometry,
-                                  bool moveVelocity) {
+    void update(bool print,
+                Molecule &molecule,
+                bool firstStep)
+    {
+
+      // Update time data
+      if( firstStep )
+        curState.iStep = 0;
+      else
+        curState.iStep++;
+      curState.xTime = curState.iStep*curState.stepSize;
 
       size_t i = 0;
 
       if(print) {
         std::cout << std::scientific << std::setprecision(12);
+
+        std::cout << "Time:  " << std::setw(19) << curState.xTime << " AU  "
+                  << std::setw(19) << curState.xTime*FSPerAUTime << " fs"
+                  << std::endl;
 
         std::cout << std::endl<<"Molecular Geometry: (Bohr)"<<std::endl;
         for( Atom& atom : molecule.atoms ) {
@@ -101,13 +118,34 @@ namespace ChronusQ {
         }
       }
 
+      auto doGrad = molecularOptions_.nMidpointFockSteps == 0 || 
+                    curState.iStep % molecularOptions_.nMidpointFockSteps == 0;
+
+      // Update gradient whenever we restart midpoint fock
+      if( doGrad ) {
+
+        // If we have midpoint fock steps, we need to take the final fock step
+        if( molecularOptions_.nMidpointFockSteps != 0 && !firstStep ) {
+          double fock_dt = molecularOptions_.timeStepAU/(molecularOptions_.nMidpointFockSteps + 1);
+          geometryVV(molecule, gradientCurrent, fock_dt);
+          molecule.update();
+          finalMidpointFock(curState.iStep*fock_dt);
+          std::cout << " NN rep after final midfock: " << molecule.nucRepEnergy << std::endl;
+        }
+
+        gradientCurrent = gradientGetter();
+      }
+
+      bool moveGeometry = true;
+      bool moveVelocity = doGrad;
+
       // if velocity Verlet
       if(moveVelocity) {
         velocityVV(molecule, gradientCurrent, molecularOptions_.timeStepAU, firstStep);
         // compute kinetic energy
         computeKineticEnergy(molecule);
       }
-      if(moveGeometry) geometryVV(molecule, gradientCurrent, molecularOptions_.timeStepAU);
+      if(moveGeometry) geometryVV(molecule, gradientCurrent, molecularOptions_.timeStepAU/(molecularOptions_.nMidpointFockSteps + 1));
 
       // update other quantities
       molecule.update();
@@ -116,6 +154,8 @@ namespace ChronusQ {
 
       // output important dynamic information
       if(print) {
+        std::cout << std::setprecision(12);
+        std::cout << "EKin=" << std::right << std::setw(16) << nuclearKineticEnergy << " AU" << std::endl;
         std::cout << "Velocity:"<<std::endl;
         i = 0;
         for( Atom& atom : molecule.atoms ) {
@@ -154,7 +194,6 @@ namespace ChronusQ {
         }
       }
 
-
     }
 
     // Advance the velocity using the Verlet
@@ -165,23 +204,23 @@ namespace ChronusQ {
       // loop over atoms
       for( Atom& atom : molecule.atoms ) {
         //compute acceleration = -g/m
-	acceleration[i  ] = -gradientCurrent[i  ]/(AUPerAMU*atom.atomicMass);
-	acceleration[i+1] = -gradientCurrent[i+1]/(AUPerAMU*atom.atomicMass);
-	acceleration[i+2] = -gradientCurrent[i+2]/(AUPerAMU*atom.atomicMass);
+        acceleration[i  ] = -gradientCurrent[i  ]/(AUPerAMU*atom.atomicMass);
+        acceleration[i+1] = -gradientCurrent[i+1]/(AUPerAMU*atom.atomicMass);
+        acceleration[i+2] = -gradientCurrent[i+2]/(AUPerAMU*atom.atomicMass);
 
         //advance the half-time velocity to the current step 
         //v(t+1) = v(t+1/2) + 1/2dT∙a(t+1)
-	if(not firstStep) {
-	  velocityCurrent[i  ] = velocityHalfTime[i  ] + 0.5*timeStep*acceleration[i  ];
-	  velocityCurrent[i+1] = velocityHalfTime[i+1] + 0.5*timeStep*acceleration[i+1];
-	  velocityCurrent[i+2] = velocityHalfTime[i+2] + 0.5*timeStep*acceleration[i+2];
-	}
+        if(not firstStep) {
+          velocityCurrent[i  ] = velocityHalfTime[i  ] + 0.5*timeStep*acceleration[i  ];
+          velocityCurrent[i+1] = velocityHalfTime[i+1] + 0.5*timeStep*acceleration[i+1];
+          velocityCurrent[i+2] = velocityHalfTime[i+2] + 0.5*timeStep*acceleration[i+2];
+        }
 
         //prepare the next velocity at half-time
-	//v(t+1/2) = v(t) + 1/2dT∙a(t)
-	velocityHalfTime[i  ] = velocityCurrent[i  ] + 0.5*timeStep*acceleration[i  ];
-	velocityHalfTime[i+1] = velocityCurrent[i+1] + 0.5*timeStep*acceleration[i+1];
-	velocityHalfTime[i+2] = velocityCurrent[i+2] + 0.5*timeStep*acceleration[i+2];
+	      //v(t+1/2) = v(t) + 1/2dT∙a(t)
+        velocityHalfTime[i  ] = velocityCurrent[i  ] + 0.5*timeStep*acceleration[i  ];
+        velocityHalfTime[i+1] = velocityCurrent[i+1] + 0.5*timeStep*acceleration[i+1];
+        velocityHalfTime[i+2] = velocityCurrent[i+2] + 0.5*timeStep*acceleration[i+2];
 
         i+=3;
       }
@@ -225,9 +264,15 @@ namespace ChronusQ {
           nuclearKineticEnergy += 0.5*velocityCurrent[i  ]*velocityCurrent[i  ]*atom.atomicMass*AUPerAMU;
           nuclearKineticEnergy += 0.5*velocityCurrent[i+1]*velocityCurrent[i+1]*atom.atomicMass*AUPerAMU;
           nuclearKineticEnergy += 0.5*velocityCurrent[i+2]*velocityCurrent[i+2]*atom.atomicMass*AUPerAMU;
-	}
-	i += 3;
+	      }
+	      i += 3;
       }
+
+      molecule.nucKinEnergy = nuclearKineticEnergy;
+    }
+
+    bool hasNext() {
+      return curState.xTime <= tMax;
     }
 
   };

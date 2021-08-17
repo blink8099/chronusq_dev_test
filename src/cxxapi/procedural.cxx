@@ -57,6 +57,7 @@
 
 #include <geometrymodifier.hpp>
 #include <geometrymodifier/moleculardynamics.hpp>
+#include <geometrymodifier/singlepoint.hpp>
 #include <physcon.hpp>
 
 
@@ -149,6 +150,13 @@ namespace ChronusQ {
       CErr("Must Specify QM.JOB",output);
     }
 
+    // Break into sequence of individual jobs
+    std::vector<std::string> jobs;
+    if( jobType != "SCF" ) {
+      jobs.push_back("SCF");
+    }
+    jobs.push_back(jobType);
+
     bool doNEO = false;
     
     if ( input.containsSection("SCF") ) {
@@ -239,258 +247,171 @@ namespace ChronusQ {
       }
     }
 
+    // Done setting up
+    //
+    // START OF REAL PROCEDURAL SECTION
+    //
 
-    if( not jobType.compare("SCF") or not jobType.compare("RT") or 
-        not jobType.compare("RESP") or not jobType.compare("CC") ) {
+    for( auto& job: jobs ) {
 
-      ss->formCoreH(emPert);
+      bool firstStep = true;
+      std::shared_ptr<RealTimeBase> rt = nullptr;
 
-      // If INCORE, compute and store the ERIs
-      aoints->computeAOTwoE(*basis, mol, emPert);
+      // Assign geometry updater
+      MolecularOptions molOpt;
+      // TODO: Make this cleaner/encapsulated - "dynamics" section of input
+      if( job == "BOMD" or job == "EHRENFEST" ) {
 
-      if (doNEO) { 
+        if( job == "BOMD" )
+          molOpt.nMidpointFockSteps = 0;
 
-        if(auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
-          prot_aoints->computeAOTwoE(*prot_basis, mol, emPert);
-        else
-          CErr("NEO with complex integrals NYI!",output);
+        auto md = std::make_shared<MolecularDynamics>(molOpt, mol);
+        mol.geometryModifier = md;
 
-        if(auto p = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints))
-          ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert); 
+        // Gradient integrals
+        // FIXME: Figure out where to put this allocation
+        std::vector<std::shared_ptr<InCore4indexTPI<double>>> ints;
+        for ( auto i = 0; i < mol.atoms.size() * 3; i++ )
+          ints.push_back(
+            std::make_shared<InCore4indexTPI<double>>(*memManager, basis->nBasis)
+          );
 
+        auto casted = std::dynamic_pointer_cast<Integrals<double>>(aoints);
+        casted->gradERI = std::make_shared<GradInts<TwoPInts,double>>(
+          *memManager, basis->nBasis, mol.atoms.size(), ints
+        );
+
+
+        if( job == "BOMD" ) {
+          md->gradientGetter = [&](){ return ss->getGrad(emPert,false,false); };
+          job = "SCF";
+        }
+
+        else if( job == "EHRENFEST" ) {
+
+          rt = CQRealTimeOptions(output,input,ss,emPert);
+          rt->intScheme.deltaT = molOpt.timeStepAU/
+                                 (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
+
+          md->gradientGetter = [&](){ return rt->getGrad(emPert); };
+
+          md->finalMidpointFock = [&](double t){ 
+            basis->updateNuclearCoordinates(mol);
+            aoints->computeAOTwoE(*basis, mol, emPert);
+            rt->formCoreH(emPert);
+            rt->updateAOProperties(t);
+          };
+
+          job = "RT";
+        }
+      }
+      else {
+        mol.geometryModifier = std::make_shared<SinglePoint>(molOpt);
       }
 
-      ss->formGuess();
-      ss->SCF(emPert);
-    }
 
-    std::cout << "Energy: " << ss->totalEnergy;
-    std::cout << "OneE Energy: " << ss->OBEnergy;
-    std::cout << "TwoE Energy: " << ss->MBEnergy;
+      // Loop over various structures
+      while( mol.geometryModifier->hasNext() ) {
 
-    // Numerical gradient
-    size_t acc = 0;
-    if ( acc != 0 ) {
-      NumGradient grad(input, ss, basis);
-      grad.doGrad(acc);
-      // grad.eriGrad<double>(acc);
-    }
-
-    std::vector<std::shared_ptr<InCore4indexTPI<double>>> ints;
-    for ( auto i = 0; i < mol.atoms.size() * 3; i++ )
-      ints.push_back(
-        std::make_shared<InCore4indexTPI<double>>(*memManager, basis->nBasis)
-      );
-
-    auto casted = std::dynamic_pointer_cast<Integrals<double>>(aoints);
-    casted->gradERI = std::make_shared<GradInts<TwoPInts,double>>(
-      *memManager, basis->nBasis, mol.atoms.size(), ints
-    );
-
-
-    // aoints->computeGradInts(*memManager, mol, *basis, emPert, {{OVERLAP,1},
-    //     {KINETIC,1}, {NUCLEAR_POTENTIAL,1}, {ELECTRON_REPULSION,1}},
-    //     {basis->basisType, false, false, false});
-
-#if 0 //BOMD
-    auto ssd = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss);
-
-    MolecularOptions molecularOptions;
-    mol.geometryModifier = std::make_shared<MolecularDynamics>(molecularOptions,mol);
-    auto BOMD = std::dynamic_pointer_cast<MolecularDynamics>(mol.geometryModifier);
-    BOMD->initializeMD(mol);
-
-    auto totalTimeFS = 0.0;
-    auto totalTimeAU = 0.0;
-    auto ETot0 = 0.0;
-    auto ETot = 0.0;
-    auto ETotPrevious = 0.0;
-    for(auto iStep = 0; iStep < molecularOptions.nNulcearSteps; iStep++){
-
-      aoints->computeAOTwoE(*basis, mol, emPert);
-      ssd->formCoreH(emPert);
-      ssd->SCF(emPert);
-      auto grad = ssd->getGrad(emPert, false, false);
-
-      //molecularOptions.timeStepFS = 0.0;
-      //molecularOptions.timeStepAU = 0.0;
-
-      std::cout << std::endl;
-      std::cout << "MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD"<<std::endl;
-      std::cout << "Molecular Dynamics Information for Step "<<std::setw(8)<<iStep<<std::endl;
-
-      std::cout << std::scientific<<std::setprecision(12);
-
-      std::cout << "Nuclear Repulsion Energy = "<<mol.nucRepEnergy<<std::endl;
-
-      std::cout << std::defaultfloat<<std::setprecision(8);
-      BOMD->updateNuclearCoordinates(true,mol,grad,iStep==0,iStep==molecularOptions.nNulcearSteps);
-
-      std::cout << std::endl<<"Time (fs): "<< std::right<<std::setw(16)<<totalTimeFS
-                << "  Time (au): "<<std::right<< std::setw(16)<<totalTimeAU<<std::endl;
-
-      std::cout << std::scientific<<std::setprecision(8);
-      std::cout <<  "EKin= " << std::right << std::setw(16) << BOMD->nuclearKineticEnergy
-                << "  EPot= " << std::right << std::setw(16) << ssd->totalEnergy<<" a.u."<<std::endl;
-
-      ETot = ssd->totalEnergy+BOMD->nuclearKineticEnergy;
-      if(iStep == 0) {
-        ETot0   = ETot;
-	ETotPrevious = ETot;
-      }
-      std::cout << "ETot= " << std::right << std::setw(16) << ETot
-                << " ΔETot (current-previous)= " << std::right << std::setw(16)<< ETot-ETotPrevious
-                << " ΔETot (cumulative)= " << std::right << std::setw(16)<< ETot-ETot0<< " a.u."<<std::endl;
-      ETotPrevious = ETot;
-
-
-      basis->updateNuclearCoordinates(mol);
-
-      totalTimeFS += molecularOptions.timeStepFS;
-      totalTimeAU += molecularOptions.timeStepAU;
-
-    }
-#endif //BOMD
-
-#if 1 //Ehrenfest
-    auto ssd = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss);
-    auto rt = CQRealTimeOptions(output,input,ss,emPert);
-    rt->savFile = rstFile;
-
-
-    MolecularOptions molecularOptions;
-    mol.geometryModifier = std::make_shared<MolecularDynamics>(molecularOptions,mol);
-    auto BOMD = std::dynamic_pointer_cast<MolecularDynamics>(mol.geometryModifier);
-    BOMD->initializeMD(mol);
-
-    auto totalTimeFS = 0.0;
-    auto totalTimeAU = 0.0;
-    auto ETot0 = 0.0;
-    auto ETot = 0.0;
-    auto ETotPrevious = 0.0;
-
-    rt->intScheme.deltaT = molecularOptions.timeStepAU/
-                           (molecularOptions.nMidpointFockSteps*molecularOptions.nElectronicSteps);
-
-    for(auto outerStep = 0; outerStep < molecularOptions.nNuclearSteps; outerStep++){
-
-      basis->updateNuclearCoordinates(mol);
-      aoints->computeAOTwoE(*basis, mol, emPert);
-      rt->formCoreH(emPert);
-
-      // get the gradient and finish the previous velocity without advancing the geometry
-      auto grad = rt->getGrad(emPert);
-
-      std::cout << std::endl;
-      std::cout << "MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD"<<std::endl;
-      std::cout << "Molecular Dynamics Information for Step "<<std::setw(8)<<outerStep<<std::endl;
-
-      BOMD->updateNuclearCoordinates(true, mol, grad, outerStep==0, false, true);
-
-      std::cout << std::defaultfloat<<std::setprecision(8);
-
-      std::cout << std::endl<<"Time (fs): "<< std::right<<std::setw(16)<<totalTimeFS
-                << "  Time (au): "<<std::right<< std::setw(16)<<totalTimeAU<<std::endl;
-
-      ETot = rt->totalEnergy()+BOMD->nuclearKineticEnergy;
-      if(outerStep == 0) {
-        ETot0   = ETot;
-	ETotPrevious = ETot;
-      }
-
-      std::cout << std::scientific<<std::setprecision(8);
-      std::cout <<  "EKin= " << std::right << std::setw(16) << BOMD->nuclearKineticEnergy
-                << "  EPot= " << std::right << std::setw(16) << rt->totalEnergy()
-                << " ETot= " << std::right << std::setw(16) << ETot << " a.u."<<std::endl;
-      std::cout << "ΔETot (current-previous)= " << std::right << std::setw(16)<< ETot-ETotPrevious
-                << " ΔETot (cumulative)= " << std::right << std::setw(16)<< ETot-ETot0<< " a.u."<<std::endl;
-      ETotPrevious = ETot;
-
-
-      for(auto middleStep = 0; middleStep <= molecularOptions.nMidpointFockSteps; middleStep++) {
-
-        molecularOptions.timeStepAU = molecularOptions.timeStepAU/(molecularOptions.nMidpointFockSteps+1);
-        BOMD->updateNuclearCoordinates(false, mol, grad, false, true, false);
-        molecularOptions.timeStepAU = molecularOptions.timeStepAU*(molecularOptions.nMidpointFockSteps+1);
-
-
+        // Update geometry
+        mol.geometryModifier->update(true, mol, firstStep);
         basis->updateNuclearCoordinates(mol);
+        if( dfbasis != nullptr ) dfbasis->updateNuclearCoordinates(mol);
+
+        if( rt ) {
+          std::cout << std::scientific<<std::setprecision(8);
+          std::cout <<  "EKin= " << std::right << std::setw(16) << mol.nucKinEnergy
+                    << "  EPot= " << std::right << std::setw(16) << rt->totalEnergy();
+        }
+
+
+        // Update integrals
+        // TODO: Time dependent field?
         aoints->computeAOTwoE(*basis, mol, emPert);
-        rt->formCoreH(emPert);
+        if (doNEO) { 
+          if(auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
+            prot_aoints->computeAOTwoE(*prot_basis, mol, emPert);
+          else
+            CErr("NEO with complex integrals NYI!",output);
+          if(auto p = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints))
+            ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert); 
+        }
 
 
-        rt->intScheme.restoreStep = outerStep*molecularOptions.nMidpointFockSteps*molecularOptions.nElectronicSteps
-                                  + middleStep*molecularOptions.nElectronicSteps;
+        // Run SCF job
+        if( job == "SCF" ) {
+          ss->formCoreH(emPert, true);
+          ss->formGuess();
+          ss->SCF(emPert);
+        }
 
-        // the last step is used to advance nuclear positions and compute energy only
-        if(middleStep != molecularOptions.nMidpointFockSteps)
-          rt->intScheme.tMax = molecularOptions.timeStepAU*outerStep
-                             + (middleStep+1)*molecularOptions.timeStepAU/molecularOptions.nMidpointFockSteps;
-	else rt->intScheme.tMax = molecularOptions.timeStepAU*(outerStep+1);
+        // Run RT job
+        if( job == "RT" ) {
+
+          // Initialize core hamiltonian
+          rt->formCoreH(emPert);
+
+          // Get correct time length
+          // TODO: Encapsulate this logic
+          rt->intScheme.deltaT = molOpt.timeStepAU /
+            (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
+          if( !firstStep )
+            rt->intScheme.restoreStep = rt->curState.iStep;
+
+          rt->intScheme.tMax = rt->curState.xTime + molOpt.nElectronicSteps*rt->intScheme.deltaT;
+
+          std::cout << "Nuclear repulsion energy: " << mol.nucRepEnergy << std::endl;
+
+          // Create RT datasets
+          rt->savFile = rstFile;
+          if( firstStep )
+            rt->createRTDataSets(molOpt.nElectronicSteps*molOpt.nMidpointFockSteps*molOpt.nNuclearSteps);
+
+          // FIXME: Need to implement RT-NEO
+          if (doNEO)
+            CErr("RT-NEO NYI!",output);
+
+          if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
+
+          rt->savFile = rstFile;
+          rt->doPropagation(false);
+
+        }
 
 
-        rt->doPropagation(middleStep==molecularOptions.nMidpointFockSteps);
-        std::cout << std::scientific<<std::setprecision(12);
-        std::cout << "Nuclear Repulsion Energy = "<<mol.nucRepEnergy<<std::endl;
+        if( job == "RESP" ) {
 
-      }
+          // FIXME: Need to implement TD-NEO
+          if (doNEO)
+            CErr("RESP-NEO NYI!",output);
 
+          auto resp = CQResponseOptions(output,input,ss);
+          resp->savFile = rstFile;
+          resp->run();
 
-      //molecularOptions.timeStepFS = 0.0;
-      //molecularOptions.timeStepAU = 0.0;
+          if( MPIRank(MPI_COMM_WORLD) == 0 ) resp->printResults(output);
+          MPI_Barrier(MPI_COMM_WORLD);
 
-      totalTimeFS += molecularOptions.timeStepFS;
-      totalTimeAU += molecularOptions.timeStepAU;
+        }
 
-    }
+        
+        if( job == "CC" ){  
 
-#endif //Ehrenfest
+          // FIXME: Need to implement NEO-CC
+          if (doNEO)
+            CErr("NEO-CC NYI!",output);
 
+          #ifdef CQ_HAS_TA
+            auto cc = CQCCOptions(output, input, ss);
+            cc->run(); 
+          #else
+            CErr("TiledArray must be compiled to use Coupled-Cluster code!");
+          #endif
+        }
 
-
-    if( not jobType.compare("RT") ) {
-
-      // FIXME: Need to implement RT-NEO
-      if (doNEO)
-        CErr("RT-NEO NYI!",output);
-
-      if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
-
-      auto rt = CQRealTimeOptions(output,input,ss,emPert);
-      rt->savFile = rstFile;
-      rt->doPropagation(false);
-
-    }
-
-    if( not jobType.compare("RESP") ) {
-
-      // FIXME: Need to implement TD-NEO
-      if (doNEO)
-        CErr("RESP-NEO NYI!",output);
-
-      auto resp = CQResponseOptions(output,input,ss);
-      resp->savFile = rstFile;
-      resp->run();
-
-      if( MPIRank(MPI_COMM_WORLD) == 0 ) resp->printResults(output);
-      MPI_Barrier(MPI_COMM_WORLD);
-
-    }
-
-    
-    if( not jobType.compare("CC")){  
-
-      // FIXME: Need to implement NEO-CC
-      if (doNEO)
-        CErr("NEO-CC NYI!",output);
-
-      #ifdef CQ_HAS_TA
-        auto cc = CQCCOptions(output, input, ss);
-        cc->run(); 
-      #else
-        CErr("TiledArray must be compiled to use Coupled-Cluster code!");
-      #endif
-    }
+        firstStep = false;
+      } // Loop over geometries
+    } // Loop over different jobs
 
     ProgramTimer::tock("Chronus Quantum");
     printTimerSummary(std::cout);

@@ -64,7 +64,7 @@ namespace ChronusQ {
   // Gets energy contributions at each geometry
   std::vector<double> NumGradient::getEnergies() {
 
-    curr_->formCoreH(emPert);
+    curr_->formCoreH(emPert, false);
     
     HamiltonianOptions opt;
  
@@ -132,7 +132,7 @@ namespace ChronusQ {
   template <typename IntsT>
   std::vector<IntsT> NumGradient::getOneEInts() {
 
-    curr_->formCoreH(emPert);
+    curr_->formCoreH(emPert, false);
 
     auto NB = basis->nBasis;
     auto NSq = NB*NB;
@@ -160,7 +160,7 @@ namespace ChronusQ {
   template <typename IntsT>
   std::vector<IntsT> NumGradient::getERI() {
 
-    curr_->formCoreH(emPert);
+    curr_->formCoreH(emPert, false);
 
     HamiltonianOptions opt;
     if(auto p = std::dynamic_pointer_cast<Integrals<IntsT>>(aoints))

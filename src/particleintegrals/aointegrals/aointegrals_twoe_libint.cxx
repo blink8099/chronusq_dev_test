@@ -52,8 +52,8 @@ namespace ChronusQ {
     BasisSet &basis, OPERATOR op, const HamiltonianOptions &options) {
 
 
-    if (op != ELECTRON_REPULSION)
-      CErr("Only Electron Repulsion allowed in InCoreERIs",std::cout);
+    if (op != ELECTRON_REPULSION and op != EP_ATTRACTION)
+      CErr("Only e-p attraction/e-e/p-p repulsion integrals in incore TPIs",std::cout);
     if (options.basisType != REAL_GTO)
       CErr("Only Real GTOs are allowed in InCoreEIRIs",std::cout);
 

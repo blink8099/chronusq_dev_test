@@ -116,6 +116,8 @@ namespace ChronusQ {
     virtual double totalEnergy()         = 0;
     virtual std::vector<double> getGrad(EMPerturbation&) = 0;
     virtual void formCoreH(EMPerturbation&)              = 0;
+    virtual void updateAOProperties(double) = 0;
+    virtual void createRTDataSets(size_t maxPoints) = 0;
 
     // Progress functions
     void printRTHeader();
@@ -193,7 +195,7 @@ namespace ChronusQ {
     }
 
     inline void formCoreH(EMPerturbation &emPert) {
-      return propagator_.formCoreH(emPert);
+      return propagator_.formCoreH(emPert, false);
     }
 
     inline std::vector<double> getGrad(EMPerturbation &emPert) {
@@ -204,10 +206,11 @@ namespace ChronusQ {
     void doPropagation(bool); // From RealTimeBase
     void formPropagator();
     void formFock(bool,double t);
+    void updateAOProperties(double t);
     void propagateWFN();
     void saveState(EMPerturbation&);
     void restoreState(); 
-    void createRTDataSets();
+    void createRTDataSets(size_t maxPoints);
 
     // Progress functions
     void printRTHeader();
