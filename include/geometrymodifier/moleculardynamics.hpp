@@ -95,7 +95,10 @@ namespace ChronusQ {
         curState.iStep = 0;
       else
         curState.iStep++;
-      curState.xTime = curState.iStep*curState.stepSize;
+
+      curState.xTime = curState.iStep * curState.stepSize;
+      if( molecularOptions_.nMidpointFockSteps != 0 )
+        curState.xTime /= molecularOptions_.nMidpointFockSteps;
 
       size_t i = 0;
 
