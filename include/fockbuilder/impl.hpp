@@ -33,6 +33,7 @@
 #include <particleintegrals/gradints/direct.hpp>
 #include <fockbuilder/rofock/impl.hpp>
 #include <quantum/properties.hpp>
+#include <fockbuilder/neofock.hpp>
 
 #include <typeinfo>
 
@@ -252,8 +253,12 @@ namespace ChronusQ {
     if (tID == typeid(ROFock<MatsT,IntsT>)) {
       return std::make_shared<ROFock<MatsU,IntsT>>(
                *std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fb));
-
-    } else {
+    }
+    else if (tID == typeid(NEOFockBuilder<MatsT,IntsT>)) {
+      return std::make_shared<NEOFockBuilder<MatsU,IntsT>>(
+               *std::dynamic_pointer_cast<NEOFockBuilder<MatsT,IntsT>>(fb));
+    }
+    else {
       return std::make_shared<FockBuilder<MatsU,IntsT>>(
                *std::dynamic_pointer_cast<FockBuilder<MatsT,IntsT>>(fb));
     }

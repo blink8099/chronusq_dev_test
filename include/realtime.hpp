@@ -27,6 +27,7 @@
 #include <cerr.hpp>
 #include <memmanager.hpp>
 #include <singleslater.hpp>
+#include <singleslater/neoss.hpp>
 
 
 // RT Headers
@@ -154,10 +155,11 @@ namespace ChronusQ {
     typedef std::vector<oper_t>       oper_t_coll;
 
     SingleSlaterBase         *reference_ = nullptr;  ///< Initial conditions
-    _SSTyp<dcomplex,IntsT>    propagator_; ///< Object for time propagation
+    _SSTyp<dcomplex,IntsT>    propagator_; ///< Total system with complex matrices 
+    std::vector<SingleSlater<dcomplex, IntsT>*> systems_; ///< Objects for time propagation
 
-    std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> DOSav;
-    std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> UH;
+    std::vector<std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>>> DOSav;
+    std::vector<std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>>> UH;
     
   public:
 
@@ -182,13 +184,10 @@ namespace ChronusQ {
       RealTimeBase(reference.memManager),
       reference_(&reference), propagator_(reference) { 
 
-      alloc(); 
+      alloc<RefMatsT>(); 
 
     }; // RealTime constructor
   
-    ~RealTime(){ dealloc(); }
-
-
     inline double totalEnergy(){
       //propagator_.computeEnergy();
       return propagator_.totalEnergy;
@@ -203,11 +202,13 @@ namespace ChronusQ {
     }
 
     // RealTime procedural functions
+    // RealTime procedural functions
     void doPropagation(bool); // From RealTimeBase
-    void formPropagator();
-    void formFock(bool,double t);
+    void propagateStep();
+    void formPropagator(size_t);
+    void formFock(bool,double,size_t);
     void updateAOProperties(double t);
-    void propagateWFN();
+    void propagateWFN(size_t);
     void saveState(EMPerturbation&);
     void restoreState(); 
     void createRTDataSets(size_t maxPoints);
@@ -219,8 +220,8 @@ namespace ChronusQ {
 
 
     // Memory functions
+    template <typename MatsT>
     void alloc();
-    void dealloc();
 
   }; // class RealTime
   

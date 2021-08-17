@@ -60,6 +60,9 @@
 #include <geometrymodifier/singlepoint.hpp>
 #include <physcon.hpp>
 
+// TEMPORARY
+#include <singleslater/neoss.hpp>
+
 
 //#include <cubegen.hpp>
 
@@ -139,6 +142,8 @@ namespace ChronusQ {
     }
 
 
+    // TEMPORARY
+    bool doTemp = true;
 
 
     // Determine JOB type
@@ -188,6 +193,9 @@ namespace ChronusQ {
     std::shared_ptr<SingleSlaterBase> ss  = nullptr;
     std::shared_ptr<SingleSlaterBase> pss = nullptr;
 
+    // TEMPORARY
+    std::shared_ptr<SingleSlaterBase> neoss = nullptr;
+
     // NEO calculation
     if (doNEO) {
       
@@ -201,6 +209,12 @@ namespace ChronusQ {
       ss  = neo_vec[0]; // electron
       pss = neo_vec[1]; // proton
 
+      if( doTemp ) 
+        neoss = CQNEOSSOptions(output,input,*memManager,mol,
+                                         *basis,*prot_basis,
+                                         aoints, prot_aoints,
+                                         ep_aoints);
+
     }
     else
       ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
@@ -211,9 +225,25 @@ namespace ChronusQ {
     // SCF options for electrons
     CQSCFOptions(output,input,*ss,emPert);
 
+    // TEMPORARY
+    std::shared_ptr<NEOBase> neobase;
+    std::shared_ptr<SingleSlaterBase> essbase;
+    std::shared_ptr<SingleSlaterBase> pssbase;
+
     // SCF options for protons
-    if (doNEO)
+    if (doNEO) {
       CQSCFOptions(output,input,*pss,emPert);
+
+      // TEMPORARY
+      if( doTemp ) {
+        CQSCFOptions(output,input,*neoss,emPert);
+        neobase = std::dynamic_pointer_cast<NEOBase>(neoss);
+        essbase = neobase->getSubSSBase("Electronic");
+        pssbase = neobase->getSubSSBase("Protonic");
+        CQSCFOptions(output,input,*essbase,emPert);
+        CQSCFOptions(output,input,*pssbase,emPert);
+      }
+    }
 
     bool rstExists = false;
     if( ss->scfControls.guess == READMO or 
@@ -244,6 +274,12 @@ namespace ChronusQ {
         pss->savFile         = rstFile;
         prot_aoints->savFile = rstFile;
         ep_aoints->savFile   = rstFile;
+
+        // TEMPORARY
+        if( doTemp ) {
+          essbase->savFile = rstFile;
+          pssbase->savFile = rstFile;
+        }
       }
     }
 
@@ -283,13 +319,19 @@ namespace ChronusQ {
 
 
         if( job == "BOMD" ) {
-          md->gradientGetter = [&](){ return ss->getGrad(emPert,false,false); };
+          if( doTemp and doNEO )
+            md->gradientGetter = [&](){ return neoss->getGrad(emPert,false,false); };
+          else
+            md->gradientGetter = [&](){ return ss->getGrad(emPert,false,false); };
           job = "SCF";
         }
 
         else if( job == "EHRENFEST" ) {
 
-          rt = CQRealTimeOptions(output,input,ss,emPert);
+          if( doTemp and doNEO )
+            rt = CQRealTimeOptions(output,input,neoss,emPert);
+          else
+            rt = CQRealTimeOptions(output,input,ss,emPert);
           rt->intScheme.deltaT = molOpt.timeStepAU/
                                  (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
 
@@ -309,7 +351,6 @@ namespace ChronusQ {
         mol.geometryModifier = std::make_shared<SinglePoint>(molOpt);
       }
 
-
       // Loop over various structures
       while( mol.geometryModifier->hasNext() ) {
 
@@ -318,12 +359,9 @@ namespace ChronusQ {
         basis->updateNuclearCoordinates(mol);
         if( dfbasis != nullptr ) dfbasis->updateNuclearCoordinates(mol);
 
-        if( rt ) {
-          std::cout << std::scientific<<std::setprecision(8);
-          std::cout <<  "EKin= " << std::right << std::setw(16) << mol.nucKinEnergy
-                    << "  EPot= " << std::right << std::setw(16) << rt->totalEnergy();
+        if( doNEO ) {
+          prot_basis->updateNuclearCoordinates(mol);
         }
-
 
         // Update integrals
         // TODO: Time dependent field?
@@ -337,12 +375,17 @@ namespace ChronusQ {
             ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert); 
         }
 
-
         // Run SCF job
         if( job == "SCF" ) {
-          ss->formCoreH(emPert, true);
-          ss->formGuess();
-          ss->SCF(emPert);
+          if( doNEO and doTemp ) {
+            neoss->formCoreH(emPert, true);
+            neoss->formGuess();
+            neoss->SCF(emPert);
+          } else {
+            ss->formCoreH(emPert, true);
+            ss->formGuess();
+            ss->SCF(emPert);
+          }
         }
 
         // Run RT job

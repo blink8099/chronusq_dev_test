@@ -45,8 +45,8 @@ namespace ChronusQ {
     bool isConverged = false;
     scfControls.dampParam = scfControls.dampStartParam;
 
-//XSLIC
-//    scfControls.doIncFock = scfControls.doIncFock and (this->aoints.cAlg == DIRECT);
+    //TODO: incremental Fock is broken
+    //scfControls.doIncFock = scfControls.doIncFock and (this->aoints.cAlg == DIRECT);
     scfControls.doIncFock = false;
                  
     if( scfControls.scfAlg == _NEWTON_RAPHSON_SCF )

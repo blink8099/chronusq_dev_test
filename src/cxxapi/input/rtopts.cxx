@@ -104,6 +104,9 @@ namespace ChronusQ {
 
 
     // Construct RT object
+    CONSTRUCT_RT( NEOSS, double, double     );
+    CONSTRUCT_RT( NEOSS, dcomplex, double   );
+    CONSTRUCT_RT( NEOSS, dcomplex, dcomplex );
 
     CONSTRUCT_RT( HartreeFock, double, double     );
     CONSTRUCT_RT( HartreeFock, dcomplex, double   );
@@ -113,8 +116,7 @@ namespace ChronusQ {
     CONSTRUCT_RT( KohnSham, dcomplex, double   );
   //CONSTRUCT_RT( KohnSham, dcomplex, dcomplex );
 
-
-    // Parse Options
+     // Parse Options
 
     try {
       rt->intScheme.tMax = input.getData<double>("RT.TMAX");

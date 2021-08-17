@@ -106,11 +106,19 @@ namespace ChronusQ {
   std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
       std::ostream &, CQInputFile &,
       CQMemManager &mem, Molecule &mol, BasisSet &basis,
-      std::shared_ptr<IntegralsBase> );
+      std::shared_ptr<IntegralsBase>);
 
   // Parse the options relating to the NEOSingleSlater
   // (and variants)
   std::vector<std::shared_ptr<SingleSlaterBase>> CQNEOSingleSlaterOptions(
+      std::ostream &, CQInputFile &,
+      CQMemManager &mem, Molecule &mol,
+      BasisSet &ebasis, BasisSet &pbasis,
+      std::shared_ptr<IntegralsBase> eaoints,
+      std::shared_ptr<IntegralsBase> paoints,
+      std::shared_ptr<IntegralsBase> epaoints);
+
+  std::shared_ptr<SingleSlaterBase> CQNEOSSOptions(
       std::ostream &, CQInputFile &,
       CQMemManager &mem, Molecule &mol,
       BasisSet &ebasis, BasisSet &pbasis,

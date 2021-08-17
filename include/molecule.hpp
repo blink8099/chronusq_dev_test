@@ -142,7 +142,9 @@ namespace ChronusQ {
           new_atoms.emplace_back(atoms[i]);
       
       // construct the molecule object
-      Molecule new_mole(0, 0, new_atoms);
+      // XXX: This needs to be updated
+      auto multi = new_atoms.size()%2+1;
+      Molecule new_mole(0, multi, new_atoms);
 
       // return it
       return new_mole;
@@ -199,9 +201,6 @@ namespace ChronusQ {
           atomsC.push_back(ind);
         ind += 1;
       }
-
-      if (nTotalP > 1)
-        CErr("NEO with multiple quantum protons NYI.");
 
       // assume high-spin open-shell for protons 
       multip_proton = (size_t)(2 * nTotalP * 0.5 + 1);

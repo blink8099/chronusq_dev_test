@@ -41,6 +41,8 @@
 #include <particleintegrals/twopints/incore4indexreleri.hpp>
 #include <particleintegrals/twopints/gtodirectreleri.hpp>
 
+#include <singleslater/neoss.hpp>
+
 namespace ChronusQ {
 
   /**
@@ -429,7 +431,7 @@ namespace ChronusQ {
    */
   void parseHamiltonianOptions(std::ostream &out, CQInputFile &input, 
     BasisSet &basis, std::shared_ptr<IntegralsBase> aoints,
-    RefOptions &refOptions, HamiltonianOptions &hamiltonianOptions) {
+    RefOptions &refOptions, HamiltonianOptions &hamiltonianOptions, std::string section) {
 
     // Parse hamiltonianOptions
     hamiltonianOptions.basisType = basis.basisType;
@@ -439,7 +441,7 @@ namespace ChronusQ {
     // Parse X2C option
     // X2CType = off (default), spinfree, onee, twoe
     X = "DEFAULT";
-    OPTOPT( X = input.getData<std::string>("QM.X2CTYPE")  );
+    OPTOPT( X = input.getData<std::string>(section + ".X2CTYPE")  );
     trim(X);
     if( not X.compare("SPINFREE") ) {
 
@@ -481,7 +483,7 @@ namespace ChronusQ {
 
     } else  {
 
-      CErr(X + " not a valid QM.X2CTYPE",out);
+      CErr(X + " not a valid " + section + ".X2CTYPE",out);
 
     }
 
@@ -490,7 +492,7 @@ namespace ChronusQ {
     // Parse one-electron spin-orbie scaling option
     // SpinOrbitScaling  = noscaling, boettger (dafault), atomicmeanfield (amfi)
     X = "DEFAULT"; // Unspecified value
-    OPTOPT( X = input.getData<std::string>("QM.SPINORBITSCALING")  );
+    OPTOPT( X = input.getData<std::string>(section + ".SPINORBITSCALING")  );
     trim(X);
     if( not X.compare("NOSCALING") ) {
 
@@ -527,7 +529,7 @@ namespace ChronusQ {
 
     } else {
 
-      CErr(X + " not a valid QM.X2CTYPE",out);
+      CErr(X + " not a valid " + section + ".X2CTYPE",out);
 
     }
 
@@ -600,13 +602,13 @@ namespace ChronusQ {
    *
    */
   bool parseAtomicType(std::ostream &out, CQInputFile &input, 
-    ATOMIC_X2C_TYPE &atomicX2CType) {
+    ATOMIC_X2C_TYPE &atomicX2CType, std::string section) {
 
     // Parse Atomic X2C option
     // AtomicX2C  = ALH, ALU, DLH, DLU, OFF (default)
     bool atomic = false;
     std::string X = "OFF";
-    OPTOPT( X = input.getData<std::string>("QM.ATOMICX2C")  );
+    OPTOPT( X = input.getData<std::string>(section + ".ATOMICX2C")  );
     trim(X);
     if( not X.compare("ALH") ) {
       atomic = true;
@@ -623,7 +625,7 @@ namespace ChronusQ {
     } else if( not X.compare("OFF") ){
       atomic = false;
     } else {
-      CErr(X + " not a valid QM.ATOMICX2C",out);
+      CErr(X + " not a valid " + section + ".ATOMICX2C",out);
     }
 
     return atomic;
@@ -644,12 +646,12 @@ namespace ChronusQ {
    *    constructed from the input options.
    *
    */ 
-  std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
+  std::shared_ptr<SingleSlaterBase> buildSingleSlater(
     std::ostream &out, CQInputFile &input,
     CQMemManager &mem, Molecule &mol, BasisSet &basis,
-    std::shared_ptr<IntegralsBase> aoints) {
+    std::shared_ptr<IntegralsBase> aoints, Particle p, std::string section) {
 
-    out << "  *** Parsing QM.REFERENCE options ***\n";
+    out << "  *** Parsing " << section << ".REFERENCE options ***\n";
 
     // Initialize HamiltonianOptions
     HamiltonianOptions hamiltonianOptions;
@@ -663,9 +665,9 @@ namespace ChronusQ {
     // Attempt to find reference
     std::string reference;
     try { 
-      reference = input.getData<std::string>("QM.REFERENCE");
+      reference = input.getData<std::string>(section + ".REFERENCE");
     } catch(...) {
-      CErr("QM.REFERENCE Keyword not found!",out);
+      CErr(section + ".REFERENCE Keyword not found!",out);
     }
 
     // Digest reference string
@@ -715,9 +717,6 @@ namespace ChronusQ {
     if( refOptions.isKSRef )
      parseIntParam(out, input, intParam);
 
-
-  // default particle (electron)
-  Particle p = {-1.0, 1.0};
 
   #define KS_LIST(T) \
     refOptions.funcName,funcList,MPI_COMM_WORLD,intParam,mem,mol,basis,dynamic_cast<Integrals<T>&>(*aoints),refOptions.nC,refOptions.iCS,p
@@ -816,10 +815,11 @@ namespace ChronusQ {
 
 
     // Parse hamiltonianOptions
-    parseHamiltonianOptions(out,input,basis,aoints,refOptions,hamiltonianOptions);
+    parseHamiltonianOptions(out,input,basis,aoints,refOptions,hamiltonianOptions,section);
+    hamiltonianOptions.particle = p;
 
     // Parse Atomic X2C
-    bool atomic = parseAtomicType(out,input,atomicX2CType);
+    bool atomic = parseAtomicType(out,input,atomicX2CType,section);
 
     // update IntegralsBase options
     aoints->options_ = hamiltonianOptions;
@@ -1402,11 +1402,11 @@ namespace ChronusQ {
       if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(EPAI)) {
         p->EPAI = std::make_shared<GTODirectTPIContraction<double,double>>(*eri_typed);
         q->EPAI = std::make_shared<GTODirectTPIContraction<double,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
+        q->EPAI->contractSecond = true;
       } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(EPAI)) {
         p->EPAI = std::make_shared<InCore4indexTPIContraction<double,double>>(*eri_typed);
         q->EPAI = std::make_shared<InCore4indexTPIContraction<double,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
+        q->EPAI->contractSecond = true;
       } else {
         CErr("Invalid ERInts type for Wavefunction<double,double>",std::cout);
       }
@@ -1445,11 +1445,11 @@ namespace ChronusQ {
       if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(EPAI)) {
         p->EPAI = std::make_shared<GTODirectTPIContraction<dcomplex,double>>(*eri_typed);
         q->EPAI = std::make_shared<GTODirectTPIContraction<dcomplex,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
+        q->EPAI->contractSecond = true;
       } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(EPAI)) {
         p->EPAI = std::make_shared<InCore4indexTPIContraction<dcomplex,double>>(*eri_typed);
         q->EPAI = std::make_shared<InCore4indexTPIContraction<dcomplex,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
+        q->EPAI->contractSecond = true;
       } else {
         CErr("Invalid ERInts type for Wavefunction<dcomplex,double>",std::cout);
       }
@@ -1553,5 +1553,68 @@ namespace ChronusQ {
     return out; // Return std::ostream reference
 
   }
+
+
+  // Regular SingleSlater wrapper
+  std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
+    std::ostream &out, CQInputFile &input,
+    CQMemManager &mem, Molecule &mol, BasisSet &basis,
+    std::shared_ptr<IntegralsBase> aoints) {
+
+    return buildSingleSlater(out, input, mem, mol, basis, aoints, {-1., 1.}, "QM");
+
+  }
+
+
+  // NEO SingleSlater wrapper
+  std::shared_ptr<SingleSlaterBase> CQNEOSSOptions(
+    std::ostream &out, CQInputFile &input,
+    CQMemManager &mem, Molecule &mol,
+    BasisSet &ebasis, BasisSet &pbasis,
+    std::shared_ptr<IntegralsBase> eaoints, 
+    std::shared_ptr<IntegralsBase> paoints,
+    std::shared_ptr<IntegralsBase> epaoints) {
+
+    Particle p{-1., 1.};
+#define NEO_LIST(T) \
+    MPI_COMM_WORLD,mem,mol,ebasis,dynamic_cast<Integrals<T>&>(*epaoints),1,false,p
+
+    auto ess = buildSingleSlater(out, input, mem, mol, ebasis, eaoints, {-1., 1.}, "QM");
+    auto pss = buildSingleSlater(out, input, mem, mol, pbasis, paoints, {1., ProtMassPerE}, "PROTQM");
+
+    std::shared_ptr<SingleSlaterBase> neoss;
+
+    if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<double,double>>(ess)) {
+      if(auto pss_t = std::dynamic_pointer_cast<SingleSlater<double,double>>(pss)) {
+        auto neoss_t = std::make_shared<NEOSS<double,double>>(NEO_LIST(double));
+        auto epaoints_t = std::dynamic_pointer_cast<Integrals<double>>(epaoints);
+        neoss_t->addSubsystem("Electronic", ess_t, {});
+        neoss_t->addSubsystem("Protonic", pss_t, {{"Electronic", {true, epaoints_t->TPI}}});
+        neoss_t->setOrder({"Protonic", "Electronic"});
+        neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
+      }
+      else
+        CErr("Electrons and protons must use the same field (real/real) or (complex/complex)");
+    }
+    else if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ess)) {
+      if(auto pss_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(pss)) {
+        auto neoss_t = std::make_shared<NEOSS<dcomplex,double>>(NEO_LIST(double));
+        auto epaoints_t = std::dynamic_pointer_cast<Integrals<double>>(epaoints);
+        neoss_t->addSubsystem("Electronic", ess_t, {});
+        neoss_t->addSubsystem("Protonic", pss_t, {{"Electronic", {true, epaoints_t->TPI}}});
+        neoss_t->setOrder({"Protonic", "Electronic"});
+        neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
+      }
+      else
+        CErr("Electrons and protons must use the same field (real/real) or (complex/complex)");
+    }
+    else {
+      CErr("NEO + GIAO NYI!");
+    }
+
+    return neoss;
+
+  }
+
 
 }; // namespace ChronusQ

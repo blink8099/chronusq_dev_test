@@ -206,8 +206,8 @@ namespace ChronusQ {
     static std::shared_ptr<TPIContractions<MatsU,IntsT>>
     convert(const std::shared_ptr<TPIContractions<MatsT,IntsT>>&);
 
-    // Whether the contraction is done in the 
-    bool auxContract = false;
+    // Whether the contraction is done in the first or second basis
+    bool contractSecond = false;
 
   }; // class TPIContractions
 

@@ -1403,8 +1403,8 @@ namespace ChronusQ {
     DirectTPI<IntsT> &tpi =
         dynamic_cast<DirectTPI<IntsT>&>(this->ints_);
     CQMemManager& memManager_ = tpi.memManager();
-    BasisSet& basisSet_  = this->auxContract ? tpi.basisSet2() : tpi.basisSet();
-    BasisSet& basisSet2_ = this->auxContract ? tpi.basisSet()  : tpi.basisSet2();
+    BasisSet& basisSet_  = this->contractSecond ? tpi.basisSet2() : tpi.basisSet();
+    BasisSet& basisSet2_ = this->contractSecond ? tpi.basisSet()  : tpi.basisSet2();
 
     size_t nThreads  = GetNumThreads();
     size_t LAThreads = GetLAThreads();
@@ -1430,8 +1430,8 @@ namespace ChronusQ {
     if(tpi.schwarz() == nullptr or tpi.schwarz2() == nullptr) 
       tpi.computeSchwarz();
 
-    double * schwarz1 = this->auxContract ? tpi.schwarz2() : tpi.schwarz();
-    double * schwarz2 = this->auxContract ? tpi.schwarz()  : tpi.schwarz2();
+    double * schwarz1 = this->contractSecond ? tpi.schwarz2() : tpi.schwarz();
+    double * schwarz2 = this->contractSecond ? tpi.schwarz()  : tpi.schwarz2();
 
 #endif
 
