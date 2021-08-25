@@ -30,6 +30,25 @@ namespace ChronusQ {
 
   enum KineticBalance {RKBPauli, RKBSpinor, UKBScalar};
 
+  struct ATOMIC_X2C_TYPE {
+    bool isolateAtom;  ///< If atomic OEI feel only the basis origin nuclei potential
+    bool diagonalOnly; ///< If only diagonal blocks of Hamiltonian are X2C corrected
+
+    std::string toString() const {
+      if (isolateAtom) {
+        if (diagonalOnly)
+          return "ALH";
+        else
+          return "ALU";
+      } else {
+        if (diagonalOnly)
+          return "DLH";
+        else
+          return "DLU";
+      }
+    }
+  };
+
   /**
    *  The particle types to evaluate integrals
    */
@@ -42,7 +61,7 @@ namespace ChronusQ {
   struct HamiltonianOptions {
 
     // Number of components
-    size_t nComponents = 1; // 1, 2, or 4
+//    size_t nComponents = 1; // 1, 2, or 4
 
     // Time-reversal symmetry
     bool KramersSymmetry = false; // Whether or not to use the Kramers' symmetry
@@ -62,6 +81,8 @@ namespace ChronusQ {
     bool OneESpinOrbit = true; //spin-orbit relativity
     bool Boettger = true; // Use Boetteger factor to scale one-electron spin-orbit
     bool AtomicMeanField = false; // Use atomic mean field two-electron spin-orbit
+    bool AtomicX2C = false; // Use atomic X2C
+    ATOMIC_X2C_TYPE AtomicX2CType; // The type of atomic X2C
 
     // Four-Component Options
     KineticBalance kineticBalance = RKBPauli; // Choose the kinetic-balance condition; currently, only RKBPauli is implemented

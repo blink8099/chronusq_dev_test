@@ -171,6 +171,8 @@ namespace ChronusQ {
     std::shared_ptr<SingleSlaterBase> ss  = nullptr;
     std::shared_ptr<SingleSlaterBase> pss = nullptr;
 
+    SingleSlaterOptions ssOptions;
+
     // NEO calculation
     if (doNEO) {
       
@@ -185,18 +187,25 @@ namespace ChronusQ {
       pss = neo_vec[1]; // proton
 
     }
-    else
-      ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
 
     // EM Perturbation for SCF
     EMPerturbation emPert;
 
     // SCF options for electrons
-    CQSCFOptions(output,input,*ss,emPert);
+    SCFControls scfControls = CQSCFOptions(output,input,emPert);
 
     // SCF options for protons
-    if (doNEO)
-      CQSCFOptions(output,input,*pss,emPert);
+    if (doNEO) {
+      ss->scfControls = scfControls;
+      pss->scfControls = scfControls;
+    } else {
+      ssOptions = CQSingleSlaterOptions(output,input,mol,*basis,aoints);
+      ssOptions.scfControls = scfControls;
+      ss = ssOptions.buildSingleSlater(output,*memManager,mol,*basis,aoints);
+
+      // MO swapping
+      HandleOrbitalSwaps(output, input, *ss);
+    }
 
     bool rstExists = false;
     if( ss->scfControls.guess == READMO or 
@@ -251,7 +260,14 @@ namespace ChronusQ {
 
       }
 
-      ss->formGuess();
+      // Note, these guessSSOptions does not apply to NEO guess
+      SingleSlaterOptions guessSSOptions(ssOptions);
+      guessSSOptions.refOptions.isKSRef = false;
+      guessSSOptions.refOptions.nC = 1;
+      guessSSOptions.hamiltonianOptions.OneEScalarRelativity = false;
+      guessSSOptions.hamiltonianOptions.OneESpinOrbit = false;
+
+      ss->formGuess(guessSSOptions);
       ss->SCF(emPert);
     }
 

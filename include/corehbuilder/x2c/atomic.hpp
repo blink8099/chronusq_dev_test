@@ -27,11 +27,6 @@
 
 namespace ChronusQ {
 
-  struct ATOMIC_X2C_TYPE {
-    bool isolateAtom;  ///< If atomic OEI feel only the basis origin nuclei potential
-    bool diagonalOnly; ///< If only diagonal blocks of Hamiltonian are X2C corrected
-  };
-
   /**
    *  \brief The AtomicX2C class. A class to compute X2C Core Hamiltonian.
    *  Stores intermediate matrices.
@@ -69,9 +64,9 @@ namespace ChronusQ {
      */
     AtomicX2C(Integrals<IntsT> &aoints, CQMemManager &mem,
         const Molecule &mol, const BasisSet &basis,
-        HamiltonianOptions hamiltonianOptions, ATOMIC_X2C_TYPE type) :
+        HamiltonianOptions hamiltonianOptions) :
       X2C<MatsT,IntsT>(aoints, mem, mol, basis, hamiltonianOptions),
-      type_(type) {}
+      type_(hamiltonianOptions.AtomicX2CType) {}
 
     // Different type
     template <typename MatsU>

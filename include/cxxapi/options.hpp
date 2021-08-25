@@ -33,7 +33,6 @@
 #include <realtime.hpp>
 #include <response.hpp>
 #include <coupledcluster.hpp>
-#include <corehbuilder/x2c/atomic.hpp>
 
 
 
@@ -42,33 +41,6 @@
 #define OPTOPT(x) try{ x; } catch(...) { ; }
 
 namespace ChronusQ {
-
-  // Type of SingleSlater object
-  enum RefType { 
-    isRawRef,  // non-specified
-    isRRef,    // RHF/DFT
-    isURef,    // UHF/DFT
-    isRORef,   // ROHF/DFT
-    isGRef,    // GHF/DFT
-    isTwoCRef, // Two-component
-    isX2CRef,  // X2C
-    isFourCRef // Four-component
-  };
-
-  // A struct that stores reference information
-  struct RefOptions {
-    
-    std::string RCflag = "REAL"; // Real or Complex
-    
-    RefType refType = isRRef;    // R/U/G/2c/X2C/4c
-
-    bool isKSRef = false;        // HF or DFT
-
-    size_t nC = 1;               // number of component
-    bool iCS = true;             // closed shell or not
-
-    std::string funcName;        // DFT functional name
-  };
 
   // Function definitions ofr option parsing. 
   // See src/cxxapi/input/*opts.cxx for documentation
@@ -101,12 +73,10 @@ namespace ChronusQ {
 
   void CQBASIS_VALID(std::ostream&, CQInputFile &, std::string);
 
-  // Parse the options relating to the SingleSlater 
-  // (and variants)
-  std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
-      std::ostream &, CQInputFile &,
-      CQMemManager &mem, Molecule &mol, BasisSet &basis,
-      std::shared_ptr<IntegralsBase> );
+  // Parse the options relating to the SingleSlaterOptions
+  SingleSlaterOptions CQSingleSlaterOptions(
+      std::ostream &, CQInputFile &, Molecule &, BasisSet &,
+      std::shared_ptr<IntegralsBase>);
 
   // Parse the options relating to the NEOSingleSlater
   // (and variants)
@@ -146,8 +116,9 @@ namespace ChronusQ {
   void CQINTS_VALID(std::ostream&, CQInputFile &);
 
   // Parse the SCF options
-  void CQSCFOptions(std::ostream&, CQInputFile&,
-    SingleSlaterBase &, EMPerturbation &);
+  SCFControls CQSCFOptions(std::ostream&, CQInputFile&, EMPerturbation &);
+
+  void HandleOrbitalSwaps(std::ostream&, CQInputFile&, SingleSlaterBase&);
 
   void CQSCF_VALID(std::ostream&, CQInputFile &);
 

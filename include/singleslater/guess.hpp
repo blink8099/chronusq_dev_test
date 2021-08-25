@@ -149,7 +149,7 @@ namespace ChronusQ {
    *  determininant SCF in various ways
    */
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::formGuess() {
+  void SingleSlater<MatsT,IntsT>::formGuess(const SingleSlaterOptions &ssOptions) {
 
     ProgramTimer::tick("Form Guess");
 
@@ -160,7 +160,7 @@ namespace ChronusQ {
     if( this->molecule().nAtoms == 1  and scfControls.guess == SAD ) {
       CoreGuess();
     } else if( scfControls.guess == CORE ) CoreGuess();
-    else if( scfControls.guess == SAD ) SADGuess();
+    else if( scfControls.guess == SAD ) SADGuess(ssOptions);
     else if( scfControls.guess == RANDOM ) RandomGuess();
     else if( scfControls.guess == READMO ) ReadGuessMO();
     else if( scfControls.guess == READDEN ) ReadGuess1PDM();
@@ -244,7 +244,7 @@ namespace ChronusQ {
    *
    */
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::SADGuess() {
+  void SingleSlater<MatsT,IntsT>::SADGuess(const SingleSlaterOptions &ssOptions) {
 
 
 
@@ -357,41 +357,26 @@ namespace ChronusQ {
       aointsAtom->TPI = std::make_shared<InCore4indexTPI<IntsT>>(
           memManager,basis.nBasis);
 
-      Particle p = {-1.0,1.0};
-      std::shared_ptr<SingleSlater<MatsT,IntsT>> ss =
-          std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>> (
-            std::make_shared<HartreeFock<MatsT,IntsT>>(
-              rcomm,memManager,atom,basis,*aointsAtom,1,( defaultMultip == 1 ),p
-            )
-          );
-      ss->TPI = std::make_shared<InCore4indexTPIContraction<MatsT,IntsT>>(
-          *aointsAtom->TPI);
+      SingleSlaterOptions guessSSOptions(ssOptions);
+      guessSSOptions.refOptions.iCS = defaultMultip == 1;
 
+      std::shared_ptr<SingleSlater<MatsT,IntsT>> ss =
+          std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>>(
+              guessSSOptions.buildSingleSlater(std::cout, memManager,
+                  atom, basis, aointsAtom));
+
+      ss->comm = rcomm;
       ss->printLevel = 0;
       ss->scfControls.doIncFock = false;
       ss->scfControls.dampError = 1e-4;
       ss->scfControls.nKeep     = 8;
 
-      HamiltonianOptions hamiltonianOptions;
-      hamiltonianOptions.basisType = basisType;
-
-      // NR Guess
-      hamiltonianOptions.OneEScalarRelativity = false;
-      hamiltonianOptions.OneESpinOrbit = false;
-
-      ss->coreHBuilder = std::make_shared<NRCoreH<MatsT,IntsT>>(
-          ss->aoints, hamiltonianOptions);
-//      ss->coreHBuilder = std::make_shared<X2C<MatsT,IntsT>>(
-//          ss->aoints, memManager, atom, basis, hamiltonianOptions);
-      ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>(
-          hamiltonianOptions);
-
       ss->formCoreH(pert);
       aointsAtom->TPI->computeAOInts(basis, atom, pert,
-          ELECTRON_REPULSION, hamiltonianOptions);
+          ELECTRON_REPULSION, guessSSOptions.hamiltonianOptions);
 
 
-      ss->formGuess();
+      ss->formGuess(ssOptions);
       ss->SCF(pert);
 
       size_t NBbasis = basis.nBasis;
