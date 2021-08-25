@@ -66,7 +66,7 @@ namespace ChronusQ {
 
 
   void HandlePostSCFRestarts(std::ostream &out, CQInputFile &input,
-    SingleSlaterBase &ss) {
+                             SCFControls &scfControls) {
 
     bool restart = false;
     
@@ -81,8 +81,9 @@ namespace ChronusQ {
     if ( restart ) {
       out << "  *** RESTART requested -- SCF.GUESS set to READMO and SCF.ALG set to SKIP ***";
       out << std::endl;
-      ss.scfControls.guess = READMO;
-      ss.scfControls.scfAlg = _SKIP_SCF;
+
+      scfControls.guess = READMO;
+      scfControls.scfAlg = _SKIP_SCF;
     }
 
   }
@@ -129,39 +130,40 @@ namespace ChronusQ {
 
   }
 
-  void CQSCFOptions(std::ostream &out, CQInputFile &input,
-    SingleSlaterBase &ss, EMPerturbation &pert) {
+  SCFControls CQSCFOptions(std::ostream &out, CQInputFile &input, EMPerturbation &pert) {
+
+    SCFControls scfControls;
 
     // SCF section not required
     if( not input.containsSection("SCF") ) {
      
       // Restart jobs
-      HandlePostSCFRestarts(out, input, ss);
+      HandlePostSCFRestarts(out, input, scfControls);
 
-      return;
+      return scfControls;
     }
 
     // Optionally parse guess
 
     // Energy convergence tolerance
-    OPTOPT( ss.scfControls.eneConvTol = 
+    OPTOPT( scfControls.eneConvTol =
               input.getData<double>("SCF.ENETOL"); )
 
     // Energy convergence tolerance
-    OPTOPT( ss.scfControls.denConvTol = 
+    OPTOPT( scfControls.denConvTol =
               input.getData<double>("SCF.DENTOL"); )
 
     // Maximum SCF iterations
-    OPTOPT( ss.scfControls.maxSCFIter = 
+    OPTOPT( scfControls.maxSCFIter =
               input.getData<size_t>("SCF.MAXITER"); )
 
 
     // Incremental Fock Options
     OPTOPT(
-      ss.scfControls.doIncFock = input.getData<bool>("SCF.INCFOCK");
+      scfControls.doIncFock = input.getData<bool>("SCF.INCFOCK");
     )
     OPTOPT(
-      ss.scfControls.nIncFock = input.getData<size_t>("SCF.NINCFOCK");
+      scfControls.nIncFock = input.getData<size_t>("SCF.NINCFOCK");
     )
 
 
@@ -170,17 +172,17 @@ namespace ChronusQ {
       std::string guessString = input.getData<std::string>("SCF.GUESS");
 
       if( not guessString.compare("CORE") )
-        ss.scfControls.guess = CORE;
+        scfControls.guess = CORE;
       else if( not guessString.compare("SAD") )
-        ss.scfControls.guess = SAD;
+        scfControls.guess = SAD;
       else if( not guessString.compare("RANDOM") )
-        ss.scfControls.guess = RANDOM;
+        scfControls.guess = RANDOM;
       else if( not guessString.compare("READMO") )
-        ss.scfControls.guess = READMO;
+        scfControls.guess = READMO;
       else if( not guessString.compare("READDEN") )
-        ss.scfControls.guess = READDEN;
+        scfControls.guess = READDEN;
       else if( not guessString.compare("FCHKMO") )
-        ss.scfControls.guess = FCHKMO;
+        scfControls.guess = FCHKMO;
       else
         CErr("Unrecognized entry for SCF.GUESS");
     )
@@ -189,42 +191,39 @@ namespace ChronusQ {
       std::string guessString = input.getData<std::string>("SCF.PROT_GUESS");
 
       if( not guessString.compare("CORE") )
-        ss.scfControls.prot_guess = CORE;
+        scfControls.prot_guess = CORE;
       else if( not guessString.compare("RANDOM") )
-        ss.scfControls.prot_guess = RANDOM;
+        scfControls.prot_guess = RANDOM;
       else if( not guessString.compare("READMO") )
-        ss.scfControls.prot_guess = READMO;
+        scfControls.prot_guess = READMO;
       else if( not guessString.compare("READDEN") )
-        ss.scfControls.prot_guess = READDEN;
+        scfControls.prot_guess = READDEN;
       else
         CErr("Unrecognized entry for SCF.PROT_GUESS");
     )
-
-    // MO swapping
-    HandleOrbitalSwaps(out, input, ss);
 
     // ALGORITHM
     OPTOPT(
 
         std::string algString = input.getData<std::string>("SCF.ALG");
         if( not algString.compare("CONVENTIONAL") )
-          ss.scfControls.scfAlg = _CONVENTIONAL_SCF;
+          scfControls.scfAlg = _CONVENTIONAL_SCF;
         else if( not algString.compare("NR") )
-          ss.scfControls.scfAlg = _NEWTON_RAPHSON_SCF;
+          scfControls.scfAlg = _NEWTON_RAPHSON_SCF;
         else if( not algString.compare("SKIP") )
-          ss.scfControls.scfAlg = _SKIP_SCF;
+          scfControls.scfAlg = _SKIP_SCF;
         else CErr("Unrecognized entry for SCF.ALG!");
 
     )
 
 
     // Restart jobs
-    HandlePostSCFRestarts(out, input, ss);
+    HandlePostSCFRestarts(out, input, scfControls);
 
 
     // Toggle extrapolation in its entireity
     OPTOPT(
-      ss.scfControls.doExtrap = 
+      scfControls.doExtrap =
         input.getData<bool>("SCF.EXTRAP");
     )
 
@@ -232,26 +231,26 @@ namespace ChronusQ {
     OPTOPT(
       bool doDIIS = input.getData<bool>("SCF.DIIS");
       if( not doDIIS )
-        ss.scfControls.diisAlg = NONE;
+        scfControls.diisAlg = NONE;
     );
 
     // Number of terms for keep for DIIS
-    OPTOPT( ss.scfControls.nKeep = 
+    OPTOPT( scfControls.nKeep =
               input.getData<size_t>("SCF.NKEEP"); )
 
     // Parse Damping options
       
     OPTOPT(
-      ss.scfControls.doDamp = input.getData<bool>("SCF.DAMP");
+      scfControls.doDamp = input.getData<bool>("SCF.DAMP");
     );
 
     OPTOPT(
-      ss.scfControls.dampStartParam = 
+      scfControls.dampStartParam =
         input.getData<double>("SCF.DAMPPARAM");
     );
 
     OPTOPT(
-      ss.scfControls.dampError = 
+      scfControls.dampError =
         input.getData<double>("SCF.DAMPERROR");
     );
 
@@ -299,7 +298,7 @@ namespace ChronusQ {
 
 
     // Printing Options
-    OPTOPT( ss.scfControls.printMOCoeffs = 
+    OPTOPT( scfControls.printMOCoeffs =
       input.getData<bool>("SCF.PRINTMOS") );
 
 
@@ -313,14 +312,17 @@ namespace ChronusQ {
 
     // Setting the damp param to 0. is equivalent to
     // turning damping off
-    if( ss.scfControls.dampStartParam == 0. )
-      ss.scfControls.doDamp = false;
+    if( scfControls.dampStartParam == 0. )
+      scfControls.doDamp = false;
 
     // Turning off both damping and DIIS is equivalent
     // to turning off extrapolation entirely
-    if( not ss.scfControls.doDamp and 
-        ss.scfControls.diisAlg == NONE )
-      ss.scfControls.doExtrap = false;
+    if( not scfControls.doDamp and
+        scfControls.diisAlg == NONE )
+      scfControls.doExtrap = false;
+
+
+    return scfControls;
 
 
   }; // CQSCFOptions

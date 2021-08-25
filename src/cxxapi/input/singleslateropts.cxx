@@ -531,6 +531,9 @@ namespace ChronusQ {
 
     }
 
+    // Parse Atomic X2C
+    hamiltonianOptions.AtomicX2C = parseAtomicType(out,input,hamiltonianOptions.AtomicX2CType);
+
 
     // Parse Finite Width Nuclei
     std::string finiteCore = "DEFAULT";
@@ -637,7 +640,7 @@ namespace ChronusQ {
 
 
   /**
-   *  \brief Construct a SingleSlater object using the input 
+   *  \brief Construct a SingleSlaterOptions object using the input
    *  file.
    *
    *  \param [in] out    Output device for data / error output.
@@ -645,29 +648,22 @@ namespace ChronusQ {
    *  \param [in] aoints AOIntegrals object for SingleSlater
    *                     construction
    *
-   *  \returns shared_ptr to a SingleSlaterBase object
+   *  \returns a SingleSlaterOptions object
    *    constructed from the input options.
    *
-   */ 
-  std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
-    std::ostream &out, CQInputFile &input,
-    CQMemManager &mem, Molecule &mol, BasisSet &basis,
-    std::shared_ptr<IntegralsBase> aoints) {
+   */
+  SingleSlaterOptions CQSingleSlaterOptions(
+      std::ostream &out, CQInputFile &input,
+      Molecule &mol, BasisSet &basis,
+      std::shared_ptr<IntegralsBase> aoints) {
 
     out << "  *** Parsing QM.REFERENCE options ***\n";
 
-    // Initialize HamiltonianOptions
-    HamiltonianOptions hamiltonianOptions;
-
-    // Initialize ReferenceOptions
-    RefOptions refOptions;
-
-    // Initialize Atomic X2C options
-    ATOMIC_X2C_TYPE atomicX2CType = {false,false};
+    SingleSlaterOptions options;
 
     // Attempt to find reference
     std::string reference;
-    try { 
+    try {
       reference = input.getData<std::string>("QM.REFERENCE");
     } catch(...) {
       CErr("QM.REFERENCE Keyword not found!",out);
@@ -683,7 +679,44 @@ namespace ChronusQ {
     for(auto &X : tokens) trim(X);
 
     // Parse reference information
-    refOptions = parseRef(out,mol,tokens);
+    options.refOptions = parseRef(out,mol,tokens);
+
+
+    // FIXME: Should put this somewhere else
+    // Parse KS integration
+
+    if( options.refOptions.isKSRef )
+     parseIntParam(out, input, options.intParam);
+
+
+    // Parse hamiltonianOptions
+    parseHamiltonianOptions(out,input,basis,aoints,
+        options.refOptions,options.hamiltonianOptions);
+
+    out << options.hamiltonianOptions << std::endl;
+
+    return options;
+
+  }
+
+
+  /**
+   *  \brief Construct a SingleSlater object from the options.
+   *
+   *  \param [in] out    Output device for data / error output.
+   *  \param [in] aoints AOIntegrals object for SingleSlater
+   *                     construction
+   *
+   *  \returns shared_ptr to a SingleSlaterBase object
+   *    constructed from the input options.
+   *
+   */ 
+  std::shared_ptr<SingleSlaterBase>
+  SingleSlaterOptions::buildSingleSlater(
+      std::ostream &out, CQMemManager &mem,
+      Molecule &mol, BasisSet &basis,
+      std::shared_ptr<IntegralsBase> aoints) const {
+
 
     // Build Functional List
     std::vector<std::shared_ptr<DFTFunctional>> funcList;
@@ -710,15 +743,6 @@ namespace ChronusQ {
 
 
     // Override core hamiltoninan type for X2C
-      
-
-    // FIXME: Should put this somewhere else
-    // Parse KS integration
-
-    IntegrationParam intParam;
-
-    if( refOptions.isKSRef )
-     parseIntParam(out, input, intParam);
 
 
   // default particle (electron)
@@ -819,13 +843,6 @@ namespace ChronusQ {
           );
 
 
-
-    // Parse hamiltonianOptions
-    parseHamiltonianOptions(out,input,basis,aoints,refOptions,hamiltonianOptions);
-
-    // Parse Atomic X2C
-    bool atomic = parseAtomicType(out,input,atomicX2CType);
-
     // update IntegralsBase options
     aoints->options_ = hamiltonianOptions;
 
@@ -856,10 +873,10 @@ namespace ChronusQ {
 
       if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
 
-        if (atomic)
+        if (hamiltonianOptions.AtomicX2C)
           p->coreHBuilder = std::make_shared<AtomicX2C<dcomplex,double>>(
               *std::dynamic_pointer_cast<Integrals<double>>(aoints),
-              mem, mol, basis, hamiltonianOptions, atomicX2CType);
+              mem, mol, basis, hamiltonianOptions);
         else
           p->coreHBuilder = std::make_shared<X2C<dcomplex,double>>(
               *std::dynamic_pointer_cast<Integrals<double>>(aoints),
@@ -871,10 +888,10 @@ namespace ChronusQ {
 
         if (not hamiltonianOptions.OneESpinOrbit) {
 
-          if (atomic)
+          if (hamiltonianOptions.AtomicX2C)
             p->coreHBuilder = std::make_shared<AtomicX2C<double,double>>(
                 *std::dynamic_pointer_cast<Integrals<double>>(aoints),
-                mem, mol, basis, hamiltonianOptions, atomicX2CType);
+                mem, mol, basis, hamiltonianOptions);
           else
             p->coreHBuilder = std::make_shared<X2C<double,double>>(
                 *std::dynamic_pointer_cast<Integrals<double>>(aoints),
@@ -1044,17 +1061,13 @@ namespace ChronusQ {
 
 
 
-
-
-    out << hamiltonianOptions << std::endl;
-
-
+    ss->scfControls = scfControls;
 
 
 
     return ss;
 
-  }; // CQSingleSlaterOptions
+  }; // SingleSlaterOptions::buildSingleSlater
 
 
   /**
@@ -1542,6 +1555,11 @@ namespace ChronusQ {
         << (options.Boettger ? "On" : "Off") << std::endl;
     out << "  " << std::setw(fieldNameWidth) << "Atomic Mean Field Spin-orbit:"
         << (options.AtomicMeanField ? "On" : "Off") << std::endl;
+    out << "  " << std::setw(fieldNameWidth) << "Atomic X2C:"
+        << (options.AtomicX2C ? "On" : "Off") << std::endl;
+    if (options.AtomicX2C)
+      out << "  " << std::setw(fieldNameWidth) << "Atomic X2C Type:"
+          << options.AtomicX2CType.toString() << std::endl;
     out << std::endl;
 
 

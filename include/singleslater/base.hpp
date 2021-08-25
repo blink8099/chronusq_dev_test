@@ -31,6 +31,46 @@
 
 namespace ChronusQ {
 
+  // Type of SingleSlater object
+  enum RefType {
+    isRawRef,  // non-specified
+    isRRef,    // RHF/DFT
+    isURef,    // UHF/DFT
+    isRORef,   // ROHF/DFT
+    isGRef,    // GHF/DFT
+    isTwoCRef, // Two-component
+    isX2CRef,  // X2C
+    isFourCRef // Four-component
+  };
+
+  // A struct that stores reference information
+  struct RefOptions {
+
+    std::string RCflag = "REAL"; // Real or Complex
+
+    RefType refType = isRRef;    // R/U/G/2c/X2C/4c
+
+    bool isKSRef = false;        // HF or DFT
+
+    size_t nC = 1;               // number of component
+    bool iCS = true;             // closed shell or not
+
+    std::string funcName;        // DFT functional name
+  };
+
+
+  /**
+   *  \brief A datastructure to hold the information
+   *  pertaining to the control of the Kohn--Sham
+   *  numerical integration.
+   */
+  struct IntegrationParam {
+    double epsilon      = 1e-12; ///< Screening parameter
+    size_t nAng         = 302;   ///< # Angular points
+    size_t nRad         = 100;   ///< # Radial points
+    size_t nRadPerBatch = 4;     ///< # Radial points / macro batch
+  };
+
   enum DIIS_ALG {
     CDIIS,      ///< Commutator DIIS
     EDIIS,      ///< Energy DIIS
@@ -117,6 +157,25 @@ namespace ChronusQ {
 
   }; // SCFControls struct
 
+  class SingleSlaterBase;
+
+  struct SingleSlaterOptions {
+
+    HamiltonianOptions hamiltonianOptions;
+
+    RefOptions refOptions;
+
+    IntegrationParam intParam;
+
+    SCFControls scfControls;
+
+    std::shared_ptr<SingleSlaterBase> buildSingleSlater(
+        std::ostream &out, CQMemManager &mem,
+        Molecule &mol, BasisSet &basis,
+        std::shared_ptr<IntegralsBase> aoints) const;
+
+  };
+
   /**
    *  \brief A struct to hold the current status of an SCF procedure
    *
@@ -197,7 +256,7 @@ namespace ChronusQ {
 
     //   Form an initial Guess (which populates the Fock, Density 
     //   and energy)
-    virtual void formGuess() = 0;
+    virtual void formGuess(const SingleSlaterOptions&) = 0;
 
     //   Form the core Hamiltonian
     virtual void formCoreH(EMPerturbation&) = 0;

@@ -336,7 +336,7 @@ namespace ChronusQ {
   void X2C<MatsT, IntsT>::computeCoreH(EMPerturbation& emPert,
       std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH) {
     computeX2C(emPert, coreH);
-    if (this->hamiltonianOptions_.OneESpinOrbit)
+    if (this->hamiltonianOptions_.Boettger)
       BoettgerScale(coreH);
   }
 
