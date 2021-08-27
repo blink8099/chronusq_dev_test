@@ -197,7 +197,7 @@ namespace ChronusQ {
 
 
     std::vector<double> coreGrad = coreHBuilder->getGrad(pert, *this);
-    printGrad("Core H Gradient:", coreGrad);
+    //printGrad("Core H Gradient:", coreGrad);
 
 
     // 2e contribution
@@ -270,11 +270,11 @@ namespace ChronusQ {
 
     }
 
-    printGrad("Nuclear Gradient:", nucGrad);
-    printGrad("G Gradient:", twoEGrad);
-    printGrad("Pulay Gradient:", pulayGrad);
+    //printGrad("Nuclear Gradient:", nucGrad);
+    //printGrad("G Gradient:", twoEGrad);
+    //printGrad("Pulay Gradient:", pulayGrad);
 
-    this->onePDM->output(std::cout, "OnePDM in Gradient Contractions", true);
+    //this->onePDM->output(std::cout, "OnePDM in Gradient Contractions", true);
 
     return gradient;
 

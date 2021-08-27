@@ -41,6 +41,8 @@ namespace ChronusQ {
 
   public:
 
+    double   electronicPotentialEnergy; ///< electronic potential energy
+
     // Constructors
     GeometryModifier() = delete;
     GeometryModifier(MolecularOptions &molecularOptions):

@@ -216,7 +216,7 @@ namespace ChronusQ {
     size_t NB3 = NB * NB2;
 
     //#ifdef _BULLET_PROOF_INCORE
-    #if 1
+    #if 0
 
     std::fill_n(C.AX,NB2,0.);
 

@@ -298,6 +298,8 @@ namespace ChronusQ {
       // TODO: Make this cleaner/encapsulated - "dynamics" section of input
       if( job == "BOMD" or job == "EHRENFEST" ) {
 
+        // turn firstStep off to use the single point density as the guess
+        // TODO: we need to have a separate GUESS section for MD
         if( job == "BOMD" )
           molOpt.nMidpointFockSteps = 0;
 
@@ -348,14 +350,18 @@ namespace ChronusQ {
         }
       }
       else {
+        // Single point job
         mol.geometryModifier = std::make_shared<SinglePoint>(molOpt);
       }
 
       // Loop over various structures
       while( mol.geometryModifier->hasNext() ) {
 
+
         // Update geometry
+        mol.geometryModifier->electronicPotentialEnergy=ss->totalEnergy;
         mol.geometryModifier->update(true, mol, firstStep);
+        // Update basis to the new geometry
         basis->updateNuclearCoordinates(mol);
         if( dfbasis != nullptr ) dfbasis->updateNuclearCoordinates(mol);
 
@@ -366,6 +372,7 @@ namespace ChronusQ {
         // Update integrals
         // TODO: Time dependent field?
         aoints->computeAOTwoE(*basis, mol, emPert);
+
         if (doNEO) { 
           if(auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
             prot_aoints->computeAOTwoE(*prot_basis, mol, emPert);
@@ -383,7 +390,7 @@ namespace ChronusQ {
             neoss->SCF(emPert);
           } else {
             ss->formCoreH(emPert, true);
-            ss->formGuess();
+            if(firstStep) ss->formGuess();
             ss->SCF(emPert);
           }
         }
@@ -453,6 +460,7 @@ namespace ChronusQ {
         }
 
         firstStep = false;
+
       } // Loop over geometries
     } // Loop over different jobs
 

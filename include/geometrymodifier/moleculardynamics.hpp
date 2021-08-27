@@ -45,7 +45,9 @@ namespace ChronusQ {
     std::vector<double> velocityCurrent;   ///< nuclear velocity at the current time (t)
     std::vector<double> acceleration;      ///< acceleration at the current time (t)
 
-    double   nuclearKineticEnergy; ///< Nuclear kinetic energy
+    double   nuclearKineticEnergy;      ///< nuclear kinetic energy
+    double   totalEnergy0;              ///< total energy at step 0
+    double   previousTotalEnergy;       ///< total energy at the previous step
 
     // Constructors
     MolecularDynamics() = delete;
@@ -103,11 +105,10 @@ namespace ChronusQ {
       size_t i = 0;
 
       if(print) {
+        std::cout << std::endl;
+        std::cout << "MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD"<<std::endl;
+        std::cout << "Molecular Dynamics Information for Step "<<std::setw(8)<<curState.iStep<<std::endl;
         std::cout << std::scientific << std::setprecision(12);
-
-        std::cout << "Time:  " << std::setw(19) << curState.xTime << " AU  "
-                  << std::setw(19) << curState.xTime*FSPerAUTime << " fs"
-                  << std::endl;
 
         std::cout << std::endl<<"Molecular Geometry: (Bohr)"<<std::endl;
         for( Atom& atom : molecule.atoms ) {
@@ -154,11 +155,15 @@ namespace ChronusQ {
       molecule.update();
 
 
+      // Compute total energies
+      double totalEnergy = electronicPotentialEnergy + nuclearKineticEnergy;
+      if(firstStep) totalEnergy0 = totalEnergy;
+      if(firstStep) previousTotalEnergy = totalEnergy;
 
       // output important dynamic information
       if(print) {
+
         std::cout << std::setprecision(12);
-        std::cout << "EKin=" << std::right << std::setw(16) << nuclearKineticEnergy << " AU" << std::endl;
         std::cout << "Velocity:"<<std::endl;
         i = 0;
         for( Atom& atom : molecule.atoms ) {
@@ -184,6 +189,19 @@ namespace ChronusQ {
  
         }
 
+        std::cout << std::setprecision(8);
+        std::cout << std::endl<<"Time (fs): "<< std::right<<std::setw(16)<<curState.xTime*FSPerAUTime
+                  << "  Time (au): "<<std::right<< std::setw(16)<<curState.xTime<<std::endl;
+
+        std::cout <<  "EKin= " << std::right << std::setw(16) << nuclearKineticEnergy
+                  << " EPot= " << std::right << std::setw(16) << electronicPotentialEnergy
+                  << " ETot= " << std::right << std::setw(16) << totalEnergy << " a.u."<<std::endl;
+
+        std::cout << "ΔETot (current-previous)= " << std::right << std::setw(16)<< totalEnergy-previousTotalEnergy
+                  << " ΔETot (cumulative)= " << std::right << std::setw(16)<< totalEnergy-totalEnergy0<< " a.u."<<std::endl;
+
+
+        std::cout << std::setprecision(12);
         std::cout << std::endl<<"Predicted Molecular Geometry: (Bohr)"<<std::endl;
         i = 0;
         for( Atom& atom : molecule.atoms ) {
@@ -196,6 +214,8 @@ namespace ChronusQ {
  
         }
       }
+
+      previousTotalEnergy = totalEnergy;
 
     }
 
@@ -267,8 +287,8 @@ namespace ChronusQ {
           nuclearKineticEnergy += 0.5*velocityCurrent[i  ]*velocityCurrent[i  ]*atom.atomicMass*AUPerAMU;
           nuclearKineticEnergy += 0.5*velocityCurrent[i+1]*velocityCurrent[i+1]*atom.atomicMass*AUPerAMU;
           nuclearKineticEnergy += 0.5*velocityCurrent[i+2]*velocityCurrent[i+2]*atom.atomicMass*AUPerAMU;
-	      }
-	      i += 3;
+        }
+        i += 3;
       }
 
       molecule.nucKinEnergy = nuclearKineticEnergy;
