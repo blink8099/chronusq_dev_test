@@ -39,7 +39,7 @@ namespace ChronusQ {
   public:
 
     std::function<std::vector<double>()> gradientGetter;
-    std::function<void(double)> finalMidpointFock;
+    std::function<double(double)> finalMidpointFock;
     std::vector<double> gradientCurrent;
     std::vector<double> velocityHalfTime;  ///< nuclear velocity at half time, (t-1/2) upon entry and (t+1/2) upon exist
     std::vector<double> velocityCurrent;   ///< nuclear velocity at the current time (t)
@@ -102,9 +102,32 @@ namespace ChronusQ {
       if( molecularOptions_.nMidpointFockSteps != 0 )
         curState.xTime /= molecularOptions_.nMidpointFockSteps;
 
+      auto doGrad = molecularOptions_.nMidpointFockSteps == 0 || 
+                    curState.iStep % molecularOptions_.nMidpointFockSteps == 0;
+
+      // Update gradient whenever we restart midpoint fock
+      if( doGrad ) {
+
+        // If we have midpoint fock steps, we need to take the final fock step
+        if( molecularOptions_.nMidpointFockSteps != 0 && !firstStep ) {
+          double fock_dt = molecularOptions_.timeStepAU/(molecularOptions_.nMidpointFockSteps + 1);
+          geometryVV(molecule, gradientCurrent, fock_dt);
+          molecule.update();
+	  double e;
+          electronicPotentialEnergy = finalMidpointFock(curState.iStep*fock_dt);
+          //finalMidpointFock(curState.iStep*fock_dt);
+          std::cout << " Nuclear Repulsion Energy after final midfock: " << molecule.nucRepEnergy << std::endl;
+        }
+
+        gradientCurrent = gradientGetter();
+      }
+
+      bool moveGeometry = true;
+      bool moveVelocity = doGrad;
+
       size_t i = 0;
 
-      if(print) {
+      if(print and doGrad) {
         std::cout << std::endl;
         std::cout << "MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD-MD"<<std::endl;
         std::cout << "Molecular Dynamics Information for Step "<<std::setw(8)<<curState.iStep<<std::endl;
@@ -122,26 +145,6 @@ namespace ChronusQ {
         }
       }
 
-      auto doGrad = molecularOptions_.nMidpointFockSteps == 0 || 
-                    curState.iStep % molecularOptions_.nMidpointFockSteps == 0;
-
-      // Update gradient whenever we restart midpoint fock
-      if( doGrad ) {
-
-        // If we have midpoint fock steps, we need to take the final fock step
-        if( molecularOptions_.nMidpointFockSteps != 0 && !firstStep ) {
-          double fock_dt = molecularOptions_.timeStepAU/(molecularOptions_.nMidpointFockSteps + 1);
-          geometryVV(molecule, gradientCurrent, fock_dt);
-          molecule.update();
-          finalMidpointFock(curState.iStep*fock_dt);
-          std::cout << " NN rep after final midfock: " << molecule.nucRepEnergy << std::endl;
-        }
-
-        gradientCurrent = gradientGetter();
-      }
-
-      bool moveGeometry = true;
-      bool moveVelocity = doGrad;
 
       // if velocity Verlet
       if(moveVelocity) {
@@ -161,7 +164,7 @@ namespace ChronusQ {
       if(firstStep) previousTotalEnergy = totalEnergy;
 
       // output important dynamic information
-      if(print) {
+      if(print and doGrad) {
 
         std::cout << std::setprecision(12);
         std::cout << "Velocity:"<<std::endl;

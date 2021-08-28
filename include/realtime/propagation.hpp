@@ -562,20 +562,23 @@ namespace ChronusQ {
 
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::updateAOProperties(double t) {
+  void RealTime<_SSTyp,IntsT>::updateAOProperties(double currentTime) {
     // Form AO density
     propagator_.computeOrtho();
     propagator_.ortho2aoDen();
 
     // Form fock matrix
     for(auto idx = 0; idx < systems_.size(); idx++) {
-      this->formFock(false,t,idx);
+      this->formFock(false,currentTime,idx);
     }
     // Compute properties
-    EMPerturbation pert_t = pert.getPert(t);
+    EMPerturbation pert_t = pert.getPert(currentTime);
     propagator_.computeProperties(pert_t);
+    // Print progress line in the output file
+    printRTStep();
 
-  }; // RealTime::orthoAndFock
+
+  }; // RealTime::updateAOProperties
 
 }; // namespace ChronusQ
 
