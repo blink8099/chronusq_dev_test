@@ -95,4 +95,15 @@ namespace ChronusQ {
     CErr("NEOSS move constructor not fully implemented");
   }; // Other type move constructor
 
+  template <typename MatsT, typename IntsT>
+  std::vector<double> NEOSS<MatsT,IntsT>::getGrad(EMPerturbation& pert,
+    bool equil, bool saveInts) {
+
+    size_t nAtoms = this->molecule().nAtoms;
+    size_t nGrad = 3*nAtoms;
+    std::vector<double> gradient(nGrad, 0.);
+    return gradient;
+
+  };
+
 } // namespace ChronusQ

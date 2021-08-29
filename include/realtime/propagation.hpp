@@ -58,9 +58,15 @@ namespace ChronusQ {
         restoreState();
 
     // Upon entry to RT, assume only the orthonormal density is valid
-    propagator_.computeOrtho();
-    propagator_.ortho2aoDen();
-    propagator_.ortho2aoMOs();
+    //propagator_.computeOrtho();
+    //propagator_.ortho2aoDen();
+    //propagator_.ortho2aoMOs();
+    for(auto idx = 0; idx < systems_.size(); idx++) {
+      systems_[idx]->computeOrtho();
+      systems_[idx]->ortho2aoDen();
+      systems_[idx]->ortho2aoMOs();
+    }
+
 
     // propagator_.onePDMOrtho->output(std::cout, "TD 1PDM Ortho", true);
     // propagator_.onePDM->output(std::cout, "TD 1PDM", true);
@@ -564,8 +570,14 @@ namespace ChronusQ {
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::updateAOProperties(double currentTime) {
     // Form AO density
-    propagator_.computeOrtho();
-    propagator_.ortho2aoDen();
+    //propagator_.computeOrtho();
+    //propagator_.ortho2aoDen();
+    for(auto idx = 0; idx < systems_.size(); idx++) {
+      systems_[idx]->computeOrtho();
+      systems_[idx]->ortho2aoDen();
+      systems_[idx]->ortho2aoMOs();
+    }
+
 
     // Form fock matrix
     for(auto idx = 0; idx < systems_.size(); idx++) {

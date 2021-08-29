@@ -349,8 +349,18 @@ namespace ChronusQ {
 
           job = "RT";
         }
-      }
-      else {
+
+     } else if( job == "RT" ) {
+
+          if( doTemp and doNEO )
+            rt = CQRealTimeOptions(output,input,neoss,emPert);
+          else
+            rt = CQRealTimeOptions(output,input,ss,emPert);
+ 
+        // Single point job
+        mol.geometryModifier = std::make_shared<SinglePoint>(molOpt);
+
+     } else {
         // Single point job
         mol.geometryModifier = std::make_shared<SinglePoint>(molOpt);
       }
@@ -418,9 +428,8 @@ namespace ChronusQ {
           if( firstStep )
             rt->createRTDataSets(molOpt.nElectronicSteps*molOpt.nMidpointFockSteps*molOpt.nNuclearSteps);
 
-          // FIXME: Need to implement RT-NEO
-          if (doNEO)
-            CErr("RT-NEO NYI!",output);
+          //if (doNEO)
+          //  CErr("RT-NEO NYI!",output);
 
           if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
 

@@ -263,6 +263,9 @@ namespace ChronusQ {
         applyToEach([&](SubSSPtr& ss){ ss->formCoreH(emPert, save); });
       }
 
+      
+      std::vector<double> getGrad(EMPerturbation&, bool, bool);
+
       // Properties
       void computeEnergy() {
 

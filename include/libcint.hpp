@@ -49,7 +49,7 @@ extern "C" {
 //
 
 /* Plain ERI (ij|kl) */
-CQ_CINT_OPT_WRAPPER(int2e_optimizer);
+//CQ_CINT_OPT_WRAPPER(int2e_optimizer);
 CQ_INT_WRAPPER(int2e_cart);
 CQ_INT_WRAPPER(int2e_sph);
 
