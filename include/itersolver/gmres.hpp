@@ -259,6 +259,7 @@ namespace ChronusQ {
           _F alpha = TwoNorm<double>(this->N_,curHHR,1);
           if( std::abs(alpha) > 1e-10 ) {
 
+            if (std::abs(curV[iMicro+1]) > 0)
             alpha *= curV[iMicro+1] / std::abs(curV[iMicro+1]);
 
             curHHR[iMicro+1] += alpha;
