@@ -29,6 +29,8 @@
 #include <matrix.hpp>
 #include <particleintegrals/twopints/incoreritpi.hpp>
 #include <fockbuilder/rofock/impl.hpp>
+#include <fockbuilder/fourcompfock/impl.hpp>
+#include <fockbuilder/matrixfock.hpp>
 
 #include <typeinfo>
 
@@ -230,6 +232,19 @@ namespace ChronusQ {
 #endif
   }
 
+
+
+  template <typename MatsT, typename IntsT>
+  void MatrixFock<MatsT,IntsT>::formFock(SingleSlater<MatsT,IntsT> &ss,
+                                         EMPerturbation &pert, bool increment, double xHFX) {
+
+    *ss.fockMatrix = fockMatrix;
+
+    ROOT_ONLY(ss.comm);
+    *ss.twoeH = fockMatrix - *ss.coreH;
+
+  }
+
   /**
    *  \brief The pointer convertor. This static function converts
    *  the underlying polymorphism correctly to hold a different
@@ -248,6 +263,14 @@ namespace ChronusQ {
     if (tID == typeid(ROFock<MatsT,IntsT>)) {
       return std::make_shared<ROFock<MatsU,IntsT>>(
                *std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fb));
+
+    } else if (tID == typeid(FourCompFock<MatsT,IntsT>)) {
+      return std::make_shared<FourCompFock<MatsU,IntsT>>(
+          *std::dynamic_pointer_cast<FourCompFock<MatsT,IntsT>>(fb));
+
+    } else if (tID == typeid(MatrixFock<MatsT,IntsT>)) {
+      return std::make_shared<MatrixFock<MatsU,IntsT>>(
+          *std::dynamic_pointer_cast<MatrixFock<MatsT,IntsT>>(fb));
 
     } else {
       return std::make_shared<FockBuilder<MatsU,IntsT>>(

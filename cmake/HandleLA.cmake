@@ -114,7 +114,7 @@ if( CQ_NEED_OPENBLAS )
         && patch < ${OPENBLAS_PREFIX}/patch/chgeqz.patch
         && patch < ${OPENBLAS_PREFIX}/patch/zhgeqz.patch
 
-      BUILD_COMMAND ${OPENBLAS_BUILD_COMMAND}
+      BUILD_COMMAND ${OPENBLAS_BUILD_COMMAND} CFLAGS='-Wno-error=implicit-function-declaration'
       BUILD_IN_SOURCE 1
       INSTALL_COMMAND make install PREFIX=${OPENBLAS_PREFIX}
         && cd ${OPENBLAS_INCLUDEDIR}

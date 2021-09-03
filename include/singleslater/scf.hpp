@@ -638,49 +638,36 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::ortho2aoMOs() {
 
-    size_t NB = this->nAlphaOrbital();
+    size_t Nmo = this->mo[0].dimension();
+    size_t Northo = ortho[0].dimension();
 
     // Transform MOs on MPI root as slave processes do not have
     // updated MO coefficients
     if( MPIRank(comm) == 0 ) {
-      MatsT* SCR = this->memManager.template malloc<MatsT>(this->nC*NB*NB);
+      MatsT* SCR = this->memManager.template malloc<MatsT>(Nmo * Northo);
 
-      // Transform the (top half) of MO1
-      Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-          this->mo[0].pointer(),this->nC*NB,MatsT(0.),SCR,NB);
-      SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer(),this->nC*NB);
-      
-      if( this->nC == 2 ) {
+      // Transform MO1
+      // For 2- and 4-component, shift for alpha and beta
+      for (size_t shift = 0; shift < Nmo; shift += Northo) {
 
-        // Transform the bottom half of MO1
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-            this->mo[0].pointer() + NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + NB,this->nC*NB);
+        Gemm('N', 'N', Northo, Nmo, Northo,
+             MatsT(1.), ortho[0].pointer(), Northo,
+             this->mo[0].pointer() + shift, Nmo,
+             MatsT(0.), SCR, Northo);
+        SetMat('N', Northo, Nmo, MatsT(1.), SCR, Northo,
+               this->mo[0].pointer() + shift, Nmo);
 
-      } else if( this->nC == 4 ) {
+      }
 
-        //Second part of MO
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-          this->mo[0].pointer() + NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + NB,this->nC*NB);
-
-        //Third part of MO
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-          this->mo[0].pointer() + 2*NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + 2*NB,this->nC*NB);
-
-        //Fourth part of MO
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-          this->mo[0].pointer() + 3*NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + 3*NB,this->nC*NB);
-       
-
-      } else if( not this->iCS ) {
+      if( nC == 1 and not iCS ) {
 
         // Transform MO2
-        Gemm('N','N',NB,NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-            this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,NB,MatsT(1.),SCR,NB,this->mo[1].pointer(),NB);
+        Gemm('N', 'N', Northo, Nmo, Northo,
+             MatsT(1.), ortho[0].pointer(), Northo,
+             this->mo[1].pointer(), Nmo,
+             MatsT(0.), SCR, Northo);
+        SetMat('N', Northo, Nmo, MatsT(1.), SCR, Northo,
+               this->mo[1].pointer(), Nmo);
 
       }
 
@@ -695,18 +682,19 @@ namespace ChronusQ {
     if( MPISize(comm) > 1 ) {
 
       std::cerr  << "  *** Scattering the AO-MOs ***\n";
-      MPIBCast(this->mo[0].pointer(),nC*nC*NB*NB,0,comm);
+      MPIBCast(this->mo[0].pointer(),Nmo*Nmo,0,comm);
       if( nC == 1 and not iCS )
-        MPIBCast(this->mo[1].pointer(),nC*nC*NB*NB,0,comm);
+        MPIBCast(this->mo[1].pointer(),Nmo*Nmo,0,comm);
 
       std::cerr  << "  *** Scattering EPS ***\n";
-      MPIBCast(this->eps1,nC*NB,0,comm);
+      MPIBCast(this->eps1,Nmo,0,comm);
       if( nC == 1 and not iCS )
-        MPIBCast(this->eps2,nC*NB,0,comm);
+        MPIBCast(this->eps2,Nmo,0,comm);
 
       std::cerr  << "  *** Scattering FOCK ***\n";
+      size_t fockDim = fockMatrix->dimension();
       for(MatsT *mat : fockMatrix->SZYXPointers())
-        MPIBCast(mat,NB*NB,0,comm);
+        MPIBCast(mat,fockDim*fockDim,0,comm);
 
     }
 

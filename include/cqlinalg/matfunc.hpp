@@ -27,6 +27,10 @@
 
 namespace ChronusQ {
 
+  template <typename F, typename _F1, typename _F2>
+  void MatDiagFunc(const F &func, size_t N, _F1 *A, size_t LDA, _F2 *B,
+                   size_t LDB, CQMemManager &mem);
+
   template <typename _FExp, typename _F1, typename _F2>
   void MatExp(char ALG, size_t N, _FExp ALPHA, _F1 *A, size_t LDA, 
     _F2 *ExpA, size_t LDEXPA, CQMemManager &mem);

@@ -27,8 +27,6 @@
 #include <cerr.hpp>
 #include <corehbuilder.hpp>
 #include <corehbuilder/nonrel.hpp>
-#include <corehbuilder/x2c.hpp>
-#include <corehbuilder/x2c/atomic.hpp>
 #include <corehbuilder/fourcomp.hpp>
 #include <fockbuilder.hpp>
 #include <fockbuilder/rofock.hpp>
@@ -443,8 +441,17 @@ namespace ChronusQ {
     trim(X);
     if( not X.compare("SPINFREE") ) {
 
+      hamiltonianOptions.x2cType = X2C_TYPE::ONEE;
       hamiltonianOptions.OneEScalarRelativity = true;
       hamiltonianOptions.OneESpinOrbit = false;
+      hamiltonianOptions.Boettger = false;
+      hamiltonianOptions.AtomicMeanField = false;
+
+    } else if( not X.compare("FOCK")) {
+
+      hamiltonianOptions.x2cType = X2C_TYPE::FOCK;
+      hamiltonianOptions.OneEScalarRelativity = true;
+      hamiltonianOptions.OneESpinOrbit = true;
       hamiltonianOptions.Boettger = false;
       hamiltonianOptions.AtomicMeanField = false;
 
@@ -452,6 +459,7 @@ namespace ChronusQ {
                or ( not X.compare("DEFAULT") and refOptions.refType == isX2CRef ) ) {
       // Legacy X2C- reference is equilvalent to 2C- reference + OneE-X2C
 
+      hamiltonianOptions.x2cType = X2C_TYPE::ONEE;
       hamiltonianOptions.OneEScalarRelativity = true;
       hamiltonianOptions.OneESpinOrbit = true;
       hamiltonianOptions.Boettger = true;
@@ -459,6 +467,7 @@ namespace ChronusQ {
 
     } else if( not X.compare("TWOE") or not X.compare("TWOELECTRON")) {
 
+      hamiltonianOptions.x2cType = X2C_TYPE::TWOE;
       CErr(X + " NYI",out);
 
     } else if( not X.compare("OFF")
@@ -513,7 +522,9 @@ namespace ChronusQ {
 
     } else if( not X.compare("DEFAULT") ) {
 
-      if ( hamiltonianOptions.OneESpinOrbit and refOptions.refType != isFourCRef) {
+      if ( hamiltonianOptions.OneESpinOrbit
+           and refOptions.refType != isFourCRef
+           and hamiltonianOptions.x2cType != X2C_TYPE::FOCK) {
 
         hamiltonianOptions.Boettger = true;
         hamiltonianOptions.AtomicMeanField = false;
@@ -572,14 +583,14 @@ namespace ChronusQ {
 
     try{
       if ( input.getData<bool>("INTS.BREIT") ) {
-        CErr("Breit Hamiltonian is NYI.",out);
         hamiltonianOptions.DiracCoulomb = true;
         hamiltonianOptions.Gaunt = true;
         hamiltonianOptions.Gauge = true;
       }
     } catch(...) {}
 
-    if (refOptions.refType != isFourCRef) {
+    if (refOptions.refType != isFourCRef
+        and hamiltonianOptions.x2cType != X2C_TYPE::FOCK) {
 
       hamiltonianOptions.BareCoulomb = false;
       hamiltonianOptions.DiracCoulomb = false;
@@ -726,11 +737,8 @@ namespace ChronusQ {
     // Sanity Checks
     bool isGIAO = basis.basisType == COMPLEX_GIAO;
 
-    if( refOptions.nC == 2 and not refOptions.RCflag.compare("REAL") )
-      CErr("Real + Two-Component not valid",out);
-
-    if( refOptions.nC == 4 and not refOptions.RCflag.compare("REAL") )
-      CErr("Real + Four-Component not valid",out);
+    if (hamiltonianOptions.OneESpinOrbit and not refOptions.RCflag.compare("REAL") )
+      CErr("Real + Spin-orbit calculation not valid",out);
 
     if( isGIAO and not refOptions.RCflag.compare("REAL") )
       CErr("Real + GIAO not valid",out);
@@ -851,12 +859,16 @@ namespace ChronusQ {
 
       if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
 
-        CErr("4C + Real WFN is not a valid option",std::cout);
+        p->coreHBuilder = std::make_shared<FourComponent<double,double>>(
+            *std::dynamic_pointer_cast<Integrals<double>>(aoints), hamiltonianOptions);
+
+        p->fockBuilder = std::make_shared<FourCompFock<double,double>>(hamiltonianOptions);
+
+//        CErr("4C + Real WFN is not a valid option",std::cout);
       } else if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
 
         p->coreHBuilder = std::make_shared<FourComponent<dcomplex,double>>(
-            *std::dynamic_pointer_cast<Integrals<double>>(aoints),
-            mem, mol, basis, hamiltonianOptions);
+            *std::dynamic_pointer_cast<Integrals<double>>(aoints), hamiltonianOptions);
 
         p->fockBuilder = std::make_shared<FourCompFock<dcomplex,double>>(hamiltonianOptions);
 
@@ -873,35 +885,17 @@ namespace ChronusQ {
 
       if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
 
-        if (hamiltonianOptions.AtomicX2C)
-          p->coreHBuilder = std::make_shared<AtomicX2C<dcomplex,double>>(
-              *std::dynamic_pointer_cast<Integrals<double>>(aoints),
-              mem, mol, basis, hamiltonianOptions);
-        else
-          p->coreHBuilder = std::make_shared<X2C<dcomplex,double>>(
-              *std::dynamic_pointer_cast<Integrals<double>>(aoints),
-              mem, mol, basis, hamiltonianOptions);
-
         p->fockBuilder = std::make_shared<FockBuilder<dcomplex,double>>(hamiltonianOptions);
 
       } else if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
 
         if (not hamiltonianOptions.OneESpinOrbit) {
 
-          if (hamiltonianOptions.AtomicX2C)
-            p->coreHBuilder = std::make_shared<AtomicX2C<double,double>>(
-                *std::dynamic_pointer_cast<Integrals<double>>(aoints),
-                mem, mol, basis, hamiltonianOptions);
-          else
-            p->coreHBuilder = std::make_shared<X2C<double,double>>(
-                *std::dynamic_pointer_cast<Integrals<double>>(aoints),
-                mem, mol, basis, hamiltonianOptions);
-
           p->fockBuilder = std::make_shared<FockBuilder<double,double>>(hamiltonianOptions);
 
         } else
 
-          CErr("OneE-X2C + Real WFN is not a valid option",std::cout);
+          CErr("OneE-X2C-SpinOrbit + Real WFN is not a valid option",std::cout);
 
       } else if (std::dynamic_pointer_cast<SingleSlater<dcomplex,dcomplex>>(ss)) {
 
@@ -961,7 +955,22 @@ namespace ChronusQ {
 
       if(auto p = std::dynamic_pointer_cast<SingleSlater<double,double>>(ss)) {
 
-        CErr("Real INT + Real Four-component WFN NYI",std::cout);
+        std::shared_ptr<TwoPInts<double>> &TPI =
+            std::dynamic_pointer_cast<Integrals<double>>(aoints)->TPI;
+
+        if (auto tpi_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(TPI)) {
+
+          TPI = std::make_shared<InCore4indexRelERI<double>>(mem,basis.nBasis,nERI4DCB);
+
+          p->TPI = std::make_shared<InCore4indexRelERIContraction<double,double>>(*TPI);
+
+        } else if (auto tpi_typed = std::dynamic_pointer_cast<DirectTPI<double>>(TPI)) {
+
+          p->TPI = std::make_shared<GTODirectRelERIContraction<double,double>>(*tpi_typed);
+
+        } else if (TPI) {
+          CErr("Invalid TPInts type for Four-component Wavefunction<double,double>",std::cout);
+        }
 
       } else if(auto p = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ss)) {
 
@@ -978,7 +987,7 @@ namespace ChronusQ {
 
           p->TPI = std::make_shared<GTODirectRelERIContraction<dcomplex,double>>(*tpi_typed);
 
-        } else {
+        } else if (TPI) {
           CErr("Invalid TPInts type for Four-component Wavefunction<dcomplex,double>",std::cout);
         }
 

@@ -24,20 +24,6 @@
 #pragma once
 
 #include <corehbuilder/fourcomp.hpp>
-#include <util/preprocessor.hpp>
-
-
-// FIXME: For copy and move, this only populates the lists, not the
-// explicit pointers
-#define FOURCOMP_COLLECTIVE_OP(OP_OP,OP_VEC_OP) \
-  /* Handle Operators */\
-  OP_OP(IntsT,this,other,memManager_,mapPrim2Cont);\
-  OP_OP(IntsT,this,other,memManager_,UK);\
-  OP_OP(double,this,other,memManager_,p);\
-  OP_OP(MatsT,this,other,memManager_,X);\
-  OP_OP(MatsT,this,other,memManager_,Y);\
-  OP_OP(MatsT,this,other,memManager_,UL);\
-  OP_OP(MatsT,this,other,memManager_,US);
 
 namespace ChronusQ {
 
@@ -52,36 +38,10 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   template <typename MatsU>
   FourComponent<MatsT,IntsT>::FourComponent(const FourComponent<MatsU,IntsT> &other, int dummy) :
-    CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
-    molecule_(other.molecule_), basisSet_(other.basisSet_),
-    uncontractedBasis_(other.uncontractedBasis_),
-    uncontractedInts_(other.uncontractedInts_),
-    nPrimUse_(other.nPrimUse_),
-    W(other.W ? std::make_shared<SquareMatrix<MatsT>>(*other.W) : nullptr) {
-
-    FOURCOMP_COLLECTIVE_OP(COPY_OTHER_MEMBER_OP, COPY_OTHER_MEMBER_VEC_OP)
-
-  }
+    CoreHBuilder<MatsT,IntsT>(other) {}
 
   template <typename MatsT, typename IntsT>
   template <typename MatsU>
   FourComponent<MatsT,IntsT>::FourComponent(FourComponent<MatsU,IntsT> &&other, int dummy) :
-    CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
-    molecule_(other.molecule_), basisSet_(other.basisSet_),
-    uncontractedBasis_(other.uncontractedBasis_),
-    uncontractedInts_(other.uncontractedInts_),
-    nPrimUse_(other.nPrimUse_),
-    W(other.W ? std::make_shared<SquareMatrix<MatsT>>(*other.W) : nullptr) {
-
-    FOURCOMP_COLLECTIVE_OP(MOVE_OTHER_MEMBER_OP, MOVE_OTHER_MEMBER_VEC_OP)
-
-  }
-
-
-  template <typename MatsT, typename IntsT>
-  void FourComponent<MatsT,IntsT>::dealloc() {
-
-    FOURCOMP_COLLECTIVE_OP(DEALLOC_OP_5, DEALLOC_VEC_OP_5)
-
-  }
+    CoreHBuilder<MatsT,IntsT>(other) {}
 }

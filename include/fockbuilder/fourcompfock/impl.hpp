@@ -2667,6 +2667,18 @@ namespace ChronusQ {
   }; // FourCompFock<MatsT, IntsT>::formGDInCore
 
 
+  template <>
+  void FourCompFock<double,double>::formGDInCore(SingleSlater<double,double> &ss,
+                                                 EMPerturbation &pert, bool increment, double xHFX) {
+    CErr("Real number Four-Component NYI.");
+  }
+
+
+  template <>
+  void FourCompFock<dcomplex,dcomplex>::formGDInCore(SingleSlater<dcomplex,dcomplex> &ss,
+                                                     EMPerturbation &pert, bool increment, double xHFX) {
+    CErr("Complex integral Four-Component NYI.");
+  }
 
 
 
