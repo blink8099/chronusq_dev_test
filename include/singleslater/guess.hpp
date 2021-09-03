@@ -26,8 +26,7 @@
 #include <singleslater.hpp>
 #include <cqlinalg.hpp>
 #include <util/matout.hpp>
-#include <corehbuilder/nonrel.hpp>
-#include <corehbuilder/x2c.hpp>
+#include <fockbuilder/matrixfock.hpp>
 #include <particleintegrals/twopints/incore4indextpi.hpp>
 #include <wavefunction/base.hpp>
 
@@ -157,15 +156,23 @@ namespace ChronusQ {
       std::cout << "  *** Forming Initial Guess Density for SCF Procedure ***"
                 << std::endl << std::endl;
 
-    if( this->molecule().nAtoms == 1  and scfControls.guess == SAD ) {
-      CoreGuess();
-    } else if( scfControls.guess == CORE ) CoreGuess();
-    else if( scfControls.guess == SAD ) SADGuess(ssOptions);
-    else if( scfControls.guess == RANDOM ) RandomGuess();
-    else if( scfControls.guess == READMO ) ReadGuessMO();
-    else if( scfControls.guess == READDEN ) ReadGuess1PDM();
-    else if( scfControls.guess == FCHKMO ) FchkGuessMO();
-    else CErr("Unknown choice for SCF.GUESS",std::cout);
+    if (std::dynamic_pointer_cast<MatrixFock<MatsT,IntsT>>(fockBuilder)) {
+
+      EMPerturbation emPert;
+      fockBuilder->formFock(*this, emPert, false, 0.0);
+
+    } else {
+
+      if( this->molecule().nAtoms == 1  and scfControls.guess == SAD ) {
+        CoreGuess();
+      } else if( scfControls.guess == CORE ) CoreGuess();
+      else if( scfControls.guess == SAD ) SADGuess(ssOptions);
+      else if( scfControls.guess == RANDOM ) RandomGuess();
+      else if( scfControls.guess == READMO ) ReadGuessMO();
+      else if( scfControls.guess == READDEN ) ReadGuess1PDM();
+      else if( scfControls.guess == FCHKMO ) FchkGuessMO();
+      else CErr("Unknown choice for SCF.GUESS",std::cout);
+    }
 
 
     // Common to all guess: form new set of orbitals from

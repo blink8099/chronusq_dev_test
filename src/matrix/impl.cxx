@@ -32,11 +32,45 @@ namespace ChronusQ {
   template class PauliSpinorSquareMatrices<double>;
   template class PauliSpinorSquareMatrices<dcomplex>;
 
+  /**
+   *  \brief The pointer convertor. This static function converts
+   *  the underlying polymorphism correctly to hold a different
+   *  type of matrices. It is called when the corresponding
+   *  SingleSlater object is being converted.
+   */
+  template <typename IntsT>
+  template <typename IntsU>
+  std::shared_ptr<SquareMatrix<IntsU>>
+  SquareMatrix<IntsT>::convert(const std::shared_ptr<SquareMatrix<IntsT>> &mat) {
+
+    if (not mat) return nullptr;
+
+    const std::type_info &tID(typeid(*mat));
+
+    if (tID == typeid(SquareMatrix<IntsT>)) {
+      return std::make_shared<SquareMatrix<IntsU>>(*mat);
+
+    } else if (tID == typeid(PauliSpinorSquareMatrices<IntsT>)) {
+      return std::make_shared<PauliSpinorSquareMatrices<IntsU>>(
+          *std::dynamic_pointer_cast<PauliSpinorSquareMatrices<IntsT>>(mat));
+
+    } else {
+      std::stringstream errMsg;
+      errMsg << "SquareMatrix implementation \"" << tID.name()
+             << "\" not registered in convert." << std::endl;
+      CErr(errMsg.str(),std::cout);
+    }
+
+    return nullptr;
+
+  }
+
   template <typename MatsT>
   std::ostream& operator<<(std::ostream &out, const SquareMatrix<MatsT> &mat) {
     mat.output(out);
     return out;
   }
+
   template std::ostream& operator<<(std::ostream&, const SquareMatrix<double>&);
   template std::ostream& operator<<(std::ostream&, const SquareMatrix<dcomplex>&);
 

@@ -104,6 +104,15 @@ TEST( X2CHF, NeHeH_fracZ_sto3G ) {
 
 };
 
+// UPu 183+ fock-X2C test
+TEST( X2CHF, UPu_183plus_DCGGS_fockX2C ) {
+
+  CQSCFTEST( "scf/serial/x2c/UPu_183+_P_DCGGS_fockX2C",
+             "UPu_183+_P_DCGGS_fockX2C.bin.ref",1e-8,
+             false, false, false, false, false, true );
+
+};
+
 #ifdef _CQ_DO_PARTESTS
 
 // SMP Water 6-311+G(d,p) (Spherical) test
@@ -143,6 +152,15 @@ TEST( X2CHF, PAR_AgBr_sto3g_DLU_X2C ) {
 
   CQSCFTEST( "scf/parallel/x2c/AgBr_sto-3g_DLU",
     "AgBr_sto-3g_DLU.bin.ref",1e-6 );
+
+};
+
+// UPu 183+ fock-X2C test
+TEST( X2CHF, PAR_UPu_183plus_DCGGS_fockX2C ) {
+
+  CQSCFTEST( "scf/parallel/x2c/UPu_183+_P_DCGGS_fockX2C",
+             "UPu_183+_P_DCGGS_fockX2C.bin.ref",1e-8,
+             false, false, false, false, false, true );
 
 };
 

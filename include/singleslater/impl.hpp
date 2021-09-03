@@ -27,7 +27,6 @@
 #include <util/preprocessor.hpp>
 #include <quantum/preprocessor.hpp>
 #include <corehbuilder/impl.hpp>
-#include <particleintegrals/squarematrix/impl.hpp>
 #include <particleintegrals/twopints/impl.hpp>
 #include <fockbuilder/rofock.hpp>
 #include <fockbuilder/fourcompfock.hpp>

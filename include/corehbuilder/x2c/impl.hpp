@@ -33,8 +33,6 @@
   OP_OP(IntsT,this,other,memManager_,mapPrim2Cont);\
   OP_OP(IntsT,this,other,memManager_,UK);\
   OP_OP(double,this,other,memManager_,p);\
-  OP_OP(MatsT,this,other,memManager_,X);\
-  OP_OP(MatsT,this,other,memManager_,Y);\
   OP_OP(MatsT,this,other,memManager_,UL);\
   OP_OP(MatsT,this,other,memManager_,US);
 
@@ -52,7 +50,8 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   template <typename MatsU>
   X2C<MatsT,IntsT>::X2C(const X2C<MatsU,IntsT> &other, int dummy) :
-    CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
+    aoints_(other.aoints_), ssOptions_(other.ssOptions_),
+    memManager_(other.memManager_),
     molecule_(other.molecule_), basisSet_(other.basisSet_),
     uncontractedBasis_(other.uncontractedBasis_),
     uncontractedInts_(other.uncontractedInts_),
@@ -66,7 +65,8 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   template <typename MatsU>
   X2C<MatsT,IntsT>::X2C(X2C<MatsU,IntsT> &&other, int dummy) :
-    CoreHBuilder<MatsT,IntsT>(other), memManager_(other.memManager_),
+    aoints_(other.aoints_), ssOptions_(other.ssOptions_),
+    memManager_(other.memManager_),
     molecule_(other.molecule_), basisSet_(other.basisSet_),
     uncontractedBasis_(other.uncontractedBasis_),
     uncontractedInts_(other.uncontractedInts_),

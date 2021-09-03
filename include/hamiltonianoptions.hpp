@@ -30,6 +30,8 @@ namespace ChronusQ {
 
   enum KineticBalance {RKBPauli, RKBSpinor, UKBScalar};
 
+  enum class X2C_TYPE {OFF, ONEE, TWOE, FOCK};
+
   struct ATOMIC_X2C_TYPE {
     bool isolateAtom;  ///< If atomic OEI feel only the basis origin nuclei potential
     bool diagonalOnly; ///< If only diagonal blocks of Hamiltonian are X2C corrected
@@ -77,6 +79,7 @@ namespace ChronusQ {
     bool PerturbativeSpinOrbit = false; // Add perturbative spin-orbit
 
     // Two-Component Options
+    X2C_TYPE x2cType = X2C_TYPE::OFF; //Type of X2C
     bool OneEScalarRelativity = true; //scalar relativity
     bool OneESpinOrbit = true; //spin-orbit relativity
     bool Boettger = true; // Use Boetteger factor to scale one-electron spin-orbit

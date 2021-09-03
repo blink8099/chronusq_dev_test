@@ -32,46 +32,42 @@ namespace ChronusQ {
    * \brief The FourCompFock class
    */
   template <typename MatsT, typename IntsT>
-  class FourCompFock : public FockBuilder<MatsT,IntsT> {
+  class MatrixFock : public FockBuilder<MatsT,IntsT> {
+
+    template <typename MatsU, typename IntsU>
+    friend class MatrixFock;
+
+  protected:
+
+    PauliSpinorSquareMatrices<MatsT> fockMatrix;
+
   public:
 
     // Constructors
-    FourCompFock() = delete;
-    FourCompFock(HamiltonianOptions hamiltonianOptions):
-        FockBuilder<MatsT,IntsT>(hamiltonianOptions) {}
+    MatrixFock() = delete;
+    MatrixFock(HamiltonianOptions hamiltonianOptions,
+               const PauliSpinorSquareMatrices<MatsT> &matrix):
+        FockBuilder<MatsT,IntsT>(hamiltonianOptions),
+        fockMatrix(matrix) {}
+    MatrixFock(HamiltonianOptions hamiltonianOptions,
+               PauliSpinorSquareMatrices<MatsT> &&matrix):
+        FockBuilder<MatsT,IntsT>(hamiltonianOptions),
+        fockMatrix(matrix) {}
 
     // Different type
     template <typename MatsU>
-    FourCompFock(const FourCompFock<MatsU,IntsT> &other):
-        FockBuilder<MatsT,IntsT>(other){}
+    MatrixFock(const MatrixFock<MatsU,IntsT> &other):
+    FockBuilder<MatsT,IntsT>(other), fockMatrix(other.fockMatrix){}
     template <typename MatsU>
-    FourCompFock(FourCompFock<MatsU,IntsT> &&other):
-        FockBuilder<MatsT,IntsT>(other){}
+    MatrixFock(MatrixFock<MatsU,IntsT> &&other):
+    FockBuilder<MatsT,IntsT>(other), fockMatrix(std::move(other.fockMatrix)){}
 
     // Virtual destructor
-    virtual ~FourCompFock() {}
-
-
-    // Public member functions
-
-    // Specialized formGD function for the 4C Hamiltonian 
-    // (see include/fockbuilder/fourcompfock/impl.hpp)
-    void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
-    void formGDInCore(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
-    void formGDDirect(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
-    void formGD3Index(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
+    virtual ~MatrixFock() {}
 
     // Form a fock matrix (see include/fockbuilder/impl.hpp for docs)
     virtual void formFock(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
 
-    // Compute the gradient
-    virtual void getGrad() {
-      CErr("4CHF Fock gradient NYI",std::cout);
-    }
+  };
 
-
-  };  
-  
-  
 }
-

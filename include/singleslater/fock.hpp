@@ -25,7 +25,6 @@
 
 #include <singleslater.hpp>
 #include <corehbuilder.hpp>
-#include <corehbuilder/x2c.hpp>
 #include <fockbuilder.hpp>
 #include <physcon.hpp>
 
@@ -111,7 +110,7 @@ namespace ChronusQ {
     // non-relativistic one electron integrals for contracted basis functions.
     // Relativistic integrals will be computed for uncontracted basis functions
     // in X2C CoreHBuilder.
-    if (std::dynamic_pointer_cast<X2C<MatsT,IntsT>>(coreHBuilder)) {
+    if (hamiltonianOptions.x2cType != X2C_TYPE::OFF) {
       hamiltonianOptions.OneEScalarRelativity = false;
       hamiltonianOptions.OneESpinOrbit = false;
     }

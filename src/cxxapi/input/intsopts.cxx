@@ -58,7 +58,7 @@ namespace ChronusQ {
       "RIGENCONTR",   // True or False
       "RIBUILD4INDEX",// True or False
       "FINITENUCLEI", // True or False
-      "NONRELCOULOMB",// True or False
+      "BARECOULOMB",  // True or False
       "DC",           // True or False
       "DIRACCOULOMB", // True or False
       "BREIT",        // True or False

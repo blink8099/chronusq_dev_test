@@ -26,15 +26,24 @@
 #include <corehbuilder.hpp>
 #include <corehbuilder/nonrel.hpp>
 #include <corehbuilder/nonrel/impl.hpp>
-#include <corehbuilder/x2c.hpp>
 #include <corehbuilder/fourcomp.hpp>
 #include <corehbuilder/fourcomp/impl.hpp>
+#include <corehbuilder/matrixcoreh.hpp>
 
 #include <typeinfo>
 #include <memory>
 
 
 namespace ChronusQ {
+
+  template <typename MatsT, typename IntsT>
+  void MatrixCoreH<MatsT,IntsT>::computeCoreH(EMPerturbation&,
+      std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH) {
+
+    *coreH = coreHMatrix;
+
+  }
+
 
   /**
    *  \brief The pointer convertor. This static function converts
@@ -55,13 +64,13 @@ namespace ChronusQ {
       return std::make_shared<NRCoreH<MatsU,IntsT>>(
                *std::dynamic_pointer_cast<NRCoreH<MatsT,IntsT>>(ch));
 
-    } else if (tID == typeid(X2C<MatsT,IntsT>)) {
-      return std::make_shared<X2C<MatsU,IntsT>>(
-               *std::dynamic_pointer_cast<X2C<MatsT,IntsT>>(ch));
-
     } else if (tID == typeid(FourComponent<MatsT,IntsT>)) {
       return std::make_shared<FourComponent<MatsU,IntsT>>(
                *std::dynamic_pointer_cast<FourComponent<MatsT,IntsT>>(ch));
+
+    } else if (tID == typeid(MatrixCoreH<MatsT,IntsT>)) {
+      return std::make_shared<MatrixCoreH<MatsU,IntsT>>(
+               *std::dynamic_pointer_cast<MatrixCoreH<MatsT,IntsT>>(ch));
 
     } else {
       std::stringstream errMsg;

@@ -50,6 +50,10 @@
 
 #include <physcon.hpp>
 
+#include <corehbuilder/x2c.hpp>
+#include <corehbuilder/nonrel.hpp>
+#include <fockbuilder/matrixfock.hpp>
+
 
 //#include <cubegen.hpp>
 
@@ -58,6 +62,12 @@ namespace ChronusQ {
 #ifdef ENABLE_BCAST_COUNTER
   int bcastCounter = 0;
 #endif
+
+  template <typename MatsT>
+  void GatherUSpin(const SquareMatrix<MatsT> &UL, const SquareMatrix<MatsT> &US, MatsT *U);
+
+  template <typename MatsT>
+  void ReOrganizeMOSpin(const SquareMatrix<MatsT> &moSpin, SquareMatrix<MatsT> &mo);
 
   void RunChronusQ(std::string inFileName,
     std::string outFileName, std::string rstFileName,
@@ -242,6 +252,12 @@ namespace ChronusQ {
 
     if( not jobType.compare("SCF") or not jobType.compare("RT") or 
         not jobType.compare("RESP") or not jobType.compare("CC") ) {
+
+      if (ssOptions.hamiltonianOptions.x2cType != X2C_TYPE::OFF) {
+
+        compute_X2C_CoreH_Fock(*memManager, mol, *basis, aoints, emPert, ss, ssOptions);
+
+      }
 
       ss->formCoreH(emPert);
 
