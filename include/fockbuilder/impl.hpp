@@ -316,6 +316,7 @@ namespace ChronusQ {
       if( std::abs(xHFX) > 1e-12 ) {
 
         KList.emplace_back(mem, NB, hasXY, hasZ);
+        KList.back().clear();
 
         tempCont.push_back(
           {ss.onePDM->S().pointer(), KList.back().S().pointer(), true, EXCHANGE}

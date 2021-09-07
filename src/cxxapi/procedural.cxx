@@ -344,7 +344,7 @@ namespace ChronusQ {
             aoints->computeAOTwoE(*basis, mol, emPert);
             rt->formCoreH(emPert);
             rt->updateAOProperties(t);
-	    return rt->totalEnergy();
+            return rt->totalEnergy();
           };
 
           job = "RT";
