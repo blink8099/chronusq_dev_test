@@ -71,6 +71,20 @@ namespace ChronusQ {
 
     };
 
+    // Two basis constructor
+    GradInts(CQMemManager &mem, size_t nBasis, size_t snBasis, size_t nAtoms):
+        ParticleIntegrals(mem, nBasis), nAtoms_(nAtoms) {
+
+      components_.reserve(3*nAtoms_);
+
+      for (size_t i = 0; i < 3*nAtoms_; i++) {
+        components_.emplace_back(
+          std::make_shared<IntClass<IntsT>>(mem, nBasis, snBasis)
+        );
+      }
+
+    };
+
     // Constructor from a vector of pointers to integrals
     template <template <typename> class IntSubClass>
     GradInts(CQMemManager &mem, size_t nBasis, size_t nAtoms,
@@ -153,9 +167,7 @@ namespace ChronusQ {
         OPERATOR, const HamiltonianOptions&);
 
     virtual void computeAOInts(BasisSet&, BasisSet&, Molecule&, EMPerturbation&,
-        OPERATOR, const HamiltonianOptions&) {
-      CErr("two basis set gradients NYI!");
-    }
+        OPERATOR, const HamiltonianOptions&);
 
     virtual void clear() {
       for (IntPtr& c : components_)

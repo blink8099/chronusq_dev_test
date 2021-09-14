@@ -187,14 +187,14 @@ namespace ChronusQ {
         // Compute the integrals       
         engines[thread_id].compute(shells[s1],shells[s2]);
 
-        // If the integrals were screened, move on to the next batch
-        if(buf_vec[0] == nullptr) continue;
-
         // adds the iOp result of the engine to the iMat matrix 
         //   For non-gradients, iOp and iMat should be the same
         //   For gradients, they can differ
         auto add_shellset_to_mat = [&](size_t iOp, size_t iMat) {
 
+
+          // If the integrals were screened, do nothing
+          if(buf_vec[iOp] == nullptr) return;
 
           // std::cout << "iOp: " << iOp << " iMat: " << iMat << std::endl;
           Eigen::Map<
@@ -1027,6 +1027,23 @@ namespace ChronusQ {
     CErr("Gradient integrals for relativistic operators not yet implemented!");
 
   };
+
+  template <>
+  void GradInts<OnePInts, double>::computeAOInts(BasisSet&, BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+    CErr("Two basis gradients not implemented for OnePInts");
+  };
+  template <>
+  void GradInts<MultipoleInts, double>::computeAOInts(BasisSet&, BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+    CErr("Two basis gradients not implemented for MultipoleInts");
+  };
+  template <>
+  void GradInts<OnePRelInts, double>::computeAOInts(BasisSet&, BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+    CErr("Two basis gradients not implemented for OnePRelInts");
+  };
+
 
   template void Integrals<double>::computeAOOneP(
       CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,

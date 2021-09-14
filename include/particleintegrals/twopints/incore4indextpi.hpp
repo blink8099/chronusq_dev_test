@@ -163,6 +163,7 @@ namespace ChronusQ {
         out << bannerTop << std::endl;
         size_t NB = this->nBasis();
         size_t sNB = this->snBasis();
+        out << "NB: " << NB << " sNB: " << sNB << std::endl;
         out << std::scientific << std::left << std::setprecision(8);
         for(auto i = 0ul; i < NB; i++)
         for(auto j = 0ul; j < NB; j++)

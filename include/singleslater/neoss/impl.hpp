@@ -82,6 +82,15 @@ namespace ChronusQ {
       addSubsystem(label, new_sys, other.interIntegrals.at(label));
     }
 
+    // Copy gradient integrals
+    for( auto& gradSys1: other.gradInterInts ) {
+      for( auto& gradSys2: gradSys1.second ) {
+        auto& label1 = gradSys1.first;
+        gradInterInts.insert({label1, {}});
+        gradInterInts[label1].insert(gradSys2);
+      }
+    }
+
   }; // Other type copy constructor
 
   template <typename MatsT, typename IntsT>
@@ -99,9 +108,67 @@ namespace ChronusQ {
   std::vector<double> NEOSS<MatsT,IntsT>::getGrad(EMPerturbation& pert,
     bool equil, bool saveInts) {
 
+    // Constants and return value
     size_t nAtoms = this->molecule().nAtoms;
     size_t nGrad = 3*nAtoms;
-    std::vector<double> gradient(nGrad, 0.);
+    std::vector<double> gradient(nGrad);
+
+    // Initialize with classical nuclear repulsion
+    for( auto iGrad = 0; iGrad < nGrad; iGrad++ )
+      gradient[iGrad] = this->molecule().nucRepForce[iGrad/3][iGrad%3];
+
+    // Determine the names of the systems to loop over (so we can loop
+    //   over system1 < system2)
+    std::vector<std::string> systemList;
+    if( order_.size() == subsystems.size() ) {
+      systemList.insert(systemList.end(), order_.begin(), order_.end());
+    }
+    else {
+      for( auto& system: subsystems )
+        systemList.push_back(system.first);
+    }
+
+    for( auto& kv: gradInterInts ) {
+      for( auto& kv2: kv.second ) {
+        std::cout << "Out: " << kv.first << " In: " << kv2.first;
+        std::cout << " Val: " << kv2.second.second.get() << std::endl;
+      }
+    }
+
+    // Compute required integrals (intrasystem integrals are handled with
+    //   the subsystem's getGrad call)
+    for( auto iSys = 0; iSys < systemList.size(); iSys++ ) {
+      for( auto jSys = 0; jSys < iSys; jSys++ ) {
+
+        auto& sys1Label = systemList[iSys];
+        auto& sys2Label = systemList[jSys];
+
+        auto& sys1Basis = subsystems[sys1Label]->basisSet();
+        auto& sys2Basis = subsystems[sys2Label]->basisSet();
+
+        bool sys1Left = not gradInterInts[sys1Label][sys2Label].first;
+        auto& gradInt12 = gradInterInts[sys1Label][sys2Label].second;
+
+        HamiltonianOptions options;
+        options.OneEScalarRelativity = false;
+
+        if( sys1Left )
+          gradInt12->computeAOInts(sys1Basis, sys2Basis, this->molecule(),
+            pert, EP_ATTRACTION, options);
+        else
+          gradInt12->computeAOInts(sys2Basis, sys1Basis, this->molecule(),
+            pert, EP_ATTRACTION, options);
+      }
+    }
+
+
+    applyToEach([&](SubSSPtr& ss) {
+        auto localGrad = ss->getGrad(pert, equil, saveInts);
+        for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+          gradient[iGrad] += localGrad[iGrad] - this->molecule().nucRepForce[iGrad/3][iGrad%3];
+        }
+    });
+
     return gradient;
 
   };

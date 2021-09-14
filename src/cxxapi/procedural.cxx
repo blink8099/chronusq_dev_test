@@ -319,6 +319,35 @@ namespace ChronusQ {
           *memManager, basis->nBasis, mol.atoms.size(), ints
         );
 
+        // NEO gradient integrals
+        if( doNEO ) {
+          std::vector<std::shared_ptr<InCore4indexTPI<double>>> pints_g;
+          std::vector<std::shared_ptr<InCore4indexTPI<double>>> epints_g;
+
+          for ( auto i = 0; i < mol.atoms.size() * 3; i++ ) {
+            pints_g.push_back(
+              std::make_shared<InCore4indexTPI<double>>(*memManager, prot_basis->nBasis)
+            );
+            epints_g.push_back(
+              std::make_shared<InCore4indexTPI<double>>(*memManager, basis->nBasis, prot_basis->nBasis)
+            );
+          }
+
+          auto pcasted = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints);
+          pcasted->gradERI = std::make_shared<GradInts<TwoPInts,double>>(
+            *memManager, prot_basis->nBasis, mol.atoms.size(), pints_g
+          );
+
+          auto epcasted = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints);
+          epcasted->gradERI = std::make_shared<GradInts<TwoPInts,double>>(
+            *memManager, basis->nBasis, mol.atoms.size(), epints_g
+          );
+
+          auto neoss_t = std::dynamic_pointer_cast<NEOSS<double,double>>(neoss);
+          neoss_t->addGradientIntegrals("Electronic", "Protonic", epcasted->gradERI, false);
+
+        }
+
 
         if( job == "BOMD" ) {
           if( doTemp and doNEO )
@@ -404,6 +433,21 @@ namespace ChronusQ {
             if(firstStep) ss->formGuess();
             ss->SCF(emPert);
           }
+
+          // DELETE ME
+          // Numerical gradient
+          size_t acc = 8;
+          if ( acc != 0 ) {
+            auto tempss = ss;
+            if( doNEO and doTemp ) {
+              neobase = std::dynamic_pointer_cast<NEOBase>(neoss);
+              tempss = neobase->getSubSSBase("Protonic");
+            }
+            NumGradient grad(input, tempss, basis);
+            // grad.doGrad(acc);
+            grad.eriGrad<double>(acc);
+          }
+
         }
 
         // Run RT job

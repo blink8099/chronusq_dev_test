@@ -142,12 +142,14 @@ namespace ChronusQ {
       EMPerturbation& emPert) {
       TPI->computeAOInts(basis, mol, emPert, ELECTRON_REPULSION,
                          options_);
+      TPI->output(std::cout, "TPI same", true);
     }
 
     virtual void computeAOTwoE(BasisSet& basis, BasisSet& basis2, 
                                Molecule& mol, EMPerturbation& emPert) {
       TPI->computeAOInts(basis, basis2, mol, emPert, EP_ATTRACTION,
                          options_);
+      TPI->output(std::cout, "EPJ", true);
     }
 
     virtual void computeGradInts(CQMemManager&, Molecule&, BasisSet&,

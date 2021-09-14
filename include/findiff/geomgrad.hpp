@@ -41,6 +41,7 @@ namespace ChronusQ {
     Molecule mol;
     std::shared_ptr<BasisSet> basis;
     std::shared_ptr<BasisSet> dfbasis;
+    std::shared_ptr<BasisSet> prot_basis;
     
     size_t nAtoms;
 
@@ -308,8 +309,10 @@ namespace ChronusQ {
       auto res = diff.getResults();
 
       auto NB = basis->nBasis;
+      auto MB = prot_basis ? prot_basis->nBasis : basis->nBasis;
 
       std::cout << " ===  Numerical ERI Gradient  === " << std::endl;
+      std::cout << std::setprecision(10);
       for ( auto iAtom = 0; iAtom < nAtoms; iAtom++ ) {
 
         for ( auto iXYZ = 0; iXYZ < 3; iXYZ++ ) {
@@ -320,14 +323,14 @@ namespace ChronusQ {
 
           for ( auto i = 0, ijkl = 0; i < NB; i++ )
           for ( auto j = 0; j < NB; j++ )
-          for ( auto k = 0; k < NB; k++ )
-          for ( auto l = 0; l < NB; l++, ijkl++ ) {
+          for ( auto k = 0; k < MB; k++ )
+          for ( auto l = 0; l < MB; l++, ijkl++ ) {
             std::cout << "    (" << i << "," << j << "," << k << "," << l << ")";
             std::cout << "    ";
-            if (std::abs(res[iAtom*3 +iXYZ][ijkl]) < 1e-14)
+            if (std::abs(res[iAtom*3 +iXYZ][i + j*NB + k*NB*NB + l*NB*NB*MB]) < 1e-14)
               std::cout << 0.;
             else 
-              std::cout << res[iAtom*3 +iXYZ][ijkl];
+              std::cout << res[iAtom*3 +iXYZ][i + j*NB + k*NB*NB + l*NB*NB*MB];
             std::cout << std::endl;
           }
         }

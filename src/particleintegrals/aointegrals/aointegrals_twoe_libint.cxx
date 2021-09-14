@@ -49,7 +49,8 @@ namespace ChronusQ {
    */
   template <typename InnerFunc>
   void doERIInCore(size_t deriv, std::vector<double*> eris, InnerFunc func,
-    BasisSet &basis, OPERATOR op, const HamiltonianOptions &options) {
+    BasisSet &basis, BasisSet& basis2, OPERATOR op,
+    const HamiltonianOptions &options) {
 
 
     if (op != ELECTRON_REPULSION and op != EP_ATTRACTION)
@@ -65,20 +66,24 @@ namespace ChronusQ {
 
     // Initialize the first engine for the integral evaluation
     engines[0] = libint2::Engine(libint2::Operator::coulomb,
-      basis.maxPrim,basis.maxL,deriv);
+      std::max(basis.maxPrim, basis2.maxPrim),
+      std::max(basis.maxL, basis2.maxL), deriv);
     engines[0].set_precision(0.);
 
     // Copy over the engines to other threads if need be
     for(size_t i = 1; i < nthreads; i++) engines[i] = engines[0];
 
     // Get useful constants
+    bool sameBasis = (&basis == &basis2);
     size_t NB = basis.nBasis;
+    size_t MB = basis2.nBasis;
     size_t NB2 = NB*NB;
-    size_t NB4 = NB2*NB2;
+    size_t MB2 = MB*MB;
+    size_t NB2MB2 = NB2*MB2;
 
     // Clear previous ERIs
     std::for_each(eris.begin(), eris.end(),
-      [&](double* p){std::fill_n(p,NB4,0.);}
+      [&](double* p){std::fill_n(p,NB2MB2,0.);}
     );
 
     //
@@ -94,7 +99,7 @@ namespace ChronusQ {
       const auto& buf_vec = engines[thread_id].results();
 
       size_t n1,n2,n3,n4,i,j,k,l,ijkl,bf1,bf2,bf3,bf4;
-      size_t s4_max;
+      size_t s3_max, s4_max;
       for(size_t s1(0), bf1_s(0), s1234(0); s1 < basis.nShell;
           bf1_s+=n1, s1++) { 
 
@@ -109,14 +114,16 @@ namespace ChronusQ {
         pair1_to_use.init( basis.shells[s1],basis.shells[s2],-2000);
 #endif
 
-      for(size_t s3(0), bf3_s(0); s3 <= s1; bf3_s+=n3, s3++) {
+        s3_max = sameBasis ? s1 : basis2.nShell - 1;
 
-        n3 = basis.shells[s3].size(); // Size of Shell 3
-        s4_max = (s1 == s3) ? s2 : s3; // Determine the unique max of Shell 4
+      for(size_t s3(0), bf3_s(0); s3 <= s3_max ; bf3_s+=n3, s3++) {
+
+        n3 = basis2.shells[s3].size(); // Size of Shell 3
+        s4_max = sameBasis && (s1 == s3) ? s2 : s3; // Determine the unique max of Shell 4
 
       for(size_t s4(0), bf4_s(0); s4 <= s4_max; bf4_s+=n4, s4++, s1234++) {
 
-        n4 = basis.shells[s4].size(); // Size of Shell 4
+        n4 = basis2.shells[s4].size(); // Size of Shell 4
 
 #ifdef __IN_HOUSE_INT__
         libint2::ShellPair pair2_to_use;
@@ -165,6 +172,8 @@ namespace ChronusQ {
 
     InCore4indexTPI<double> &eri4I = *this;
 
+    bool sameBasis = (&basisSet == &basisSet2);
+
     // Lambda that does the computation and placing. This gets called by
     //   doERIInCore
     auto computeAndPlace = [&](size_t sh1, size_t sh2, size_t sh3, size_t sh4,
@@ -177,8 +186,8 @@ namespace ChronusQ {
         libint2::Operator::coulomb, libint2::BraKet::xx_xx, 0>(
         basisSet.shells[sh1],
         basisSet.shells[sh2],
-        basisSet.shells[sh3],
-        basisSet.shells[sh4]
+        basisSet2.shells[sh3],
+        basisSet2.shells[sh4]
       );
 
       const double* results =  engine.results()[0] ;
@@ -188,8 +197,8 @@ namespace ChronusQ {
       auto buff  = RealGTOIntEngine::BottomupHGP(pair1_to_use,pair2_to_use,
         basisSet.shells[sh1],
         basisSet.shells[sh2],
-        basisSet.shells[sh3],
-        basisSet.shells[sh4]
+        basisSet2.shells[sh3],
+        basisSet2.shells[sh4]
       );
 #endif
 
@@ -208,21 +217,25 @@ namespace ChronusQ {
         eri4I(bf2, bf1, bf3, bf4) = results[ijkl];
         // (21 | 43)
         eri4I(bf2, bf1, bf4, bf3) = results[ijkl];
-        // (34 | 12)
-        eri4I(bf3, bf4, bf1, bf2) = results[ijkl];
-        // (43 | 12)
-        eri4I(bf4, bf3, bf1, bf2) = results[ijkl];
-        // (34 | 21)
-        eri4I(bf3, bf4, bf2, bf1) = results[ijkl];
-        // (43 | 21)
-        eri4I(bf4, bf3, bf2, bf1) = results[ijkl];
+
+        // 8-fold symmetry only if left basis is the same as right basis
+        if( sameBasis ) {
+          // (34 | 12)
+          eri4I(bf3, bf4, bf1, bf2) = results[ijkl];
+          // (43 | 12)
+          eri4I(bf4, bf3, bf1, bf2) = results[ijkl];
+          // (34 | 21)
+          eri4I(bf3, bf4, bf2, bf1) = results[ijkl];
+          // (43 | 21)
+          eri4I(bf4, bf3, bf2, bf1) = results[ijkl];
+        }
 
 
       }; // ijkl loop
 
     };
 
-    doERIInCore(0, {TPI}, computeAndPlace, basisSet, op, options);
+    doERIInCore(0, {TPI}, computeAndPlace, basisSet, basisSet2, op, options);
 
 #ifdef __DEBUGERI__
 //#if 1
@@ -2000,7 +2013,8 @@ namespace ChronusQ {
   // Gradient integrals
   template<>
   void GradInts<TwoPInts,double>::computeAOInts(BasisSet& basisSet,
-    Molecule& mol, EMPerturbation&, OPERATOR op, const HamiltonianOptions &options)
+    BasisSet& basisSet2, Molecule& mol, EMPerturbation& pert, OPERATOR op,
+    const HamiltonianOptions &options)
   {
 
     if (std::dynamic_pointer_cast<DirectTPI<double>>(components_[0]))
@@ -2020,8 +2034,10 @@ namespace ChronusQ {
     );
 
     size_t NB = basisSet.nBasis;
-    size_t NB2 = NB * NB;
-    size_t NB3 = NB2 * NB;
+    size_t MB = basisSet2.nBasis;
+    size_t NB2 = NB * MB;
+    size_t NB3 = NB2 * MB;
+    bool sameBasis = (&basisSet == &basisSet2);
 
 
 
@@ -2034,8 +2050,8 @@ namespace ChronusQ {
         libint2::Operator::coulomb, libint2::BraKet::xx_xx, 1>(
         basisSet.shells[sh1],
         basisSet.shells[sh2],
-        basisSet.shells[sh3],
-        basisSet.shells[sh4]
+        basisSet2.shells[sh3],
+        basisSet2.shells[sh4]
       );
 
       const auto& results = engine.results();
@@ -2044,14 +2060,21 @@ namespace ChronusQ {
       std::vector<size_t> ac;
       ac.push_back(basisSet.mapSh2Cen[sh1]);
       ac.push_back(basisSet.mapSh2Cen[sh2]);
-      ac.push_back(basisSet.mapSh2Cen[sh3]);
-      ac.push_back(basisSet.mapSh2Cen[sh4]);
+      ac.push_back(basisSet2.mapSh2Cen[sh3]);
+      ac.push_back(basisSet2.mapSh2Cen[sh4]);
+
+      std::cout << "AC: [";
+      for(auto i = 0; i < 4; i++) std::cout << ac[i] << " ";
+      std::cout << "]";
 
       // Get constants
       size_t NB = basisSet.nBasis;
+      size_t MB = basisSet2.nBasis;
       size_t NB2 = NB * NB;
-      size_t NB3 = NB2 * NB;
+      size_t NB3 = NB2 * MB;
 
+      std::cout << " NB (left): " << NB;
+      std::cout << " MB (right): " << MB << std::endl;
 
       // Place shell quartet into persistent storage with
       // permutational symmetry
@@ -2090,23 +2113,25 @@ namespace ChronusQ {
               eris[3*ac[iC]+iXYZ][bf2 + bf1*NB + bf4*NB2 + bf3*NB3] += results[itot][ijkl];
           } // sh1/2
           
-          if ( sh1 != sh3 || sh2 != sh4 ) {
-            // (34 | 12)
-            eris[3*ac[iC]+iXYZ][bf3 + bf4*NB + bf1*NB2 + bf2*NB3] += results[itot][ijkl];
-
-            if ( sh3 != sh4 )
-              // (43 | 12)
-              eris[3*ac[iC]+iXYZ][bf4 + bf3*NB + bf1*NB2 + bf2*NB3] += results[itot][ijkl];
-
-            if ( sh1 != sh2 ) {
-              // (34 | 21)
-              eris[3*ac[iC]+iXYZ][bf3 + bf4*NB + bf2*NB2 + bf1*NB3] += results[itot][ijkl];
+          if( sameBasis ) {
+            if ( sh1 != sh3 || sh2 != sh4 ) {
+              // (34 | 12)
+              eris[3*ac[iC]+iXYZ][bf3 + bf4*NB + bf1*NB2 + bf2*NB3] += results[itot][ijkl];
 
               if ( sh3 != sh4 )
-                // (43 | 21)
-                eris[3*ac[iC]+iXYZ][bf4 + bf3*NB + bf2*NB2 + bf1*NB3] += results[itot][ijkl];
-            } // sh1/2
-          } // sh1/3 or sh2/4
+                // (43 | 12)
+                eris[3*ac[iC]+iXYZ][bf4 + bf3*NB + bf1*NB2 + bf2*NB3] += results[itot][ijkl];
+
+              if ( sh1 != sh2 ) {
+                // (34 | 21)
+                eris[3*ac[iC]+iXYZ][bf3 + bf4*NB + bf2*NB2 + bf1*NB3] += results[itot][ijkl];
+
+                if ( sh3 != sh4 )
+                  // (43 | 21)
+                  eris[3*ac[iC]+iXYZ][bf4 + bf3*NB + bf2*NB2 + bf1*NB3] += results[itot][ijkl];
+              } // sh1/2
+            } // sh1/3 or sh2/4
+          }
 
         } // ijkl loop
 
@@ -2114,7 +2139,7 @@ namespace ChronusQ {
 
     };
 
-    doERIInCore(1, eris, computeAndPlace, basisSet, op, options);
+    doERIInCore(1, eris, computeAndPlace, basisSet, basisSet2, op, options);
 
 #ifdef __DEBUGERI__
     std::cout << "Two-Electron Integral Derivatives (ERIs)" << std::endl;
@@ -2128,8 +2153,26 @@ namespace ChronusQ {
     };
 #endif
 
+    output(std::cout, "ERI gradient", true);
 
   };
+
+  template<>
+  void GradInts<TwoPInts,double>::computeAOInts(BasisSet& basisSet,
+    Molecule& mol, EMPerturbation& pert, OPERATOR op,
+    const HamiltonianOptions &options)
+  {
+    computeAOInts(basisSet, basisSet, mol, pert, op, options);
+  }
+
+  template<>
+  void GradInts<TwoPInts,dcomplex>::computeAOInts(BasisSet& basisSet,
+    Molecule& mol, EMPerturbation& pert, OPERATOR op,
+    const HamiltonianOptions &options)
+  {
+    CErr("Complex integral gradients not yet implemented!");
+  }
+
 
 }; // namespace ChronusQ
 

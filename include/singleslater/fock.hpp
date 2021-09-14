@@ -260,12 +260,12 @@ namespace ChronusQ {
           );
         }
 
-	pulayGrad.push_back(-0.5*gradVal);
+        pulayGrad.push_back(-0.5*gradVal);
         size_t iAt = iGrad/3;
         size_t iXYZ = iGrad%3;
         gradient[iGrad] = coreGrad[iGrad] + twoEGrad[iGrad] - 0.5*gradVal
                           + this->molecule().nucRepForce[iAt][iXYZ];
-	nucGrad.push_back(this->molecule().nucRepForce[iAt][iXYZ]);
+        nucGrad.push_back(this->molecule().nucRepForce[iAt][iXYZ]);
       }
 
     }

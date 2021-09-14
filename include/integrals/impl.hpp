@@ -189,9 +189,9 @@ namespace ChronusQ {
   // Computes the integrals necessary for the gradients
   template <typename IntsT>
   void Integrals<IntsT>::computeGradInts(CQMemManager &mem,
-      Molecule &mol, BasisSet &basis, EMPerturbation &emPert,
-      const std::vector<std::pair<OPERATOR,size_t>> &ops,
-      const HamiltonianOptions &options) {
+    Molecule &mol, BasisSet &basis, EMPerturbation &emPert,
+    const std::vector<std::pair<OPERATOR,size_t>> &ops,
+    const HamiltonianOptions &options) {
 
     size_t NB = basis.nBasis;
     size_t NAt = mol.nAtoms;

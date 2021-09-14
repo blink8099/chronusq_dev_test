@@ -35,6 +35,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void NumGradient::moveMol(size_t iAtm, size_t iXYZ, double diff) {
 
+    std::cout << "diff: " << diff << std::endl;
     auto ref_t = std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>>(ref_);
     curr_ = nullptr;
 
@@ -43,9 +44,9 @@ namespace ChronusQ {
     mol.update();
 
     basis = CQBasisSetOptions(std::cout,input_,mol,"BASIS");
-    dfbasis = CQBasisSetOptions(std::cout,input_,mol,"DFBASIS");
+    prot_basis = CQBasisSetOptions(std::cout,input_,mol,"PBASIS");
 
-    aoints = CQIntsOptions(std::cout,input_,ref_t->memManager,mol,basis,dfbasis,nullptr);
+    aoints = CQIntsOptions(std::cout,input_,ref_t->memManager,mol,basis,nullptr,prot_basis,"EPINTS");
     curr_ = CQSingleSlaterOptions(std::cout,input_,ref_t->memManager,mol,*basis,aoints);
 
     CQSCFOptions(std::cout,input_,*curr_,emPert);
@@ -164,11 +165,13 @@ namespace ChronusQ {
 
     HamiltonianOptions opt;
     if(auto p = std::dynamic_pointer_cast<Integrals<IntsT>>(aoints))
-      p->TPI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION, opt);
+      p->TPI->computeAOInts(*basis, *prot_basis, mol, emPert, EP_ATTRACTION, opt);
 
     auto NB = basis->nBasis;
+    auto MB = prot_basis != nullptr ? prot_basis->nBasis : basis->nBasis;
     auto NSq = NB*NB;
-    auto NB4 = NSq*NSq;
+    auto MSq = MB*MB;
+    auto NB4 = NSq*MSq;
 
     std::vector<IntsT> results;
 

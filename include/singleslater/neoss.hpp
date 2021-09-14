@@ -82,9 +82,11 @@ namespace ChronusQ {
       //   protonic coulomb potential.
       LabeledMap<LabeledMap<SquareMatrix<MatsT>>> interCoulomb;
 
-      // Two particle intergral objects (same storage scheme as above)
+      // Two particle integral objects (same storage scheme as above)
       // Boolean is contractSecond
       LabeledMap<LabeledMap<std::pair<bool, std::shared_ptr<TwoPInts<IntsT>>>>> interIntegrals;
+      // Two particle gradient integrals
+      LabeledMap<LabeledMap<std::pair<bool, std::shared_ptr<GradInts<TwoPInts,IntsT>>>>> gradInterInts;
 
       // Storage for FockBuilders (determines lifetime)
       LabeledMap<std::vector<std::shared_ptr<FockBuilder<MatsT,IntsT>>>> fockBuilders;
@@ -208,6 +210,27 @@ namespace ChronusQ {
         for( auto& x: subsystems ) {
           x.second->fockBuilder = fockBuilders.at(x.first).back();
         }
+      }
+
+      void addGradientIntegrals(std::string label1, std::string label2,
+        std::shared_ptr<GradInts<TwoPInts,IntsT>> ints, bool contractSecond) {
+
+        gradInterInts.insert({label1, {}});
+        gradInterInts.insert({label2, {}});
+
+        gradInterInts[label1].insert({label2, {contractSecond, ints}});
+        gradInterInts[label2].insert({label1, {not contractSecond, ints}});
+
+        std::cout << "Here ints is: " << ints << std::endl;
+
+        for( auto& kv: gradInterInts ) {
+          std::cout << "Outer key: " << kv.first << std::endl;
+          for( auto& kv2: kv.second ) {
+            std::cout << "Inner key: " << kv2.first << std::endl;
+            std::cout << "Value: " << kv2.second.second.get() << std::endl;
+          }
+        }
+
       }
 
       void setOrder(std::vector<std::string> labels) {
@@ -355,11 +378,11 @@ namespace ChronusQ {
         }
        
       };
+
       void computeSpin() { 
-
-      applyToEach([](SubSSPtr& ss){ ss->computeSpin(); });      
-
+        applyToEach([](SubSSPtr& ss){ ss->computeSpin(); });      
       }
+
       void methodSpecificProperties() { }
 
       // Overrides specific to a NEO-SCF

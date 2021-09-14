@@ -73,4 +73,18 @@ namespace ChronusQ {
     *ss.fockMatrix -= 2. * *outMat;
   }
 
+  template <typename MatsT, typename IntsT>
+  std::vector<double> NEOFockBuilder<MatsT,IntsT>::getGDGrad(
+    SingleSlater<MatsT,IntsT>& ss, EMPerturbation& pert, double xHFX) {
+    if( upstream == nullptr )
+      CErr("Upstream FockBuilder uninitialized in formepJ!");
+
+    size_t nGrad = 3*ss.molecule().nAtoms;
+
+    std::vector<double> gradient = upstream->getGDGrad(ss, pert, xHFX);
+
+    CErr("Ok I made it");
+
+  };
+
 }

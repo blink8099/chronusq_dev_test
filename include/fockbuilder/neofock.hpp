@@ -96,6 +96,9 @@ namespace ChronusQ {
     virtual void formFock(SingleSlater<MatsT,IntsT>&, EMPerturbation&,
       bool increment = false, double xHFX = 1.);
 
+    virtual std::vector<double> getGDGrad(SingleSlater<MatsT,IntsT>&,
+      EMPerturbation&, double xHFX = 1.);
+
   };
 
 }
