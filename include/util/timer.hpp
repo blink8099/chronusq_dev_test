@@ -269,9 +269,9 @@ namespace ChronusQ {
         const std::lock_guard<std::mutex> lock(mutex_);
         if (children_.find(threadId) == children_.end()) {
           std::unordered_map<IdType,std::unique_ptr<TimeSection>> temp;
-          children_.insert({threadId, std::move(temp)});
+          children_.insert(std::move(std::make_pair(threadId, std::move(temp))));
         }
-        children_[threadId].insert({id, std::move(child)});
+        children_[threadId].insert(std::move(std::make_pair(id, std::move(child))));
       }
   
       return id;
