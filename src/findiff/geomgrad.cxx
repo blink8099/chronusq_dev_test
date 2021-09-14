@@ -35,7 +35,6 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void NumGradient::moveMol(size_t iAtm, size_t iXYZ, double diff) {
 
-    std::cout << "diff: " << diff << std::endl;
     auto ref_t = std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>>(ref_);
     curr_ = nullptr;
 

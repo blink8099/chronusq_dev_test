@@ -127,16 +127,6 @@ namespace ChronusQ {
     // Temporary result storage
     std::vector<std::vector<RetT>> resVals;
 
-    // DELETE ME
-    for ( auto &f: changeFuncs_ ) {
-      f(0.*h_);
-      auto _temp = valFunc_();
-      std::cout << "0 movement:" << std::setprecision(8) << std::endl;
-      for( auto &x: _temp ) {
-        std::cout << x << std::endl;
-      }
-    }
-
     // Oth node only necessary for evens
     if ( order_ % 2 == 0 ) {
       for ( auto &f: changeFuncs_ ) {

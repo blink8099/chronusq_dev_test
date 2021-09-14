@@ -128,13 +128,6 @@ namespace ChronusQ {
         systemList.push_back(system.first);
     }
 
-    for( auto& kv: gradInterInts ) {
-      for( auto& kv2: kv.second ) {
-        std::cout << "Out: " << kv.first << " In: " << kv2.first;
-        std::cout << " Val: " << kv2.second.second.get() << std::endl;
-      }
-    }
-
     // Compute required integrals (intrasystem integrals are handled with
     //   the subsystem's getGrad call)
     for( auto iSys = 0; iSys < systemList.size(); iSys++ ) {

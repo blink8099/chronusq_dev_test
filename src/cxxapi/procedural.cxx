@@ -436,7 +436,7 @@ namespace ChronusQ {
 
           // DELETE ME
           // Numerical gradient
-          size_t acc = 8;
+          size_t acc = 0;
           if ( acc != 0 ) {
             auto tempss = ss;
             if( doNEO and doTemp ) {

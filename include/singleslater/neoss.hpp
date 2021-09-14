@@ -220,17 +220,6 @@ namespace ChronusQ {
 
         gradInterInts[label1].insert({label2, {contractSecond, ints}});
         gradInterInts[label2].insert({label1, {not contractSecond, ints}});
-
-        std::cout << "Here ints is: " << ints << std::endl;
-
-        for( auto& kv: gradInterInts ) {
-          std::cout << "Outer key: " << kv.first << std::endl;
-          for( auto& kv2: kv.second ) {
-            std::cout << "Inner key: " << kv2.first << std::endl;
-            std::cout << "Value: " << kv2.second.second.get() << std::endl;
-          }
-        }
-
       }
 
       void setOrder(std::vector<std::string> labels) {

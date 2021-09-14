@@ -2063,18 +2063,11 @@ namespace ChronusQ {
       ac.push_back(basisSet2.mapSh2Cen[sh3]);
       ac.push_back(basisSet2.mapSh2Cen[sh4]);
 
-      std::cout << "AC: [";
-      for(auto i = 0; i < 4; i++) std::cout << ac[i] << " ";
-      std::cout << "]";
-
       // Get constants
       size_t NB = basisSet.nBasis;
       size_t MB = basisSet2.nBasis;
       size_t NB2 = NB * NB;
       size_t NB3 = NB2 * MB;
-
-      std::cout << " NB (left): " << NB;
-      std::cout << " MB (right): " << MB << std::endl;
 
       // Place shell quartet into persistent storage with
       // permutational symmetry
@@ -2153,7 +2146,6 @@ namespace ChronusQ {
     };
 #endif
 
-    output(std::cout, "ERI gradient", true);
 
   };
 
