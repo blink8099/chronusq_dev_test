@@ -68,7 +68,7 @@ namespace ChronusQ {
     // to use the guess Fock and it's not saved anyway.
     if(scfConv.nSCFIter == 0) return;
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
     if( this->nC == 4 ) NB = 2 * NB;
     double dp = scfControls.dampParam;
    
@@ -103,7 +103,7 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::scfDIIS(size_t nExtrap) {
 
     // Save the current AO Fock and density matrices
-    size_t NB    = basisSet().nBasis;
+    size_t NB    = this->basisSet().nBasis;
     if( this->nC == 4 ) NB = 2 * NB;
     size_t iDIIS = scfConv.nSCFIter % scfControls.nKeep;
 
@@ -177,7 +177,7 @@ namespace ChronusQ {
 
     // Allocate memory to store previous orthonormal Fock for damping 
     if( scfControls.doDamp and not savFile.exists() ) {
-      SPIN_OPERATOR_ALLOC(basisSet().nBasis,prevFock);
+      SPIN_OPERATOR_ALLOC(this->basisSet().nBasis,prevFock);
     }
 
   }; // SingleSlater<T>::allocExtrapStorage
@@ -219,7 +219,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::FDCommutator(PauliSpinorSquareMatrices<MatsT> &FDC) {
 
-    size_t NB    = basisSet().nBasis;
+    size_t NB    = this->basisSet().nBasis;
     bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
     if( this->nC == 4 ) NB = 2 * NB;
 

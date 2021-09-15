@@ -184,7 +184,7 @@ namespace ChronusQ {
     // *** Replicates on all MPI processes ***
     if( scfControls.guess == RANDOM ) {
 
-      size_t NB = basisSet().nBasis;
+      size_t NB = this->basisSet().nBasis;
 
       double TS =
         this->template computeOBProperty<double,SCALAR>(this->aoints.overlap->pointer());
@@ -265,7 +265,7 @@ namespace ChronusQ {
       std::cout << "    * Forming the Superposition of Atomic Densities Guess"
                 << " (SAD)\n\n";
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
     EMPerturbation pert;
 
     // Zero out the densities (For all MPI processes)
@@ -352,12 +352,12 @@ namespace ChronusQ {
                   << uniqueElements[iUn].atomicNumber << " as a "
                   << multipName << std::endl;
 
-      BASIS_FUNCTION_TYPE basisType = basisSet().basisType;
+      BASIS_FUNCTION_TYPE basisType = this->basisSet().basisType;
 
       Molecule atom(0,defaultMultip,{ uniqueElements[iUn] });
-      BasisSet basis(basisSet().basisName,
-        basisSet().basisDef, basisSet().inputDef,
-        atom, basisType, basisSet().forceCart, false);
+      BasisSet basis(this->basisSet().basisName,
+        this->basisSet().basisDef, this->basisSet().inputDef,
+        atom, basisType, this->basisSet().forceCart, false);
 
       std::shared_ptr<Integrals<IntsT>> aointsAtom =
           std::make_shared<Integrals<IntsT>>();
@@ -395,7 +395,7 @@ namespace ChronusQ {
         if( mapAtom2Uniq[iAtm] == iUn ) {
           SetMat('N',NBbasis,NBbasis,MatsT(1.),
               ss->onePDM->S().pointer(),NBbasis,
-              this->onePDM->S().pointer() + basisSet().mapCen2BfSt[iAtm]*(1+NB), NB);
+              this->onePDM->S().pointer() + this->basisSet().mapCen2BfSt[iAtm]*(1+NB), NB);
         }
 
     }
@@ -433,7 +433,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::RandomGuess() {
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
 
     // Set up random number generator
     std::random_device rd;
@@ -512,7 +512,7 @@ namespace ChronusQ {
 
 
       // dimension of 1PDM
-      auto NB = basisSet().nBasis;
+      auto NB = this->basisSet().nBasis;
       if( this->nC == 4 ) NB=2*NB;
       auto NB2 = NB*NB;
 
@@ -869,7 +869,7 @@ namespace ChronusQ {
     shellList=fchkToCQMO();
 
     // Dimension of mo1 and mo2
-    auto NB = this->nC * basisSet().nBasis;
+    auto NB = this->nC * this->basisSet().nBasis;
     auto NB2 = NB*NB;
 
     // Reorders shells of mo1 to Chronus ordering

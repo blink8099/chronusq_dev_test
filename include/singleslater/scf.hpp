@@ -378,7 +378,7 @@ namespace ChronusQ {
 
       // Check density convergence
 
-      size_t NB    = basisSet().nBasis;
+      size_t NB    = this->basisSet().nBasis;
       size_t DSize = NB*NB;
       scfConv.RMSDenScalar = 
         TwoNorm<double>(DSize,deltaOnePDM->S().pointer(),1) / NB;
@@ -457,7 +457,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::formDelta() {
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
     if (nC == 4) NB *= 2;
 
     // Compute difference on root MPI process
