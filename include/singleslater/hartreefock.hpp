@@ -48,7 +48,7 @@ namespace ChronusQ {
     HartreeFock(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
                 Integrals<IntsT> &aoi, Args... args) :
       SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...) {
 
       // Append HF tags to reference names
@@ -73,7 +73,7 @@ namespace ChronusQ {
                 CQMemManager &mem, Molecule &mol, BasisSet &basis,
                 Integrals<IntsT> &aoi, Args... args) :
       SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...) {
 
       this->refLongName_  = rL;

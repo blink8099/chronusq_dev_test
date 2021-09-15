@@ -153,7 +153,7 @@ namespace ChronusQ {
 
 
     // Printing
-    bool printMOCoeffs = false;
+    size_t printMOCoeffs = 0;
 
   }; // SCFControls struct
 
@@ -242,8 +242,9 @@ namespace ChronusQ {
 
     SingleSlaterBase() = delete;
 
-    SingleSlaterBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS, Particle p) : 
-      WaveFunctionBase(c, mem,_nC,iCS,p), QuantumBase(c, mem,_nC,iCS,p),
+    SingleSlaterBase(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
+      size_t _nC, bool iCS, Particle p) : 
+      WaveFunctionBase(c, mem,mol,basis,_nC,iCS,p), QuantumBase(c, mem,_nC,iCS,p),
       printLevel((MPIRank(c) == 0) ? 2 : 0) { };
       
 

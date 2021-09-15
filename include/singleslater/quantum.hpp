@@ -278,7 +278,7 @@ namespace ChronusQ {
 
     if( not this->onePDM->hasZ() ) this->SSq = 0;
     else {
-      size_t NB = basisSet().nBasis;
+      size_t NB = this->basisSet().nBasis;
       MatsT * SCR  = this->memManager.template malloc<MatsT>(NB*NB);
       MatsT * SCR2 = this->memManager.template malloc<MatsT>(NB*NB);
 

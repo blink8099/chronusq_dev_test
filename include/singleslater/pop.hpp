@@ -30,7 +30,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::populationAnalysis() {
 
-    const size_t NB = basisSet().nBasis;
+    const size_t NB = this->basisSet().nBasis;
     MatsT* SCR  = this->memManager.template malloc<MatsT>(NB*NB);
     MatsT* SCR2 = this->memManager.template malloc<MatsT>(NB*NB);
 
@@ -51,9 +51,9 @@ namespace ChronusQ {
       if( iAtm == inputMol.nAtoms-1 )
         iEnd = NB;
       else
-        iEnd = basisSet().mapCen2BfSt[iAtm+1];
+        iEnd = this->basisSet().mapCen2BfSt[iAtm+1];
 
-      size_t iSt = basisSet().mapCen2BfSt[iAtm];
+      size_t iSt = this->basisSet().mapCen2BfSt[iAtm];
 
       mullikenCharges.emplace_back(inputMol.atoms[iAtm].nucCharge);
       for(auto i = iSt; i < iEnd; i++)
@@ -76,9 +76,9 @@ namespace ChronusQ {
       if( iAtm == inputMol.nAtoms-1 )
         iEnd = NB;
       else
-        iEnd = basisSet().mapCen2BfSt[iAtm+1];
+        iEnd = this->basisSet().mapCen2BfSt[iAtm+1];
 
-      size_t iSt = basisSet().mapCen2BfSt[iAtm];
+      size_t iSt = this->basisSet().mapCen2BfSt[iAtm];
 
       lowdinCharges.emplace_back(inputMol.atoms[iAtm].nucCharge);
       for(auto i = iSt; i < iEnd; i++)

@@ -49,6 +49,8 @@ namespace ChronusQ {
   public:
     // Member data
 
+    Molecule &molecule_; ///< A reference of the Molecule
+    BasisSet &basisSet_; ///< BasisSet for the GTO basis defintion
 
     size_t nO;  ///< Total number of occupied orbitals
     size_t nV;  ///< Total number of virtual orbitals
@@ -74,8 +76,15 @@ namespace ChronusQ {
      *  \param [in] _nC  Number of spin components (1 and 2 are supported)
      *  \param [in] iCS  Whether or not to treat as closed shell
      */ 
-    WaveFunctionBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS, Particle p) : 
-      QuantumBase(c, mem,_nC,iCS,p) { }; // WaveFunctionBase ctor 
+    WaveFunctionBase(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
+      size_t _nC, bool iCS, Particle p) : 
+      QuantumBase(c, mem,_nC,iCS,p), 
+      molecule_(mol), basisSet_(basis) 
+      { }; // WaveFunctionBase ctor 
+
+    // Member Functions
+    Molecule& molecule() { return molecule_; }
+    BasisSet& basisSet() { return basisSet_; }
 
     size_t nAlphaOrbital() const { return nOA + nVA; }
     size_t nBetaOrbital() const { return nOB + nVB; }
@@ -83,8 +92,7 @@ namespace ChronusQ {
     // Print Functions
     virtual void printMO(std::ostream&)  = 0;
     virtual void printEPS(std::ostream&) = 0;
-
-    virtual void printMOInfo(std::ostream&) = 0;
+    virtual void printMOInfo(std::ostream&, size_t a = 0) = 0;
 
     // MO swap functions
     virtual void swapMOs(std::vector<std::vector<std::pair<size_t, size_t>>>&, SpinType sp) = 0;

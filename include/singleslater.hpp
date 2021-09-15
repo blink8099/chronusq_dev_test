@@ -65,7 +65,7 @@ namespace ChronusQ {
     typedef std::vector<oper_t>       oper_t_coll;
     typedef std::vector<oper_t_coll>  oper_t_coll2;
 
-    BasisSet &basisSet_; ///< BasisSet for the GTO basis defintion
+    //BasisSet &basisSet_; ///< BasisSet for the GTO basis defintion
 
   private:
   public:
@@ -141,10 +141,11 @@ namespace ChronusQ {
     template <typename... Args>
     SingleSlater(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
                  Integrals<IntsT> &aoi, Args... args) :
-      SingleSlaterBase(c,mem,args...), WaveFunctionBase(c,mem,args...),
+      SingleSlaterBase(c,mem,mol,basis,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...),
-      WaveFunction<MatsT,IntsT>(c,mem,mol,basis.nBasis,aoi,args...),
-      basisSet_(basis)
+      WaveFunction<MatsT,IntsT>(c,mem,mol,basis,aoi,args...)
+      //, basisSet_(basis)
       //, coreType(NON_RELATIVISTIC), orthoType(LOWDIN)
     {
       // Allocate SingleSlater Object
@@ -186,7 +187,7 @@ namespace ChronusQ {
 
     // Public Member functions
 
-    BasisSet& basisSet() { return basisSet_; }
+    //BasisSet& basisSet() { return basisSet_; }
       
       
 
@@ -273,7 +274,8 @@ namespace ChronusQ {
     void printJ(std::ostream&)        ;
     void printK(std::ostream&)        ;
     void printMiscProperties(std::ostream&);
-    void printMOInfo(std::ostream&); 
+    void printEPS(std::ostream&);
+    void printMOInfo(std::ostream&, size_t a = 0); 
     virtual void printFockTimings(std::ostream&);
 
     // SCF extrapolation functions (see include/singleslater/extrap.hpp for docs)

@@ -81,7 +81,7 @@ namespace ChronusQ {
       CQMemManager &mem, Molecule &mol, BasisSet &basis,
       Integrals<IntsT> &aoi, Args... args) : 
       SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...), isGGA_(false),
       functionals(std::move(funclist)),intParam(ip){ 
 
@@ -118,7 +118,7 @@ namespace ChronusQ {
       CQMemManager &mem, Molecule &mol, BasisSet &basis,
       Integrals<IntsT> &aoi, Args... args) : 
       SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...), isGGA_(false),
       functionals(std::move(funclist)),intParam(ip) { 
 

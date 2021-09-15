@@ -78,10 +78,10 @@ namespace ChronusQ {
     if( coreH != nullptr )
       CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
     if( nC == 4 ) NB = 2 * NB;
 
-    if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
+    if(not iCS and nC == 1 and this->basisSet().basisType == COMPLEX_GIAO)
       coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
     else if(nC == 2 or nC == 4)
       coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
@@ -116,7 +116,7 @@ namespace ChronusQ {
     }
 
     this->aoints.computeAOOneP(memManager,this->molecule(),
-        basisSet(),emPert, ops, hamiltonianOptions); // compute the necessary 1e ints
+        this->basisSet(),emPert, ops, hamiltonianOptions); // compute the necessary 1e ints
 
     // Compute core Hamiltonian
     coreHBuilder->computeCoreH(emPert,coreH);
@@ -154,7 +154,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT> 
   void SingleSlater<MatsT,IntsT>::computeOrtho() {
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
     if( nC == 4 ) NB = 2 * NB;
     size_t nSQ  = NB*NB;
 

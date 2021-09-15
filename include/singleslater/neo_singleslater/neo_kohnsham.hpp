@@ -64,7 +64,7 @@ namespace ChronusQ {
       std::string funcName, std::vector<std::shared_ptr<DFTFunctional>> funclist,
       MPI_Comm c, IntegrationParam ip, CQMemManager &mem, Molecule &mol, 
       BasisSet &basis, Integrals<IntsT> &aoi, Args... args) :
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...),
       NEOSingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
       KohnSham<MatsT,IntsT>(funcName,funclist,c,ip,mem,mol,basis,aoi,args...),
@@ -79,7 +79,7 @@ namespace ChronusQ {
       std::string rL, std::string rS, MPI_Comm c, IntegrationParam ip, 
       CQMemManager &mem, Molecule &mol, 
       BasisSet &basis, Integrals<IntsT> &aoi, Args... args) :
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...),
       NEOSingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
       KohnSham<MatsT,IntsT>(rL,rS,funcName,funclist,c,ip,mem,mol,basis,aoi,args...),
