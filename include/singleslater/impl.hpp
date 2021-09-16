@@ -215,7 +215,7 @@ namespace ChronusQ {
     deltaOnePDM = nullptr;
 
   }; // SingleSlater<MatsT>::dealloc
-
+ 
 }; // namespace ChronusQ
 
 

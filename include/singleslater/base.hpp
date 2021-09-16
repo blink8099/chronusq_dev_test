@@ -298,7 +298,8 @@ namespace ChronusQ {
     virtual void printK(std::ostream&)         = 0;
 
     virtual void printFockTimings(std::ostream&) = 0;
-
+    
+    virtual void MOIntTransformationTest(EMPerturbation &pert) = 0;
     // Procedural Functions to be shared among all derived classes
       
     // Perform an SCF procedure (see include/singleslater/scf.hpp for docs)

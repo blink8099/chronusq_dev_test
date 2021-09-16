@@ -762,6 +762,37 @@ namespace ChronusQ {
 
 
 
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::MOIntsTransformationTest(EMPerturbation &pert) {
+    
+    // test on MO integral transfromations
+    MOIntsTransformer<MatsT, IntsT> TF(memManager, SSFOCK_N6);  
+    TF.setMORanges(*this, 0, 0);  
+
+    std::cout << "\n --------- Test on MO Ints Transformation----- \n" << std::endl;
+
+    size_t NB  = this->nAlphaOrbital() * nC;
+    size_t nMO = (this->nC == 4) ? NB / 2: NB;
+
+    InCore4indexTPI<MatsT> ASYMERI(memManager, nMO); 
+    TF.transformERI(*this, pert, ASYMERI.pointer());
+
+    OnePInts<MatsT> hCore(memManager, nMO); 
+    TF.transformHCore(*this, hCore.pointer());
+
+    MatsT SCFEnergy = MatsT(0.);
+    size_t off = (this->nC == 4) ? NB / 2: 0;
+    for (auto i = 0; i < this->nO; i++) {
+      SCFEnergy += hCore(i, i);
+      for (auto j = 0; j < this->nO; j++)
+        SCFEnergy += 0.5 * ASYMERI(i, i, j, j); 
+    }
+
+    std::cout << "SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
+
+    std::cout << "\n --------- End of the Test (on MO Ints Transformation)----- \n" << std::endl;
+  }; // SingleSlater<MatsT>::MOIntTransformationTest
+  
 
   /**
    *  \brief Reorthogonalize the MOs wrt overlap

@@ -127,7 +127,6 @@ namespace ChronusQ {
     std::vector<double> lowdinCharges;
 
 
-
     // Constructors
       
     /**
@@ -292,9 +291,9 @@ namespace ChronusQ {
     void fockDamping();
     void scfDIIS(size_t);
 
-
-
-
+    // Method to produce a test on integral transformation 
+    void MOIntsTransformationTest(EMPerturbation &);
+    
     // MO Transformations
     void MOFOCK();
 
@@ -305,6 +304,7 @@ namespace ChronusQ {
 // Include declaration of CoreHBuilder and FockBuilder
 #include <corehbuilder.hpp>
 #include <fockbuilder.hpp>
+#include <mointstransformer.hpp>
 
 // Include headers for specializations of SingleSlater
 #include <singleslater/hartreefock.hpp> // HF specialization

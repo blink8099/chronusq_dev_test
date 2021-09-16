@@ -24,6 +24,7 @@
 #include <singleslater/impl.hpp>
 #include <corehbuilder/impl.hpp>
 #include <fockbuilder/impl.hpp>
+#include <mointstransformer/impl.hpp>
 
 namespace ChronusQ {
 
