@@ -65,6 +65,16 @@ TEST( X2CHF, Cd_SAP_DZP_DKH3_2012_SP  ) {
  
 };
 
+// Cd SAPPORO DZP DKH_2012 SP with real UHF guess
+TEST( X2CHF, Cd_SAP_DZP_DKH3_2012_SP_UHFGuess  ) {
+
+  CQSCFTEST( "scf/serial/x2c/cd_sap_dz_dkh3_2012_sp_UHFGuess",
+    "cd_sap_dz_dkh3_2012_sp_UHFGuess.bin.ref",1e-6,
+    true, true, true, true, true, true, false,
+    "cd_sap_dz_dkh3_2012_sp_UHF.scr.bin" );
+
+};
+
 // Ag2 sto-3g ALH X2C
 TEST( X2CHF, Ag2_sto3g_ALH_X2C ) {
 

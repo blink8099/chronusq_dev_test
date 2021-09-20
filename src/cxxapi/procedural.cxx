@@ -219,8 +219,12 @@ namespace ChronusQ {
 
     bool rstExists = false;
     if( ss->scfControls.guess == READMO or 
-        ss->scfControls.guess == READDEN ) 
+        ss->scfControls.guess == READDEN and
+        scrFileName.empty() )
       rstExists = true;
+    else if( ss->scfControls.guess == READDEN
+        and not scrFileName.empty() )
+      ss->scrBinFileName = scrFileName;
     if( ss->scfControls.guess == FCHKMO )
       ss->fchkFileName = scrFileName;
 
