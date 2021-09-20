@@ -219,6 +219,9 @@ namespace ChronusQ {
 
     // Fchk File
     std::string fchkFileName;
+
+    // Scratch Bin File
+    std::string scrBinFileName;
        
     // Print Controls
     size_t printLevel; ///< Print Level

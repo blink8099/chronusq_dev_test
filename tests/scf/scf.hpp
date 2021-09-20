@@ -40,14 +40,16 @@ static void CQNORMALSCF( std::string in, std::string ref ) {
 
 #ifdef _CQ_GENERATE_TESTS
 
-  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
-    SCF_TEST_REF + ref, TEST_OUT + in + ".scr");
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
+    SCF_TEST_REF + ref, "");
 
 #else
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
     TEST_OUT + in + ".bin",
-    TEST_OUT + in + ".scr");
+    "");
 
 #endif
 
@@ -58,7 +60,7 @@ static void CQBINSCF( std::string in, std::string ref ) {
 #ifdef _CQ_GENERATE_TESTS
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
-    SCF_TEST_REF + ref, TEST_OUT + in + ".scr");
+    SCF_TEST_REF + ref, "");
 
 #else
 
@@ -69,24 +71,24 @@ static void CQBINSCF( std::string in, std::string ref ) {
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
     TEST_OUT + in + ".bin",
-    TEST_OUT + in + ".scr");
+    "");
 
 #endif
 
 };
 
-static void CQFCHKSCF( std::string in, std::string ref, std::string fchk ) {
+static void CQSCRSCF( std::string in, std::string ref, std::string scr ) {
 
 #ifdef _CQ_GENERATE_TESTS
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
-    SCF_TEST_REF + ref, SCF_TEST_REF + fchk);
+    SCF_TEST_REF + ref, SCF_TEST_REF + scr);
 
 #else
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT",
     TEST_OUT + in + ".bin",
-    SCF_TEST_REF + fchk);
+    SCF_TEST_REF + scr);
 
 #endif
 
@@ -101,13 +103,13 @@ static void CQSCFTEST( std::string in, std::string ref,
   bool checkDipLen  = true,
   bool checkEne     = true,
   bool readBin      = false,
-  std::string fchk  = "no" ) {
+  std::string scr  = "no" ) {
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  if( !readBin and fchk=="no" ) CQNORMALSCF(in,ref);
+  if( !readBin and scr=="no" ) CQNORMALSCF(in,ref);
   else if( readBin ) CQBINSCF(in,ref);
-  else CQFCHKSCF(in,ref,fchk);
+  else CQSCRSCF(in,ref,scr);
 
   MPI_Barrier(MPI_COMM_WORLD);
   if(MPIRank(MPI_COMM_WORLD) != 0) return;

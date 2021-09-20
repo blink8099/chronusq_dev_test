@@ -231,7 +231,13 @@ namespace ChronusQ {
     void ReadGuess1PDM();
     void FchkGuessMO();
 
-    // Fchk-related functions 
+    // ReadGuess1PDM functions
+    void readSameTypeDenBin();
+    void readDiffTypeDenBin(std::string binName);
+    template <typename ScrMatsT>
+    void getScr1PDM(SafeFile &);
+
+    // Fchk-related functions
     std::vector<int> fchkToCQMO();
     std::unordered_map<int,std::vector<int>> returnAngReorder();
     void reorderAngMO(std::vector<int> sl, MatsT* tmo, int sp);

@@ -48,6 +48,15 @@ TEST( FOURCHF, UPu_184_plus_P_DC_pointnuc ) {
 
 };
 
+// Two electron U-Pu 184+ test Dirac-Couloumb with X2CHF guess
+TEST( FOURCHF, UPu_184_plus_P_DC_X2CGuess_pointnuc ) {
+
+  CQSCFTEST( "scf/serial/fourcomp/UPu_184+_P_DC_X2CGuess_pointnuc",
+    "UPu_184+_P_DC_X2CGuess_pointnuc.bin.ref",1e-8,
+    false, false, false, false, false, true, false, "UPu_184+_X2C_pointnuc.scr.bin" );
+
+};
+
 // Two electron U-Pu 184+ test Dirac-Couloumb-Gaunt
 TEST( FOURCHF, UPu_184_plus_P_DCG_pointnuc ) {
 
