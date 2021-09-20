@@ -39,27 +39,34 @@ namespace ChronusQ {
    *  \brief set up MO ranges 
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::setMORanges(SingleSlater<MatsT,IntsT> & ss, 
-    size_t nFrozenCore, size_t nFrozenVirt) {
+  void MOIntsTransformer<MatsT,IntsT>::addMORanges(const std::set<char> & symSet,
+    const std::pair<size_t, size_t> & range) {
+      
+      symbol_sets_.push_back(symSet);
+      mo_ranges_.push_back(range);
+ 
+  }; // MOIntsTransformer::addMORanges  
+  
+  template <typename MatsT, typename IntsT>
+  void MOIntsTransformer<MatsT,IntsT>::setMORanges(size_t nFrozenCore, size_t nFrozenVirt) {
     
       // set 4C for no-pair approximation
-      size_t fourCompOffset = (ss.nC == 4) ? ss.nAlphaOrbital() * 2: 0;
+      size_t fourCompOffset = (ss_.nC == 4) ? ss_.nAlphaOrbital() * 2: 0;
 
-      size_t nO = ss.nO - nFrozenCore;
-      size_t nV = ss.nV - nFrozenVirt; 
+      size_t nO = ss_.nO - nFrozenCore;
+      size_t nV = ss_.nV - nFrozenVirt; 
       size_t nT = nO + nV;
       
+      resetMORanges();
+
       // general indices
-      symbol_sets_.push_back({'p','q','r','s'});
-      mo_ranges_.push_back({fourCompOffset + nFrozenCore, nT});
+      addMORanges({'p','q','r','s'}, {fourCompOffset + nFrozenCore, nT});
       
       // hole indices
-      symbol_sets_.push_back({'i','j','k','l'});
-      mo_ranges_.push_back({fourCompOffset + nFrozenCore, nO});
+      addMORanges({'i','j','k','l'}, {fourCompOffset + nFrozenCore, nO});
       
       // particle indices
-      symbol_sets_.push_back({'a','b','c','d'});  
-      mo_ranges_.push_back({fourCompOffset + ss.nO, nV});
+      addMORanges({'a','b','c','d'}, {fourCompOffset + ss_.nO, nV}); 
 
   }; // MOIntsTransformer::setMORanges
   
@@ -93,11 +100,10 @@ namespace ChronusQ {
    *  \brief main interface to transform HCore 
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::transformHCore(SingleSlater<MatsT,IntsT> & ss,
-    MatsT* MOHCore, const std::string & moType) {
+  void MOIntsTransformer<MatsT,IntsT>::transformHCore(MatsT* MOHCore, const std::string & moType) {
 
     auto off_sizes = parseMOType(moType);
-    subsetTransformHCore(ss, off_sizes, MOHCore);
+    subsetTransformHCore(off_sizes, MOHCore);
 
   }; // MOIntsTransformer::transformHCore
   
@@ -105,12 +111,12 @@ namespace ChronusQ {
    *  \brief transform a subset of HCore 
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::subsetTransformHCore(SingleSlater<MatsT,IntsT> & ss, 
+  void MOIntsTransformer<MatsT,IntsT>::subsetTransformHCore(
     const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOHCore) {
     
-    size_t nAO = ss.nAlphaOrbital() * ss.nC;
-    auto AOHCore = ss.coreH->template spinGather<MatsT>();
-    AOHCore.subsetTransform('N', ss.mo[0].pointer(), nAO, off_sizes, MOHCore, false); 
+    size_t nAO = ss_.nAlphaOrbital() * ss_.nC;
+    auto AOHCore = ss_.coreH->template spinGather<MatsT>();
+    AOHCore.subsetTransform('N', ss_.mo[0].pointer(), nAO, off_sizes, MOHCore, false); 
   
   }; // MOIntsTransformer::subsetTransformHCore 
   
@@ -118,15 +124,15 @@ namespace ChronusQ {
    *  \brief main interface to transform HCore 
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::transformERI(SingleSlater<MatsT,IntsT> & ss,
-    EMPerturbation & pert, MatsT* MOERI, const std::string & moType) {
+  void MOIntsTransformer<MatsT,IntsT>::transformERI(EMPerturbation & pert, 
+    MatsT* MOERI, const std::string & moType) {
     
-    if (ss.nC == 1) CErr("transformERI not implemented for 1C");
+    if (ss_.nC == 1) CErr("transformERI not implemented for 1C");
 
     auto off_sizes = parseMOType(moType);
     
     if (ERITransAlg_ == SSFOCK_N6) {
-      subsetTransformERISSFockN6(ss, pert, off_sizes, MOERI);
+      subsetTransformERISSFockN6(pert, off_sizes, MOERI);
     } else if (ERITransAlg_ == INCORE_N5) {
       CErr("INCORE_N5 NYI");
     }

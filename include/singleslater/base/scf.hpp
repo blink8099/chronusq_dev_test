@@ -122,7 +122,7 @@ namespace ChronusQ {
 
     ProgramTimer::tock("SCF Total");
     
-    MOIntTransformationTest(pert);
+    MOIntsTransformationTest(pert);
 
   }; // SingleSlaterBase::SCF()
 

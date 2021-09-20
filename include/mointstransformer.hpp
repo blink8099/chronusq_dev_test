@@ -52,6 +52,7 @@ namespace ChronusQ {
 
     CQMemManager &memManager_; ///< CQMemManager to allocate matricies
     ERI_TRANSFORMATION_ALG ERITransAlg_;
+    SingleSlater<MatsT,IntsT> & ss_;
 
     // variables for moints type
     std::vector<std::set<char>> symbol_sets_;
@@ -63,34 +64,36 @@ namespace ChronusQ {
     MOIntsTransformer() = delete;
     MOIntsTransformer( const MOIntsTransformer & ) = default;
     MOIntsTransformer( MOIntsTransformer && ) = default;
-    MOIntsTransformer( CQMemManager &mem, ERI_TRANSFORMATION_ALG alg):
-        memManager_(mem), ERITransAlg_(alg) {
-    
-      if (alg == INCORE_N5) {
-        CErr("INCORE N5 NYI !");   
-      }
-    
+    MOIntsTransformer( CQMemManager &mem, SingleSlater<MatsT,IntsT> & ss,
+      ERI_TRANSFORMATION_ALG alg = SSFOCK_N6):
+        memManager_(mem), ss_(ss), ERITransAlg_(alg) {
+      
+        if (alg == INCORE_N5) {
+          CErr("INCORE N5 NYI !");   
+        }
+        
+        // set default MO ranges
+        setMORanges();
     };
     
     // Methods to parse types of integral indices
-    void setMORanges(SingleSlater<MatsT,IntsT> & ss, 
-      size_t nFrozenCore = 0, size_t nFrozenVirt = 0);  
+    void resetMORanges() {
+      symbol_sets_.clear();
+      mo_ranges_.clear();
+    };
+    void addMORanges(const std::set<char> &, const std::pair<size_t, size_t> &);
+    void setMORanges(size_t nFrozenCore = 0, size_t nFrozenVirt = 0);  
     // void setMORanges(MOSpacePartition); TODO: implement for CAS type   
     std::vector<std::pair<size_t,size_t>> parseMOType(const std::string &);
 
     // Methods to transform HCore 
-    void transformHCore(SingleSlater<MatsT,IntsT> & ss, MatsT * MOHCore, 
-      const std::string & moType = "pq");
-    void subsetTransformHCore(SingleSlater<MatsT,IntsT> &, 
-      const std::vector<std::pair<size_t,size_t>> &, MatsT*);
+    void transformHCore(MatsT * MOHCore, const std::string & moType = "pq");
+    void subsetTransformHCore(const std::vector<std::pair<size_t,size_t>> &, MatsT*);
     
     // Methods to transform ERI 
-    void transformERI(SingleSlater<MatsT,IntsT> & ss, EMPerturbation & pert, 
-      MatsT* MOERI, const std::string & moType = "pqrs");
-    void subsetTransformERISSFockN6(SingleSlater<MatsT,IntsT> &, EMPerturbation &,
-      const std::vector<std::pair<size_t,size_t>> &, MatsT*);
-    void subsetTransformERIInCoreN5(SingleSlater<MatsT,IntsT> &, EMPerturbation &,
-      const std::vector<std::pair<size_t,size_t>> &, MatsT*);
+    void transformERI(EMPerturbation & pert, MatsT* MOERI, const std::string & moType = "pqrs");
+    void subsetTransformERISSFockN6(EMPerturbation &, const std::vector<std::pair<size_t,size_t>> &, MatsT*);
+    void subsetTransformERIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, MatsT*);
 
     virtual ~MOIntsTransformer() {};
 

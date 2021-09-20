@@ -38,11 +38,11 @@ namespace ChronusQ {
    *  thru SingleSlater formfock 
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::subsetTransformERISSFockN6(SingleSlater<MatsT,IntsT> & ss, 
-    EMPerturbation & pert, const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* asymMOERI) {
+  void MOIntsTransformer<MatsT,IntsT>::subsetTransformERISSFockN6(EMPerturbation & pert, 
+    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* asymMOERI) {
 
     // disable 1C case
-    if (ss.nC == 1) CErr("ERI Transformation thru SSFOCK_N6 NYI for 1C");
+    if (ss_.nC == 1) CErr("ERI Transformation thru SSFOCK_N6 NYI for 1C");
     
     size_t poff = off_sizes[0].first;
     size_t qoff = off_sizes[1].first;
@@ -55,7 +55,7 @@ namespace ChronusQ {
     size_t npq = np * nq;
     size_t npqr = npq * nr;
 
-    size_t nAO = ss.nAlphaOrbital() * ss.nC;
+    size_t nAO = ss_.nAlphaOrbital() * ss_.nC;
     size_t nAO2 = nAO * nAO;
     
     SquareMatrix<MatsT> spinBlockForm1PDM(memManager_, nAO);
@@ -68,13 +68,13 @@ namespace ChronusQ {
     for (auto p = 0; p <= np; p++) {
       
       // outer product to make a fake ss onePDM
-      Gemm('N', 'C', nAO, nAO, 1, MatsT(1.), ss.mo[0].pointer() + (p+poff)*nAO, nAO,
-        ss.mo[0].pointer() + (q+qoff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
+      Gemm('N', 'C', nAO, nAO, 1, MatsT(1.), ss_.mo[0].pointer() + (p+poff)*nAO, nAO,
+        ss_.mo[0].pointer() + (q+qoff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
       
       // Hack SS to get ASYMERIpq
-      *(ss.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>();
-      ss.formFock(pert, false);
-      auto asymMOERIpq = ss.twoeH->template spinGather<MatsT>();
+      *(ss_.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>();
+      ss_.formFock(pert, false);
+      auto asymMOERIpq = ss_.twoeH->template spinGather<MatsT>();
       
       // copy
       SetMat('N', nAO, nAO, MatsT(1.), asymMOERIpq.pointer(), nAO, SCR + (p + q*np)*nAO2, nAO);
@@ -91,12 +91,12 @@ namespace ChronusQ {
 
     // 3/4 transfromation: (nu p | q r) = (mu nu | p q)^H * C(mu, r)
     Gemm('C', 'N', nAO*npq, nr, nAO,
-        MatsT(1.), SCR, nAO, ss.mo[0].pointer() + roff*nAO, nAO,
+        MatsT(1.), SCR, nAO, ss_.mo[0].pointer() + roff*nAO, nAO,
         MatsT(0.), SCR2, nAO*npq);
     
     // 4/4 transfromation: (p q| r s) = (nu p | q r)^H * C(nu, s)
     Gemm('C', 'N', npqr, ns, nAO,
-        MatsT(1.), SCR2, nAO, ss.mo[0].pointer() + soff*nAO, nAO,
+        MatsT(1.), SCR2, nAO, ss_.mo[0].pointer() + soff*nAO, nAO,
         MatsT(0.), SCR, npqr);
     
     SetMat('N', npq, nr*ns, MatsT(1.), SCR, npq, asymMOERI, npq); 

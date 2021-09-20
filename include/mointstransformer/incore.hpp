@@ -35,8 +35,8 @@ namespace ChronusQ {
    *  \brief Forms the Hartree-Fock perturbation tensor
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::subsetTransformERIInCoreN5(SingleSlater<MatsT,IntsT> & ss,
-    EMPerturbation & pert, const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * MOERI) {
+  void MOIntsTransformer<MatsT,IntsT>::subsetTransformERIInCoreN5(
+    const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * MOERI) {
       std::cout << "NYI" << std::endl; 
   };
   
