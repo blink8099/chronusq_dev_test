@@ -37,7 +37,8 @@ namespace ChronusQ {
    */
   enum ERI_TRANSFORMATION_ALG {
       SSFOCK_N6 = 0, // hack thru ss.formfock
-      INCORE_N5 = 1 //NYI
+      INCORE_N5 = 1,
+      DIRECT_N5 = 2, // NYI
   };
   
   /**
@@ -71,6 +72,8 @@ namespace ChronusQ {
       
         if (ss.nC == 1) {
           CErr("1C MOInts NYI !");   
+        } else if (alg == DIRECT_N5) {
+          CErr("DIRECT N5 MOIntsTransformer NYI !");   
         }
         
         // set default MO ranges
@@ -93,10 +96,13 @@ namespace ChronusQ {
     void subsetTransformHCore(const std::vector<std::pair<size_t,size_t>> &, MatsT*);
     
     // Methods to transform ERI 
-    void transformERI(EMPerturbation & pert, MatsT* MOERI, const std::string & moType = "pqrs");
-    void subsetTransformERISSFockN6(EMPerturbation &, const std::vector<std::pair<size_t,size_t>> &, MatsT*);
+    void transformERI(EMPerturbation & pert, MatsT* MOERI, 
+      const std::string & moType = "pqrs", bool antiSymm = true);
+    void subsetTransformERISSFockN6(EMPerturbation &, 
+      const std::vector<std::pair<size_t,size_t>> &, MatsT*, bool antiSymm = true);
     void cacheAOERIInCore();
-    void subsetTransformERIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, MatsT*);
+    void subsetTransformERIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, 
+      MatsT*, bool antiSymm = true);
 
     virtual ~MOIntsTransformer() {};
 

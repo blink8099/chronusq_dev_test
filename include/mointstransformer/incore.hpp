@@ -62,7 +62,7 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::subsetTransformERIInCoreN5(
-    const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * asymMOERI) {
+    const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * MOERI, bool antiSymm) {
       
       cacheAOERIInCore(); 
        
@@ -82,50 +82,46 @@ namespace ChronusQ {
       size_t npsr = nps * nr;
       size_t npqrs = npq * nrs;
       
-      bool qsSymm = (qoff == soff) and (nq == ns); 
-      MatsT * SCR  = memManager_.malloc<MatsT>(npqrs);
       auto MO = ss_.mo[0].pointer();
-
+      
+      // get the Coulomb part
       if (ss_.nC != 4) {
-        // get the Coulomb part
-        AOERI_->subsetTransform('N', MO, nAO, off_sizes, asymMOERI);
-        
-        // exchange part 
-        if (qsSymm) {
-          SetMat('N', npq, nrs, MatsT(1.), asymMOERI, npq, SCR, npq);
-        } else {
-          AOERI_->subsetTransform('N', MO, nAO, 
-            {{poff,np},{soff,ns},{roff,nr},{nq,qoff}}, SCR);
-        }
-      
+        AOERI_->subsetTransform('N', MO, nAO, off_sizes, MOERI);
       } else {
-        
-        // get the Coulomb part
         auto AOERI4C = std::dynamic_pointer_cast<InCore4indexRelERI<MatsT>>(AOERI_);
-        AOERI4C->subsetTransform('N', MO, nAO, off_sizes, asymMOERI);
-      
-        // exchange part 
-        if (qsSymm) {
-          SetMat('N', npq, nrs, MatsT(1.), asymMOERI, npq, SCR, npq);
-        } else {
-          AOERI4C->subsetTransform('N', MO, nAO, 
-            {{poff,np},{soff,ns},{roff,nr},{nq,qoff}}, SCR);
-        }
-      } 
-      
-      // scale 1C? 
-      // if (ss_.nC == 1) Scale(npqrs, MatsT(2.0), asymMOERI, 1);
+        AOERI4C->subsetTransform('N', MO, nAO, off_sizes, MOERI);
+      }
 
+      // get exchange part if anti-symmetrize MOERI
+      if (antiSymm) {
+        
+        MatsT * SCR  = memManager_.malloc<MatsT>(npqrs);
+        bool qsSymm = (qoff == soff) and (nq == ns); 
+        if (qsSymm) {
+          SetMat('N', npq, nrs, MatsT(1.), MOERI, npq, SCR, npq);
+        } else { 
+          std::vector<std::pair<size_t, size_t>> exchange_off_sizes 
+            = {{poff,np},{soff,ns},{roff,nr},{qoff,nq}};
+          if (ss_.nC != 4) {
+            AOERI_->subsetTransform('N', MO, nAO, exchange_off_sizes, SCR); 
+          } else {
+            auto AOERI4C = std::dynamic_pointer_cast<InCore4indexRelERI<MatsT>>(AOERI_);
+            AOERI4C->subsetTransform('N', MO, nAO, exchange_off_sizes, SCR); 
+          }
+        } 
+      
       // Anti-symmetrize MOERI
 #pragma omp parallel for schedule(static) collapse(4) default(shared)       
-      for (auto s = 0ul; s < ns; s++)
-      for (auto r = 0ul; r < nr; r++) 
-      for (auto q = 0ul; q < nq; q++)
-      for (auto p = 0ul; p < np; p++) {     
-          asymMOERI[p + q*np + r*npq + s*npqr] -= SCR[p + s*np + r*nps + q*npsr]; 
+        for (auto s = 0ul; s < ns; s++)
+        for (auto r = 0ul; r < nr; r++) 
+        for (auto q = 0ul; q < nq; q++)
+        for (auto p = 0ul; p < np; p++) {     
+            MOERI[p + q*np + r*npq + s*npqr] -= SCR[p + s*np + r*nps + q*npsr]; 
+        }
+        
+        memManager_.free(SCR);
       }
       
-      memManager_.free(SCR);
       return; 
   }; // MOIntsTransformer<MatsT,IntsT>::subsetTransformERIInCoreN5
   

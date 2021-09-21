@@ -39,7 +39,7 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::subsetTransformERISSFockN6(EMPerturbation & pert, 
-    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* asymMOERI) {
+    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOERI, bool antiSymm) {
 
     // disable 1C case
     if (ss_.nC == 1) CErr("ERI Transformation thru SSFOCK_N6 NYI for 1C");
@@ -62,8 +62,10 @@ namespace ChronusQ {
     MatsT * SCR  = memManager_.malloc<MatsT>(nAO2 * npq);
     
     bool pqSymm = (poff == qoff) and (np == nq); 
+    double xHFX = antiSymm ? 1.0: 0.0; 
+    std::cout << "antiSymm ="  << antiSymm << " xHFX = " << xHFX << std::endl;
     
-    // 1/2 transformation to obtian (mu nu | p q)
+    // 1/2 transformation to obtain SCR(mu, nu, p, q)
     for (auto q = 0; q <  nq; q++) 
     for (auto p = 0; p <  np; p++) {
       
@@ -72,36 +74,35 @@ namespace ChronusQ {
         ss_.mo[0].pointer() + (p+poff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
       
       // Hack SS to get ASYMERIpq
-      *(ss_.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>();
-      ss_.formFock(pert, false);
-      auto asymMOERIpq = ss_.twoeH->template spinGather<MatsT>();
-      
+      *(ss_.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>(true, true);
+      ss_.fockBuilder->formGD(ss_, pert, false, xHFX, false);
+      auto MOERIpq = ss_.twoeH->template spinGather<MatsT>();
+
       // copy
-      SetMat('N', nAO, nAO, MatsT(1.), asymMOERIpq.pointer(), nAO, SCR + (p + q*np)*nAO2, nAO);
-//      if (pqSymm) { 
-//       if (q < p) SetMat('C', nAO, nAO, MatsT(1.), asymMOERIpq.pointer(), nAO, SCR + (q + p*np)*nAO2, nAO); 
-//       else if (q == p) break;
-//      }
+      SetMat('N', nAO, nAO, MatsT(1.), MOERIpq.pointer(), nAO, SCR + (p + q*np)*nAO2, nAO);
+      if (pqSymm) { 
+         if (p < q) SetMat('C', nAO, nAO, MatsT(1.), MOERIpq.pointer(), nAO, SCR + (q + p*np)*nAO2, nAO); 
+         else if (p == q) break;
+      }
      
     } // 1/2 transformation
-    
-    MatsT * SCR2 = nullptr;
-    // if (ns == nAO) SCR2 = asymMOERI;
-    //else 
-    SCR2  = memManager_.malloc<MatsT>(nAO * npqr);
 
-    // 3/4 transfromation: (nu p | q r) = (mu nu | p q)^H * C(mu, r)
+    MatsT * SCR2 = nullptr;
+    
+    if (ns == nAO) SCR2 = MOERI;
+    else SCR2  = memManager_.malloc<MatsT>(nAO * npqr);
+    
+    // 3/4 transfromation: SCR2(nu p q, r) = SCR(mu,nu p q)^H * C(mu, r)
     Gemm('C', 'N', nAO*npq, nr, nAO,
         MatsT(1.), SCR, nAO, ss_.mo[0].pointer() + roff*nAO, nAO,
         MatsT(0.), SCR2, nAO*npq);
     
-    // 4/4 transfromation: (p q| r s) = (nu p | q r)^H * C(nu, s)
+    // 4/4 transfromation: (p q| r, s) = SCR2(nu, p q r)^H * C(nu, s)
     Gemm('C', 'N', npqr, ns, nAO,
         MatsT(1.), SCR2, nAO, ss_.mo[0].pointer() + soff*nAO, nAO,
         MatsT(0.), SCR, npqr);
     
-    SetMat('N', npq, nr*ns, MatsT(1.), SCR, npq, asymMOERI, npq); 
-
+    SetMat('N', npq, nr*ns, MatsT(1.), SCR, npq, MOERI, npq); 
     memManager_.free(SCR);
     if (ns != nAO) memManager_.free(SCR2);
   
