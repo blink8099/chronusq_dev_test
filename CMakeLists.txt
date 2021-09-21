@@ -41,6 +41,7 @@ include(CQHelperFunctions)
 # Options
 # -----------------------------------------------------------------------------
 
+option(BLAS_EXTERNAL       "Search for external BLAS"        ON)
 option(CQ_ENABLE_MPI       "Enable MPI parallelism"          OFF)
 option(ENABLE_COVERAGE     "Enable coverage and profiling"   OFF)
 option(CQ_LINALG_USESYSTEM "Use System defaults for LA libs" OFF)
@@ -54,7 +55,6 @@ option(CQ_EXTERNAL_IN_BUILD_DIR "Build external dependencies in the build direct
 #   e.g.the option for libint is CQ_BUILD_LIBINT_TYPE
 build_pkg_option( LIBINT ALLOW )
 build_pkg_option( LIBCINT ALLOW )
-
 
 # -----------------------------------------------------------------------------
 
@@ -70,6 +70,7 @@ elseif( NOT FETCHCONTENT_BASE_DIR )
         CACHE STRING "" FORCE )
 endif()
 
+include_directories("${PROJECT_SOURCE_DIR}/external/openblas/include")
 
 # Add specified paths to CMAKE_PREFIX_PATH
 if( MPI_PREFIX )
@@ -96,13 +97,14 @@ message( "ChronusQ Parallelism Settings" )
 message( "" )
 if( CQ_EXTERNAL_OPENMP )
   message ("  Forcing linking to external OpenMP library!")
-  message ("  Using user specified OpenMP flags: ${OpenMP_CXX_FLAGS}")
+  message ("  Using user specified OpenMP flags: ${CQ_OpenMP_CXX_FLAGS}")
   set(CQ_EXT_LINK "omp;${CQ_EXT_LINK}")
 else()
   find_package(OpenMP REQUIRED)
   message ("  Using automatic OpenMP flags: ${OpenMP_CXX_FLAGS}")
+  set(CQ_OpenMP_CXX_FLAGS "${OpenMP_CXX_FLAGS}")
 endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CQ_OpenMP_CXX_FLAGS}")
 
 
 if( MPI_PREFIX )

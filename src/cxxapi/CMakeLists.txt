@@ -29,10 +29,8 @@ set(OPT_SRC input/molopts.cxx input/basisopts.cxx
     input/coupledclusteropts.cxx
     procedural.cxx output.cxx)
 
-
-
 add_library(cxxcq STATIC ${INPUT_SRC} ${OPT_SRC})
-target_link_libraries( cxxcq PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 ChronusQ::Libcint )
+target_link_libraries( cxxcq PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 ChronusQ::Libcint ChronusQ::blaspp ChronusQ::lapackpp ChronusQ::BLAS )
 
 list(INSERT CQEX_LINK 0 cxxcq)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)

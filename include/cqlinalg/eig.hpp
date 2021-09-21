@@ -42,8 +42,8 @@ namespace ChronusQ {
    *  parameter documentation.
    */ 
   template <typename _F>
-  int GeneralEigen(char JOBVL, char JOBVR, int N, _F *A, int LDA, dcomplex *W,
-    _F *VL, int LDVL, _F *VR, int LDVR, CQMemManager &mem);
+  int GeneralEigenSymm(char JOBVL, char JOBVR, int N, _F *A, int LDA, dcomplex *W,
+    _F *VL, int LDVL, _F *VR, int LDVR);
 
 
   // Hermetian Eigenproblem
@@ -80,46 +80,6 @@ namespace ChronusQ {
   int HermetianEigen(char JOBZ, char UPLO, int N, _F *A, int LDA, dcomplex *W,
     CQMemManager &mem);
 
-
-
-
-  // Generalized Eigenproblem
-    
-
-
-  /**
-   *  \brief Smart wrapper around DGGEV and ZGGEV depending on context.
-   *
-   *  Templated function which diagonalizes a general pencil (A,B) which 
-   *  is general to real and complex. Handles memory managment
-   *  internally through a CQMemManager object. Returns complex "generalized"
-   *  (W[i] = ALPHA[i] / BETA[i]) eigenvalues.
-   *
-   *  See http://www.netlib.org/lapack/lapack-3.1.1/html/dggev.f.html or
-   *      http://www.netlib.org/lapack/lapack-3.1.1/html/zggev.f.html for
-   *  parameter documentation.
-   */ 
-  template <typename _F>
-  int GeneralizedEigen(char JOBVL, char JOBVR, int N, _F *A, int LDA, _F *B,
-    int LDB, dcomplex *ALPHA, _F *BETA, _F *VL, int LDVL, _F *VR, int LDVR, 
-    CQMemManager &mem);
-
-  /**
-   *  \brief Smart wrapper around DGGEV and ZGGEV depending on context.
-   *
-   *  Templated function which diagonalizes a general pencil (A,B) which 
-   *  is general to real and complex. Handles memory managment
-   *  internally through a CQMemManager object. Returns complex 
-   *  eigenvalues
-   *
-   *  See http://www.netlib.org/lapack/lapack-3.1.1/html/dggev.f.html or
-   *      http://www.netlib.org/lapack/lapack-3.1.1/html/zggev.f.html for
-   *  parameter documentation.
-   */ 
-  template <typename _F>
-  int GeneralizedEigen(char JOBVL, char JOBVR, int N, _F *A, int LDA, _F *B,
-    int LDB, dcomplex *W, _F *VL, int LDVL, _F *VR, int LDVR, 
-    CQMemManager &mem);
 
 }; // namespace ChronusQ
 

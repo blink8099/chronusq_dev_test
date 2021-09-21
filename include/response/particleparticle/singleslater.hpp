@@ -343,8 +343,8 @@ namespace ChronusQ {
 
     // Fixme does not propery orthonormalize Y vectors
     auto tdInner = [&](MatsT* Vc) { 
-        MatsT inX = InnerProd<MatsT>(aDim_,Vc,1,Vc,1);
-        MatsT inY = InnerProd<MatsT>(cDim_,Vc+aDim_,1,Vc+aDim_,1) ;
+        MatsT inX = blas::dot(aDim_,Vc,1,Vc,1);
+        MatsT inY = blas::dot(cDim_,Vc+aDim_,1,Vc+aDim_,1) ;
 
         bool sign = std::signbit(std::abs(inX) - std::abs(inY));
 
@@ -362,8 +362,8 @@ namespace ChronusQ {
           MatsT    *Xi = Vi,            *Xj = Vj;
           MatsT    *Yi = Vi + aDim_,    *Yj = Vj + aDim_;
 
-          Gemm('C','N',i,j,aDim_,MatsT(1.) ,Xi,LDVi,Xj,LDVj,MatsT(0.),inner,i);
-          Gemm('C','N',i,j,cDim_,MatsT(-1.),Yi,LDVi,Yj,LDVj,MatsT(1.),inner,i);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,i,j,aDim_,MatsT(1.) ,Xi,LDVi,Xj,LDVj,MatsT(0.),inner,i);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,i,j,cDim_,MatsT(-1.),Yi,LDVi,Yj,LDVj,MatsT(1.),inner,i);
 
         };
 
@@ -461,11 +461,11 @@ namespace ChronusQ {
 
 #ifdef CQ_ENABLE_MPI
       if( isDist )
-        Gemm('N','N',N,nVec,N,U(1.),FM,1,1,descMem,X,1,1,mat.DescX,
+        Gemm_MPI('N','N',N,nVec,N,U(1.),FM,1,1,descMem,X,1,1,mat.DescX,
           U(0.),AX,1,1,DescAX);
       else
 #endif
-        Gemm('N','N',N,nVec,N,U(1.),this->fullMatrix_,N,X,N,U(0.),AX,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nVec,N,U(1.),this->fullMatrix_,N,X,N,U(0.),AX,N);
 
       //if( not this->genSettings.matIsHer ) {
       //  if( isDist )
@@ -1022,8 +1022,8 @@ namespace ChronusQ {
     std::vector<TwoBodyContraction<U>> cList;
 
     auto MOTRANS = [&]( MatsT* CMO1, MatsT* CMO2, U* X ) {
-      Gemm('N','N',NBC,NBC,NBC,U(1.0),CMO1,NBC,X  ,NBC,U(0.0),SCR,NBC); 
-      Gemm('N','C',NBC,NBC,NBC,U(1.0),CMO2,NBC,SCR,NBC,U(0.0),X  ,NBC);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,U(1.0),CMO1,NBC,X  ,NBC,U(0.0),SCR,NBC); 
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NBC,NBC,NBC,U(1.0),CMO2,NBC,SCR,NBC,U(0.0),X  ,NBC);
       IMatCopy('C',NBC,NBC,U(1.),X,NBC,NBC);
     };
 
@@ -1217,8 +1217,8 @@ namespace ChronusQ {
     U* SCR  = this->memManager_.template malloc<U>(NBC2);
   
     auto MOTRANS = [&]( MatsT* CMO1, MatsT* CMO2, U* X ) {
-      Gemm('C','N',NBC,NBC,NBC,U(1.0),CMO1,NBC,X  ,NBC,U(0.0),SCR,NBC); 
-      Gemm('C','C',NBC,NBC,NBC,U(1.0),CMO2,NBC,SCR,NBC,U(0.0),X  ,NBC);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NBC,NBC,NBC,U(1.0),CMO1,NBC,X  ,NBC,U(0.0),SCR,NBC); 
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::ConjTrans,NBC,NBC,NBC,U(1.0),CMO2,NBC,SCR,NBC,U(0.0),X  ,NBC);
       IMatCopy('C',NBC,NBC,U(1.),X,NBC,NBC);
     };
 

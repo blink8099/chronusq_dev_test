@@ -58,14 +58,14 @@ namespace ChronusQ {
 
     //overlap matrix
     tmp = 0.5 * (ss.onePDM->S() - ss.onePDM->Z());
-    Gemm('N','N',NB,NB,NB,MatsT(1.),tmp.pointer(),NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),tmp.pointer(),NB,
          SquareMatrix<MatsT>(ss.aoints.overlap->matrix()).pointer(),NB,
          MatsT(0.),pc,NB);
-    Gemm('N','N',NB,NB,NB,MatsT(1.),ss.onePDM->Z().pointer(),NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),ss.onePDM->Z().pointer(),NB,
          SquareMatrix<MatsT>(ss.aoints.overlap->matrix()).pointer(),NB,
          MatsT(0.),po,NB);
     tmp = 0.5 * (ss.onePDM->S() + ss.onePDM->Z());
-    Gemm('N','N',NB,NB,NB,MatsT(-1.),tmp.pointer(),NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(-1.),tmp.pointer(),NB,
          SquareMatrix<MatsT>(ss.aoints.overlap->matrix()).pointer(),NB,
          MatsT(0.),pv,NB);
     for(auto j = 0; j < NB; j++) pv[j*NB+j] = MatsT(1.) + pv[j*NB+j];
@@ -80,20 +80,20 @@ namespace ChronusQ {
         ======== ======== ====== =========
         where Fc = (Fa + Fb) / 2
      */
-    Gemm('N','N',NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
          pc,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(0.5),pc,NB,tmp2,NB,MatsT(0.),tmp.pointer(),NB);
-    Gemm('C','N',NB,NB,NB,MatsT(1.),pv,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
-    Gemm('N','N',NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(0.5),pc,NB,tmp2,NB,MatsT(0.),tmp.pointer(),NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),pv,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
          po,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(0.5),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
-    Gemm('N','N',NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(0.5),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(0.5),ss.fockMatrix->S().pointer(),NB,
          pv,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(0.5),pv,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
-    Gemm('N','N',NB,NB,NB,MatsT(1.),ss.mo[1].pointer(),NB,pc,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
-    Gemm('N','N',NB,NB,NB,MatsT(1.),ss.mo[0].pointer(),NB,pv,NB,MatsT(0.),tmp2,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(0.5),pv,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),ss.mo[1].pointer(),NB,pc,NB,MatsT(0.),tmp2,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),ss.mo[0].pointer(),NB,pv,NB,MatsT(0.),tmp2,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),po,NB,tmp2,NB,MatsT(1.),tmp.pointer(),NB);
     MatAdd('C','N',NB,NB,MatsT(1.),tmp.pointer(),NB,MatsT(1.),
            tmp.pointer(),NB,ss.fockMatrix->S().pointer(),NB);
 

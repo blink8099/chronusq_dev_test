@@ -66,25 +66,35 @@ namespace ChronusQ {
       else if (TRANS == 'N')
         offs.push_back(off_size.first * LDT);
     }
+
+    blas::Op OP_TRANS;
+    if (TRANS == 'T') {
+      OP_TRANS = blas::Op::Trans;
+    } else if (TRANS == 'C') {
+      OP_TRANS = blas::Op::ConjTrans;
+    } else if (TRANS == 'N') {
+      OP_TRANS = blas::Op::NoTrans;
+    }
+
     ResultsT* SCR  = mem.malloc<ResultsT>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
     ResultsT* SCR2 = mem.malloc<ResultsT>(NB * SCR_nRows[2]);
     // SCR (nu lambda sigma, p) = (mu, nu | lambda sigma)^H @ T(mu, p)
-    Gemm('C', TRANS, SCR_nRows[0], off_sizes[0].second, NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, SCR_nRows[0], off_sizes[0].second, NB,
         ResultsT(1.), pointer(), NB, T+offs[0], LDT,
         ResultsT(0.), SCR, SCR_nRows[0]);
     // SCR2(lambda sigma p, q) = SCR(nu, lambda sigma p)^H @ T(nu, q)
-    Gemm('C', TRANS, SCR_nRows[1], off_sizes[1].second, NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, SCR_nRows[1], off_sizes[1].second, NB,
         ResultsT(1.), SCR, NB, T+offs[1], LDT,
         ResultsT(0.), SCR2, SCR_nRows[1]);
     // SCR(sigma p q, r) = SCR2(lambda, sigma p q)^H @ T(lambda, r)
-    Gemm('C', TRANS, SCR_nRows[2], off_sizes[2].second, NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, SCR_nRows[2], off_sizes[2].second, NB,
         ResultsT(1.), SCR2,NB, T+offs[2], LDT,
         ResultsT(0.), SCR, SCR_nRows[2]);
     // (p q | r, s) = SCR(sigma, p q r)^H @ T(sigma, s)
     //              = T(mu, p)^H @ T(lambda, r)^H @
     //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
     OutT outFactor = increment ? 1.0 : 0.0;
-    Gemm('C', TRANS, SCR_nRows[3], off_sizes[3].second, NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, SCR_nRows[3], off_sizes[3].second, NB,
         OutT(1.),     SCR, NB, T+offs[3], LDT,
         outFactor,    out, SCR_nRows[3]);
     mem.free(SCR, SCR2);
@@ -124,23 +134,33 @@ namespace ChronusQ {
       TRANS = 'N';
     else if (TRANS == 'N')
       TRANS = 'C';
+
+
+    blas::Op OP_TRANS;
+    if (TRANS == 'T') {
+      OP_TRANS = blas::Op::Trans;
+    } else if (TRANS == 'C') {
+      OP_TRANS = blas::Op::ConjTrans;
+    } else if (TRANS == 'N') {
+      OP_TRANS = blas::Op::NoTrans;
+    }
     // SCR (s, mu nu lambda) = T(sigma, s)^H @ (mu nu | lambda, sigma)^H
-    Gemm(TRANS, 'C', off_sizes[3].second, SCR_nRows[0], NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[3].second, SCR_nRows[0], NB,
         dcomplex(1.), T+offs[3], LDT, pointer(), SCR_nRows[0],
         dcomplex(0.), SCR, off_sizes[3].second);
     // SCR2(r, s mu nu) = T(lambda, r)^H @ SCR(s mu nu lambda)^H
-    Gemm(TRANS, 'C', off_sizes[2].second, SCR_nRows[1], NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[2].second, SCR_nRows[1], NB,
         dcomplex(1.), T+offs[2], LDT, SCR, SCR_nRows[1],
         dcomplex(0.), SCR2,off_sizes[2].second);
     // SCR(q, r s mu) = T(nu, q)^H @ SCR2(r s mu, nu)^H
-    Gemm(TRANS, 'C', off_sizes[1].second, SCR_nRows[2], NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[1].second, SCR_nRows[2], NB,
         dcomplex(1.), T+offs[1], LDT, SCR2,SCR_nRows[2],
         dcomplex(0.), SCR, off_sizes[1].second);
     // (p, q | r s) = T(mu, p)^H @ SCR(q r s, mu)^H
     //              = T(mu, p)^H @ T(lambda, r)^H @
     //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
     dcomplex outFactor = increment ? 1.0 : 0.0;
-    Gemm(TRANS, 'C', off_sizes[0].second, SCR_nRows[3], NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[0].second, SCR_nRows[3], NB,
         dcomplex(1.), T+offs[0], LDT, SCR, SCR_nRows[3],
         outFactor,    out, off_sizes[0].second);
     mem.free(SCR, SCR2);
@@ -204,6 +224,17 @@ namespace ChronusQ {
       else if (TRANS == 'N')
         offs.push_back(off_size.first * LDT);
     }
+
+    blas::Op OP_TRANS;
+    if (TRANS == 'T') {
+      OP_TRANS = blas::Op::Trans;
+    } else if (TRANS == 'C') {
+      OP_TRANS = blas::Op::ConjTrans;
+    } else if (TRANS == 'N') {
+      OP_TRANS = blas::Op::NoTrans;
+    }
+
+
     CQMemManager &mem = this->memManager();
     size_t NB   = this->nBasis();
     size_t NBRI = nRIBasis();
@@ -213,13 +244,13 @@ namespace ChronusQ {
     SetMat('T', NBRI, NB*NB, IntsT(1.),
          pointer(), NBRI, 1, SCR, NB*NB, 1);
     // SCR2(nu L, p) = SCR(mu, nu L)^H @ T(mu, p)
-    Gemm('C', TRANS, NB*NBRI, off_sizes[0].second, NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, NB*NBRI, off_sizes[0].second, NB,
         ResultsT(1.), SCR, NB, T+offs[0], LDT,
         ResultsT(0.), SCR2, NB*NBRI);
     // ( L | p, q ) = SCR2(nu, L p)^H @ T(nu, q)
     //              = T(mu, p)^H @ ( L | mu nu ) @ T(nu, q)
     OutT outFactor = increment ? 1.0 : 0.0;
-    Gemm('C', TRANS, NBRI*off_sizes[0].second, off_sizes[1].second, NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, NBRI*off_sizes[0].second, off_sizes[1].second, NB,
         ResultsT(1.), SCR2,NB, T+offs[1], LDT,
         outFactor, out, NBRI*off_sizes[0].second);
     mem.free(SCR, SCR2);
@@ -260,12 +291,23 @@ namespace ChronusQ {
       TRANS = 'N';
     else if (TRANS == 'N')
       TRANS = 'C';
+
+    blas::Op OP_TRANS;
+    if (TRANS == 'T') {
+      OP_TRANS = blas::Op::Trans;
+    } else if (TRANS == 'C') {
+      OP_TRANS = blas::Op::ConjTrans;
+    } else if (TRANS == 'N') {
+      OP_TRANS = blas::Op::NoTrans;
+    }
+
+
     // SCR(q, L mu) = T(nu, q)^H @ ( L | mu, nu )^H
-    Gemm(TRANS, 'C', off_sizes[1].second, NBRI*NB, NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[1].second, NBRI*NB, NB,
         dcomplex(1.), T+offs[1], LDT, pointer(), NBRI*NB,
         dcomplex(0.), SCR, off_sizes[1].second);
     // SCR2(p, q L) = T(mu, p)^H @ SCR(q L, mu)^H
-    Gemm(TRANS, 'C', off_sizes[0].second, off_sizes[1].second*NBRI, NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[0].second, off_sizes[1].second*NBRI, NB,
         dcomplex(1.), T+offs[0], LDT, SCR, off_sizes[1].second*NBRI,
         dcomplex(0.), SCR2,off_sizes[0].second);
     // ( L | p q ) = SCR2(p q, L)^T

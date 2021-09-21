@@ -55,7 +55,7 @@ namespace ChronusQ {
         //this->mo[0].output(std::cout, "mo1", true);
 
         // DA = CA * CA**H
-        Gemm('N', 'C', NB, NB, this->nOA, MatsT(1.), this->mo[0].pointer(), NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::ConjTrans, NB, NB, this->nOA, MatsT(1.), this->mo[0].pointer(), NB,
             this->mo[0].pointer(), NB, MatsT(0.), DA.pointer(), NB);
 
         if(iCS) {
@@ -68,7 +68,7 @@ namespace ChronusQ {
           SquareMatrix<MatsT> DB(memManager, NB);
 
           // DB = CB * CB**H
-          Gemm('N', 'C', NB, NB, this->nOB, MatsT(1.), this->mo[1].pointer(), NB,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::ConjTrans, NB, NB, this->nOB, MatsT(1.), this->mo[1].pointer(), NB,
               this->mo[1].pointer(), NB, MatsT(0.), DB.pointer(), NB);
 
           // DS = DA + DB
@@ -82,10 +82,10 @@ namespace ChronusQ {
         SquareMatrix<MatsT> spinBlockForm(memManager, NB);
 
         if( nC == 2 ) {
-          Gemm('N', 'C', NB, NB, this->nO, MatsT(1.), this->mo[0].pointer(), NB,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::ConjTrans, NB, NB, this->nO, MatsT(1.), this->mo[0].pointer(), NB,
               this->mo[0].pointer(), NB, MatsT(0.), spinBlockForm.pointer(), NB);
         } else if( nC == 4 ) {
-          Gemm('N', 'C', NB, NB, this->nO, MatsT(1.), this->mo[0].pointer()+(2*(NB/nC))*NB, NB,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::ConjTrans, NB, NB, this->nO, MatsT(1.), this->mo[0].pointer()+(2*(NB/nC))*NB, NB,
               this->mo[0].pointer()+(2*(NB/nC))*NB, NB, MatsT(0.), spinBlockForm.pointer(), NB);
         }
 
@@ -142,28 +142,28 @@ namespace ChronusQ {
 
     // Scalar core hamiltonian contribution to the energy
     this->OBEnergy = 
-      this->template computeOBProperty<double,DENSITY_TYPE::SCALAR>(
+      this->template computeOBProperty<DENSITY_TYPE::SCALAR>(
          coreH->S().pointer());
 
     
     
     // One body Spin Orbit
-    dcomplex SOEnergy(0.,0.);
+    double SOEnergy = 0.;
     if (coreH->hasZ())
       SOEnergy =
-        this->template computeOBProperty<dcomplex,DENSITY_TYPE::MZ>(
+        this->template computeOBProperty<DENSITY_TYPE::MZ>(
            coreH->Z().pointer());
     if (coreH->hasXY()) {
       SOEnergy +=
-        this->template computeOBProperty<dcomplex,DENSITY_TYPE::MY>(
+        this->template computeOBProperty<DENSITY_TYPE::MY>(
            coreH->Y().pointer());
       SOEnergy +=
-        this->template computeOBProperty<dcomplex,DENSITY_TYPE::MX>(
+        this->template computeOBProperty<DENSITY_TYPE::MX>(
            coreH->X().pointer());
     }
 
  
-    this->OBEnergy += std::real(SOEnergy);
+    this->OBEnergy += SOEnergy;
 
 
     this->OBEnergy *= 0.5;
@@ -172,19 +172,19 @@ namespace ChronusQ {
     // *** These calls are safe as proper zeros are returned by
     // property engine ***
     this->MBEnergy = 
-      this->template computeOBProperty<double,DENSITY_TYPE::SCALAR>(
+      this->template computeOBProperty<DENSITY_TYPE::SCALAR>(
           twoeH->S().pointer());
 
     if (twoeH->hasZ())
       this->MBEnergy +=
-        this->template computeOBProperty<double,DENSITY_TYPE::MZ>(
+        this->template computeOBProperty<DENSITY_TYPE::MZ>(
             twoeH->Z().pointer());
     if (twoeH->hasXY()) {
       this->MBEnergy +=
-        this->template computeOBProperty<double,DENSITY_TYPE::MY>(
+        this->template computeOBProperty<DENSITY_TYPE::MY>(
             twoeH->Y().pointer());
       this->MBEnergy +=
-        this->template computeOBProperty<double,DENSITY_TYPE::MX>(
+        this->template computeOBProperty<DENSITY_TYPE::MX>(
             twoeH->X().pointer());
     }
 
@@ -208,7 +208,7 @@ namespace ChronusQ {
     ROOT_ONLY(comm);
     // Compute elecric contribution to the dipoles
     for(auto iXYZ = 0; iXYZ < 3; iXYZ++) 
-      this->elecDipole[iXYZ] = -this->template computeOBProperty<double,SCALAR>((*this->aoints.lenElectric)[iXYZ].pointer());
+      this->elecDipole[iXYZ] = -this->template computeOBProperty<SCALAR>((*this->aoints.lenElectric)[iXYZ].pointer());
 
 
     // Nuclear contributions to the dipoles
@@ -221,7 +221,7 @@ namespace ChronusQ {
     for(size_t jXYZ = iXYZ     ; jXYZ < 3; jXYZ++, iX++){
 
       this->elecQuadrupole[iXYZ][jXYZ] = -
-        this->template computeOBProperty<double,SCALAR>((*this->aoints.lenElectric)[iX+3].pointer());
+        this->template computeOBProperty<SCALAR>((*this->aoints.lenElectric)[iX+3].pointer());
       
       this->elecQuadrupole[jXYZ][iXYZ] = this->elecQuadrupole[iXYZ][jXYZ]; 
     }
@@ -239,7 +239,7 @@ namespace ChronusQ {
     for(size_t kXYZ = jXYZ     ; kXYZ < 3; kXYZ++, iX++){
 
       this->elecOctupole[iXYZ][jXYZ][kXYZ] = -
-        this->template computeOBProperty<double,SCALAR>(
+        this->template computeOBProperty<SCALAR>(
           (*this->aoints.lenElectric)[iX+9].pointer());
 
       this->elecOctupole[iXYZ][kXYZ][jXYZ] = this->elecOctupole[iXYZ][jXYZ][kXYZ]; 
@@ -269,11 +269,11 @@ namespace ChronusQ {
 
     ROOT_ONLY(comm);
 
-    this->SExpect[0] = 0.5 * this->template computeOBProperty<double,MX>(
+    this->SExpect[0] = 0.5 * this->template computeOBProperty<MX>(
       this->aoints.overlap->pointer());
-    this->SExpect[1] = 0.5 * this->template computeOBProperty<double,MY>(
+    this->SExpect[1] = 0.5 * this->template computeOBProperty<MY>(
       this->aoints.overlap->pointer());
-    this->SExpect[2] = 0.5 * this->template computeOBProperty<double,MZ>(
+    this->SExpect[2] = 0.5 * this->template computeOBProperty<MZ>(
       this->aoints.overlap->pointer());
 
     if( not this->onePDM->hasZ() ) this->SSq = 0;
@@ -285,46 +285,46 @@ namespace ChronusQ {
 
       // SCR2 = S * D(S) * S
 /*      
-      Gemm('N','C',NB,NB,NB,T(1.),aoints.overlap,NB,this->onePDM[SCALAR],NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,T(1.),aoints.overlap,NB,this->onePDM[SCALAR],NB,
         T(0.),SCR,NB);
-      Gemm('N','C',NB,NB,NB,T(1.),SCR,NB,aoints.overlap,NB,T(0.),SCR2,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,T(1.),SCR,NB,aoints.overlap,NB,T(0.),SCR2,NB);
 */
-      Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
            this->onePDM->S().pointer(),NB,MatsT(0.),SCR,NB);
-      Gemm('N','C',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
            SCR,NB,MatsT(0.),SCR2,NB);
 
       
       this->SSq = 3 * this->nO - (3./2.) * 
-        this->template computeOBProperty<double,SCALAR>(SCR2);
+        this->template computeOBProperty<SCALAR>(SCR2);
   
 
       // SCR2 = D(Z) * S * D(Z)
-      Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
            this->onePDM->Z().pointer(),NB,MatsT(0.),SCR,NB);
-      Gemm('N','C',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
            SCR,NB,MatsT(0.),SCR2,NB);
       
-      this->SSq += 0.5 * this->template computeOBProperty<double,MZ>(SCR2);
+      this->SSq += 0.5 * this->template computeOBProperty<MZ>(SCR2);
 
       if( this->onePDM->hasXY() ) {
   
         // SCR2 = D(Y) * S * D(Y)
-        Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
              this->onePDM->Y().pointer(),NB,MatsT(0.),SCR,NB);
-        Gemm('N','C',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
              SCR,NB,MatsT(0.),SCR2,NB);
         
-        this->SSq += 0.5 * this->template computeOBProperty<double,MY>(SCR2);
+        this->SSq += 0.5 * this->template computeOBProperty<MY>(SCR2);
 
 
         // SCR2 = D(X) * S * D(X)
-        Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
              this->onePDM->X().pointer(),NB,MatsT(0.),SCR,NB);
-        Gemm('N','C',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
              SCR,NB,MatsT(0.),SCR2,NB);
         
-        this->SSq += 0.5 * this->template computeOBProperty<double,MX>(SCR2);
+        this->SSq += 0.5 * this->template computeOBProperty<MX>(SCR2);
 
       }
 

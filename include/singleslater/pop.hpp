@@ -42,7 +42,7 @@ namespace ChronusQ {
     // Mulliken population analysis
     mullikenCharges.clear();
 
-    Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
          this->onePDM->S().pointer(),NB,MatsT(0.),SCR,NB);
 
     for(auto iAtm = 0; iAtm < inputMol.nAtoms; iAtm++) {
@@ -65,9 +65,9 @@ namespace ChronusQ {
     lowdinCharges.clear();
 
 /*
-    Gemm('N','N',NB,NB,NB,T(1.),this->aoints.ortho1,NB,this->onePDM[SCALAR],NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,T(1.),this->aoints.ortho1,NB,this->onePDM[SCALAR],NB,
       T(0.),SCR2,NB);
-    Gemm('N','C',NB,NB,NB,T(1.),this->aoints.ortho1,NB,SCR2,NB,T(0.),SCR,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,T(1.),this->aoints.ortho1,NB,SCR2,NB,T(0.),SCR,NB);
 */
 
     for(auto iAtm = 0; iAtm < inputMol.nAtoms; iAtm++) {

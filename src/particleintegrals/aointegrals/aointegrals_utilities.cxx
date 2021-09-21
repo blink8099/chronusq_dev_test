@@ -24,6 +24,7 @@
 
 #include <cqlinalg.hpp>
 #include <cqlinalg/blasutil.hpp>
+#include <lapack.hh>
 #include <util/timer.hpp>
 #include <util/matout.hpp>
 #include <particleintegrals/twopints/incore4indextpi.hpp>
@@ -101,7 +102,7 @@ namespace ChronusQ {
 
 
       schwarz()[s1 + s2*basisSet().nShell] =
-        std::sqrt(MatNorm<double>('I',n1,n2,diags,n1));
+        std::sqrt(lapack::lange(lapack::Norm::Inf,n1,n2,diags,n1));
 
       // Free up space
       memManager_.free(diags);
@@ -137,7 +138,7 @@ namespace ChronusQ {
 
 
         schwarz2()[s1 + s2*basisSet2().nShell] =
-          std::sqrt(MatNorm<double>('I',n1,n2,diags,n1));
+          std::sqrt(lapack::lange(lapack::Norm::Inf,n1,n2,diags,n1));
 
         // Free up space
         memManager_.free(diags);

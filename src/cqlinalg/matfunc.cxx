@@ -48,7 +48,7 @@ namespace ChronusQ {
       SCR2[i + j*N] = SCR[i + j*N] * func(W[j]);
     
     // Compute B**H = V * X**H
-    Gemm('N','C',N,N,N,_F2(1.),SCR,N,SCR2,N,_F2(0.),B,LDB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,N,N,N,_F2(1.),SCR,N,SCR2,N,_F2(0.),B,LDB);
 
     // FIXME: Use MKL for this transpose when direct is merged in
     Eigen::Map<Eigen::Matrix<_F2,Eigen::Dynamic,Eigen::Dynamic,

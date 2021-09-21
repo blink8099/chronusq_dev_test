@@ -242,7 +242,7 @@ namespace ChronusQ {
         savFile_.readData(oldvector,tmp2_);
    
         // Accumulate extrapolated vector.
-        AXPY<T>(dimdiis_,diisvec_[j-1],tmp2_,1,tmp1_,1);
+        blas::axpy(dimdiis_,diisvec_[j-1],tmp2_,1,tmp1_,1);
       }
       memManager_.free(oldvector);
   
@@ -260,7 +260,7 @@ namespace ChronusQ {
     //    for (int j = 1; j <= maxdiis_; j++){
     //        sprintf(evector,"/DIIS/ERROR%i",j);
     //        savFile_.readData(evector,tmp2_);
-    //        double nrm = sqrt(std::real(InnerProd<T>(dimdiis_,tmp2_,1,tmp2_,1)));  // couldn't get TwoNorm template to work...
+    //        double nrm = sqrt(std::real(blas::dot(dimdiis_,tmp2_,1,tmp2_,1)));  // couldn't get TwoNorm template to work...
     //        if ( nrm > max ) {
     //            max  = nrm;
     //            jmax = j;
@@ -282,7 +282,7 @@ namespace ChronusQ {
   void DiskDIIS<T>::DIISCoefficients(int nvec){
   
     // Allocate memory for small matrices/vectors.
-    int * ipiv    = memManager_.template malloc<int>(nvec+1);
+    int64_t * ipiv    = memManager_.template malloc<int64_t>(nvec+1);
     
     T * temp = memManager_.template malloc<T>(maxdiis_*maxdiis_);
     T * A    = memManager_.template malloc<T>((nvec+1)*(nvec+1));
@@ -315,11 +315,11 @@ namespace ChronusQ {
         for (int j = i+1; j < nvec; j++){
           sprintf(evector,"/DIIS/ERROR%i",j+1);
           savFile_.readData(evector,tmp2_);
-          T sum  = InnerProd<T>(dimdiis_,tmp1_,1,tmp2_,1);
+          T sum  = blas::dot(dimdiis_,tmp1_,1,tmp2_,1);
           A[i*(nvec+1)+j] = sum;
           A[j*(nvec+1)+i] = sum;
         }
-        T sum  = InnerProd<T>(dimdiis_,tmp1_,1,tmp1_,1);
+        T sum  = blas::dot(dimdiis_,tmp1_,1,tmp1_,1);
         A[i*(nvec+1)+i] = sum;
       }
     }else {
@@ -334,7 +334,7 @@ namespace ChronusQ {
       for (int j = 0; j < nvec; j++){
         sprintf(evector,"/DIIS/ERROR%i",j+1);
         savFile_.readData(evector,tmp2_);
-        T sum  = InnerProd<T>(dimdiis_,tmp1_,1,tmp2_,1);
+        T sum  = blas::dot(dimdiis_,tmp1_,1,tmp2_,1);
         A[i*(nvec+1)+j] = sum;
         A[j*(nvec+1)+i] = sum;
       }
@@ -362,7 +362,7 @@ namespace ChronusQ {
     int nrhs = 1;
     int lda  = nvec+1;
     int ldb  = nvec+1;
-    LinSolve<T>(nvec+1,nrhs,A,lda,B,ldb,ipiv);
+    lapack::gesv(nvec+1,nrhs,A,lda,ipiv,B,ldb);
     std::copy_n(B,nvec,diisvec_);
     
     memManager_.free(A);

@@ -140,7 +140,6 @@ namespace ChronusQ {
 
 
 
-
     // Determine JOB type
     std::string jobType;
     

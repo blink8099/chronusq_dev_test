@@ -150,7 +150,7 @@ namespace ChronusQ {
     this->computeProperties(emPert);
     this->removeNucMultipoleContrib(); 
 
-    double EPJEnergy = -1.0 * this->template computeOBProperty<double,DENSITY_TYPE::SCALAR>(epJMatrix->pointer());
+    double EPJEnergy = -1.0 * this->template computeOBProperty<DENSITY_TYPE::SCALAR>(epJMatrix->pointer());
     this->MBEnergy += 0.5 * EPJEnergy;
 
     // Assemble total energy

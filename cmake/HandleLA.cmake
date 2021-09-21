@@ -30,126 +30,115 @@ message( "ChronusQ Linear Algebra Settings:\n" )
 find_package(Eigen3 REQUIRED)
 include_directories("${EIGEN3_INCLUDE_DIR}")
 
-
-
-
 ######## BLAS + LAPACK LIBRARIES ########
 
-# Whether or not we need to build OpenBLAS
-set( CQ_NEED_OPENBLAS ON )
+set( BLAS_FOUND OFF )
 
+# Find external BLAS installation
+if( BLAS_EXTERNAL )
 
+  find_package( BLAS QUIET )
 
-
-
-# Use Externally set Linear Algebra libraries
-if( CQ_LINALG_LIBRARIES )
-  set( CQ_NEED_OPENBLAS OFF )
-  message( STATUS 
-    "Using User Specified CQ_LINALG_LIBRARIES Linker: ${CQ_LINALG_LIBRARIES}" )
-
-# Try to figure out  LA linkage
-else( CQ_LINALG_LIBRARIES )
-
-
-  # Use system LA (not recommended
-  if( CQ_LINALG_USESYSTEM )
-
-    message( STATUS 
-      "CQ_LINALG_USESYSTEM Triggered Search for Sytem Installation of BLAS/LAPACK" )
-    set( CQ_NEED_OPENBLAS OFF )
-    find_package( BLAS REQUIRED   )
-    find_package( LAPACK REQUIRED )
-
-    set( CQ_LINALG_LIBRARIES ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} )
-
-  endif( CQ_LINALG_USESYSTEM )
-
-
-
-
-  # Intel Compilers 
-  if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
-  
-    set( CQ_NEED_OPENBLAS OFF )
-    message(STATUS "Intel Compiler -- Using MKL: -mkl=parallel")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mkl=parallel")
-    set(_CQ_MKL 1)
-  
+  if( BLAS_FOUND )
+    message( STATUS "Found BLAS library: ${BLAS_LIBRARIES}" )
+    add_library( ChronusQ::BLAS INTERFACE IMPORTED )
+    set_target_properties( ChronusQ::BLAS PROPERTIES
+      INTERFACE_LINK_LIBRARIES      "${BLAS_LIBRARIES}"
+      INTERFACE_LINK_FLAGS          "${BLAS_LINKER_FLAGS}"
+    )
   endif()
 
+endif()
 
-endif( CQ_LINALG_LIBRARIES )
-
-
-
-
-# Build OpenBLAS
-if( CQ_NEED_OPENBLAS )
-
-  message(STATUS "No BLAS/LAPACK Libraries Have Been Found: Defaulting to Build OpenBLAS")
-  set( OPENBLAS_PREFIX      ${PROJECT_SOURCE_DIR}/external/openblas )
-  set( OPENBLAS_INCLUDEDIR  ${OPENBLAS_PREFIX}/include )
-  set( OPENBLAS_LIBDIR      ${OPENBLAS_PREFIX}/lib )
-  set( OPENBLAS_LAPACK_SRC      ${OPENBLAS_PREFIX}/src/openblas/lapack-netlib/SRC/ )
-  if( NOT EXISTS "${OPENBLAS_INCLUDEDIR}/f77blas.h" )
-
+if (NOT BLAS_FOUND)
+  
+  # Try to find OpenBLAS already compiled by CQ
+  set( OPENBLAS_PREFIX ${PROJECT_SOURCE_DIR}/external/openblas )
+  list( APPEND CMAKE_PREFIX_PATH ${OPENBLAS_PREFIX} )
+  find_package( OpenBLAS PATHS ${OPENBLAS_PREFIX} NO_DEFAULT_PATH)
+  
+  # Check if we found it
+  if( OpenBLAS_DIR )
+    message( STATUS "Found BLAS library: ${OpenBLAS_LIBRARIES}" )
+    set( BLAS_FOUND TRUE )
+    add_library( ChronusQ::BLAS INTERFACE IMPORTED )
+    set_target_properties( ChronusQ::BLAS PROPERTIES
+      INTERFACE_LINK_LIBRARIES      "${OpenBLAS_LIBRARIES}"
+      INTERFACE_INCLUDE_DIRECTORIES "${OpenBLAS_INCLUDE_DIRS}"
+    )
+  
+    
+  # Build OpenBLAS
+  else() 
+  
+    message(STATUS "No BLAS/LAPACK Libraries Have Been Found: Defaulting to Build OpenBLAS")
+    set( OPENBLAS_PREFIX      ${PROJECT_SOURCE_DIR}/external/openblas )
+    set( OPENBLAS_INCLUDEDIR  ${OPENBLAS_PREFIX}/include )
+    set( OPENBLAS_LIBDIR      ${OPENBLAS_PREFIX}/lib )
+    set( OPENBLAS_LAPACK_SRC  ${OPENBLAS_PREFIX}/src/openblas/lapack-netlib/SRC/ )
 
     if( OPENBLAS_TARGET )
       message( STATUS "---> Forcing OpenBLAS TARGET = ${OPENBLAS_TARGET}" )
-      set(OPENBLAS_BUILD_COMMAND make TARGET=${OPENBLAS_TARGET} -j2)
+      set(OPENBLAS_BUILD_COMMAND $(MAKE) TARGET=${OPENBLAS_TARGET})
     else()
       message( STATUS "---> Allowing OpenBLAS to determine CPU TARGET" )
-      set(OPENBLAS_BUILD_COMMAND make -j2)
+      set(OPENBLAS_BUILD_COMMAND $(MAKE))
     endif()
-    If(OPENBLAS_DYNAMIC_ARCH)
+
+    if(OPENBLAS_DYNAMIC_ARCH)
       message(" Turn On Dynamic_ARCH for OpenBlas")
       set(OPENBLAS_BUILD_COMMAND ${OPENBLAS_BUILD_COMMAND} DYNAMIC_ARCH=1)
     endif()
-    ExternalProject_Add(openblas
+
+    ExternalProject_Add(
+      openblas
       PREFIX ${OPENBLAS_PREFIX}
       GIT_REPOSITORY "https://github.com/xianyi/OpenBLAS.git"
       GIT_TAG "v0.3.9"
       CONFIGURE_COMMAND cd ${OPENBLAS_LAPACK_SRC}
         && patch < ${OPENBLAS_PREFIX}/patch/chgeqz.patch
         && patch < ${OPENBLAS_PREFIX}/patch/zhgeqz.patch
-
+  
       BUILD_COMMAND ${OPENBLAS_BUILD_COMMAND} CFLAGS='-Wno-error=implicit-function-declaration'
       BUILD_IN_SOURCE 1
       INSTALL_COMMAND make install PREFIX=${OPENBLAS_PREFIX}
         && cd ${OPENBLAS_INCLUDEDIR}
         && patch < ${OPENBLAS_PREFIX}/patch/lapack.patch
         && patch < ${OPENBLAS_PREFIX}/patch/f77blas.patch
-
     )
+  
+    file( MAKE_DIRECTORY ${OPENBLAS_PREFIX}/include )
+    file( MAKE_DIRECTORY ${OPENBLAS_PREFIX}/lib )
 
-    install(DIRECTORY "${OPENBLAS_PREFIX}/include" DESTINATION ".")
-    install(DIRECTORY "${OPENBLAS_PREFIX}/lib"     DESTINATION ".")
-
-    list(APPEND CQEX_DEP openblas)
-
-
-  else()
-    message( STATUS "---> OpenBLAS Has Already Been Built for ChronusQ!" )
+    add_library( ChronusQ::BLAS INTERFACE IMPORTED )
+    set_target_properties( ChronusQ::BLAS PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES ${OPENBLAS_INCLUDEDIR}
+      INTERFACE_LINK_LIBRARIES      ${OPENBLAS_LIBDIR}/libopenblas.a
+      INTERFACE_LINK_FLAGS          -lopenblas
+    )
+    add_dependencies( ChronusQ::BLAS openblas )
+  
+    # Mirror find_package( BLAS ) variables
+    set( BLAS_FOUND TRUE )
+    set( BLAS_LIBRARIES ${OPENBLAS_LIBDIR}/libopenblas.a )
+    set( BLAS_INCLUDE_DIRS ${OPENBLAS_INCLUDEDIR} )
+  
+    set( CQ_LINALG_INCLUDEDIR ${OPENBLAS_INCLUDEDIR} )
+  
+    link_directories( ${OPENBLAS_LIBDIR} )
+  
   endif()
-
-
-
-  # Mirror find_package( BLAS ) variables
-  set( BLAS_FOUND TRUE )
-  set( BLAS_LIBRARIES ${OPENBLAS_LIBDIR}/libopenblas.a )
-
-  set( CQ_LINALG_LIBRARIES  gfortran ${OPENBLAS_LIBDIR}/libopenblas.a )
-  set( CQ_LINALG_INCLUDEDIR ${OPENBLAS_INCLUDEDIR} )
-
-  link_directories( ${OPENBLAS_LIBDIR} )
-
 endif()
 
+set( CQ_LINALG_LIBRARIES ChronusQ::BLAS )
 
-
-
-
+if( CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    set( CQ_LINALG_LIBRARIES gfortran "${CQ_LINALG_LIBRARIES}" )
+elseif( CMAKE_CXX_COMPILER_ID STREQUAL "Intel" )
+    set( _CQ_MKL 1 )
+    get_target_property( link_flags ChronusQ::BLAS INTERFACE_LINK_FLAGS )
+    message( " Intel link flags: ${link_flags}" )
+endif()
 
 ######## BLACS + ScaLAPACK LIBRARIES ########
 if( CQ_ENABLE_MPI )
@@ -285,6 +274,103 @@ if( CQ_LINALG_INCLUDEDIR )
 
 endif( CQ_LINALG_INCLUDEDIR)
 
+
+# Find external BLAS++ installation
+find_package( blaspp QUIET )
+
+if( blaspp_FOUND )
+  message( STATUS "Found external BLAS++ installation" )
+  add_library( ChronusQ::blaspp ALIAS blaspp )
+else() 
+
+  set( blaspp_PREFIX ${PROJECT_SOURCE_DIR}/external/blaspp )
+  list( APPEND CMAKE_PREFIX_PATH ${blaspp_PREFIX} )
+  find_package( blaspp QUIET )
+
+  if( blaspp_FOUND )
+    message( STATUS "Found previously installed BLAS++" )
+    add_library( ChronusQ::blaspp ALIAS blaspp )
+  else()
+    message( STATUS "Could not find BLAS++. Compiling BLAS++." )
+    string( REPLACE ";" ":" prefix_path_arg "${CMAKE_PREFIX_PATH}" )
+    string( REPLACE ";" ":" blas_libs_arg "${BLAS_LIBRARIES}" )
+    ExternalProject_Add (
+      blaspp
+      PREFIX ${blaspp_PREFIX}
+      GIT_REPOSITORY https://bitbucket.org/icl/blaspp.git
+      GIT_TAG ed392fe
+      LIST_SEPARATOR ":"
+      CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${blaspp_PREFIX}
+                 -DBLAS_LIBRARIES=${blas_libs_arg}
+                 -DCMAKE_PREFIX_PATH=${prefix_path_arg}
+                 -DCMAKE_INSTALL_NAME_DIR=${blaspp_PREFIX}/lib
+                 -DCMAKE_INSTALL_LIBDIR=lib
+    )
+    add_dependencies( blaspp ChronusQ::BLAS )
+
+    # Add target with nice properties since ExternalProject can't figure it out
+    add_library( ChronusQ::blaspp INTERFACE IMPORTED )
+    file( MAKE_DIRECTORY ${blaspp_PREFIX}/include )
+    set_target_properties( ChronusQ::blaspp PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES ${blaspp_PREFIX}/include
+      INTERFACE_LINK_LIBRARIES      "${blaspp_PREFIX}/lib/libblaspp${CMAKE_SHARED_LIBRARY_SUFFIX};ChronusQ::BLAS"
+    )
+    add_dependencies( ChronusQ::blaspp blaspp )
+  endif()
+endif()
+
+
+
+# Find external LAPACK++ installation
+find_package( lapackpp QUIET )
+
+if( lapackpp_FOUND )
+  message( STATUS "Found external LAPACK++ installation" )
+  add_library( ChronusQ::lapackpp ALIAS lapackpp )
+else() 
+
+  set( lapackpp_PREFIX ${PROJECT_SOURCE_DIR}/external/lapackpp )
+  list( APPEND CMAKE_PREFIX_PATH ${lapackpp_PREFIX} )
+  find_package( lapackpp QUIET )
+
+  if( lapackpp_FOUND )
+    message( STATUS "Found previously installed LAPACK++" )
+    add_library( ChronusQ::lapackpp ALIAS lapackpp )
+  else()
+    message( STATUS "Could not find LAPACK++. Compiling LAPACK++." )
+    string( REPLACE ";" ":" prefix_path_arg "${CMAKE_PREFIX_PATH}" )
+    ExternalProject_Add (
+      lapackpp
+      PREFIX ${lapackpp_PREFIX}
+      GIT_REPOSITORY https://bitbucket.org/icl/lapackpp.git
+      GIT_TAG dbcf60f
+      LIST_SEPARATOR ":"
+      CMAKE_ARGS -DCMAKE_PREFIX_PATH=${prefix_path_arg}
+                 -DCMAKE_INSTALL_PREFIX=${lapackpp_PREFIX}
+                 -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+                 -DCMAKE_INSTALL_NAME_DIR=${lapackpp_PREFIX}/lib
+                 -DCMAKE_INSTALL_LIBDIR=lib
+      PATCH_COMMAND cd ${lapackpp_PREFIX}/src/lapackpp
+      && patch -p0 < ${lapackpp_PREFIX}/patch/fortran.patch 
+      && patch -p0 < ${lapackpp_PREFIX}/patch/config.patch || exit 0
+    )
+    add_dependencies( lapackpp ChronusQ::blaspp )
+
+    # Add target with nice properties since ExternalProject can't figure it out
+    add_library( ChronusQ::lapackpp INTERFACE IMPORTED )
+    file( MAKE_DIRECTORY ${lapackpp_PREFIX}/include )
+    set_target_properties( ChronusQ::lapackpp PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES ${lapackpp_PREFIX}/include
+      INTERFACE_LINK_LIBRARIES      "${lapackpp_PREFIX}/lib/liblapackpp${CMAKE_SHARED_LIBRARY_SUFFIX};ChronusQ::BLAS"
+    )
+    add_dependencies( ChronusQ::lapackpp lapackpp )
+  endif()
+endif()
+
+
+include_directories($<TARGET_PROPERTY:ChronusQ::blaspp,INTERFACE_INCLUDE_DIRECTORIES>)
+include_directories($<TARGET_PROPERTY:ChronusQ::lapackpp,INTERFACE_INCLUDE_DIRECTORIES>)
+list(APPEND CQEX_DEP ChronusQ::blaspp ChronusQ::lapackpp )
 
 
 message( "\n\n\n" )

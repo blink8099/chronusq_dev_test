@@ -186,8 +186,8 @@ namespace ChronusQ {
     // U(+) = 0.5 * (SCALAR + |M| )
     // U(-) = 0.5 * (SCALAR - |M| )
          
-    AXPY(NPts,0.5,Scalar,1,uPlus,2);
-    AXPY(NPts,0.5,Scalar,1,uMinus,2);
+    blas::axpy(NPts,0.5,Scalar,1,uPlus,2);
+    blas::axpy(NPts,0.5,Scalar,1,uMinus,2);
 
     bool skipMz = false;
     if( this->onePDM->hasZ() and not this->onePDM->hasXY() ) {
@@ -197,8 +197,8 @@ namespace ChronusQ {
       if (MaxDenZ < epsScreen) skipMz = true;
 #endif
         if(not skipMz){
-          AXPY(NPts,0.5,Mz,1,uPlus,2);
-          AXPY(NPts,-0.5,Mz,1,uMinus,2);
+          blas::axpy(NPts,0.5,Mz,1,uPlus,2);
+          blas::axpy(NPts,-0.5,Mz,1,uMinus,2);
         }
 #if VXC_DEBUG_LEVEL >= 3
       if(skipMz) std::cerr << "Skypped Mz " << std::endl;
@@ -229,8 +229,8 @@ namespace ChronusQ {
         }
 
       }
-          AXPY(NPts,0.5,Mnorm,1,uPlus,2);
-          AXPY(NPts,-0.5,Mnorm,1,uMinus,2);
+          blas::axpy(NPts,0.5,Mnorm,1,uPlus,2);
+          blas::axpy(NPts,-0.5,Mnorm,1,uMinus,2);
 
     }
 
@@ -370,7 +370,7 @@ namespace ChronusQ {
     SubMatSet(NB,NB,NBE,NBE,DENMAT,NB,SCR1,NBE,subMatCut);           
 
     // Obtain Sum_nu P_mu_nu Phi_nu
-    Gemm('N','N',NBE,NPts,NBE,1.,SCR1,NBE,BasisScr,NBE,0.,SCR2,NBE);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBE,NPts,NBE,1.,SCR1,NBE,BasisScr,NBE,0.,SCR2,NBE);
 
     if( typ != GRADIENT )
       for(auto iPt = 0; iPt < NPts; iPt++) {
@@ -492,14 +492,14 @@ namespace ChronusQ {
     if( denTyp == SCALAR) {
       // (DE/DN+ DN+/DSCALAR + DE/DN- DN-/DSCALAR )
       // Where DN+/DSCALAR = DN+/DSCALAR = 0.5
-      AXPY(NPts,0.5,VrhoEval,2,ZrhoVar1,1);
-      AXPY(NPts,0.5 ,VrhoEval+1,2,ZrhoVar1,1);
+      blas::axpy(NPts,0.5,VrhoEval,2,ZrhoVar1,1);
+      blas::axpy(NPts,0.5 ,VrhoEval+1,2,ZrhoVar1,1);
     } else {
       // (DE/DN+ DN+/DMk + DE/DN- DN-/DMk )
       // Where DN+/DMk =  0.5
       // Where DN-/DMk = -0.5 (only for UKS) 
-      AXPY(NPts,0.5,VrhoEval,2,ZrhoVar1,1);
-      AXPY(NPts,-0.5,VrhoEval+1,2,ZrhoVar1,1);
+      blas::axpy(NPts,0.5,VrhoEval,2,ZrhoVar1,1);
+      blas::axpy(NPts,-0.5,VrhoEval+1,2,ZrhoVar1,1);
     }
 
 
@@ -516,13 +516,13 @@ namespace ChronusQ {
       //   The Del SCAL and Del Mz will be assembled later in formZ_vxc
       //   NOTE we are building 2 * Z. So 0.5 ---> 1.
 
-      AXPY(NPts,1.,VgammaEval,3  ,ZgammaVar1,1);
-      AXPY(NPts,1.,VgammaEval+1,3,ZgammaVar1,1);
-      AXPY(NPts,1.,VgammaEval+2,3,ZgammaVar1,1);
+      blas::axpy(NPts,1.,VgammaEval,3  ,ZgammaVar1,1);
+      blas::axpy(NPts,1.,VgammaEval+1,3,ZgammaVar1,1);
+      blas::axpy(NPts,1.,VgammaEval+2,3,ZgammaVar1,1);
 
       if( this->onePDM->hasZ() ) {
-        AXPY(NPts,1.,VgammaEval,3   ,ZgammaVar2,1);
-        AXPY(NPts,-1.,VgammaEval+2,3,ZgammaVar2,1);
+        blas::axpy(NPts,1.,VgammaEval,3   ,ZgammaVar2,1);
+        blas::axpy(NPts,-1.,VgammaEval+2,3,ZgammaVar2,1);
       }
     } else {
 
@@ -536,12 +536,12 @@ namespace ChronusQ {
       //   The Del SCAL and Del Mz will be assembled later in formZ_vxc
       //   NOTE we are building 2 * Z. So 0.5 ---> 1.
 
-      AXPY(NPts,1.,VgammaEval,3  ,ZgammaVar2,1);
-      AXPY(NPts,-1.,VgammaEval+1,3,ZgammaVar2,1);
-      AXPY(NPts,1.,VgammaEval+2,3,ZgammaVar2,1);
+      blas::axpy(NPts,1.,VgammaEval,3  ,ZgammaVar2,1);
+      blas::axpy(NPts,-1.,VgammaEval+1,3,ZgammaVar2,1);
+      blas::axpy(NPts,1.,VgammaEval+2,3,ZgammaVar2,1);
 
-      AXPY(NPts,1.,VgammaEval,3   ,ZgammaVar1,1);
-      AXPY(NPts,-1.,VgammaEval+2,3,ZgammaVar1,1);
+      blas::axpy(NPts,1.,VgammaEval,3   ,ZgammaVar1,1);
+      blas::axpy(NPts,-1.,VgammaEval+2,3,ZgammaVar1,1);
     }
 
   }; //KohnSham<MatsT,IntsT>::constructZVars
@@ -609,7 +609,7 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
         if(std::abs(Fg) > epsScreen)
 #endif
-          AXPY(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
+          blas::axpy(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
 
       // GGA part -> Eq. 15 and 17 (see constructZVars docs for the missing factor of 2)
         if( isGGA ) {
@@ -628,17 +628,17 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
           if(std::abs(FgX) > epsScreen)
 #endif
-            AXPY(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
+            blas::axpy(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
           if(std::abs(FgY) > epsScreen)
 #endif
-            AXPY(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
+            blas::axpy(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
           if(std::abs(FgZ) > epsScreen)
 #endif
-            AXPY(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
+            blas::axpy(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
         }
       }
 
@@ -655,7 +655,7 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
           if(std::abs(Fg) > epsScreen)
 #endif
-            AXPY(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
+            blas::axpy(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
 
         // GGA part -> Eq. 15 and 17 (see constructZVars docs for the missing factor of 2)
           if( isGGA ) {
@@ -677,17 +677,17 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgX) > epsScreen)
 #endif
-              AXPY(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgY) > epsScreen)
 #endif
-              AXPY(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgZ) > epsScreen)
 #endif
-              AXPY(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
           }
         } // loop over Pts
 
@@ -701,7 +701,7 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
           if(std::abs(Fg) > epsScreen)
 #endif
-            AXPY(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
+            blas::axpy(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
 
         // GGA part -> Eq. 15 and 17 (see constructZVars docs for the missing factor of 2)
           if( isGGA ) {
@@ -717,17 +717,17 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgX) > epsScreen)
 #endif
-              AXPY(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgY) > epsScreen)
 #endif
-              AXPY(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgZ) > epsScreen)
 #endif
-              AXPY(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
           }
         } // loop over Pts
 
@@ -741,7 +741,7 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
           if(std::abs(Fg) > epsScreen)
 #endif
-            AXPY(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
+            blas::axpy(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
 
         // GGA part -> Eq. 15 and 17 (see constructZVars docs for the missing factor of 2)
           if( isGGA ) {
@@ -757,17 +757,17 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgX) > epsScreen)
 #endif
-              AXPY(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgY) > epsScreen)
 #endif
-              AXPY(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgZ) > epsScreen)
 #endif
-              AXPY(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
           }
         } // loop over Pts
 
@@ -781,7 +781,7 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
           if(std::abs(Fg) > epsScreen)
 #endif
-            AXPY(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
+            blas::axpy(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
 
         // GGA part -> Eq. 15 and 17 (see constructZVars docs for the missing factor of 2)
           if( isGGA ) {
@@ -797,17 +797,17 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgX) > epsScreen)
 #endif
-              AXPY(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgY) > epsScreen)
 #endif
-              AXPY(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
 
 #if VXC_DEBUG_LEVEL < 3
             if(std::abs(FgZ) > epsScreen)
 #endif
-              AXPY(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
+              blas::axpy(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
           }  
         } // loop over Pts
 
@@ -1242,7 +1242,7 @@ namespace ChronusQ {
           //   J. Chem. Theory Comput. 2011, 7, 3097–3104 Eq. 14 
           //
           // Z -> VXC (submat - SCALAR)
-          DSYR2K('L','N',NBE,NPts,1.,BasisEval,NBE,ZMAT_loc,NBE,0.,
+          blas::syr2k(blas::Layout::ColMajor,blas::Uplo::Lower,blas::Op::NoTrans,NBE,NPts,1.,BasisEval,NBE,ZMAT_loc,NBE,0.,
             SCRATCHNBNB_loc,NBE);
 
  #if VXC_DEBUG_LEVEL >= 1
@@ -1290,7 +1290,7 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL >= 3
         // Create Numerical Overlap
         for(auto iPt = 0; iPt < NPts; iPt++)
-          Gemm('N','C',NB,NB,1,weights[iPt],BasisEval + iPt*NB,NB, 
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,1,weights[iPt],BasisEval + iPt*NB,NB, 
             BasisEval + iPt*NB,NB, 1.,tmpS,NB);
 #endif
 
@@ -1328,7 +1328,7 @@ namespace ChronusQ {
           //   J. Chem. Theory Comput. 2011, 7, 3097–3104 Eq. 14 
           //
           // Z -> VXC (submat)
-          DSYR2K('L','N',NBE,NPts,1.,BasisEval,NBE,ZMAT_loc,NBE,0.,
+          blas::syr2k(blas::Layout::ColMajor,blas::Uplo::Lower,blas::Op::NoTrans,NBE,NPts,1.,BasisEval,NBE,ZMAT_loc,NBE,0.,
             SCRATCHNBNB_loc,NBE);
     
     
@@ -1373,7 +1373,7 @@ namespace ChronusQ {
           //   J. Chem. Theory Comput. 2011, 7, 3097–3104 Eq. 14 
           //
           // Z -> VXC (submat)
-          DSYR2K('L','N',NBE,NPts,1.,BasisEval,NBE,ZMAT_loc,NBE,0.,
+          blas::syr2k(blas::Layout::ColMajor,blas::Uplo::Lower,blas::Op::NoTrans,NBE,NPts,1.,BasisEval,NBE,ZMAT_loc,NBE,0.,
             SCRATCHNBNB_loc,NBE);
     
     
@@ -1414,7 +1414,7 @@ namespace ChronusQ {
           //   J. Chem. Theory Comput. 2011, 7, 3097–3104 Eq. 14 
           //
           // Z -> VXC (submat)
-          DSYR2K('L','N',NBE,NPts,1.,BasisEval,NBE,ZMAT_loc,NBE,0.,
+          blas::syr2k(blas::Layout::ColMajor,blas::Uplo::Lower,blas::Op::NoTrans,NBE,NPts,1.,BasisEval,NBE,ZMAT_loc,NBE,0.,
             SCRATCHNBNB_loc,NBE);
     
     
@@ -1447,7 +1447,7 @@ namespace ChronusQ {
       // since we create only the lower triangular. For all components
       for(auto k = 0; k < VXC_SZYX.size(); k++) {
         if( nthreads == 1 )
-          Scale(NB2,4*M_PI,VXC_SZYX[k],1);
+          blas::scal(NB2,4*M_PI,VXC_SZYX[k],1);
         else
           for(auto ithread = 0; ithread < nthreads; ithread++)
             MatAdd('N','N',NB,NB,((ithread == 0) ? 0. : 1.),VXC_SZYX[k],NB,
@@ -1489,7 +1489,7 @@ namespace ChronusQ {
 #if VXC_DEBUG_LEVEL >= 3
       // DebugPrint
       std::cerr << std::endl;
-      Scale(NB2,4*M_PI,tmpS,1);
+      blas::scal(NB2,4*M_PI,tmpS,1);
       prettyPrintSmart(std::cerr,"Analytic  Overlap",
         this->aoints.overlap,NB,NB,NB);
       prettyPrintSmart(std::cerr,"Numeric  Overlap",tmpS,NB,NB,NB);

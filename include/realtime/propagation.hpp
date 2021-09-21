@@ -269,7 +269,7 @@ namespace ChronusQ {
       MatExp('D',NB,dcomplex(0.,-curState.stepSize/2.),
         propagator_.fockMatrixOrtho->S().pointer(),NB,UH->S().pointer(),NB,memManager_);
 
-      Scale(NB*NB,dcomplex(2.),UH->S().pointer(),1);
+      blas::scal(NB*NB,dcomplex(2.),UH->S().pointer(),1);
 
     // Unrestricted
     } else if( not UH->hasXY() ) {
@@ -333,12 +333,12 @@ namespace ChronusQ {
       // Create X(S) = (U**H * DO)(S) in SCR 
 
       // SCR = 0.5 * U(S)**H * DO(S)
-      Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH->S().pointer(),NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,dcomplex(0.5),UH->S().pointer(),NB,
         propagator_.onePDMOrtho->S().pointer(),NB,dcomplex(0.),SCR,NB);
 
       // SCR += 0.5 * U(Z)**H * DO(Z)
       if( UH->hasZ() )
-        Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH->Z().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,dcomplex(0.5),UH->Z().pointer(),NB,
           propagator_.onePDMOrtho->Z().pointer(),NB,dcomplex(1.),SCR,NB);
 
 
@@ -350,12 +350,12 @@ namespace ChronusQ {
       if( propagator_.onePDMOrtho->hasZ() ) {
 
         // SCR1 = 0.5 * U(S)**H * DO(Z)
-        Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH->S().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,dcomplex(0.5),UH->S().pointer(),NB,
           propagator_.onePDMOrtho->Z().pointer(),NB,dcomplex(0.),SCR1,NB);
 
         // SCR1 += 0.5 * U(Z)**H * DO(S)
         if( UH->hasZ() )
-          Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH->Z().pointer(),NB,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,dcomplex(0.5),UH->Z().pointer(),NB,
             propagator_.onePDMOrtho->S().pointer(),NB,dcomplex(1.),SCR1,NB);
 
       }
@@ -369,12 +369,12 @@ namespace ChronusQ {
       //       = 0.5 * ( SCR  * U(S) + SCR1 * U(Z) )
 
       // DO(S) = 0.5 * SCR * U(S)
-      Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR,NB,UH->S().pointer(),NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR,NB,UH->S().pointer(),NB,
            dcomplex(0.),propagator_.onePDMOrtho->S().pointer(),NB);
  
       // DO(S) += 0.5 * SCR1 * U(Z)
       if( UH->hasZ() )
-        Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR1,NB,UH->Z().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR1,NB,UH->Z().pointer(),NB,
              dcomplex(1.),propagator_.onePDMOrtho->S().pointer(),NB);
 
 
@@ -384,11 +384,11 @@ namespace ChronusQ {
         //       = 0.5 * ( SCR  * U(Z) + SCR1 * U(S) )
           
         // DO(Z) = 0.5 * SCR * U(Z)
-        Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR,NB,UH->Z().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR,NB,UH->Z().pointer(),NB,
              dcomplex(0.),propagator_.onePDMOrtho->Z().pointer(),NB);
  
         // DO(Z) += 0.5 * SCR1 * U(S)
-        Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR1,NB,UH->S().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR1,NB,UH->S().pointer(),NB,
              dcomplex(1.),propagator_.onePDMOrtho->Z().pointer(),NB);
 
       }
@@ -402,11 +402,11 @@ namespace ChronusQ {
       SquareMatrix<dcomplex> UHblockForm(UH->template spinGather<dcomplex>());
 
       // SCR1 = U**H * DO
-      Gemm('N','N',2*NB,2*NB,2*NB,dcomplex(1.),UHblockForm.pointer(),2*NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NB,2*NB,2*NB,dcomplex(1.),UHblockForm.pointer(),2*NB,
            DO.pointer(),2*NB,dcomplex(0.),SCR1,2*NB);
 
       // DO = SCR1 * U
-      Gemm('N','C',2*NB,2*NB,2*NB,dcomplex(1.),SCR1,2*NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,2*NB,2*NB,2*NB,dcomplex(1.),SCR1,2*NB,
            UHblockForm.pointer(),2*NB,dcomplex(0.),DO.pointer(),2*NB);
 
       // Scatter DO

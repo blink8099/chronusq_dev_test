@@ -37,7 +37,10 @@
 // Choose linear algebra headers
 #ifdef _CQ_MKL
   #define MKL_Complex16 dcomplex // Redefine MKL complex type
-  #define MKL_Complex8  std::complex<float> // Redefine MKL complex type
+  #define MKL_Complex8  std::complex<float> // Redefine MKL complex type 
+  #define lapack_complex_float MKL_Complex8
+  #define lapack_complex_double MKL_Complex16
+  #define LAPACK_COMPLEX_CPP
 
   #ifndef CQ_HAS_TA
     #include <mkl.h> // MKL
@@ -64,21 +67,22 @@
   #define CXXBLACS_HAS_BLAS
 
   #ifndef CQ_HAS_TA
-    #define CXXBLACS_BLAS_Complex16 double
-    #define CXXBLACS_BLAS_Complex8  float
+    #define CXXBLACS_BLAS_Complex16 std::complex<double>
+    #define CXXBLACS_BLAS_Complex8  std::complex<float>
     //#define CXXBLACS_LAPACK_Complex16 double
     //#define CXXBLACS_LAPACK_Complex8  float
   #endif
 
   // Redefine OpenBLAS complex type
   #ifndef _CQ_HAS_BTAS
+    #define LAPACK_COMPLEX_CPP
     #define lapack_complex_float std::complex<float> 
     #define lapack_complex_double dcomplex 
   #endif
 
   #ifndef CQ_HAS_TA
-    #include <f77blas.h>
-    #include <lapacke.h> // OpenBLAS
+    #include <blas/fortran.h>
+    #include <lapack/fortran.h>
   #endif
 
   extern "C" {
@@ -259,6 +263,11 @@ void zsyr2k_(const char *uplo, const char *trans, const TA_INT *n, const TA_INT 
 #endif
 
 
+#endif
+
+#ifndef CQ_HAS_TA
+  #include <lapack.hh>
+  #include <blas.hh>
 #endif
 
 #ifdef CQ_ENABLE_MPI

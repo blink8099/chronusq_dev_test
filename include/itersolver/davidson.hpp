@@ -186,7 +186,7 @@ namespace ChronusQ {
           CErr("Do Left Eig Vec is not implemented yet");
         } else {
         // SubA <- VR_\dagger * AVR 
-          Gemm('C','N',nVCur,nVCur,N,_F(1.),VR,N,AVR,N,_F(0.),SubA,nVCur); 
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nVCur,nVCur,N,_F(1.),VR,N,AVR,N,_F(0.),SubA,nVCur); 
         }
     
 #ifdef DEBUG_DAVIDSON
@@ -194,7 +194,7 @@ namespace ChronusQ {
 #endif 
 
         // Diagonalize SubA 
-        GeneralEigen(JOBVL,'V',nVCur,SubA,nVCur,Eig,XL,nVCur,XR,nVCur,this->memManager_); 
+        GeneralEigenSymm(JOBVL,'V',nVCur,SubA,nVCur,Eig,XL,nVCur,XR,nVCur); 
 
         // swap high energy roots for energy specific
         if(this->EnergySpecific) {
@@ -222,8 +222,8 @@ namespace ChronusQ {
           std::fill_n(Ovlp, nVCur*nVPrev, _F(0.)); 
               for(auto i = 0ul; i < nVCur; i++) Ovlp[i + i*nVPrev] = _F(1.); 
               
-          Gemm('C','N',nExam,nVCur,nVPrev,_F(1.),XRPrev,nVPrev,Ovlp,nVPrev,_F(0.),SCR,nExam);
-          Gemm('N','N',nExam,nExam,nVCur ,_F(1.),SCR,nExam,XR,nVCur,_F(0.),Ovlp,nExam);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nExam,nVCur,nVPrev,_F(1.),XRPrev,nVPrev,Ovlp,nVPrev,_F(0.),SCR,nExam);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,nExam,nExam,nVCur ,_F(1.),SCR,nExam,XR,nVCur,_F(0.),Ovlp,nExam);
           
           // mapping old vector to new vectors based on overlap
           std::vector<int> StMap(nExam);
@@ -252,8 +252,8 @@ namespace ChronusQ {
           std::cout << "\n      - Comparison to the previous iteration: " << std::endl;  
           // exam eigenvectors
           // R and S as scratch space to hold full vector old and new repectively
-          Gemm('N','N',N,nExam,nVPrev,_F(1.),VR,N,XRPrev,nVPrev,_F(0.),R,N);
-          Gemm('N','N',N,nExam,nVCur,_F(1.),VR,N,XR,nVCur,_F(0.),S,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nExam,nVPrev,_F(1.),VR,N,XRPrev,nVPrev,_F(0.),R,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nExam,nVCur,_F(1.),VR,N,XR,nVCur,_F(0.),S,N);
               
           _F phase;
           _F maxDel;  // maximum differece in vectors
@@ -321,13 +321,13 @@ namespace ChronusQ {
         if(nVCur+nDo > MSS)  nDo = MSS - nVCur;
         
         // R <- AVR * XR
-        Gemm('N','N',N,nDo,nVCur,_F(1.),AVR,N,SCR,nVCur,_F(0.),R,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nDo,nVCur,_F(1.),AVR,N,SCR,nVCur,_F(0.),R,N);
 
         // S as scratch space, <- eig_i * (VR * XR_i)
-        Gemm('N','N',N,nDo,nVCur,_F(1.),VR,N,SCR,nVCur,_F(0.),S,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nDo,nVCur,_F(1.),VR,N,SCR,nVCur,_F(0.),S,N);
             
         for (auto i = 0ul; i < nDo; i++) 
-          Scale(N,this->dcomplexTo_F(Eig[unConvS[i]]),S + i*N,1);
+          blas::scal(N,this->dcomplexTo_F(Eig[unConvS[i]]),S + i*N,1);
             
         // Compute the residue norm and generate perturbbed vectors
         MatAdd ('N','N',N,nDo,_F(1.),R,N,_F(-1.),S,N,S,N);
@@ -337,7 +337,7 @@ namespace ChronusQ {
         std::fill_n(RelRes, nG, 0.);
         for (auto i = 0ul; i < nDo; i++) {
           auto j = unConvS[i];
-          RelRes[i] = TwoNorm<double>(N,S + i*N,1); 
+          RelRes[i] = blas::nrm2(N,S + i*N,1); 
           std::cout << "        Root " << std::setw(5) << std::right << j+1 
                     << " 2nd order lowering " << std::right << std::setw(20) << RelRes[i]*RelRes[i] 
                     << " norm " << std::right << std::setw(20) << RelRes[i] << std::endl;
@@ -395,10 +395,10 @@ namespace ChronusQ {
 
       // move data before exit runMicro      
       std::copy_n(Eig,nR,this->eigVal_);
-      Gemm('N','N',N,nR,nVCur,_F(1.),VR,N,XR,nVCur,_F(0.),this->VR_,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nVCur,_F(1.),VR,N,XR,nVCur,_F(0.),this->VR_,N);
       //size_t nVSave = isConverged ? nR: nG;  
       //std::copy_n(Eig,nVSave,this->eigVal_);
-      //Gemm('N','N',N,nVSave,nVCur,_F(1.),VR,N,XR,nVCur,_F(0.),this->VR_,N);
+      //blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nVSave,nVCur,_F(1.),VR,N,XR,nVCur,_F(0.),this->VR_,N);
       
       std::cout << "\n  * ";
       if( isConverged and nDo !=0)

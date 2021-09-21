@@ -167,13 +167,13 @@ namespace ChronusQ {
 
     // Get SVD of uncontracted overlap
     // Store the left singular vectors in S
-    nPrimUse_ = ORTH(NP,NP,overlap,NP,SS,XXX,NP,memManager_);
+    nPrimUse_ = ORTH(NP,NP,overlap,NP,SS,XXX,NP);
 
     size_t NPU = nPrimUse_;
 
     // Form orthonormal transformation matrix in S
     for(auto i = 0ul; i < NPU; i++)
-      Scale(NP,IntsT(1.)/std::sqrt(SS[i]),
+      blas::scal(NP,IntsT(1.)/std::sqrt(SS[i]),
           overlap + i*NP,1);
 
     // Transform T into the orthonormal basis
@@ -185,14 +185,14 @@ namespace ChronusQ {
 
     // Get the SVD of TO
     // Store the left singular vectors in TO
-    SVD('O','N',NPU,NPU,kinetic->pointer(),NPU,SS,XXX,NPU,
-      XXX,NPU,memManager_);
+    lapack::gesvd(lapack::Job::OverwriteVec,lapack::Job::NoVec, 
+      NPU,NPU,kinetic->pointer(),NPU,SS,XXX,NPU,XXX,NPU);
 
     // Transformation matrix
     UK = memManager_.malloc<IntsT>(NP*NPU);
 
     // Form UK = S * T
-    Gemm('N','N',NP,NPU,NPU,IntsT(1.),overlap,NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NP,NPU,NPU,IntsT(1.),overlap,NP,
       kinetic->pointer(),NPU,IntsT(0.),UK,NP);
 
     // Allocate and for "P^2" potential
@@ -274,16 +274,18 @@ namespace ChronusQ {
     Y->clear();
 
     // Form X = S * L^-1
-    Gemm('N','N',2*NPU,2*NPU,2*NPU,MatsT(1.),S,4*NPU,L,4*NPU,
-      MatsT(0.),X->pointer(),X->dimension());
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+               2*NPU,2*NPU,2*NPU,MatsT(1.),S,4*NPU,L,4*NPU,
+               MatsT(0.),X->pointer(),X->dimension());
 
     // Form Y = sqrt(1 + X**H * X)
 
     // Y = X**H * X
-    Gemm('C','N',2*NPU,2*NPU,2*NPU,
-         MatsT(1.),X->pointer(),X->dimension(),
-         X->pointer(),X->dimension(),
-         MatsT(0.),Y->pointer(),Y->dimension());
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,
+               2*NPU,2*NPU,2*NPU,
+               MatsT(1.),X->pointer(),X->dimension(),
+               X->pointer(),X->dimension(),
+               MatsT(0.),Y->pointer(),Y->dimension());
 
     // Y = Y + I
     for(auto j = 0; j < 2*NPU; j++) (*Y)(j,j) += 1.0;
@@ -316,21 +318,25 @@ namespace ChronusQ {
 
 
     // SCR1 = X**H * W
-    Gemm('C','N',2*NPU,2*NPU,2*NPU,MatsT(1.),X->pointer(),X->dimension(),
-         Wp.pointer(),LDW,MatsT(0.),CSCR1,2*NPU);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,
+               2*NPU,2*NPU,2*NPU,MatsT(1.),X->pointer(),X->dimension(),
+               Wp.pointer(),LDW,MatsT(0.),CSCR1,2*NPU);
 
     // 2C CH += SCR1 * X
-    Gemm('N','N',2*NPU,2*NPU,2*NPU,MatsT(1.),CSCR1,2*NPU,
-         X->pointer(),X->dimension(),MatsT(1.),FullCH2C.pointer(),2*NPU);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+               2*NPU,2*NPU,2*NPU,MatsT(1.),CSCR1,2*NPU,
+               X->pointer(),X->dimension(),MatsT(1.),FullCH2C.pointer(),2*NPU);
 
     // SCR1 = CH2C * Y
-    Gemm('C','N',2*NPU,2*NPU,2*NPU,MatsT(1.),FullCH2C.pointer(),2*NPU,
-         Y->pointer(),Y->dimension(),MatsT(0.),CSCR1,2*NPU);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,
+               2*NPU,2*NPU,2*NPU,MatsT(1.),FullCH2C.pointer(),2*NPU,
+               Y->pointer(),Y->dimension(),MatsT(0.),CSCR1,2*NPU);
 
 
     // 2C CH = Y * SCR1
-    Gemm('N','N',2*NPU,2*NPU,2*NPU,MatsT(1.),Y->pointer(),Y->dimension(),CSCR1,2*NPU,
-      MatsT(0.),FullCH2C.pointer(),2*NPU);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+               2*NPU,2*NPU,2*NPU,MatsT(1.),Y->pointer(),Y->dimension(),CSCR1,2*NPU,
+               MatsT(0.),FullCH2C.pointer(),2*NPU);
 
     // Allocate memory for the uncontracted spin components
     // of the 2C CH
@@ -344,10 +350,10 @@ namespace ChronusQ {
     IntsT *CPSUK = SUK + NP*NPU;
 
     // Store the Product of S and UK
-    Gemm('N','N',NP,NPU,NP,IntsT(1.),uncontractedInts_.overlap->pointer(),NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NP,NPU,NP,IntsT(1.),uncontractedInts_.overlap->pointer(),NP,
          UK,NP,IntsT(0.),SUK,NP);
     // Store the Product of mapPrim2Cont and SUK
-    Gemm('N','N',NB,NPU,NP,IntsT(1.),mapPrim2Cont,NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NPU,NP,IntsT(1.),mapPrim2Cont,NB,
          SUK,NP,IntsT(0.),CPSUK,NB);
 
     // Transform the spin components of the 2C CH into R-space
@@ -384,16 +390,17 @@ namespace ChronusQ {
 
     // 1.  UP2CSUK = UP2C * S * UK
     IntsT *UP2CS = memManager_.malloc<IntsT>(NB*NP);
-    Gemm('N','N',NB,NP,NP,IntsT(1.),mapPrim2Cont,NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NP,NP,IntsT(1.),mapPrim2Cont,NB,
       uncontractedInts_.overlap->pointer(),NP,IntsT(0.),UP2CS,NB);
     IntsT *UP2CSUK = memManager_.malloc<IntsT>(4*NP*NPU);
-    Gemm('N','N',NB,NPU,NP,IntsT(1.),UP2CS,NB,UK,NP,IntsT(0.),UP2CSUK,2*NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NPU,NP,IntsT(1.),UP2CS,NB,UK,NP,IntsT(0.),UP2CSUK,2*NB);
     SetMatDiag(NB,NPU,UP2CSUK,2*NB,UP2CSUK,2*NB);
 
     // 2. R^T = UP2C * S * UK * Y^T
     MatsT *RT = memManager_.malloc<MatsT>(4*NB*NPU);
-    Gemm('N','C',2*NB,2*NPU,2*NPU,MatsT(1.),UP2CSUK,2*NB,
-         Y->pointer(),Y->dimension(),MatsT(0.),RT,2*NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,
+               2*NB,2*NPU,2*NPU,MatsT(1.),UP2CSUK,2*NB,
+               Y->pointer(),Y->dimension(),MatsT(0.),RT,2*NB);
 
     // 3. Xp = 2 c p^-1 X
     double twoC = 2 * SpeedOfLight;
@@ -414,13 +421,13 @@ namespace ChronusQ {
     // 5. US = UK2c * Xp * RT^T
     UL = memManager_.malloc<MatsT>(4*NP*NB);
     US = memManager_.malloc<MatsT>(4*NP*NB);
-    Gemm('N','C',2*NPU,2*NB,2*NPU,MatsT(1.),twoCPinvX,2*NPU,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,2*NPU,2*NB,2*NPU,MatsT(1.),twoCPinvX,2*NPU,
       RT,2*NB,MatsT(0.),UL,2*NPU);
-    Gemm('N','N',2*NP,2*NB,2*NPU,MatsT(1.),UK2c,2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NP,2*NB,2*NPU,MatsT(1.),UK2c,2*NP,
       UL,2*NPU,MatsT(0.),US,2*NP);
 
     // 6. UL = UK2c * RT^T
-    Gemm('N','C',2*NP,2*NB,2*NPU,MatsT(1.),UK2c,2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,2*NP,2*NB,2*NPU,MatsT(1.),UK2c,2*NP,
       RT,2*NB,MatsT(0.),UL,2*NP);
 
     memManager_.free(UP2CS, UP2CSUK, RT, twoCPinv, twoCPinvX);
@@ -464,30 +471,30 @@ namespace ChronusQ {
     MatsT *SCR = memManager_.malloc<MatsT>(4*NP*NB);
 
     // Hx2c = UL^H * T2c * US
-    Gemm('N','N',2*NP,2*NB,2*NP,MatsT(1.),T2c.pointer(),2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NP,2*NB,2*NP,MatsT(1.),T2c.pointer(),2*NP,
       US,2*NP,MatsT(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(1.),UL,2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,2*NB,2*NB,2*NP,MatsT(1.),UL,2*NP,
       SCR,2*NP,MatsT(0.),Hx2c.pointer(),2*NB);
     // Hx2c += US^H * T2c * UL
-    Gemm('N','N',2*NP,2*NB,2*NP,MatsT(1.),T2c.pointer(),2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NP,2*NB,2*NP,MatsT(1.),T2c.pointer(),2*NP,
       UL,2*NP,MatsT(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(1.),US,2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,2*NB,2*NB,2*NP,MatsT(1.),US,2*NP,
       SCR,2*NP,MatsT(1.),Hx2c.pointer(),2*NB);
     // Hx2c -= US^H * T2c * US
-    Gemm('N','N',2*NP,2*NB,2*NP,MatsT(1.),T2c.pointer(),2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NP,2*NB,2*NP,MatsT(1.),T2c.pointer(),2*NP,
       US,2*NP,MatsT(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(-1.),US,2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,2*NB,2*NB,2*NP,MatsT(-1.),US,2*NP,
       SCR,2*NP,MatsT(1.),Hx2c.pointer(),2*NB);
     // Hx2c += UL^H * V2c * UL
-    Gemm('N','N',2*NP,2*NB,2*NP,MatsT(1.),V2c.pointer(),2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NP,2*NB,2*NP,MatsT(1.),V2c.pointer(),2*NP,
       UL,2*NP,MatsT(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(1.),UL,2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,2*NB,2*NB,2*NP,MatsT(1.),UL,2*NP,
       SCR,2*NP,MatsT(1.),Hx2c.pointer(),2*NB);
     // Hx2c += 1/(4*C**2) US^H * W * US
-    Gemm('N','N',2*NP,2*NB,2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NP,2*NB,2*NP,
       MatsT(0.25/SpeedOfLight/SpeedOfLight),W->pointer(),2*NP,
       US,2*NP,MatsT(0.),SCR,2*NP);
-    Gemm('C','N',2*NB,2*NB,2*NP,MatsT(1.),US,2*NP,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,2*NB,2*NB,2*NP,MatsT(1.),US,2*NP,
       SCR,2*NP,MatsT(1.),Hx2c.pointer(),2*NB);
 
     *coreH = Hx2c.template spinScatter<MatsT>(
@@ -678,8 +685,9 @@ namespace ChronusQ {
     X = std::make_shared<SquareMatrix<MatsT>>(memManager_, 2*NP);
 
     // Form X = S * L^-1
-    Gemm('N','N',2*NP,2*NP,2*NP,MatsT(1.),S,ldCoef,L,ldCoef,
-         MatsT(0.),X->pointer(),X->dimension());
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+               2*NP,2*NP,2*NP,MatsT(1.),S,ldCoef,L,ldCoef,
+               MatsT(0.),X->pointer(),X->dimension());
 
     // Compute UL and US
 
@@ -709,24 +717,27 @@ namespace ChronusQ {
     SquareMatrix<MatsT> SCR(memManager_, 2*NP);
 
     // CSCR1 = (( S^-1/2 (S + 1/2c^2 X^H T X) S^-1/2 )^-1/2 S^1/2)^T
-    Gemm('T', 'T', 2*NP, 2*NP, 2*NP,
-         MatsT(1.0), Shalf.pointer(), Shalf.dimension(),
-         Y->pointer(), Y->dimension(),
-         MatsT(0.0), SCR.pointer(), SCR.dimension());
+    blas::gemm(blas::Layout::ColMajor, blas::Op::Trans, blas::Op::Trans,
+               2*NP, 2*NP, 2*NP,
+               MatsT(1.0), Shalf.pointer(), Shalf.dimension(),
+               Y->pointer(), Y->dimension(),
+               MatsT(0.0), SCR.pointer(), SCR.dimension());
 
     // compute UL
     SquareMatrix<MatsT> ULsub(memManager_, 2*NP);
-    Gemm('N', 'T', 2*NP, 2*NP, 2*NP,
-         MatsT(1.0), SinvHalf.pointer(), SinvHalf.dimension(),
-         SCR.pointer(), SCR.dimension(),
-         MatsT(0.0), ULsub.pointer(), ULsub.dimension());
+    blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans,
+               2*NP, 2*NP, 2*NP,
+               MatsT(1.0), SinvHalf.pointer(), SinvHalf.dimension(),
+               SCR.pointer(), SCR.dimension(),
+               MatsT(0.0), ULsub.pointer(), ULsub.dimension());
 
     // compute US = X UL
     SquareMatrix<MatsT> USsub(memManager_, 2*NP);
-    Gemm('N', 'N', 2*NP, 2*NP, 2*NP,
-         MatsT(1.0), X->pointer(), X->dimension(),
-         ULsub.pointer(), ULsub.dimension(),
-         MatsT(0.0), USsub.pointer(), USsub.dimension());
+    blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
+               2*NP, 2*NP, 2*NP,
+               MatsT(1.0), X->pointer(), X->dimension(),
+               ULsub.pointer(), ULsub.dimension(),
+               MatsT(0.0), USsub.pointer(), USsub.dimension());
 
     // Compute the mappings from primitives to CGTOs
     mapPrim2Cont = memManager_.malloc<IntsT>(NB*NP);
@@ -738,12 +749,14 @@ namespace ChronusQ {
     UL = memManager_.malloc<MatsT>(4*NP*NB);
     US = memManager_.malloc<MatsT>(4*NP*NB);
 
-    Gemm('N', 'C', 2*NP, 2*NB, 2*NP,
-         MatsT(1.), ULsub.pointer(), 2*NP, P2C2c, 2*NB,
-         MatsT(0.), UL, 2*NP);
-    Gemm('N', 'C', 2*NP, 2*NB, 2*NP,
-         MatsT(1.), USsub.pointer(), 2*NP, P2C2c, 2*NB,
-         MatsT(0.), US, 2*NP);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,
+               2*NP, 2*NB, 2*NP,
+               MatsT(1.), ULsub.pointer(), 2*NP, P2C2c, 2*NB,
+               MatsT(0.), UL, 2*NP);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,
+               2*NP, 2*NB, 2*NP,
+               MatsT(1.), USsub.pointer(), 2*NP, P2C2c, 2*NB,
+               MatsT(0.), US, 2*NP);
 
   }
 

@@ -76,14 +76,14 @@ namespace ChronusQ {
       
       if( iF != 0 ) {
 
-        AXPY(NPTS  ,1.,ES ,1,EpsEval  ,1);
-        AXPY(2*NPTS,1.,VR ,1,VRhoEval ,1);
-        AXPY(3*NPTS,1.,V2R,1,V2RhoEval,1);
+        blas::axpy(NPTS  ,1.,ES ,1,EpsEval  ,1);
+        blas::axpy(2*NPTS,1.,VR ,1,VRhoEval ,1);
+        blas::axpy(3*NPTS,1.,V2R,1,V2RhoEval,1);
 
         if( functionals[iF]->isGGA() ) {
-          AXPY(3*NPTS,1.,VS  ,1,VgammaEval    ,1);
-          AXPY(6*NPTS,1.,V2S ,1,V2gammaEval   ,1);
-          AXPY(6*NPTS,1.,V2RS,1,V2RhogammaEval,1);
+          blas::axpy(3*NPTS,1.,VS  ,1,VgammaEval    ,1);
+          blas::axpy(6*NPTS,1.,V2S ,1,V2gammaEval   ,1);
+          blas::axpy(6*NPTS,1.,V2RS,1,V2RhogammaEval,1);
         }
 
       }
@@ -723,7 +723,7 @@ namespace ChronusQ {
     SubMatSet(NB,NB,NBE,NBE,DENMAT,NB,SCR1,NBE,subMatCut);           
 
     // Obtain Sum_nu P_mu_nu Phi_nu
-    Gemm('N','N',NBE,NPts,NBE,U(1.),SCR1,NBE,BasisScr,NBE,U(0.),SCR2,NBE);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBE,NPts,NBE,U(1.),SCR1,NBE,BasisScr,NBE,U(0.),SCR2,NBE);
 
     if( typ != GRADIENT ){
       for(auto iPt = 0; iPt < NPts; iPt++) {
@@ -758,7 +758,7 @@ namespace ChronusQ {
       }
       // Transition density not symmetric
       // Obtain Sum_nu P^T_mu_nu Phi_nu
-      Gemm('T','N',NBE,NPts,NBE,U(1.),SCR1,NBE,BasisScr,NBE,U(0.),SCR2,NBE);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NBE,NPts,NBE,U(1.),SCR1,NBE,BasisScr,NBE,U(0.),SCR2,NBE);
  
       for(auto iPt = 0; iPt < NPts; iPt++) {
         const size_t NBEiPt = iPt*NBE;
@@ -807,11 +807,11 @@ namespace ChronusQ {
       U Fg = 0.5 * weights[iPt] * ZrhoVar1[iPt];
 
       double Fg_r = std::real(Fg);
-      AXPY(NBE,Fg_r,BasisScr + iPt*NBE,1, ZMAT_RE + iPt*NBE*INCZMAT ,INCZMAT);
+      blas::axpy(NBE,Fg_r,BasisScr + iPt*NBE,1, ZMAT_RE + iPt*NBE*INCZMAT ,INCZMAT);
 
       if( std::is_same<U,dcomplex>::value ) {
         double Fg_i = std::imag(Fg);
-        AXPY(NBE,Fg_i,BasisScr + iPt*NBE,1, ZMAT_IM + iPt*NBE*INCZMAT ,INCZMAT);
+        blas::axpy(NBE,Fg_i,BasisScr + iPt*NBE,1, ZMAT_IM + iPt*NBE*INCZMAT ,INCZMAT);
       }
 
 
@@ -839,9 +839,9 @@ namespace ChronusQ {
         double FgY_r = std::real(FgY);
         double FgZ_r = std::real(FgZ);
 
-        AXPY(NBE,FgX_r,BasisScr + iPt*NBE +   IOff,1,ZMAT_RE + iPt*NBE*INCZMAT,INCZMAT);
-        AXPY(NBE,FgY_r,BasisScr + iPt*NBE + 2*IOff,1,ZMAT_RE + iPt*NBE*INCZMAT,INCZMAT);
-        AXPY(NBE,FgZ_r,BasisScr + iPt*NBE + 3*IOff,1,ZMAT_RE + iPt*NBE*INCZMAT,INCZMAT);
+        blas::axpy(NBE,FgX_r,BasisScr + iPt*NBE +   IOff,1,ZMAT_RE + iPt*NBE*INCZMAT,INCZMAT);
+        blas::axpy(NBE,FgY_r,BasisScr + iPt*NBE + 2*IOff,1,ZMAT_RE + iPt*NBE*INCZMAT,INCZMAT);
+        blas::axpy(NBE,FgZ_r,BasisScr + iPt*NBE + 3*IOff,1,ZMAT_RE + iPt*NBE*INCZMAT,INCZMAT);
 
       }
 
@@ -870,7 +870,7 @@ namespace ChronusQ {
     //The same for 1 or 2C
     for(auto iPt = 0ul; iPt < NPts; iPt++) {
         U Fg = 0.5 * weights[iPt] * ZrhoVar1[iPt];
-        AXPY(NBE,Fg,BasisScr + iPt*NBE,1, ZMAT + iPt*NBE ,1);
+        blas::axpy(NBE,Fg,BasisScr + iPt*NBE,1, ZMAT + iPt*NBE ,1);
   
       }
 
@@ -896,9 +896,9 @@ namespace ChronusQ {
             FgY *= weights[iPt];
             FgZ *= weights[iPt];
   
-            AXPY(NBE,FgX,BasisScr + iPt*NBE +   IOff,1,ZMAT + iPt*NBE,1);
-            AXPY(NBE,FgY,BasisScr + iPt*NBE + 2*IOff,1,ZMAT + iPt*NBE,1);
-            AXPY(NBE,FgZ,BasisScr + iPt*NBE + 3*IOff,1,ZMAT + iPt*NBE,1);
+            blas::axpy(NBE,FgX,BasisScr + iPt*NBE +   IOff,1,ZMAT + iPt*NBE,1);
+            blas::axpy(NBE,FgY,BasisScr + iPt*NBE + 2*IOff,1,ZMAT + iPt*NBE,1);
+            blas::axpy(NBE,FgZ,BasisScr + iPt*NBE + 3*IOff,1,ZMAT + iPt*NBE,1);
   
           } // NPTS
 
@@ -1208,9 +1208,9 @@ namespace ChronusQ {
             FgY *= weights[iPt];
             FgZ *= weights[iPt];
     
-            AXPY(NBE,FgX,BasisScr + iPt*NBE +   IOff,1,ZMAT + iPt*NBE,1);
-            AXPY(NBE,FgY,BasisScr + iPt*NBE + 2*IOff,1,ZMAT + iPt*NBE,1);
-            AXPY(NBE,FgZ,BasisScr + iPt*NBE + 3*IOff,1,ZMAT + iPt*NBE,1);
+            blas::axpy(NBE,FgX,BasisScr + iPt*NBE +   IOff,1,ZMAT + iPt*NBE,1);
+            blas::axpy(NBE,FgY,BasisScr + iPt*NBE + 2*IOff,1,ZMAT + iPt*NBE,1);
+            blas::axpy(NBE,FgZ,BasisScr + iPt*NBE + 3*IOff,1,ZMAT + iPt*NBE,1);
 
           } //NPTS 
 
@@ -1760,7 +1760,7 @@ namespace ChronusQ {
           gPTss_loc, gPTsz_loc, gPTsy_loc, gPTsx_loc, gPTzz_loc, gPTyy_loc, gPTxx_loc, 
           BasisEval, ZMAT_loc);
 
-        SYR2K('L','N',NBE,NPts,U(0.5),Basis_use,NBE,ZMAT_loc,NBE,U(0.),NBNBSCR_loc,NBE);
+        blas::syr2k(blas::Layout::ColMajor,blas::Uplo::Lower,blas::Op::NoTrans,NBE,NPts,U(0.5),Basis_use,NBE,ZMAT_loc,NBE,U(0.),NBNBSCR_loc,NBE);
 
         IncBySubMat(NB,NB,NBE,NBE,GxcT[tid][iT][SCALAR],NB,NBNBSCR_loc,NBE,
             subMatCut);
@@ -1789,7 +1789,7 @@ namespace ChronusQ {
           gPTss_loc, gPTsz_loc, gPTsy_loc, gPTsx_loc, gPTzz_loc, gPTyy_loc, gPTxx_loc, 
           BasisEval, ZMAT_loc);
 
-        SYR2K('L','N',NBE,NPts,U(0.5),Basis_use,NBE,ZMAT_loc,NBE,U(0.),NBNBSCR_loc,NBE);
+        blas::syr2k(blas::Layout::ColMajor,blas::Uplo::Lower,blas::Op::NoTrans,NBE,NPts,U(0.5),Basis_use,NBE,ZMAT_loc,NBE,U(0.),NBNBSCR_loc,NBE);
 
         IncBySubMat(NB,NB,NBE,NBE,GxcT[tid][iT][MZ],NB,NBNBSCR_loc,NBE,
             subMatCut);
@@ -1819,7 +1819,7 @@ namespace ChronusQ {
             gPTss_loc, gPTsz_loc, gPTsy_loc, gPTsx_loc, gPTzz_loc, gPTyy_loc, gPTxx_loc, 
             BasisEval, ZMAT_loc);
 
-          SYR2K('L','N',NBE,NPts,U(0.5),Basis_use,NBE,ZMAT_loc,NBE,U(0.),NBNBSCR_loc,NBE);
+          blas::syr2k(blas::Layout::ColMajor,blas::Uplo::Lower,blas::Op::NoTrans,NBE,NPts,U(0.5),Basis_use,NBE,ZMAT_loc,NBE,U(0.),NBNBSCR_loc,NBE);
 
           IncBySubMat(NB,NB,NBE,NBE,GxcT[tid][iT][MX],NB,NBNBSCR_loc,NBE,
               subMatCut);
@@ -1847,7 +1847,7 @@ namespace ChronusQ {
             gPTss_loc, gPTsz_loc, gPTsy_loc, gPTsx_loc, gPTzz_loc, gPTyy_loc, gPTxx_loc, 
             BasisEval, ZMAT_loc);
 
-          SYR2K('L','N',NBE,NPts,U(0.5),Basis_use,NBE,ZMAT_loc,NBE,U(0.),NBNBSCR_loc,NBE);
+          blas::syr2k(blas::Layout::ColMajor,blas::Uplo::Lower,blas::Op::NoTrans,NBE,NPts,U(0.5),Basis_use,NBE,ZMAT_loc,NBE,U(0.),NBNBSCR_loc,NBE);
 
           IncBySubMat(NB,NB,NBE,NBE,GxcT[tid][iT][MY],NB,NBNBSCR_loc,NBE,
               subMatCut);

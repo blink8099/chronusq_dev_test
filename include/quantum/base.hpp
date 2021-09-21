@@ -42,15 +42,13 @@ namespace ChronusQ {
     SCALAR=0,MZ=1,MY=2,MX=3
   }; ///< Enumerate the types of densities for contraction
 
+
   // Helper function for operator traces
-  // see src/quantum/properties.cxx for docs
-
-  template <typename RetTyp, typename Left, typename Right>
-  static inline RetTyp OperatorTrace(size_t N, const Left& op1 , 
+  template <typename Left, typename Right>
+  static inline double OperatorTrace(size_t N, const Left& op1 , 
     const Right& op2) {
-        
-    return InnerProd<RetTyp>(N,op1,1,op2,1);
-
+    
+    return std::real(blas::dot(N,op1,1,op2,1));
   } 
 
   /**

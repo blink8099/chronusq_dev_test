@@ -32,8 +32,8 @@ namespace ChronusQ {
    *  property evaluation. Return zeros when necessacy.
    */ 
   template <typename MatsT>
-  template <typename RetTyp, DENSITY_TYPE DenTyp, typename Op>
-  RetTyp Quantum<MatsT>::OperatorSpinCombine(const Op &op) {
+  template <DENSITY_TYPE DenTyp, typename Op>
+  double Quantum<MatsT>::OperatorSpinCombine(const Op &op) {
     double rZero(0.);
     bool isReal = std::is_same<double,MatsT>::value;
 
@@ -58,14 +58,15 @@ namespace ChronusQ {
 
     // Catch zero evals
     if(isZero)
-      return reinterpret_cast<RetTyp(&)[2]>(rZero)[0];
+      return rZero;
 
     // Sanity checks
     assert( memManager.template getSize(op) == DSize );
 
     // Perform proper trace
     MatsT *Dptr = (*onePDM)[static_cast<PAULI_SPINOR_COMPS>(DenTyp)].pointer();
-    return OperatorTrace<RetTyp>(DSize,Dptr,op);
+
+    return OperatorTrace(DSize,Dptr,op);
 
   }; // Quantum<T>::OperatorSpinCombine
 

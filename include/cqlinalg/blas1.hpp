@@ -27,89 +27,6 @@
 
 namespace ChronusQ {
 
-  /**
-   *  \brief Takes the inner product of two, possibly strided
-   *  vectors
-   *
-   *  \f[
-   *    a = \sum_i x_i^* y_i
-   *  \f]
-   *
-   *  General to real, complex and mixed expressions.
-   *
-   *  \warning Real return involving complex vectors will
-   *  return only the real part and discard the imaginary part.
-   *
-   *  Wraps BLAS functions. See
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/ddot.f.html or
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/zdotc.f.html for
-   *  parameter documentation.
-   */ 
-  template <typename _F1, typename _F2, typename _F3>
-  _F1 InnerProd(int N, const _F2 *X, int INCX, const _F3 *Y, int INCY);
-
-  /**
-   *  \brief Swaps the states of two vectors
-   *
-   *  Wraps BLAS functions. See
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/dswap.f.html or
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/zswap.f.html for
-   *  parameter documentation.
-   *    
-   */
-  template <typename _F1>
-  void Swap(int N, _F1 *X, int INCX, _F1 *Y, int INCY);
-
-  /**
-   *  \brief Scales a vector in place
-   *
-   *  Wraps BLAS functions. See
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/dscal.f.html or
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/zscal.f.html for
-   *  parameter documentation.
-   *    
-   */
-  template <typename _F>
-  void Scale(int N, _F ALPHA, _F* X, int INCX);
-
-  /**
-   *  \brief Returns the euclidian norm of a vector
-   *
-   *  Wraps BLAS functions. See
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/dnrm2.f.html or
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/dznrm2.f.html for
-   *  parameter documentation.
-   *    
-   */
-  template <typename _F1, typename _F2>
-  _F1 TwoNorm(int N, _F2 *X, int INCX);
-
-  
-  /**
-   *  \brief Returns constant time a vector plus a vector
-   *
-   *  Wraps BLAS functions. See
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/daxpy.f.html 
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/zaxpy.f.html 
-   *  parameter documentation.
-   *    
-   */
-  template <typename _F1, typename _F2, typename _ShiftF>
-  void AXPY(int N, _ShiftF alpha, const _F1 *X, int INCX, _F2 *Y, int INCY);
-
-  /**
-   *  \brief Returns the specified norm of a matrix.
-   *
-   *  Wraps LAPACK functions. See
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/dlange.f.html or
-   *    http://www.netlib.org/lapack/lapack-3.1.1/html/zlange.f.html for
-   *  parameter documentation.
-   *
-   */ 
-  template <typename _F1, typename _F2>
-  _F1 MatNorm(char NORM, int M, int N, _F2 *A, int LDA);
-  
-
 
   /**
    *  \brief Normalizes a vector and returns the norm
@@ -117,8 +34,8 @@ namespace ChronusQ {
   template <typename _F>
   inline double Normalize(int N, _F *X, int INCX) {
 
-    double norm = TwoNorm<double>(N,X,INCX);
-    Scale(N,_F(1.)/norm,X,INCX);
+    double norm = blas::nrm2(N,X,INCX);
+    blas::scal(N,_F(1.)/norm,X,INCX);
 
     return norm;
 

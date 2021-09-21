@@ -3,6 +3,9 @@
 !*fockbuild*
 external/mxx
 external/cxxblacs
+external/blaspp
+external/lapackpp/*
+!external/lapackpp/patch
 external/libint2*
 external/libcint-*
 external/libcint/*

@@ -134,9 +134,9 @@ namespace ChronusQ {
 
 
     if( std::is_same<IntsT,dcomplex>::value )
-      Gemm('C','N',NB2,1,NB2,MatsT(1.),C.ERI4,NB2,C.X,NB2,MatsT(0.),C.AX,NB2);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB2,1,NB2,MatsT(1.),C.ERI4,NB2,C.X,NB2,MatsT(0.),C.AX,NB2);
     else
-      Gemm('N','N',NB2,1,NB2,MatsT(1.),C.ERI4,NB2,C.X,NB2,MatsT(0.),C.AX,NB2);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB2,1,NB2,MatsT(1.),C.ERI4,NB2,C.X,NB2,MatsT(0.),C.AX,NB2);
 
     // if Complex ints + Hermitian, conjugate
     if( std::is_same<IntsT,dcomplex>::value and C.HER )
@@ -206,7 +206,7 @@ namespace ChronusQ {
 
     #pragma omp parallel for
     for(auto nu = 0; nu < NB; nu++)
-      Gemm('N','N',NB,1,NB2,MatsT(1.),C.ERI4+nu*NB3,NB,C.X,NB2,MatsT(0.),C.AX+nu*NB,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,1,NB2,MatsT(1.),C.ERI4+nu*NB3,NB,C.X,NB2,MatsT(0.),C.AX+nu*NB,NB);
 
     SetLAThreads(LAThreads);
 

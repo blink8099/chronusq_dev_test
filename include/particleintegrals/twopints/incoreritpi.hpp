@@ -26,6 +26,7 @@
 #include <particleintegrals/twopints.hpp>
 #include <particleintegrals/twopints/incore4indextpi.hpp>
 #include <cqlinalg/blas1.hpp>
+#include <cqlinalg/blas3.hpp>
 #include <cqlinalg/blasutil.hpp>
 #include <cxxapi/output.hpp>
 
@@ -127,7 +128,7 @@ namespace ChronusQ {
       return operator()(p+q*this->nBasis(), r+s*this->nBasis());
     }
     virtual IntsT operator()(size_t pq, size_t rs) const {
-      return InnerProd<IntsT>(NBRI, &ERI3J[pq*NBRI], 1, &ERI3J[rs*NBRI], 1);
+      return blas::dot(NBRI, &ERI3J[pq*NBRI], 1, &ERI3J[rs*NBRI], 1);
     }
     IntsT& operator()(size_t L, size_t p, size_t q) {
       return ERI3J[L + p*NBRI + q*NBNBRI];
@@ -183,7 +184,7 @@ namespace ChronusQ {
     InCore4indexTPI<IntsT> to4indexERI() {
       InCore4indexTPI<IntsT> eri4i(this->memManager(), this->nBasis());
       size_t NB2 = this->nBasis() * this->nBasis();
-      Gemm('T','N',NB2,NB2,NBRI,IntsT(1.),pointer(),NBRI,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB2,NB2,NBRI,IntsT(1.),pointer(),NBRI,
            pointer(),NBRI,IntsT(0.),eri4i.pointer(),NB2);
       return eri4i;
     }
