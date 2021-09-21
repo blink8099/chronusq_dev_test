@@ -125,16 +125,16 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::transformERI(EMPerturbation & pert, 
-    MatsT* MOERI, const std::string & moType) {
+    MatsT* asymMOERI, const std::string & moType) {
     
     if (ss_.nC == 1) CErr("transformERI not implemented for 1C");
 
     auto off_sizes = parseMOType(moType);
     
     if (ERITransAlg_ == SSFOCK_N6) {
-      subsetTransformERISSFockN6(pert, off_sizes, MOERI);
+      subsetTransformERISSFockN6(pert, off_sizes, asymMOERI);
     } else if (ERITransAlg_ == INCORE_N5) {
-      CErr("INCORE_N5 NYI");
+      subsetTransformERIInCoreN5(off_sizes, asymMOERI);
     }
 
   }; // MOIntsTransformer::transformERI 

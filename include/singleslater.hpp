@@ -293,7 +293,7 @@ namespace ChronusQ {
 
     // Method to produce a test on integral transformation 
     void MOIntsTransformationTest(EMPerturbation &);
-    
+     
     // MO Transformations
     void MOFOCK();
 

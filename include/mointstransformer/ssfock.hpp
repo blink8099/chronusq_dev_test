@@ -65,11 +65,11 @@ namespace ChronusQ {
     
     // 1/2 transformation to obtian (mu nu | p q)
     for (auto q = 0; q <  nq; q++) 
-    for (auto p = 0; p <= np; p++) {
+    for (auto p = 0; p <  np; p++) {
       
-      // outer product to make a fake ss onePDM
-      Gemm('N', 'C', nAO, nAO, 1, MatsT(1.), ss_.mo[0].pointer() + (p+poff)*nAO, nAO,
-        ss_.mo[0].pointer() + (q+qoff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
+      // outer product to make a fake ss onePDM of Dqp
+      Gemm('N', 'C', nAO, nAO, 1, MatsT(1.), ss_.mo[0].pointer() + (q+qoff)*nAO, nAO,
+        ss_.mo[0].pointer() + (p+poff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
       
       // Hack SS to get ASYMERIpq
       *(ss_.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>();
@@ -78,16 +78,17 @@ namespace ChronusQ {
       
       // copy
       SetMat('N', nAO, nAO, MatsT(1.), asymMOERIpq.pointer(), nAO, SCR + (p + q*np)*nAO2, nAO);
-      if (pqSymm) { 
-       if (q < p) SetMat('C', nAO, nAO, MatsT(1.), asymMOERIpq.pointer(), nAO, SCR + (q + p*np)*nAO2, nAO); 
-       else if (q == p) break;
-      }
+//      if (pqSymm) { 
+//       if (q < p) SetMat('C', nAO, nAO, MatsT(1.), asymMOERIpq.pointer(), nAO, SCR + (q + p*np)*nAO2, nAO); 
+//       else if (q == p) break;
+//      }
      
-    } // pq
+    } // 1/2 transformation
     
     MatsT * SCR2 = nullptr;
-    if (ns == nAO) SCR2 = asymMOERI;
-    else SCR2  = memManager_.malloc<MatsT>(nAO * npqr);
+    // if (ns == nAO) SCR2 = asymMOERI;
+    //else 
+    SCR2  = memManager_.malloc<MatsT>(nAO * npqr);
 
     // 3/4 transfromation: (nu p | q r) = (mu nu | p q)^H * C(mu, r)
     Gemm('C', 'N', nAO*npq, nr, nAO,

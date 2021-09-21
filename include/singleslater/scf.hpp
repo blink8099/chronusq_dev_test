@@ -760,8 +760,6 @@ namespace ChronusQ {
 
   }; // SingleSlater<MatsT>::SCFFin
 
-
-
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::MOIntsTransformationTest(EMPerturbation &pert) {
     
@@ -781,15 +779,31 @@ namespace ChronusQ {
     TF.transformHCore(hCore.pointer());
 
     MatsT SCFEnergy = MatsT(0.);
-    size_t off = (this->nC == 4) ? NB / 2: 0;
     for (auto i = 0; i < this->nO; i++) {
       SCFEnergy += hCore(i, i);
       for (auto j = 0; j < this->nO; j++)
         SCFEnergy += 0.5 * ASYMERI(i, i, j, j); 
     }
+    
 
-    std::cout << "SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
-
+    std::cout << "SSFOCK_N6 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
+    ASYMERI.output(std::cout, "SSFOCK_N6 ERI", true);
+    // prettyPrintSmart(std::cout,"SSFOCK_N6 ERI", ASYMERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
+    
+    ASYMERI.clear();
+    MOIntsTransformer<MatsT, IntsT> TF2(memManager, *this, INCORE_N5);  
+    
+    TF2.transformERI(pert, ASYMERI.pointer());
+    SCFEnergy = MatsT(0.);
+    for (auto i = 0; i < this->nO; i++) {
+      SCFEnergy += hCore(i, i);
+      for (auto j = 0; j < this->nO; j++)
+        SCFEnergy += 0.5 * ASYMERI(i, i, j, j); 
+    }
+    std::cout << "INCORE_N5 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
+    ASYMERI.output(std::cout, "INCORE_N5 ERI", true);
+    // prettyPrintSmart(std::cout,"INCORE_N5 ERI", ASYMERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
+    
     std::cout << "\n --------- End of the Test (on MO Ints Transformation)----- \n" << std::endl;
   }; // SingleSlater<MatsT>::MOIntsTransformationTest
   

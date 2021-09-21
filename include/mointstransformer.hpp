@@ -53,6 +53,7 @@ namespace ChronusQ {
     CQMemManager &memManager_; ///< CQMemManager to allocate matricies
     ERI_TRANSFORMATION_ALG ERITransAlg_;
     SingleSlater<MatsT,IntsT> & ss_;
+    std::shared_ptr<InCore4indexTPI<MatsT>> AOERI_ = nullptr;
 
     // variables for moints type
     std::vector<std::set<char>> symbol_sets_;
@@ -68,8 +69,8 @@ namespace ChronusQ {
       ERI_TRANSFORMATION_ALG alg = SSFOCK_N6):
         memManager_(mem), ss_(ss), ERITransAlg_(alg) {
       
-        if (alg == INCORE_N5) {
-          CErr("INCORE N5 NYI !");   
+        if (ss.nC == 1) {
+          CErr("1C MOInts NYI !");   
         }
         
         // set default MO ranges
@@ -78,9 +79,10 @@ namespace ChronusQ {
     
     // Methods to parse types of integral indices
     void resetMORanges() {
-      symbol_sets_.clear();
-      mo_ranges_.clear();
+        symbol_sets_.clear();
+        mo_ranges_.clear();
     };
+
     void addMORanges(const std::set<char> &, const std::pair<size_t, size_t> &);
     void setMORanges(size_t nFrozenCore = 0, size_t nFrozenVirt = 0);  
     // void setMORanges(MOSpacePartition); TODO: implement for CAS type   
@@ -93,6 +95,7 @@ namespace ChronusQ {
     // Methods to transform ERI 
     void transformERI(EMPerturbation & pert, MatsT* MOERI, const std::string & moType = "pqrs");
     void subsetTransformERISSFockN6(EMPerturbation &, const std::vector<std::pair<size_t,size_t>> &, MatsT*);
+    void cacheAOERIInCore();
     void subsetTransformERIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, MatsT*);
 
     virtual ~MOIntsTransformer() {};
