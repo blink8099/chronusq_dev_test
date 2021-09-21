@@ -128,12 +128,12 @@ inline dcomplex RAND_NUMBER(std::default_random_engine &e,
 
 
     // Compute AC = AC - VSL * S * VSR**H
-    Gemm('N','C',N,N,N,T(1.) ,A  ,N,VSR,N,T(0.),SCR,N);
-    Gemm('N','N',N,N,N,T(-1.),VSL,N,SCR,N,T(1.),AC ,N);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,N,N,N,T(1.) ,A  ,N,VSR,N,T(0.),SCR,N);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,T(-1.),VSL,N,SCR,N,T(1.),AC ,N);
 
     // Compute BC = BC - VSL * T * VSR**H
-    Gemm('N','C',N,N,N,T(1.) ,B  ,N,VSR,N,T(0.),SCR,N);
-    Gemm('N','N',N,N,N,T(-1.),VSL,N,SCR,N,T(1.),BC ,N);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,N,N,N,T(1.) ,B  ,N,VSR,N,T(0.),SCR,N);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,T(-1.),VSL,N,SCR,N,T(1.),BC ,N);
 
     auto abs_comp = []( T a, T b ) {
 

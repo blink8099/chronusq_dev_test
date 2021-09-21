@@ -23,241 +23,46 @@
  */
 #include <cqlinalg/factorization.hpp>
 #include <cqlinalg/util.hpp>
+#include <lapack.hh>
 
 #include <cerr.hpp>
 #include <util/matout.hpp>
 
 namespace ChronusQ {
 
-  // Cholesky specializations
-
-  // Real wraps DPOTRF
-  template <>
-  int Cholesky(char UPLO, int N, double *A, int LDA) {
-    int INFO;
-    dpotrf_(&UPLO,&N,A,&LDA,&INFO);
-    return INFO;
-  }; // Cholesky (real)
-
-  // Complex wraps ZPOTRF
-  template <>
-  int Cholesky(char UPLO, int N, dcomplex *A, int LDA) {
-    int INFO;
-    zpotrf_(&UPLO,&N,A,&LDA,&INFO);
-    return INFO;
-  }; // Cholesky (complex)
-
-
-  // Real wraps DPOTRI
-  template <>
-  int CholeskyInv(char UPLO, int N, double *A, int LDA) {
-    int INFO;
-    dpotri_(&UPLO,&N,A,&LDA,&INFO);
-    return INFO;
-  }; // CholeskyInv (real)
-
-
-  // Complex wraps ZPOTRI
-  template <>
-  int CholeskyInv(char UPLO, int N, dcomplex *A, int LDA) {
-    int INFO;
-    zpotri_(&UPLO,&N,A,&LDA,&INFO);
-    return INFO;
-  }; // CholeskyInv (complex)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // Real wraps DGETRF
-  template<>
-  int LU(int M, int N, double *A, int LDA, int *IPIV) {
-
-    int INFO;
-    
-    dgetrf_(&M,&N,A,&LDA,IPIV,&INFO);
-
-    return INFO;
-
-  }; // LU (real)
-
-
-  // Complex wraps ZGETRF
-  template<>
-  int LU(int M, int N, dcomplex *A, int LDA, int *IPIV) {
-
-    int INFO;
-    
-    zgetrf_(&M,&N,A,&LDA,IPIV,&INFO);
-
-    return INFO;
-
-  }; // LU (complex)
-
 
   // Real wraps DGETRF + DGETRI
-  template <>
-  int LUInv(int N, double *A, int LDA, CQMemManager &mem) {
-
-    int INFO;
-
-    int *IPIV = mem.malloc<int>(N);
-
-    auto test =
-      std::bind(dgetri_,&N,A,&LDA,IPIV,std::placeholders::_1,
-        std::placeholders::_2,&INFO);
-
-
-    INFO = LU(N,N,A,LDA,IPIV);
-
-    if( INFO != 0 ) { mem.free(IPIV); return INFO; }
-
-    int LWORK = getLWork<double>(test);
-    double *WORK = mem.malloc<double>(LWORK);
-
-    dgetri_(&N,A,&LDA,IPIV,WORK,&LWORK,&INFO);
-
-    mem.free(IPIV,WORK);
-
-    return INFO;
-
-  }; // LUInv (real)
-
-
- 
   // Complex wraps ZGETRF + ZGETRI
-  template <>
-  int LUInv(int N, dcomplex *A, int LDA, CQMemManager &mem) {
+  template <typename T>
+  int LUInv(int N, T* A, int LDA, CQMemManager &mem) {
 
-    int INFO;
+    int64_t *IPIV = mem.malloc<int64_t>(N);
 
-    int *IPIV = mem.malloc<int>(N);
-
-    auto test =
-      std::bind(zgetri_,&N,A,&LDA,IPIV,std::placeholders::_1,
-        std::placeholders::_2,&INFO);
-
-
-    INFO = LU(N,N,A,LDA,IPIV);
+    int64_t INFO = lapack::getrf(N,N,A,LDA,IPIV);
 
     if( INFO != 0 ) { mem.free(IPIV); return INFO; }
 
-    int LWORK = getLWork<dcomplex>(test);
-    dcomplex *WORK = mem.malloc<dcomplex>(LWORK);
-
-    zgetri_(&N,A,&LDA,IPIV,WORK,&LWORK,&INFO);
-
-    mem.free(IPIV,WORK);
-
-    return INFO;
-
-  }; // LUInv (complex)
-
-
-
-
-
-
-
-  template <>
-  int BunchKaufman(char UPLO, int N, double *A, int LDA, int *IPIV, 
-      CQMemManager &mem) {
-
-    int INFO;
-    auto test = 
-      std::bind(dsytrf_,&UPLO,&N,A,&LDA,IPIV,std::placeholders::_1,
-        std::placeholders::_2,&INFO);
-
-    int LWORK = getLWork<double>(test);
-    double *WORK = mem.malloc<double>(LWORK);
-
-    dsytrf_(&UPLO,&N,A,&LDA,IPIV,WORK,&LWORK,&INFO);
-
-    mem.free(WORK);
-
-    return INFO;
-
-  }
-
-  template <>
-  int BunchKaufman(char UPLO, int N, dcomplex *A, int LDA, int *IPIV,
-      CQMemManager &mem) {
-
-    int INFO;
-    auto test = 
-      std::bind(zhetrf_,&UPLO,&N,A,&LDA,IPIV,std::placeholders::_1,
-        std::placeholders::_2,&INFO);
-
-    int LWORK = getLWork<dcomplex>(test);
-    dcomplex *WORK = mem.malloc<dcomplex>(LWORK);
-
-    zhetrf_(&UPLO,&N,A,&LDA,IPIV,WORK,&LWORK,&INFO);
-
-    mem.free(WORK);
-
-    return INFO;
-
-  }
-
-
-
-
-
-
-  template<>
-  int TriInv(char UPLO, char DIAG, int N, double *A, int LDA){
+    lapack::getri(N,A,LDA,IPIV);
     
-    int INFO;
-    dtrtri_(&UPLO,&DIAG,&N,A,&LDA,&INFO);
+    mem.free(IPIV);
+
     return INFO;
 
-  };
+  }; // LUInv
 
-  template<>
-  int TriInv(char UPLO, char DIAG, int N, dcomplex *A, int LDA){
-    
-    int INFO;
-    ztrtri_(&UPLO,&DIAG,&N,A,&LDA,&INFO);
-    return INFO;
-
-  };
+  template int LUInv<double>(int N, double* A, int LDA, CQMemManager &mem);
+  template int LUInv<dcomplex>(int N, dcomplex* A, int LDA, CQMemManager &mem);
 
 
-
-
-
-
-
-  template <>
-  int QR(int M, int N, double *A, int LDA, double *R, int LDR, 
+  template <typename T>
+  int QR(int M, int N, T* A, int LDA, T* R, int LDR, 
     CQMemManager &mem) {
 
-    int INFO;
-    double *TAU = mem.malloc<double>(N);
+    T *TAU = mem.malloc<T>(N);
 
-    using namespace std::placeholders;
-    auto qrf = std::bind(dgeqrf_,&M,&N,A,&LDA,TAU,_1,_2,&INFO);
-    auto qrg = std::bind(dorgqr_,&M,&N,&N,A,&LDA,TAU,_1,_2,&INFO);
+    int INFO = lapack::geqrf(M,N,A,LDA,TAU);
 
-    int LWORK_QRF = getLWork<double>(qrf);
-    int LWORK_QRG = getLWork<double>(qrg);
-
-    int LWORK = std::max(LWORK_QRF,LWORK_QRG);
-    double *WORK = mem.malloc<double>(LWORK);
-
-
-    qrf(WORK,&LWORK);
-
-    if( INFO != 0 ) { mem.free(TAU,WORK); return INFO; }
+    if( INFO != 0 ) { mem.free(TAU); return INFO; }
 
     int rCol = std::min(M,N);
     std::fill_n(R,rCol*LDR,0.);
@@ -267,128 +72,17 @@ namespace ChronusQ {
       R[i + j*LDR] = A[i + j*LDA];
 
 
-    qrg(WORK,&LWORK);
+    INFO = lapack::ungqr(M,N,N,A,LDA,TAU);
 
-    mem.free(TAU,WORK); return INFO; 
-
-  }
-
-
-  template <>
-  int QR(int M, int N, dcomplex *A, int LDA, dcomplex *R, int LDR, 
-    CQMemManager &mem) {
-
-    int INFO;
-    dcomplex *TAU = mem.malloc<dcomplex>(N);
-
-    using namespace std::placeholders;
-    auto qrf = std::bind(zgeqrf_,&M,&N,A,&LDA,TAU,_1,_2,&INFO);
-    auto qrg = std::bind(zungqr_,&M,&N,&N,A,&LDA,TAU,_1,_2,&INFO);
-
-    int LWORK_QRF = getLWork<dcomplex>(qrf);
-    int LWORK_QRG = getLWork<dcomplex>(qrg);
-
-    int LWORK = std::max(LWORK_QRF,LWORK_QRG);
-    dcomplex *WORK = mem.malloc<dcomplex>(LWORK);
-
-
-    qrf(WORK,&LWORK);
-
-    if( INFO != 0 ) { mem.free(TAU,WORK); return INFO; }
-
-    int rCol = std::min(M,N);
-    std::fill_n(R,rCol*LDR,0.);
-
-    for(auto j = 0; j < N; j++) 
-    for(auto i = 0; i <= j; i++)
-      R[i + j*LDR] = A[i + j*LDA];
-
-
-    qrg(WORK,&LWORK);
-
-    mem.free(TAU,WORK); return INFO; 
+    mem.free(TAU); 
+    
+    return INFO; 
 
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  template <>
-  int QZ(char JOBVSL, char JOBVSR, int N, double *A, int LDA, double *B, 
-    int LDB, dcomplex *ALPHA, double *BETA, double *VSL, int LDVSL, 
-    double *VSR, int LDVSR, CQMemManager &mem) {
-
-
-    using SELECT_3 = int (*)(const double*, const double*, const double*);
-    SELECT_3 SF = nullptr;
-    int  SDIM = 0;
-    char SORT_c   = 'N';
-
-
-    int INFO;
-    double *ALPHAR = mem.malloc<double>(N);
-    double *ALPHAI = mem.malloc<double>(N);
-
-    using namespace std::placeholders;
-    auto gges = std::bind(dgges_,&JOBVSL,&JOBVSR,&SORT_c,SF,&N,A,&LDA,B,&LDB,
-      &SDIM,ALPHAR,ALPHAI,BETA,VSL,&LDVSL,VSR,&LDVSR,_1,_2,&SDIM,&INFO);
-
-    int LWORK = getLWork<double>(gges);
-
-    double *WORK = mem.malloc<double>(LWORK);
-
-    gges(WORK,&LWORK);
-
-    for(auto k = 0; k < N; k++) ALPHA[k] = dcomplex(ALPHAR[k],ALPHAI[k]);
-
-    mem.free(ALPHAR,ALPHAI,WORK);
-
-    return INFO;
-
-  } 
-
-  template <>
-  int QZ(char JOBVSL, char JOBVSR, int N, dcomplex *A, int LDA, dcomplex *B, 
-    int LDB, dcomplex *ALPHA, dcomplex *BETA, dcomplex *VSL, int LDVSL, 
-    dcomplex *VSR, int LDVSR, CQMemManager &mem) {
-
-
-    using SELECT_2 = int (*)(const dcomplex*, const dcomplex*);
-    SELECT_2 SF = nullptr;
-    int SDIM = 0;
-    char SORT_c   = 'N';
-
-
-    int INFO;
-    double *RWORK = mem.malloc<double>(8*N);
-
-    using namespace std::placeholders;
-    auto gges = std::bind(zgges_,&JOBVSL,&JOBVSR,&SORT_c,SF,&N,A,&LDA,B,&LDB,
-      &SDIM,ALPHA,BETA,VSL,&LDVSL,VSR,&LDVSR,_1,_2,RWORK,&SDIM,&INFO);
-
-    int LWORK = getLWork<dcomplex>(gges);
-
-    dcomplex *WORK = mem.malloc<dcomplex>(LWORK);
-
-    gges(WORK,&LWORK);
-
-    mem.free(RWORK,WORK);
-
-    return INFO;
-
-  } 
+  template int QR<double>(int M, int N, double* A, int LDA, double* R, 
+    int LDR, CQMemManager &mem);
+  template int QR<dcomplex>(int M, int N, dcomplex* A, int LDA, dcomplex* R, 
+    int LDR, CQMemManager &mem);
 
 
 
@@ -544,11 +238,24 @@ namespace ChronusQ {
 
     double LARGE = 1.0e10;
 
-    // Get the initial QZ factorization
-    int INFO = 
-      QZ(JOBVSL,JOBVSR,N,A,LDA,B,LDB,ALPHA,BETA,VSL,LDVSL,VSR,LDVSR,mem);
+    // Convert char to lapackpp friendly input
+    lapack::Job JVL;
+    lapack::Job JVR;
 
-    if( INFO != 0 ) CErr("QZ Failed in OrdQZ");
+    if(JOBVSL == 'V')       JVL = lapack::Job::Vec;
+    else if(JOBVSL == 'N')  JVL = lapack::Job::NoVec;
+    else                    CErr("Invalid option for JOBVSL ( lapack::gges )");
+
+    if(JOBVSR == 'V')       JVR = lapack::Job::Vec;
+    else if(JOBVSR == 'N')  JVR = lapack::Job::NoVec;
+    else                    CErr("Invalid option for JOBVSR ( lapack::gges )");
+
+
+    // Get the initial QZ factorization
+    int64_t SDIM = 0;
+    int INFO = lapack::gges(JVL,JVR,lapack::Sort::NotSorted,nullptr,N,A,LDA,B,LDB,&SDIM,ALPHA,BETA,VSL,LDVSL,VSR,LDVSR);
+
+    if( INFO != 0 ) CErr("QZ (lapack::gges) Failed in OrdQZ2");
     
     bool swap = true;
 
@@ -616,12 +323,24 @@ namespace ChronusQ {
     bool WantQ = JOBVSL == 'V';
     bool WantZ = JOBVSR == 'V';
 
+    // Convert char to lapackpp friendly input
+    lapack::Job JVL;
+    lapack::Job JVR;
+
+    if(JOBVSL == 'V')       JVL = lapack::Job::Vec;
+    else if(JOBVSL == 'N')  JVL = lapack::Job::NoVec;
+    else                    CErr("Invalid option for JOBVSL ( lapack::gges )");
+
+    if(JOBVSR == 'V')       JVR = lapack::Job::Vec;
+    else if(JOBVSR == 'N')  JVR = lapack::Job::NoVec;
+    else                    CErr("Invalid option for JOBVSR ( lapack::gges )");
+
 
     // Get the initial QZ factorization
-    int INFO = 
-      QZ(JOBVSL,JOBVSR,N,A,LDA,B,LDB,ALPHA,BETA,VSL,LDVSL,VSR,LDVSR,mem);
+    int64_t SDIM = 0;
+    int INFO = lapack::gges(JVL,JVR,lapack::Sort::NotSorted,nullptr,N,A,LDA,B,LDB,&SDIM,ALPHA,BETA,VSL,LDVSL,VSR,LDVSR);
 
-    if( INFO != 0 ) CErr("QZ Failed in OrdQZ");
+    if( INFO != 0 ) CErr("QZ (lapack::gges) Failed in OrdQZ");
     
     bool swap = true;
 

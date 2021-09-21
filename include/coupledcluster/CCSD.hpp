@@ -329,14 +329,14 @@ namespace ChronusQ{
       }
 
       for(size_t i = 0; i < NT2blks; i++){
-        AXPY<MatsT>(this->T2_.find(i).get().size(),-1.0,this->T2_.find(i).get().data(),1,T2_old.find(i).get().data(),1);
-        Scale<MatsT>(this->T2_.find(i).get().size(),-1.0,T2_old.find(i).get().data(),1); 
+        blas::axpy(this->T2_.find(i).get().size(),-1.0,this->T2_.find(i).get().data(),1,T2_old.find(i).get().data(),1);
+        blas::scal(this->T2_.find(i).get().size(),-1.0,T2_old.find(i).get().data(),1); 
       }      
       
 
       for(size_t i = 0; i < NT1blks; i++){
-        AXPY<MatsT>(this->T1_.find(i).get().size(),-1.0,this->T1_.find(i).get().data(),1,T1_old.find(i).get().data(),1);
-        Scale<MatsT>(this->T1_.find(i).get().size(),-1.0,T1_old.find(i).get().data(),1);
+        blas::axpy(this->T1_.find(i).get().size(),-1.0,this->T1_.find(i).get().data(),1,T1_old.find(i).get().data(),1);
+        blas::scal(this->T1_.find(i).get().size(),-1.0,T1_old.find(i).get().data(),1);
       }
 
       t2offset = 0;

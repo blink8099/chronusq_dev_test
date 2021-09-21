@@ -252,7 +252,8 @@ namespace ChronusQ {
 
     constexpr size_t maxLPrint = 6 + 1;
     T* SCR  = mem.template malloc<T>(NB*NOrb);
-    Gemm('N','N',NB,NOrb,NB,T(1.),S,NB,MO,LDM,T(0.),SCR,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+               NB,NOrb,NB,T(1.),S,NB,MO,LDM,T(0.),SCR,NB);
 
     std::array< std::string, maxLPrint > angLabel =
                 { "S", "P", "D", "F", "G", "H", "I" };

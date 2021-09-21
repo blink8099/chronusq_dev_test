@@ -295,7 +295,7 @@ namespace ChronusQ {
 
           if (qContrSize > 1 or pContrSize > 1) {
             resP = &qVec[QQ * pContrSize * pqrsAMSize];
-            Gemm('N', 'N', pqrsAMSize, pContrSize, pNprim,
+            blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize, pContrSize, pNprim,
                  1.0, inpP, pqrsAMSize,
                  coefBlocks_[P], pNprim,
                  0.0, resP, pqrsAMSize);
@@ -306,7 +306,7 @@ namespace ChronusQ {
 
         if (rContrSize > 1 or qContrSize > 1) {
           resQ = &rVec[RR * pContrSize * qContrSize * pqrsAMSize];
-          Gemm('N', 'N', pqrsAMSize * pContrSize, qContrSize, qNprim,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize * pContrSize, qContrSize, qNprim,
                1.0, inpQ, pqrsAMSize * pContrSize,
                coefBlocks_[Q], qNprim,
                0.0, resQ, pqrsAMSize * pContrSize);
@@ -317,7 +317,7 @@ namespace ChronusQ {
 
       if (sContrSize > 1 or rContrSize > 1) {
         resR = &sVec[SS * pContrSize * qContrSize * rContrSize * pqrsAMSize];
-        Gemm('N', 'N', pqrsAMSize * pContrSize * qContrSize, rContrSize, rNprim,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize * pContrSize * qContrSize, rContrSize, rNprim,
              1.0, inpR, pqrsAMSize * pContrSize * qContrSize,
              coefBlocks_[R], rNprim,
              0.0, resR, pqrsAMSize * pContrSize * qContrSize);
@@ -328,7 +328,7 @@ namespace ChronusQ {
 
     if (sContrSize > 1) {
       resS = &workBlock[0];
-      Gemm('N', 'N', pqrsAMSize * pContrSize * qContrSize * rContrSize, sContrSize, sNprim,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize * pContrSize * qContrSize * rContrSize, sContrSize, sNprim,
            1.0, inpS, pqrsAMSize * pContrSize * qContrSize * rContrSize,
            coefBlocks_[S], sNprim,
            0.0, resS, pqrsAMSize * pContrSize * qContrSize * rContrSize);

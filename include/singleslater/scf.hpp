@@ -171,12 +171,12 @@ namespace ChronusQ {
 
     for(auto i = 0ul, ai = 0ul; i < NO;  i++)
     for(auto a = NO           ; a < NBC; a++, ai++) 
-      AXPY(NBC,-C[ai],this->mo[0].pointer() + a*NBC,1,this->mo[0].pointer() + i*NBC,1);
+      blas::axpy(NBC,-C[ai],this->mo[0].pointer() + a*NBC,1,this->mo[0].pointer() + i*NBC,1);
 
     if( nC == 1 and not iCS )
       for(auto i = 0ul, ai = 0ul; i < this->nOB;  i++)
       for(auto a = this->nOB   ; a < NB; a++, ai++) 
-        AXPY(NB,-C[ai + nOAVA],this->mo[1].pointer() + a*NB,1,this->mo[1].pointer() + i*NB,1);
+        blas::axpy(NB,-C[ai + nOAVA],this->mo[1].pointer() + a*NB,1,this->mo[1].pointer() + i*NB,1);
 
     this->memManager.free(C);
 
@@ -283,7 +283,7 @@ namespace ChronusQ {
     // Taylor
     MatsT s = 1.;
     std::copy_n(ROT,NBC2,EXPROT); // n = 1
-    Scale(NBC2,-s,EXPROT,1);
+    blas::scal(NBC2,-s,EXPROT,1);
     for(auto j = 0; j < NBC; j++) EXPROT[j*(NBC+1)] += 1.; // n = 0
 
     MatsT* SCR  = this->memManager.template malloc<MatsT>(NBC2);
@@ -295,10 +295,10 @@ namespace ChronusQ {
 
       MatsT* M = nullptr;
       if( n % 2 ) {
-        Gemm('N','N',NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR2,NBC,MatsT(0.),SCR,NBC);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR2,NBC,MatsT(0.),SCR,NBC);
         M = SCR;
       } else {
-        Gemm('N','N',NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
         M = SCR2;
       }
 
@@ -309,7 +309,7 @@ namespace ChronusQ {
     }
 
     /*
-    Gemm('C','N',NBC,NBC,NBC,T(1.),EXPROT,NBC,EXPROT,NBC,T(0.),SCR,NBC);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NBC,NBC,NBC,T(1.),EXPROT,NBC,EXPROT,NBC,T(0.),SCR,NBC);
    // prettyPrintSmart(std::cerr,"ROT",ROT,NBC,NBC,NBC);
    // prettyPrintSmart(std::cerr,"EXPROT",EXPROT,NBC,NBC,NBC);
     prettyPrintSmart(std::cout,"SCR",SCR,NBC,NBC,NBC);
@@ -318,7 +318,7 @@ namespace ChronusQ {
 
 
     // MO1 = MO1 * EXPROT
-    Gemm('N','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,EXPROT,NBC,MatsT(0.),
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,EXPROT,NBC,MatsT(0.),
       ROT,NBC);
     std::copy_n(ROT,NBC2,this->mo[0].pointer());
 
@@ -381,10 +381,10 @@ namespace ChronusQ {
       size_t NB    = this->basisSet().nBasis;
       size_t DSize = NB*NB;
       scfConv.RMSDenScalar = 
-        TwoNorm<double>(DSize,deltaOnePDM->S().pointer(),1) / NB;
+        blas::nrm2(DSize,deltaOnePDM->S().pointer(),1) / NB;
       scfConv.RMSDenMag = 0.;
       for(auto i = 1; i < deltaOnePDM->nComponent(); i++)
-        scfConv.RMSDenMag += std::pow(TwoNorm<double>(DSize,
+        scfConv.RMSDenMag += std::pow(blas::nrm2(DSize,
             (*deltaOnePDM)[static_cast<PAULI_SPINOR_COMPS>(i)].pointer(),1),2.);
  
       scfConv.RMSDenMag = std::sqrt(scfConv.RMSDenMag) / NB;
@@ -650,7 +650,8 @@ namespace ChronusQ {
       // For 2- and 4-component, shift for alpha and beta
       for (size_t shift = 0; shift < Nmo; shift += Northo) {
 
-        Gemm('N', 'N', Northo, Nmo, Northo,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+             Northo, Nmo, Northo,
              MatsT(1.), ortho[0].pointer(), Northo,
              this->mo[0].pointer() + shift, Nmo,
              MatsT(0.), SCR, Northo);
@@ -662,7 +663,8 @@ namespace ChronusQ {
       if( nC == 1 and not iCS ) {
 
         // Transform MO2
-        Gemm('N', 'N', Northo, Nmo, Northo,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+             Northo, Nmo, Northo,
              MatsT(1.), ortho[0].pointer(), Northo,
              this->mo[1].pointer(), Nmo,
              MatsT(0.), SCR, Northo);
@@ -710,13 +712,13 @@ namespace ChronusQ {
 
 
     // MO1 inner product
-    Gemm('N','N',NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
       this->mo[0].pointer(),this->nC*NB,T(0.),SCR2,this->nC*NB);
     if(this->nC == 2)
-      Gemm('N','N',NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
         this->mo[0].pointer()+NB,this->nC*NB,T(0.),SCR2+NB,this->nC*NB);
    
-    Gemm('C','N',this->nC*NB,this->nC*NB,this->nC*NB,T(1.),this->mo[0].pointer(),
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,this->nC*NB,this->nC*NB,this->nC*NB,T(1.),this->mo[0].pointer(),
       this->nC*NB,SCR2,this->nC*NB,T(0.),SCR3,this->nC*NB);
 
     for(auto i = 0; i < this->nC*NB; i++)
@@ -724,20 +726,20 @@ namespace ChronusQ {
 
 
     std::cerr << "Error in orthonormazation of MO1 = " 
-      << MatNorm<double>('F',this->nC*NB,this->nC*NB,SCR3,this->nC*NB)
+      << lapack::lange(lapack::Norm::Fro,this->nC*NB,this->nC*NB,SCR3,this->nC*NB)
       << std::endl;
              
 
 
     if(this->nC == 1 and not this->iCS) {
-      Gemm('N','N',NB,NB,NB,T(1.),this->aoints.overlap,NB,this->mo[1].pointer(),NB,T(0.),SCR2,NB);
-      Gemm('C','N',NB,NB,NB,T(1.),this->mo[1].pointer(),NB,SCR2,NB,T(0.),SCR3,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,T(1.),this->aoints.overlap,NB,this->mo[1].pointer(),NB,T(0.),SCR2,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,T(1.),this->mo[1].pointer(),NB,SCR2,NB,T(0.),SCR3,NB);
 
       for(auto i = 0; i < this->nC*NB; i++)
         SCR3[i*(this->nC*NB + 1)] -= 1.;
 
       std::cerr << "Error in orthonormazation of MO2 = " 
-        << MatNorm<double>('F',NB,NB,SCR3,NB) << std::endl;
+        << lapack::lange(lapack::Norm::Fro,NB,NB,SCR3,NB) << std::endl;
     }
 
     this->memManager.free(SCR2,SCR3);
@@ -801,37 +803,44 @@ namespace ChronusQ {
       MatsT* SCR2 = this->memManager.template malloc<MatsT>(NBC*NBC);
 
       // SCR2 = C**H S C
-      Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-           this->mo[0].pointer(),NBC,MatsT(0.),SCR,NBC);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+                 NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+                 this->mo[0].pointer(),NBC,MatsT(0.),SCR,NBC);
       if( this->nC == 2 )
-        Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-             this->mo[0].pointer()+NB,NBC,MatsT(0.),SCR+NB,NBC);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+                   NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+                   this->mo[0].pointer()+NB,NBC,MatsT(0.),SCR+NB,NBC);
 
-      Gemm('C','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,
+                 NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
 
       // SCR2 = L L**H -> L
-      int INFO = Cholesky('L',NBC,SCR2,NBC);
+      int INFO = lapack::potrf(lapack::Uplo::Lower,NBC,SCR2,NBC);
 
       // SCR2 = L^-1
-      INFO = TriInv('L','N',NBC,SCR2,NBC);
+      INFO = lapack::trtri(lapack::Uplo::Lower,lapack::Diag::NonUnit,NBC,SCR2,NBC);
 
       // MO1 = MO1 * L^-H
-      Trmm('R','L','C','N',NBC,NBC,MatsT(1.),SCR2,NBC,this->mo[0].pointer(),NBC);
+      blas::trmm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Lower,
+                 blas::Op::ConjTrans,blas::Diag::NonUnit,NBC,NBC,MatsT(1.),SCR2,NBC,this->mo[0].pointer(),NBC);
 
       // Reorthogonalize MOB
       if( this->nC == 1 and not this->iCS ) {
-        Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+                   NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
              this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
-        Gemm('C','N',NB,NB,NB,MatsT(1.),this->mo[1].pointer(),NBC,SCR,NB,MatsT(0.),SCR2,NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,
+                   NB,NB,NB,MatsT(1.),this->mo[1].pointer(),NBC,SCR,NB,MatsT(0.),SCR2,NB);
 
         // SCR2 = L L**H -> L
-        INFO = Cholesky('L',NB,SCR2,NB);
+        INFO = lapack::potrf(lapack::Uplo::Lower,NB,SCR2,NB);
 
         // SCR2 = L^-1
-        INFO = TriInv('L','N',NB,SCR2,NB);
+        INFO = lapack::trtri(lapack::Uplo::Lower,lapack::Diag::NonUnit,NB,SCR2,NB);
 
         // MO2 = MO2 * L^-H
-        Trmm('R','L','C','N',NB,NB,MatsT(1.),SCR2,NB,this->mo[1].pointer(),NB);
+        blas::trmm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Lower,
+                   blas::Op::ConjTrans,blas::Diag::NonUnit,NB,NB,MatsT(1.),SCR2,NB,this->mo[1].pointer(),NB);
 
       }
 

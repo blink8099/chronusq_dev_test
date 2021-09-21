@@ -54,15 +54,26 @@ namespace ChronusQ {
       else if (TRANS == 'N')
         offs.push_back(off_size.first * LDT);
     }
+
+    blas::Op OP_TRANS;
+    if (TRANS == 'T') {
+      OP_TRANS = blas::Op::Trans;
+    } else if (TRANS == 'C') {
+      OP_TRANS = blas::Op::ConjTrans;
+    } else if (TRANS == 'N') {
+      OP_TRANS = blas::Op::NoTrans;
+    }
+
+
     ResultsT* SCR = memManager_.malloc<ResultsT>(N_ * off_sizes[0].second);
     // SCR(nu, p) = < mu |O| nu >^H @ T(mu, p)
-    Gemm('C', TRANS, N_, off_sizes[0].second, N_,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, N_, off_sizes[0].second, N_,
         ResultsT(1.), pointer(), N_, T+offs[0], LDT,
         ResultsT(0.), SCR, N_);
     // < p |O| q> = SCR(nu, p)^H @ T(nu, q)
     //            = T(mu, p)^H @ < mu |O| nu > @ T(nu, q)
     OutT outFactor = increment ? 1.0 : 0.0;
-    Gemm('C', TRANS, off_sizes[0].second, off_sizes[1].second, N_,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, off_sizes[0].second, off_sizes[1].second, N_,
         ResultsT(1.), SCR, N_, T+offs[1], LDT,
         outFactor, out, off_sizes[0].second);
     memManager_.free(SCR);
@@ -98,14 +109,26 @@ namespace ChronusQ {
       TRANS = 'N';
     else if (TRANS == 'N')
       TRANS = 'C';
+
+
+    blas::Op OP_TRANS;
+    if (TRANS == 'T') {
+      OP_TRANS = blas::Op::Trans;
+    } else if (TRANS == 'C') {
+      OP_TRANS = blas::Op::ConjTrans;
+    } else if (TRANS == 'N') {
+      OP_TRANS = blas::Op::NoTrans;
+    }
+
+
     // SCR(q, mu) = T(nu, q)^H @ < mu |O| nu >^H
-    Gemm(TRANS, 'C', off_sizes[1].second, N_, N_,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[1].second, N_, N_,
         dcomplex(1.), T+offs[1], LDT, pointer(), N_,
         dcomplex(0.), SCR, off_sizes[1].second);
     // < p |O| q> = T(mu, p)^H @ SCR(q, mu)^H
     //            = T(mu, p)^H @ < mu |O| nu > @ T(nu, q)
     dcomplex outFactor = increment ? 1.0 : 0.0;
-    Gemm(TRANS, 'C', off_sizes[0].second, off_sizes[1].second, N_,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[0].second, off_sizes[1].second, N_,
         dcomplex(1.), T+offs[0], LDT, SCR, off_sizes[1].second,
         outFactor, out, off_sizes[0].second);
     memManager_.free(SCR);

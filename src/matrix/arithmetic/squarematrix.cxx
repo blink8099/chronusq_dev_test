@@ -23,8 +23,6 @@
  */
 
 #include <matrix.hpp>
-#include <matrix.hpp>
-#include <matrix.hpp>
 #include <cqlinalg.hpp>
 
 namespace ChronusQ {
@@ -96,7 +94,7 @@ namespace ChronusQ {
 
   template <typename MatsT>
   SquareMatrix<MatsT>& SquareMatrix<MatsT>::operator*=( MatsT scalar ) {
-    Scale(dimension()*dimension(), scalar, pointer(), 1);
+    blas::scal(dimension()*dimension(), scalar, pointer(), 1);
     return *this;
   }
   template SquareMatrix<double>& SquareMatrix<double>::operator*=( double scalar );
@@ -110,7 +108,7 @@ namespace ChronusQ {
     if (std::is_same<MatsT, double>::value and
         std::is_same<MatsU, dcomplex>::value)
       CErr("Cannot assign a complex SquareMatrix object to a real one.");
-    AXPY(dimension()*dimension(), 1.0, other.pointer(), 1, pointer(), 1);
+    blas::axpy(dimension()*dimension(), 1.0, other.pointer(), 1, pointer(), 1);
     return *this;
   }
   template SquareMatrix<double>& SquareMatrix<double>::operator+=( const SquareMatrix<double>& );
@@ -155,7 +153,7 @@ namespace ChronusQ {
       CErr("Cannot add two SquareMatrix of different size.");
     if (scaled.isPauli() and dynamic_cast<const PauliSpinorSquareMatrices<MatsU>&>(scaled.matrix()).hasZ())
       CErr("Cannot assign a SquareMatrix from a PauliSpinorSquareMatrices with XYZ components.");
-    AXPY(dimension()*dimension(), scaled.scalar(), scaled.matrix().pointer(), 1, pointer(), 1);
+    blas::axpy(dimension()*dimension(), scaled.scalar(), scaled.matrix().pointer(), 1, pointer(), 1);
     return *this;
   }
   template SquareMatrix<double>& SquareMatrix<double>::operator+=( const ScaledSquareMatrix<double, double>& );

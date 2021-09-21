@@ -201,9 +201,8 @@ namespace ChronusQ {
           SCR1[i + j*NB] / std::sqrt(sE[j]);
 
       // Compute O1 = X * V**T
-      Gemm('N','C',NB,NB,NB,
-        static_cast<MatsT>(1.),SCR2,NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho[0].pointer(),NB);
+      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
+                 NB, NB, NB, static_cast<MatsT>(1.0), SCR2, NB, SCR1, NB, static_cast<MatsT>(0.0), ortho[0].pointer(), NB);
 
 
       // Compute X = V * s^{1/2} in place (by multiplying by s)
@@ -213,7 +212,7 @@ namespace ChronusQ {
           SCR2[i + j*NB] * sE[j];
 
       // Compute O2 = X * V**T
-      Gemm('N','C',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,
         static_cast<MatsT>(1.),SCR2,NB,SCR1,NB,
         static_cast<MatsT>(0.),ortho[1].pointer(),NB);
 
@@ -224,7 +223,7 @@ namespace ChronusQ {
       double maxDiff(-10000000);
 
       // Check that ortho1 and ortho2 are inverses of eachother
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[1].pointer(),NB,
         static_cast<MatsT>(0.),SCR1,NB);
       
@@ -241,7 +240,7 @@ namespace ChronusQ {
       std::cerr << "  Ortho1 * Ortho2 = I: " << maxDiff << std::endl;
 
       // Check that ortho2 * ortho2 is the overlap
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho[1].pointer(),NB,ortho[1].pointer(),NB,
         static_cast<MatsT>(0.),SCR1,NB);
       
@@ -259,10 +258,10 @@ namespace ChronusQ {
       std::cerr << "  Ortho2 * Ortho2 = S: " << maxDiff << std::endl;
 
       // Check that ortho1 * ortho1 is the inverse of the overlap
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[0].pointer(),NB,
         static_cast<MatsT>(0.),SCR1,NB);
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),SCR1,NB,reinterpret_cast<MatsT*>(this->aoints.overlap),NB,
         static_cast<MatsT>(0.),SCR2,
         NB);
@@ -292,7 +291,7 @@ namespace ChronusQ {
       << std::endl;
 
       // Compute the Cholesky factorization of the overlap S = L * L**T
-      Cholesky('L',NB,SCR1,NB);
+      lapack::potrf(lapack::Uplo::Lower,NB,SCR1,NB);
 
       // Copy the lower triangle to ortho2 (O2 = L)
       for(auto j = 0; j < NB; j++)
@@ -300,10 +299,10 @@ namespace ChronusQ {
         ortho[1](i,j) = SCR1[i + j*NB];
 
       // Compute the inverse of the overlap using the Cholesky factors
-      CholeskyInv('L',NB,SCR1,NB);
+      lapack::potri(lapack::Uplo::Lower,NB,SCR1,NB);
 
       // O1 = O2**T * S^{-1}
-      Gemm('T','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho[1].pointer(),NB,SCR1,NB,
         static_cast<MatsT>(0.),ortho[0].pointer(),NB);
 
@@ -321,11 +320,11 @@ namespace ChronusQ {
       MatsT* SCR2 = memManager.malloc<MatsT>(nSQ);
         
       double maxDiff = -1000;
-      Gemm('T','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho1,NB,reinterpret_cast<MatsT*>(this->aoints.overlap),NB,
         static_cast<MatsT>(0.),SCR1,
         NB);
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),SCR1,NB,ortho1,NB,
         static_cast<MatsT>(0.),SCR2,
         NB);

@@ -187,14 +187,14 @@ namespace ChronusQ {
       size_t NB = this->basisSet().nBasis;
 
       double TS =
-        this->template computeOBProperty<double,SCALAR>(this->aoints.overlap->pointer());
+        this->template computeOBProperty<SCALAR>(this->aoints.overlap->pointer());
 
       double TZ =
-        this->template computeOBProperty<double,MZ>(this->aoints.overlap->pointer());
+        this->template computeOBProperty<MZ>(this->aoints.overlap->pointer());
       double TY =
-        this->template computeOBProperty<double,MY>(this->aoints.overlap->pointer());
+        this->template computeOBProperty<MY>(this->aoints.overlap->pointer());
       double TX =
-        this->template computeOBProperty<double,MX>(this->aoints.overlap->pointer());
+        this->template computeOBProperty<MX>(this->aoints.overlap->pointer());
 
       double magNorm = std::sqrt(TZ*TZ + TY*TY + TX*TX);
 

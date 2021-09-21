@@ -167,12 +167,12 @@ namespace ChronusQ {
     #else
 
     if( std::is_same<IntsT,dcomplex>::value )
-      Gemm('C','N',NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
     else 
       if (not this->auxContract)
-        Gemm('N','N',NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
       else
-        Gemm('C','N',NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),sNB2,X,sNB2,IntsT(0.),AX,NB2);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),sNB2,X,sNB2,IntsT(0.),AX,NB2);
 
     // if Complex ints + Hermitian, conjugate
     if( std::is_same<IntsT,dcomplex>::value and C.HER )
@@ -230,7 +230,7 @@ namespace ChronusQ {
 
     #pragma omp parallel for
     for(auto nu = 0; nu < NB; nu++) 
-      Gemm('N','N',NB,1,NB2,MatsT(1.),tpi4I.pointer()+nu*NB3,NB,C.X,NB2,MatsT(0.),C.AX+nu*NB,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,1,NB2,MatsT(1.),tpi4I.pointer()+nu*NB3,NB,C.X,NB2,MatsT(0.),C.AX+nu*NB,NB);
 
     SetLAThreads(LAThreads);
 
@@ -416,8 +416,8 @@ namespace ChronusQ {
 
     auto Jtemp = memManager_.malloc<IntsT>(NBRI);
     // (ij|Q)S^{-1/2} -> ERI3J
-    Gemm('N','N',NBRI,1,NB2,IntsT(1.),eri3j.pointer(),NBRI,X,NB2,IntsT(0.),Jtemp,NBRI);
-    Gemm('T','N',NB2,1,NBRI,IntsT(1.),eri3j.pointer(),NBRI,Jtemp,NBRI,IntsT(0.),AX,NB2);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBRI,1,NB2,IntsT(1.),eri3j.pointer(),NBRI,X,NB2,IntsT(0.),Jtemp,NBRI);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB2,1,NBRI,IntsT(1.),eri3j.pointer(),NBRI,Jtemp,NBRI,IntsT(0.),AX,NB2);
     memManager_.free(Jtemp);
 
     // if Complex ints + Hermitian, conjugate
@@ -469,15 +469,15 @@ namespace ChronusQ {
 
     #pragma omp parallel for
     for(auto nu = 0ul; nu < NB; nu++)
-      Gemm('N','T',NBRI,NB,NB,MatsT(1.),eri3j.pointer()+nu*NBNBRI,NBRI,X,NB,MatsT(0.),Ktemp+nu*NBNBRI,NBRI);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,NBRI,NB,NB,MatsT(1.),eri3j.pointer()+nu*NBNBRI,NBRI,X,NB,MatsT(0.),Ktemp+nu*NBNBRI,NBRI);
 
     SetLAThreads(LAThreads);
 
-    Gemm('T','N',NB,NB,NBNBRI,MatsT(1.),eri3j.pointer(),NBNBRI,Ktemp,NBNBRI,MatsT(0.),AX,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB,NB,NBNBRI,MatsT(1.),eri3j.pointer(),NBNBRI,Ktemp,NBNBRI,MatsT(0.),AX,NB);
 #else
     IMatCopy('T',NB,NBNBRI,IntsT(1.),ERI3J,NB,NBNBRI);
-    Gemm('T','N',NBNBRI,NB,NB,IntsT(1.),ERI3J,NB,X,NB,IntsT(0.),Ktemp,NBNBRI);
-    Gemm('N','T',NB,NB,NBNBRI,IntsT(1.),Ktemp,NB,ERI3J,NB2,IntsT(0.),AX,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NBNBRI,NB,NB,IntsT(1.),ERI3J,NB,X,NB,IntsT(0.),Ktemp,NBNBRI);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,NB,NB,NBNBRI,IntsT(1.),Ktemp,NB,ERI3J,NB2,IntsT(0.),AX,NB);
     IMatCopy('T',NBNBRI,NB,IntsT(1.),ERI3J,NBNBRI,NB);
 #endif
     memManager_.free(Ktemp);
@@ -509,18 +509,18 @@ namespace ChronusQ {
     SetLAThreads(1);
     #pragma omp parallel for
     for(auto nu = 0ul; nu < NB; nu++)
-      Gemm('C','T',NO,NBRI,NB,MatsT(1.),C,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::Trans,NO,NBRI,NB,MatsT(1.),C,NB,
            eri3j.pointer()+nu*NBNBRI,NBRI,
            MatsT(0.),Btemp1+nu*NONBRI,NO);
     SetLAThreads(LAThreads);
 
     // 2. Bt2(i, L mu) = C(sigma, i)^T @ B(L mu, sigma)^T
-    Gemm('T','T',NO,NBNBRI,NB,MatsT(1.),C,NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::Trans,NO,NBNBRI,NB,MatsT(1.),C,NB,
          reinterpret_cast<MatsT*>(eri3j.pointer()),NBNBRI,
          MatsT(0.),Btemp2,NO);
 
     // 3. K(mu, nu) = Bt2(i L, mu)^T @ Bt1(i L, nu)
-    Gemm('T','N',NB,NB,NONBRI,MatsT(1.),Btemp2,NONBRI,Btemp1,NONBRI,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB,NB,NONBRI,MatsT(1.),Btemp2,NONBRI,Btemp1,NONBRI,
          MatsT(0.),AX,NB);
 
     memManager_.free(Btemp1, Btemp2);
@@ -549,7 +549,7 @@ namespace ChronusQ {
     #pragma omp parallel for
     for(auto nu = 0ul; nu < NB; nu++) {
     // 1.1. Bt3(L, i | nu) = B(L, lambda | nu) @ C(lambda, i)
-      Gemm('N','N',NBRI,NO,NB,dcomplex(1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBRI,NO,NB,dcomplex(1.),
            eri3j.pointer()+nu*NBNBRI,NBRI,C,NB,
            dcomplex(0.),Btemp3+nu*NONBRI,NBRI);
     // 1.2. Bt1(i, L | nu) = Bt3(L, i | nu)^H
@@ -559,13 +559,13 @@ namespace ChronusQ {
     SetLAThreads(LAThreads);
 
     // 2.1. Bt3(L mu, i) = B(L mu, sigma) @ C(sigma, i)
-    Gemm('N','N',NBNBRI,NO,NB,dcomplex(1.),eri3j.pointer(),NBNBRI,C,NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBNBRI,NO,NB,dcomplex(1.),eri3j.pointer(),NBNBRI,C,NB,
          dcomplex(0.),Btemp3,NBNBRI);
     // 2.2. Bt2(i, L mu) = Bt3(L mu, i)^T
     SetMat('T',NBNBRI,NO,dcomplex(1.),Btemp3,NBNBRI,Btemp2,NO);
 
     // 3. K(mu, nu) = Bt2(i L, mu)^T @ Bt1(i L, nu)
-    Gemm('T','N',NB,NB,NONBRI,dcomplex(1.),Btemp2,NONBRI,Btemp1,NONBRI,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB,NB,NONBRI,dcomplex(1.),Btemp2,NONBRI,Btemp1,NONBRI,
          dcomplex(0.),AX,NB);
 
     memManager_.free(Btemp1, Btemp2, Btemp3);

@@ -98,10 +98,13 @@ namespace ChronusQ {
   template <>
   template <>
   SquareMatrix<double> OnePRelInts<double>::formW() const {
-    if (hasSpinOrbit())
+    if (hasSpinOrbit()) {
+      SquareMatrix<double> dummy(this->ParticleIntegrals::memManager(),1);
       CErr("W matrix with spin-orbit cannot be real.");
-    else
+      return dummy;
+    } else {
       return scalar().matrix().template spatialToSpinBlock<double>();
+    }
   }
  
   template InCore4indexTPI<double> InCore4indexTPI<double>::spatialToSpinBlock() const;

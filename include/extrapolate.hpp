@@ -101,15 +101,15 @@ namespace ChronusQ {
     // Build the B matrix
     for(auto j = 0ul; j < nExtrap; j++){
       for(auto k = 0ul; k <= j; k++){
-        B(k,j) += InnerProd<T>(OSize,errorMetric[k].S().pointer(),1,
+        B(k,j) += blas::dot(OSize,errorMetric[k].S().pointer(),1,
                                errorMetric[j].S().pointer(),1);
         if (errorMetric[k].hasZ())
-          B(k,j) += InnerProd<T>(OSize,errorMetric[k].Z().pointer(),1,
+          B(k,j) += blas::dot(OSize,errorMetric[k].Z().pointer(),1,
                                  errorMetric[j].Z().pointer(),1);
         if (errorMetric[k].hasXY()) {
-          B(k,j) += InnerProd<T>(OSize,errorMetric[k].Y().pointer(),1,
+          B(k,j) += blas::dot(OSize,errorMetric[k].Y().pointer(),1,
                                  errorMetric[j].Y().pointer(),1);
-          B(k,j) += InnerProd<T>(OSize,errorMetric[k].X().pointer(),1,
+          B(k,j) += blas::dot(OSize,errorMetric[k].X().pointer(),1,
                                  errorMetric[j].X().pointer(),1);
         }
       }
@@ -130,7 +130,10 @@ namespace ChronusQ {
     std::fill_n(&coeffs[0],N,0.);
     coeffs[nExtrap] = -1.0;
  
-    int INFO = LinSolve(N, 1, B.pointer(), N, &coeffs[0], N);
+    CQMemManager &mem = errorMetric[0].memManager();
+    int64_t* IPIV = mem.malloc<int64_t>(N);
+    int INFO = lapack::gesv(N, 1, B.pointer(), N, IPIV, &coeffs[0], N);
+    mem.free(IPIV);
 
 //  for(auto i = 0ul; i < N; i++)
 //    std::cout << "coeff = " << coeffs[i] << std::endl;

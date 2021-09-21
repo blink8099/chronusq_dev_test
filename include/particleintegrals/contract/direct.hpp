@@ -78,7 +78,7 @@ namespace ChronusQ {
       n2 = shSet[s2].size();
 
       MatsT *block = MAT + bf1 + bf2*LDM;
-      ShBlk[s1 + s2*nShell] = MatNorm<double>('I',n1,n2,block,LDM);
+      ShBlk[s1 + s2*nShell] = lapack::lange(lapack::Norm::Inf,n1,n2,block,LDM);
 
     }
     }
@@ -694,7 +694,7 @@ namespace ChronusQ {
         // J Contraction
         if( C.contType == COULOMB ) {
 
-          Gemm('T','N',n1*n2,1,nSQ_,T(1.),intBuffer2_loc,nSQ_,C.X,nSQ_,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,n1*n2,1,nSQ_,T(1.),intBuffer2_loc,nSQ_,C.X,nSQ_,
             T(0.),reinterpret_cast<G*>(intBuffer_loc),n1*n2);
 
           // Populate the lower triangle of J contraction storage
@@ -710,7 +710,7 @@ namespace ChronusQ {
 
 /*
             // T(m,n) = I(m,k) * X(n,k)
-            Gemm('N','T',NB,NB,NB,T(1.),intBuffer2 +j*nSQ_ + i*n2*nSQ_,NB,
+            blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,NB,NB,NB,T(1.),intBuffer2 +j*nSQ_ + i*n2*nSQ_,NB,
               C.X,NB,T(0.),reinterpret_cast<G*>(intBuffer),NB);
 
             for(auto nu = 0; nu < NB; nu++) {
@@ -721,14 +721,14 @@ namespace ChronusQ {
             }
 */
 
-            Gemm('N','T',NB,1,NB,T(1.),intBuffer2_loc +j*nSQ_ + i*n2*nSQ_,NB,
+            blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,NB,1,NB,T(1.),intBuffer2_loc +j*nSQ_ + i*n2*nSQ_,NB,
               C.X + bf2,NB,T(0.),reinterpret_cast<G*>(intBuffer_loc),NB);
             for(auto nu = 0; nu < NB; nu++) 
               C.AX[nu + bf1*NB] += intBuffer_loc[nu];
 
             if( s1 != s2 ) {
 
-              Gemm('N','T',NB,1,NB,T(1.),intBuffer2_loc +j*nSQ_ + i*n2*nSQ_,NB,
+              blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,NB,1,NB,T(1.),intBuffer2_loc +j*nSQ_ + i*n2*nSQ_,NB,
                 C.X + bf1,NB,T(0.),reinterpret_cast<G*>(intBuffer_loc),NB);
               for(auto nu = 0; nu < NB; nu++) 
                 C.AX[nu + bf2*NB] += intBuffer_loc[nu];
@@ -811,7 +811,7 @@ namespace ChronusQ {
           MatAdd('N','N',NB,NB,MatsT(0.5),AXthreads[iTh][iMat],NB,
             MatsT(1.), list[iMat].AX,NB,list[iMat].AX,NB);
         else 
-          Scale(NB*NB,MatsT(0.5),list[iMat].AX,1);
+          blas::scal(NB*NB,MatsT(0.5),list[iMat].AX,1);
 
 
       //std::transform(AXthreads[iTh][iMat], AXthreads[iTh][iMat] + NB*NB, 
@@ -1331,7 +1331,7 @@ namespace ChronusQ {
           MatAdd('N','N',NB,NB,dcomplex(0.5),AXthreads[iTh][iMat],NB,
             dcomplex(1.), list[iMat].AX,NB,list[iMat].AX,NB);
         else 
-          Scale(NB*NB,dcomplex(0.5),list[iMat].AX,1);
+          blas::scal(NB*NB,dcomplex(0.5),list[iMat].AX,1);
 
 
       }
@@ -1984,7 +1984,7 @@ namespace ChronusQ {
           MatAdd('N','N',nBasis,nBasis,MatsT(0.5),AXthreads[iTh][iMat],nBasis,
             MatsT(1.), matList[iMat].AX,nBasis,matList[iMat].AX,nBasis);
         else 
-          Scale(nBasis*nBasis,MatsT(0.5),matList[iMat].AX,1);
+          blas::scal(nBasis*nBasis,MatsT(0.5),matList[iMat].AX,1);
 
       }
 
