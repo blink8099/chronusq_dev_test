@@ -771,10 +771,10 @@ namespace ChronusQ {
 
     size_t NB  = this->nAlphaOrbital() * nC;
     size_t nMO = (this->nC == 4) ? NB / 2: NB;
-    bool antiSymm = true;
+    bool antiSymm = false;
 
-    InCore4indexTPI<MatsT> ASYMERI(memManager, nMO); 
-    TF.transformERI(pert, ASYMERI.pointer(), "pqrs", antiSymm);
+    InCore4indexTPI<MatsT> MOERI(memManager, nMO); 
+    TF.transformERI(pert, MOERI.pointer(), "pqrs", antiSymm);
 
     OnePInts<MatsT> hCore(memManager, nMO); 
     TF.transformHCore(hCore.pointer());
@@ -783,38 +783,40 @@ namespace ChronusQ {
     for (auto i = 0; i < this->nO; i++) {
       SCFEnergy += hCore(i, i);
       for (auto j = 0; j < this->nO; j++)
-        SCFEnergy += 0.5 * ASYMERI(i, i, j, j); 
+        SCFEnergy += 0.5 * MOERI(i, i, j, j); 
     }
     
 
     std::cout << "SSFOCK_N6 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
-    ASYMERI.output(std::cout, "SSFOCK_N6 ERI", true);
-    // prettyPrintSmart(std::cout,"SSFOCK_N6 ERI", ASYMERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
+    MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
+    // prettyPrintSmart(std::cout,"SSFOCK_N6 ERI", MOERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
    
 #if 1   
-    InCore4indexTPI<MatsT> ASYMERI2(memManager, nMO); 
+    InCore4indexTPI<MatsT> MOERI2(memManager, nMO); 
     MOIntsTransformer<MatsT, IntsT> TF2(memManager, *this, INCORE_N5);  
     
-    TF2.transformERI(pert, ASYMERI2.pointer(), "pqrs", antiSymm);
+    TF2.transformERI(pert, MOERI2.pointer(), "pqrs", antiSymm);
     SCFEnergy = MatsT(0.);
     for (auto i = 0; i < this->nO; i++) {
       SCFEnergy += hCore(i, i);
       for (auto j = 0; j < this->nO; j++)
-        SCFEnergy += 0.5 * ASYMERI2(i, i, j, j); 
+        SCFEnergy += 0.5 * MOERI2(i, i, j, j); 
     }
     std::cout << "INCORE_N5 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
-    ASYMERI2.output(std::cout, "INCORE_N5 ERI", true);
+    MOERI2.output(std::cout, "INCORE_N5 ERI", true);
     
-    InCore4indexTPI<MatsT> ASYMERI_Diff(memManager, nMO); 
+    InCore4indexTPI<MatsT> MOERI_Diff(memManager, nMO); 
+    MOERI_Diff.clear();
+#pragma omp parallel for schedule(static) collapse(4) default(shared)       
     for (auto i = 0; i < nMO; i++) 
     for (auto j = 0; j < nMO; j++) 
     for (auto k = 0; k < nMO; k++) 
     for (auto l = 0; l < nMO; l++) 
-      ASYMERI_Diff(i, j, k, l) = ASYMERI(i, j, k, l) - ASYMERI2(i, j, k, l);
+      MOERI_Diff(i, j, k, l) = MOERI(i, j, k, l) - MOERI2(i, j, k, l);
 
-    ASYMERI_Diff.output(std::cout, "SSFOCK_N6 ERI - INCORE_N5 ERI", true);
+    MOERI_Diff.output(std::cout, "SSFOCK_N6 ERI - INCORE_N5 ERI", true);
     
-    // prettyPrintSmart(std::cout,"INCORE_N5 ERI", ASYMERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
+    // prettyPrintSmart(std::cout,"INCORE_N5 ERI", MOERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
 #endif    
     std::cout << "\n --------- End of the Test (on MO Ints Transformation)----- \n" << std::endl;
   }; // SingleSlater<MatsT>::MOIntsTransformationTest

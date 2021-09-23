@@ -135,7 +135,10 @@ namespace ChronusQ {
       subsetTransformERISSFockN6(pert, off_sizes, MOERI, antiSymm);
     } else if (ERITransAlg_ == INCORE_N5) {
       subsetTransformERIInCoreN5(off_sizes, MOERI, antiSymm);
+    } else {
+      CErr("DIRECT_N5 NYI");
     }
+
 
   }; // MOIntsTransformer::transformERI 
 
