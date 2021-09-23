@@ -70,7 +70,8 @@ namespace ChronusQ {
     for (auto p = 0; p <  np; p++) {
       
       // outer product to make a fake ss onePDM of Dqp
-      Gemm('N', 'C', nAO, nAO, 1, MatsT(1.), ss_.mo[0].pointer() + (q+qoff)*nAO, nAO,
+      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
+        nAO, nAO, 1, MatsT(1.), ss_.mo[0].pointer() + (q+qoff)*nAO, nAO,
         ss_.mo[0].pointer() + (p+poff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
       
       // Hack SS to get ASYMERIpq
@@ -93,14 +94,14 @@ namespace ChronusQ {
     else SCR2  = memManager_.malloc<MatsT>(nAO * npqr);
     
     // 3/4 transfromation: SCR2(nu p q, r) = SCR(mu,nu p q)^H * C(mu, r)
-    Gemm('C', 'N', nAO*npq, nr, nAO,
-        MatsT(1.), SCR, nAO, ss_.mo[0].pointer() + roff*nAO, nAO,
-        MatsT(0.), SCR2, nAO*npq);
+    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans,
+        nAO*npq, nr, nAO, MatsT(1.), SCR, nAO, 
+        ss_.mo[0].pointer() + roff*nAO, nAO, MatsT(0.), SCR2, nAO*npq);
     
     // 4/4 transfromation: (p q| r, s) = SCR2(nu, p q r)^H * C(nu, s)
-    Gemm('C', 'N', npqr, ns, nAO,
-        MatsT(1.), SCR2, nAO, ss_.mo[0].pointer() + soff*nAO, nAO,
-        MatsT(0.), SCR, npqr);
+    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans,
+        npqr, ns, nAO, MatsT(1.), SCR2, nAO, 
+        ss_.mo[0].pointer() + soff*nAO, nAO, MatsT(0.), SCR, npqr);
     
     SetMat('N', npq, nr*ns, MatsT(1.), SCR, npq, MOERI, npq); 
     memManager_.free(SCR);

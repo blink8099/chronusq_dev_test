@@ -131,6 +131,7 @@ namespace ChronusQ {
     }
     dcomplex* SCR  = mem.malloc<dcomplex>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
     dcomplex* SCR2 = mem.malloc<dcomplex>(NB * SCR_nRows[2]);
+    
     if (TRANS == 'T' or TRANS == 'C')
       TRANS = 'N';
     else if (TRANS == 'N')
@@ -342,23 +343,36 @@ namespace ChronusQ {
     ResultsT* SCR  = mem.malloc<ResultsT>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
     ResultsT* SCR2 = mem.malloc<ResultsT>(NB * SCR_nRows[2]);
     
+    blas::Op OP_TRANS;
+    if (TRANS == 'T') {
+      OP_TRANS = blas::Op::Trans;
+    } else if (TRANS == 'C') {
+      OP_TRANS = blas::Op::ConjTrans;
+    } else if (TRANS == 'N') {
+      OP_TRANS = blas::Op::NoTrans;
+    }
+    
     // SCR (nu lambda sigma, p) = (mu, nu | lambda sigma)^H @ T(mu, p)
-    Gemm('C', TRANS, SCR_nRows[0], off_sizes[0].second, NB,
+    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
+        SCR_nRows[0], off_sizes[0].second, NB,
         ResultsT(1.), in, NB, T[0]+offs[0], LDT[0],
         ResultsT(0.), SCR, SCR_nRows[0]);
     // SCR2(lambda sigma p, q) = SCR(nu, lambda sigma p)^H @ T(nu, q)
-    Gemm('C', TRANS, SCR_nRows[1], off_sizes[1].second, NB,
+    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
+        SCR_nRows[1], off_sizes[1].second, NB,
         ResultsT(1.), SCR, NB, T[1]+offs[1], LDT[1],
         ResultsT(0.), SCR2, SCR_nRows[1]);
     // SCR(sigma p q, r) = SCR2(lambda, sigma p q)^H @ T(lambda, r)
-    Gemm('C', TRANS, SCR_nRows[2], off_sizes[2].second, NB,
+    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
+        SCR_nRows[2], off_sizes[2].second, NB,
         ResultsT(1.), SCR2,NB, T[2]+offs[2], LDT[2],
         ResultsT(0.), SCR, SCR_nRows[2]);
     // (p q | r, s) = SCR(sigma, p q r)^H @ T(sigma, s)
     //              = T(mu, p)^H @ T(lambda, r)^H @
     //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
     OutT outFactor = increment ? 1.0 : 0.0;
-    Gemm('C', TRANS, SCR_nRows[3], off_sizes[3].second, NB,
+    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
+        SCR_nRows[3], off_sizes[3].second, NB,
         OutT(1.),     SCR, NB, T[3]+offs[3], LDT[3],
         outFactor,    out, SCR_nRows[3]);
     mem.free(SCR, SCR2);
@@ -419,23 +433,36 @@ namespace ChronusQ {
     else if (TRANS == 'N')
       TRANS = 'C';
     
+    blas::Op OP_TRANS;
+    if (TRANS == 'T') {
+      OP_TRANS = blas::Op::Trans;
+    } else if (TRANS == 'C') {
+      OP_TRANS = blas::Op::ConjTrans;
+    } else if (TRANS == 'N') {
+      OP_TRANS = blas::Op::NoTrans;
+    }
+    
     // SCR (s, mu nu lambda) = T(sigma, s)^H @ (mu nu | lambda, sigma)^H
-    Gemm(TRANS, 'C', off_sizes[3].second, SCR_nRows[0], NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
+        off_sizes[3].second, SCR_nRows[0], NB,
         dcomplex(1.), T[3]+offs[3], LDT[3], in, SCR_nRows[0],
         dcomplex(0.), SCR, off_sizes[3].second);
     // SCR2(r, s mu nu) = T(lambda, r)^H @ SCR(s mu nu lambda)^H
-    Gemm(TRANS, 'C', off_sizes[2].second, SCR_nRows[1], NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
+        off_sizes[2].second, SCR_nRows[1], NB,
         dcomplex(1.), T[2]+offs[2], LDT[2], SCR, SCR_nRows[1],
         dcomplex(0.), SCR2,off_sizes[2].second);
     // SCR(q, r s mu) = T(nu, q)^H @ SCR2(r s mu, nu)^H
-    Gemm(TRANS, 'C', off_sizes[1].second, SCR_nRows[2], NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
+        off_sizes[1].second, SCR_nRows[2], NB,
         dcomplex(1.), T[1]+offs[1], LDT[1], SCR2,SCR_nRows[2],
         dcomplex(0.), SCR, off_sizes[1].second);
     // (p, q | r s) = T(mu, p)^H @ SCR(q r s, mu)^H
     //              = T(mu, p)^H @ T(lambda, r)^H @
     //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
     dcomplex outFactor = increment ? 1.0 : 0.0;
-    Gemm(TRANS, 'C', off_sizes[0].second, SCR_nRows[3], NB,
+    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
+        off_sizes[0].second, SCR_nRows[3], NB,
         dcomplex(1.), T[0]+offs[0], LDT[0], SCR, SCR_nRows[3],
         outFactor,    out, off_sizes[0].second);
     mem.free(SCR, SCR2);
