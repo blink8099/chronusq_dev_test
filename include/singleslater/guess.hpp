@@ -718,18 +718,10 @@ namespace ChronusQ {
       std::cout << "    * Reading in guess orbitals from file "
         << savFile.fName() << "\n";
 
-<<<<<<< Updated upstream
     if( this->nC == 4 ) CErr("READMO NYI for 4c",std::cout);
- 
     size_t t_hash = std::is_same<MatsT,double>::value ? 1 : 2;
     size_t d_hash = 1;
     size_t c_hash = 2;
-=======
-    size_t t_hash = typeid(MatsT).hash_code();
-    size_t d_hash = typeid(double).hash_code();
-    size_t c_hash = typeid(dcomplex).hash_code();
->>>>>>> Stashed changes
-
     size_t savHash; 
 
     std::string prefix = "/SCF/";
