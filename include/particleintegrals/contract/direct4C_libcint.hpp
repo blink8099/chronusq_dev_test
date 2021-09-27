@@ -43,7 +43,7 @@
 #include <chrono>
 
 
-#define _SHZ_SCREEN_4C
+// #define _SHZ_SCREEN_4C
 
 #define _CONTRACTION_
 
@@ -93,7 +93,8 @@ namespace ChronusQ {
 
     DirectTPI<IntsT> &eri = originalERI;
     //DirectTPI<IntsT> eri(memManager_, basisSet_, molecule_, originalERI.threshSchwarz());
-
+    
+    bool HerDen = matList[0].HER;
  
     // Determine the number of OpenMP threads
     size_t nThreads  = GetNumThreads();
@@ -571,9 +572,16 @@ namespace ChronusQ {
             auto bf13 = bf1 + bf3*nBasis;
  
             // Start of Coulomb
+            if (HerDen) {
             ADCLLMS[bf12] += buff[mnkl]*DCLLMS[bf43].real();
             ADCLLMS[bf34] += buff[mnkl]*DCLLMS[bf21].real();
-  
+            } else {
+            ADCLLMS[bf12] += buff[mnkl]*(DCLLMS[bf43] + DCLLMS[bf34]);
+            //ADCLLMS[bf21] += buff[mnkl]*(DCLLMS[bf34] + DCLLMS[bf43]);
+            ADCLLMS[bf34] += buff[mnkl]*(DCLLMS[bf21] + DCLLMS[bf12]);
+            //ADCLLMS[bf43] += buff[mnkl]*(DCLLMS[bf12] + DCLLMS[bf21]);
+            }
+
             // Start of Exchange
             buff[mnkl] *= 0.5;
             ADXLLMS[bf14] += buff[mnkl]*DXLLMS[bf23];
@@ -614,13 +622,16 @@ namespace ChronusQ {
       // Take care of the Hermitian symmetry for CLLMS, XLLMS, XLLMX, XLLMY, XLLMZ
       for( auto iMat = 0; iMat < 5;  iMat++ ) 
       for( auto iTh  = 0; iTh < nThreads; iTh++) {
-  
+      if ((not HerDen) and iMat == 0) {
+        MatAdd('N','T',nBasis,nBasis,MatsT(0.25),AXthreads[iTh][iMat],nBasis,MatsT(0.25),
+          AXthreads[iTh][iMat],nBasis,SCR,nBasis);
+      } else {
         MatAdd('N','C',nBasis,nBasis,MatsT(0.5),AXthreads[iTh][iMat],nBasis,MatsT(0.5),
           AXthreads[iTh][iMat],nBasis,SCR,nBasis);
-  
-        MatAdd('N','N',nBasis,nBasis,MatsT(1.),SCR,nBasis,MatsT(1.), matList[iMat].AX,nBasis,matList[iMat].AX,nBasis);
-  
-      };
+      }
+        MatAdd('N','N',nBasis,nBasis,MatsT(1.), SCR,nBasis, 
+          MatsT(1.), matList[iMat].AX,nBasis,matList[iMat].AX,nBasis);
+      }
    
       memManager_.free(SCR);
       memManager_.free(buffAll, cacheAll);
@@ -711,7 +722,6 @@ namespace ChronusQ {
    
       }
 #endif
-
 
       // 81 is for fourth-derivative; 9 for second derivative
       nERI = 9;
@@ -912,12 +922,24 @@ namespace ChronusQ {
   
             //KLMN
             if(bf3 >= bf4 ) {
+            if (HerDen) {
               ADCLLMS[bf34] +=  ERIBuffCD[DotPrdKLMN]*DCSSMS[bf21].real()
                                -ERIBuffCD[CrossZKLMN]*DCSSMZ[bf21].imag()
                                -ERIBuffCD[CrossXKLMN]*DCSSMX[bf21].imag()
                                -ERIBuffCD[CrossYKLMN]*DCSSMY[bf21].imag();
+            } else {
+              ADCLLMS[bf34] +=  ERIBuffCD[DotPrdKLMN]*(DCSSMS[bf21] + DCSSMS[bf12])
+                               +dcomplex(0.,1.)*ERIBuffCD[CrossZKLMN]*(DCSSMZ[bf21]-DCSSMZ[bf12])
+                               +dcomplex(0.,1.)*ERIBuffCD[CrossXKLMN]*(DCSSMX[bf21]-DCSSMX[bf12])
+                               +dcomplex(0.,1.)*ERIBuffCD[CrossYKLMN]*(DCSSMY[bf21]-DCSSMY[bf12]);
+//              if (bf3 != bf4)
+//              ADCLLMS[bf43] +=  ERIBuffCD[DotPrdKLMN]*(DCSSMS[bf21] + DCSSMS[bf12])
+//                               +dcomplex(0.,1.)*ERIBuffCD[CrossZKLMN]*(DCSSMZ[bf21]-DCSSMZ[bf12])
+//                               +dcomplex(0.,1.)*ERIBuffCD[CrossXKLMN]*(DCSSMX[bf21]-DCSSMX[bf12])
+//                               +dcomplex(0.,1.)*ERIBuffCD[CrossYKLMN]*(DCSSMY[bf21]-DCSSMY[bf12]);
             }
-  
+            }
+           
             /*------------------------------------------*/
             /* End of Dirac-Coulomb (LL|LL) Contraction */
             /*------------------------------------------*/
@@ -932,12 +954,25 @@ namespace ChronusQ {
   
   
             /* MNKL */
-            if(bf1 >= bf2 ) {
+            if (bf1 >= bf2) {
+            if (HerDen) {
               ADCSSMS[bf12] += ERIBuffAB[DotPrdMNKL]*DCLLMS[bf43].real();
               ADCSSMX[bf12] += ERIBuffAB[CrossXMNKL]*DCLLMS[bf43].real();
               ADCSSMY[bf12] += ERIBuffAB[CrossYMNKL]*DCLLMS[bf43].real();
               ADCSSMZ[bf12] += ERIBuffAB[CrossZMNKL]*DCLLMS[bf43].real();
+            } else {
+              ADCSSMS[bf12] += ERIBuffAB[DotPrdMNKL]*(DCLLMS[bf43]+DCLLMS[bf34]);
+              ADCSSMX[bf12] += ERIBuffAB[CrossXMNKL]*(DCLLMS[bf43]+DCLLMS[bf34]);
+              ADCSSMY[bf12] += ERIBuffAB[CrossYMNKL]*(DCLLMS[bf43]+DCLLMS[bf34]);
+              ADCSSMZ[bf12] += ERIBuffAB[CrossZMNKL]*(DCLLMS[bf43]+DCLLMS[bf34]);
+//              if (bf2 != bf1) {
+//              ADCSSMS[bf21] += ERIBuffAB[DotPrdMNKL]*(DCLLMS[bf43]+DCLLMS[bf34]);
+//              ADCSSMX[bf21] -= ERIBuffAB[CrossXMNKL]*(DCLLMS[bf43]+DCLLMS[bf34]);
+//              ADCSSMY[bf21] -= ERIBuffAB[CrossYMNKL]*(DCLLMS[bf43]+DCLLMS[bf34]);
+//              ADCSSMZ[bf21] -= ERIBuffAB[CrossZMNKL]*(DCLLMS[bf43]+DCLLMS[bf34]);
+//              }
             }
+            } 
   
             /*-----------------------------------------------*/
             /* End of Dirac-Coulomb C(2)-(SS|SS) Contraction */
@@ -958,14 +993,15 @@ namespace ChronusQ {
   
       } // OpenMP context
  
-      dcomplex iscale = dcomplex(0.0, 1.0);
+      MatsT  scale = HerDen ? MatsT(1.0): MatsT(0.5);
+      MatsT iscale = scale * dcomplex(0.0, 1.0);
 
       for( auto iTh  = 0; iTh < nThreads; iTh++) {
  
-        MatAdd('N','N',nBasis,nBasis,MatsT(1.0),AXthreads[iTh][CLLMS],nBasis,MatsT(1.0),
+        MatAdd('N','N',nBasis,nBasis,scale,AXthreads[iTh][CLLMS],nBasis,MatsT(1.0),
            matList[CLLMS].AX,nBasis,matList[CLLMS].AX,nBasis);
 
-        MatAdd('N','N',nBasis,nBasis,MatsT(1.0),AXthreads[iTh][CSSMS],nBasis,MatsT(1.0),
+        MatAdd('N','N',nBasis,nBasis,scale,AXthreads[iTh][CSSMS],nBasis,MatsT(1.0),
            matList[CSSMS].AX,nBasis,matList[CSSMS].AX,nBasis);
 
         MatAdd('N','N',nBasis,nBasis, iscale, AXthreads[iTh][CSSMX],nBasis,MatsT(1.0),
@@ -987,13 +1023,21 @@ namespace ChronusQ {
       auto ADCSSMY = matList[CSSMY].AX;
       auto ADCSSMZ = matList[CSSMZ].AX;
 
-      for( auto i = 0; i < nBasis; i++ )
+      for( auto i = 0; i < nBasis; i++ ) 
       for( auto j = 0; j < i; j++ ) {
+      if (HerDen) {
         ADCLLMS[j + i*nBasis] = std::conj(ADCLLMS[i + j*nBasis]);
         ADCSSMS[j + i*nBasis] = std::conj(ADCSSMS[i + j*nBasis]);
         ADCSSMX[j + i*nBasis] = std::conj(ADCSSMX[i + j*nBasis]);
         ADCSSMY[j + i*nBasis] = std::conj(ADCSSMY[i + j*nBasis]);
         ADCSSMZ[j + i*nBasis] = std::conj(ADCSSMZ[i + j*nBasis]);
+      } else {
+        ADCLLMS[j + i*nBasis] = ADCLLMS[i + j*nBasis];
+        ADCSSMS[j + i*nBasis] = ADCSSMS[i + j*nBasis];
+        ADCSSMX[j + i*nBasis] = -ADCSSMX[i + j*nBasis];
+        ADCSSMY[j + i*nBasis] = -ADCSSMY[i + j*nBasis];
+        ADCSSMZ[j + i*nBasis] = -ADCSSMZ[i + j*nBasis];
+      }
       }
 #endif
 

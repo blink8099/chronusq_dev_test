@@ -240,8 +240,13 @@ namespace ChronusQ {
  
     } // DIRECT_COULOMB
 
-
-
+    // if (not HerDen) {
+    // ss.twoeH->clear();
+    // if(not increment) {
+    //   ss.coulombMatrix->clear();
+    //   ss.exchangeMatrix->clear();
+    // };
+    // }
 
     /**********************************************/
     /*                                            */
@@ -280,7 +285,6 @@ namespace ChronusQ {
 		      ss.coulombMatrix->pointer(), NB2C, ss.coulombMatrix->pointer(), NB2C);
       MatAdd('N','N', NB1C, NB1C, iscale, Scr3, NB1C, MatsT(1.0), 
 		      ss.coulombMatrix->pointer(), NB2C, ss.coulombMatrix->pointer(), NB2C);
-
 #ifdef _PRINT_MATRICES
 
       std::cout<<"After LLLL"<<std::endl;
@@ -299,7 +303,6 @@ namespace ChronusQ {
   
   
   
-
       /*+++++++++++++++++++++++++++++++++++++++++++++++++*/
       /* Start of Dirac-Coulomb C(2)-(SS|SS) Contraction */
       /*+++++++++++++++++++++++++++++++++++++++++++++++++*/
@@ -335,7 +338,6 @@ namespace ChronusQ {
       /*-----------------------------------------------*/
       /* End of Dirac-Coulomb C(2)-(SS|SS) Contraction */
       /*-----------------------------------------------*/
-  
   
   
 #if 1 
@@ -3924,7 +3926,13 @@ namespace ChronusQ {
 
     } // DIRECT_COULOMB
 
-
+    //if (not HerDen) {
+    //ss.twoeH->clear();
+    //if(not increment) {
+    //  ss.coulombMatrix->clear();
+    //  ss.exchangeMatrix->clear();
+    //};
+    //}
     /**********************************************/
     /*                                            */
     /*              DIRAC-COULOMB                 */
@@ -3995,6 +4003,7 @@ namespace ChronusQ {
 #endif
 
 
+      if( std::abs(xHFX) > 1e-12 ) {
 #if 1 
       std::vector<TwoBodyContraction<MatsT>> contractDCLS =
         { {contract1PDMLL.S().pointer(), CScrLLMS, HerDen, LLSS},
@@ -4047,7 +4056,7 @@ namespace ChronusQ {
       prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
     
 #endif //_PRINT_MATRICES
-    
+      } 
     
     } //_DIRAC_COULOMB
 

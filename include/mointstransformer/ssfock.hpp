@@ -70,6 +70,8 @@ namespace ChronusQ {
     for (auto p = 0; p <  np; p++) {
       
       // outer product to make a fake ss onePDM of Dqp
+      bool pqSame = p == q;
+
       blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
         nAO, nAO, 1, MatsT(1.), ss_.mo[0].pointer() + (q+qoff)*nAO, nAO,
         ss_.mo[0].pointer() + (p+poff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
@@ -83,7 +85,7 @@ namespace ChronusQ {
       SetMat('N', nAO, nAO, MatsT(1.), MOERIpq.pointer(), nAO, SCR + (p + q*np)*nAO2, nAO);
       if (pqSymm) { 
          if (p < q) SetMat('C', nAO, nAO, MatsT(1.), MOERIpq.pointer(), nAO, SCR + (q + p*np)*nAO2, nAO); 
-         else if (p == q) break;
+         else if (pqSame) break;
       }
      
     } // 1/2 transformation
