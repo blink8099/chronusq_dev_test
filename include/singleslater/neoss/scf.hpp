@@ -54,6 +54,10 @@ namespace ChronusQ {
       isConverged = true;
 
     // Compute initial properties
+    applyToEach([&](SubSSPtr& ss){
+      ss->formFock(pert);
+      ss->getNewOrbitals(pert,false);
+    });
     this->computeProperties(pert);
 
     if ( this->printLevel > 0 and MPIRank(this->comm) == 0 ) {

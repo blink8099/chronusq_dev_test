@@ -156,9 +156,8 @@ namespace ChronusQ {
       std::cout << "  *** Forming Initial Guess Density for SCF Procedure ***"
                 << std::endl << std::endl;
 
-    if( this->molecule().nAtoms == 1  and scfControls.guess == SAD ) {
-      CoreGuess();
-    } else if( scfControls.guess == CORE ) CoreGuess();
+    if( this->molecule().nAtoms == 1  and scfControls.guess == SAD ) CoreGuess();
+    else if( scfControls.guess == CORE ) CoreGuess();
     else if( scfControls.guess == SAD ) SADGuess();
     else if( scfControls.guess == RANDOM ) RandomGuess();
     else if( scfControls.guess == READMO ) ReadGuessMO(); 
@@ -170,7 +169,6 @@ namespace ChronusQ {
     // Common to all guess: form new set of orbitals from
     // initial guess at Fock.
     EMPerturbation pert; // Dummy EM perturbation
-    getNewOrbitals(pert,false);
     
     // If RANDOM guess, scale the densites appropriately
     // *** Replicates on all MPI processes ***
@@ -234,6 +232,9 @@ namespace ChronusQ {
       size_t NB = this->fockMatrix->dimension();
       for(auto mat : this->fockMatrix->SZYXPointers())
         MPIBCast(mat,NB*NB,0,comm);
+   //Forming Orbitals from core guess
+    EMPerturbation pert; // Dummy EM perturbation
+    getNewOrbitals(pert,false);
     }
 #endif
 
@@ -384,15 +385,15 @@ namespace ChronusQ {
 //          ss->aoints, memManager, atom, basis, hamiltonianOptions);
       ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>(
           hamiltonianOptions);
-
       ss->formCoreH(pert);
       aointsAtom->TPI->computeAOInts(basis, atom, pert,
           ELECTRON_REPULSION, hamiltonianOptions);
 
 
       ss->formGuess();
+      ss->getNewOrbitals(pert,false);
       ss->SCF(pert);
-
+      
       size_t NBbasis = basis.nBasis;
 
       // Place the atomic densities into the guess density
@@ -429,9 +430,6 @@ namespace ChronusQ {
     if( printLevel > 0 )
       std::cout << std::endl
                 << "  *** Forming Initial Fock Matrix from SAD Density ***\n\n";
-
-    this->formFock(pert,false);
-
 
   }; // SingleSlater<T>::SADGuess
 
@@ -470,6 +468,8 @@ namespace ChronusQ {
         MPIBCast(mat,NB*NB,0,comm);
     }
 #endif
+    EMPerturbation pert;
+    getNewOrbitals(pert,false);
 
   }
 
@@ -489,10 +489,14 @@ namespace ChronusQ {
     size_t c_hash = 2;
 
     size_t savHash;
-    try{
-      savFile.readData("/SCF/FIELD_TYPE", &savHash);
+    std::string prefix = "/SCF/";
+    if (this->particle.charge == 1.0)
+      prefix = "/PROT_SCF/";
+
+   try{
+      savFile.readData(prefix + "FIELD_TYPE", &savHash);
     } catch (...) {
-      CErr("Cannot find /SCF/FIELD_TYPE on rstFile!",std::cout);
+      CErr("Cannot find " + prefix + "FIELD_TYPE on rstFile!",std::cout);
     }
 
 
@@ -508,7 +512,7 @@ namespace ChronusQ {
       std::string t_field = t_is_double ? "REAL" : "COMPLEX";
       std::string s_field = s_is_double ? "REAL" : "COMPLEX";
 
-      std::string message = "/SCF/FIELD_TYPE on disk (" + s_field +
+      std::string message = prefix + "FIELD_TYPE on disk (" + s_field +
         ") is incompatible with current FIELD_TYPE (" + t_field + ")";
 
       CErr(message,std::cout);
@@ -521,12 +525,11 @@ namespace ChronusQ {
     if( this->nC == 4 ) NB=2*NB;
     auto NB2 = NB*NB;
 
-
-    auto DSdims = savFile.getDims( "SCF/1PDM_SCALAR" );
-    auto DZdims = savFile.getDims( "SCF/1PDM_MZ" );
-    auto DYdims = savFile.getDims( "SCF/1PDM_MY" );
-    auto DXdims = savFile.getDims( "SCF/1PDM_MX" );
-
+    auto DSdims = savFile.getDims( prefix + "1PDM_SCALAR" );
+    auto DZdims = savFile.getDims( prefix + "1PDM_MZ" );
+    auto DYdims = savFile.getDims( prefix + "1PDM_MY" );
+    auto DXdims = savFile.getDims( prefix + "1PDM_MX" ); 
+  
     bool hasDS = DSdims.size() != 0;
     bool hasDZ = DZdims.size() != 0;
     bool hasDY = DYdims.size() != 0;
@@ -540,15 +543,15 @@ namespace ChronusQ {
 
     // Errors in 1PDM SCALAR
     if( not hasDS )
-      CErr("SCF/1PDM_SCALAR does not exist in " + savFile.fName(), std::cout); 
+      CErr(prefix+"1PDM_SCALAR does not exist in " + savFile.fName(), std::cout); 
 
     else if( not r2DS ) 
-      CErr("SCF/1PDM_SCALAR not saved as a rank-2 tensor in " + 
+      CErr(prefix + "1PDM_SCALAR not saved as a rank-2 tensor in " + 
           savFile.fName(), std::cout); 
 
     else if( DSdims[0] != NB or DSdims[1] != NB ) {
 
-      std::cout << "    * Incompatible SCF/1PDM_SCALAR:";
+      std::cout << "    * Incompatible " + prefix + "1PDM_SCALAR:";
       std::cout << "  Recieved (" << DSdims[0] << "," << DSdims[1] << ")"
         << " :"; 
       std::cout << "  Expected (" << NB << "," << NB << ")"; 
@@ -557,25 +560,25 @@ namespace ChronusQ {
     }
 
     // Read in 1PDM SCALAR
-    std::cout << "    * Found SCF/1PDM_SCALAR !" << std::endl;
-    savFile.readData("/SCF/1PDM_SCALAR",this->onePDM->S().pointer());
+    std::cout << "    * Found " + prefix + "1PDM_SCALAR !" << std::endl;
+    savFile.readData(prefix + "1PDM_SCALAR",this->onePDM->S().pointer());
 
 
     // Oddities in Restricted
     if( this->nC == 1 and this->iCS ) {
 
       if( hasDZ )
-        std::cout << "    * WARNING: Reading in SCF/1PDM_SCALAR as "
+        std::cout << "    * WARNING: Reading in " + prefix + "1PDM_SCALAR as "
           << "restricted guess but " << savFile.fName() 
-          << " contains SCF/1PDM_MZ" << std::endl;
+          << " contains " + prefix + "1PDM_MZ" << std::endl;
 
       if( hasDY )
-        std::cout << "    * WARNING: Reading in SCF/1PDM_SCALAR as "
+        std::cout << "    * WARNING: Reading in " + prefix + "1PDM_SCALAR as "
           << "restricted guess but " << savFile.fName() 
           << " contains SCF/1PDM_MY" << std::endl;
 
       if( hasDX )
-        std::cout << "    * WARNING: Reading in SCF/1PDM_SCALAR as "
+        std::cout << "    * WARNING: Reading in " + prefix + "1PDM_SCALAR as "
           << "restricted guess but " << savFile.fName() 
           << " contains SCF/1PDM_MX" << std::endl;
 
@@ -587,19 +590,19 @@ namespace ChronusQ {
 
       if( not hasDZ ) {
 
-        std::cout <<  "    * WARNING: SCF/1PDM_MZ does not exist in "
-          << savFile.fName() << " -- Zeroing out SCF/1PDM_MZ" << std::endl;
+        std::cout <<  "    * WARNING: " + prefix + "1PDM_MZ does not exist in "
+          << savFile.fName() << " -- Zeroing out " + prefix + "1PDM_MZ" << std::endl;
 
         this->onePDM->Z().clear();
 
 
       } else if( not r2DZ ) 
-        CErr("SCF/1PDM_MZ not saved as a rank-2 tensor in " + 
+        CErr(prefix + "1PDM_MZ not saved as a rank-2 tensor in " + 
             savFile.fName(), std::cout); 
 
       else if( DZdims[0] != NB or DZdims[1] != NB ) {
 
-        std::cout << "    * Incompatible SCF/1PDM_MZ:";
+        std::cout << "    * Incompatible " + prefix + "1PDM_MZ:";
         std::cout << "  Recieved (" << DZdims[0] << "," << DZdims[1] << ")"
           << " :"; 
         std::cout << "  Expected (" << NB << "," << NB << ")"; 
@@ -607,8 +610,8 @@ namespace ChronusQ {
 
       } else {
 
-        std::cout << "    * Found SCF/1PDM_MZ !" << std::endl;
-        savFile.readData("SCF/1PDM_MZ",this->onePDM->Z().pointer());
+        std::cout << "    * Found " + prefix + "1PDM_MZ !" << std::endl;
+        savFile.readData(prefix + "1PDM_MZ",this->onePDM->Z().pointer());
 
       }
 
@@ -616,14 +619,14 @@ namespace ChronusQ {
       if( this->nC == 2 ) {
 
         if( hasDY )
-          std::cout << "    * WARNING: Reading in SCF/1PDM_MZ as "
+          std::cout << "    * WARNING: Reading in " + prefix + "1PDM_MZ as "
             << "unrestricted guess but " << savFile.fName() 
-            << " contains SCF/1PDM_MY" << std::endl;
+            << " contains " + prefix + "1PDM_MY" << std::endl;
 
         if( hasDX )
-          std::cout << "    * WARNING: Reading in SCF/1PDM_MZ as "
+          std::cout << "    * WARNING: Reading in " + prefix + "1PDM_MZ as "
             << "unrestricted guess but " << savFile.fName() 
-            << " contains SCF/1PDM_MX" << std::endl;
+            << " contains " + prefix + "1PDM_MX" << std::endl;
 
       }
 
@@ -634,19 +637,19 @@ namespace ChronusQ {
 
       if( not hasDY ) {
 
-        std::cout <<  "    * WARNING: SCF/1PDM_MY does not exist in "
-          << savFile.fName() << " -- Zeroing out SCF/1PDM_MY" << std::endl;
+        std::cout <<  "    * WARNING: " + prefix + "1PDM_MY does not exist in "
+          << savFile.fName() << " -- Zeroing out " + prefix + "1PDM_MY" << std::endl;
 
         this->onePDM->Y().clear();
 
 
       } else if( not r2DY ) 
-        CErr("SCF/1PDM_MY not saved as a rank-2 tensor in " + 
+        CErr(prefix + "1PDM_MY not saved as a rank-2 tensor in " + 
             savFile.fName(), std::cout); 
 
       else if( DYdims[0] != NB or DYdims[1] != NB ) {
 
-        std::cout << "    * Incompatible SCF/1PDM_MY:";
+        std::cout << "    * Incompatible " + prefix + "1PDM_MY:";
         std::cout << "  Recieved (" << DYdims[0] << "," << DYdims[1] << ")"
           << " :"; 
         std::cout << "  Expected (" << NB << "," << NB << ")"; 
@@ -654,27 +657,27 @@ namespace ChronusQ {
 
       } else {
 
-        std::cout << "    * Found SCF/1PDM_MY !" << std::endl;
-        savFile.readData("SCF/1PDM_MY",this->onePDM->Y().pointer());
+        std::cout << "    * Found " + prefix + "1PDM_MY !" << std::endl;
+        savFile.readData(prefix + "1PDM_MY",this->onePDM->Y().pointer());
 
       }
 
 
       if( not hasDX ) {
 
-        std::cout <<  "    * WARNING: SCF/1PDM_MX does not exist in "
-          << savFile.fName() << " -- Zeroing out SCF/1PDM_MX" << std::endl;
+        std::cout <<  "    * WARNING: " + prefix + "1PDM_MX does not exist in "
+          << savFile.fName() << " -- Zeroing out " + prefix + "1PDM_MX" << std::endl;
 
         this->onePDM->X().clear();
 
 
       } else if( not r2DX ) 
-        CErr("SCF/1PDM_MX not saved as a rank-2 tensor in " + 
+        CErr(prefix + "1PDM_MX not saved as a rank-2 tensor in " + 
             savFile.fName(), std::cout); 
 
       else if( DXdims[0] != NB or DXdims[1] != NB ) {
 
-        std::cout << "    * Incompatible SCF/1PDM_MX:";
+        std::cout << "    * Incompatible " + prefix + "1PDM_MX:";
         std::cout << "  Recieved (" << DXdims[0] << "," << DXdims[1] << ")"
           << " :"; 
         std::cout << "  Expected (" << NB << "," << NB << ")"; 
@@ -682,8 +685,8 @@ namespace ChronusQ {
 
       } else {
 
-        std::cout << "    * Found SCF/1PDM_MX !" << std::endl;
-        savFile.readData("SCF/1PDM_MX",this->onePDM->X().pointer());
+        std::cout << "    * Found " + prefix + "1PDM_MX !" << std::endl;
+        savFile.readData(prefix + "1PDM_MX",this->onePDM->X().pointer());
 
       }
 
@@ -699,8 +702,6 @@ namespace ChronusQ {
                 << "  *** Forming Initial Fock Matrix from Guess Density ***\n\n";
 
     std::cout << "\n" << std::endl;
-    EMPerturbation pert;
-    formFock(pert,false);
 
   } // SingleSlater<T>::ReadGuess1PDM()
 
@@ -717,11 +718,17 @@ namespace ChronusQ {
       std::cout << "    * Reading in guess orbitals from file "
         << savFile.fName() << "\n";
 
+<<<<<<< Updated upstream
     if( this->nC == 4 ) CErr("READMO NYI for 4c",std::cout);
  
     size_t t_hash = std::is_same<MatsT,double>::value ? 1 : 2;
     size_t d_hash = 1;
     size_t c_hash = 2;
+=======
+    size_t t_hash = typeid(MatsT).hash_code();
+    size_t d_hash = typeid(double).hash_code();
+    size_t c_hash = typeid(dcomplex).hash_code();
+>>>>>>> Stashed changes
 
     size_t savHash; 
 
@@ -791,11 +798,7 @@ namespace ChronusQ {
     // Read in MO1
     std::cout << "    * Found SCF/MO1 !" << std::endl;
     savFile.readData(prefix + "MO1",this->mo[0].pointer());
-
-    //this->mo[0].output(std::cout, "read in MO", true);
-
-
-
+    this->mo[0].output(std::cout, "read in MO", true);
 
 
     // Unrestricted calculations
@@ -827,6 +830,7 @@ namespace ChronusQ {
       else {
         std::cout << "    * Found SCF/MO2 !" << std::endl;
         savFile.readData(prefix + "MO2",this->mo[1].pointer());
+        this->mo[1].output(std::cout,"read in MO",true);
       }
 
     }
@@ -836,7 +840,7 @@ namespace ChronusQ {
 
     // Form density from MOs
     formDensity();
-
+    this->onePDM->output(std::cout,"Corresponding density",true);
     std::cout << "\n" << std::endl;
     if( printLevel > 0 )
       std::cout << std::endl
@@ -844,8 +848,8 @@ namespace ChronusQ {
 
     std::cout << "\n" << std::endl;
     EMPerturbation pert;
-    formFock(pert,false);
-
+    //formFock(pert,false);
+  
   } // SingleSlater<T>::ReadGuessMO()
 
   /**

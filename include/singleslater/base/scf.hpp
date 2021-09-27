@@ -36,7 +36,7 @@ namespace ChronusQ {
    *  has been populated in some way.
    */ 
   void SingleSlaterBase::SCF(EMPerturbation &pert) {
-
+ 
     ProgramTimer::tick("SCF Total");
 
     SCFInit();
@@ -55,9 +55,10 @@ namespace ChronusQ {
     if( scfControls.scfAlg == _SKIP_SCF )
       isConverged = true;
 
-    // Compute initial properties
+    // Compute fock matrix and initial properties
+    this->formFock(pert);
+    this->getNewOrbitals(pert,false);
     this->computeProperties(pert);
-
 
     if( printLevel > 0 and MPIRank(comm) == 0 ) {
       printSCFHeader(std::cout,pert);
