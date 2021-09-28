@@ -760,6 +760,7 @@ namespace ChronusQ {
 
   }; // SingleSlater<MatsT>::SCFFin
 
+#ifdef TEST_MOINTSTRANSFORMER
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::MOIntsTransformationTest(EMPerturbation &pert) {
    
@@ -791,7 +792,6 @@ namespace ChronusQ {
     MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
     // prettyPrintSmart(std::cout,"SSFOCK_N6 ERI", MOERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
    
-#if 1   
     InCore4indexTPI<MatsT> MOERI2(memManager, nMO); 
     MOIntsTransformer<MatsT, IntsT> TF2(memManager, *this, INCORE_N5);  
     
@@ -817,10 +817,19 @@ namespace ChronusQ {
     MOERI_Diff.output(std::cout, "SSFOCK_N6 ERI - INCORE_N5 ERI", true);
     
     // prettyPrintSmart(std::cout,"INCORE_N5 ERI", MOERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
-#endif    
     std::cout << "\n --------- End of the Test (on MO Ints Transformation)----- \n" << std::endl;
   }; // SingleSlater<MatsT>::MOIntsTransformationTest
   
+#endif    
+  
+  /**
+   *  \brief generate MOIntsTranformer using this singleslater as reference
+   */
+  template <typename MatsT, typename IntsT>
+  std::shared_ptr<MOIntsTransformer<MatsT, IntsT>> 
+    SingleSlater<MatsT, IntsT>::generateMOIntsTransformer() {
+      return std::make_shared<MOIntsTransformer<MatsT, IntsT>>(memManager, *this, this->aoints.TPITransAlg);
+  }
 
   /**
    *  \brief Reorthogonalize the MOs wrt overlap

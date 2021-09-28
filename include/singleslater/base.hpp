@@ -29,6 +29,8 @@
 #include <fields.hpp>
 #include <util/files.hpp>
 
+// #define TEST_MOINTSTRANSFORMER
+
 namespace ChronusQ {
 
   // Type of SingleSlater object
@@ -298,10 +300,11 @@ namespace ChronusQ {
     virtual void printK(std::ostream&)         = 0;
 
     virtual void printFockTimings(std::ostream&) = 0;
-    
+
+#ifdef TEST_MOINTSTRANSFORMER
     virtual void MOIntsTransformationTest(EMPerturbation &pert) = 0;
-    // Procedural Functions to be shared among all derived classes
-      
+#endif
+
     // Perform an SCF procedure (see include/singleslater/scf.hpp for docs)
     virtual void SCF(EMPerturbation &);
 
