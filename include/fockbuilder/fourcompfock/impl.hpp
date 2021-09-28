@@ -3720,6 +3720,7 @@ namespace ChronusQ {
 
     size_t mpiRank   = MPIRank(ss.comm);
     bool   isNotRoot = mpiRank != 0;
+    bool   CoulombOnly = std::abs(xHFX) < 1e-12; 
 
     PauliSpinorSquareMatrices<MatsT> exchangeMatrixLL(mem, NB1C);
 
@@ -3863,22 +3864,23 @@ namespace ChronusQ {
             {contract1PDMLS.Z().pointer(), XScrLSMZ} };
   
         // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
-        relERICon.twoBodyContract(ss.comm, true, contractLL,pert);
+        relERICon.twoBodyContract(ss.comm, true, contractLL, pert, CoulombOnly);
   
         //SetMat('N', NB1C, NB1C, MatsT(1.), CScrLLMS, NB1C, ss.coulombMatrix->pointer(), NB2C);
         SetMat('N', NB1C, NB1C, MatsT(2.), CScrLLMS, NB1C, ss.twoeH->S().pointer(), NB2C);
-        SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMS, NB1C, ss.exchangeMatrix->S().pointer(), NB2C);
-        SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMX, NB1C, ss.exchangeMatrix->X().pointer(), NB2C);
-        SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMY, NB1C, ss.exchangeMatrix->Y().pointer(), NB2C);
-        SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMZ, NB1C, ss.exchangeMatrix->Z().pointer(), NB2C);
-
+        if (not CoulombOnly) {
+          SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMS, NB1C, ss.exchangeMatrix->S().pointer(), NB2C);
+          SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMX, NB1C, ss.exchangeMatrix->X().pointer(), NB2C);
+          SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMY, NB1C, ss.exchangeMatrix->Y().pointer(), NB2C);
+          SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMZ, NB1C, ss.exchangeMatrix->Z().pointer(), NB2C);
+        }
       } else {
   
         std::vector<TwoBodyContraction<MatsT>> contractLL =
           { {contract1PDMLL.S().pointer(), CScrLLMS, HerDen, COULOMB} };
     
         // Determine how many (if any) exchange terms to calculate
-        if( std::abs(xHFX) > 1e-12 ) {
+        if( not CoulombOnly ) {
           exchangeMatrixLL.clear();
           for(size_t i = 0; i < ss.exchangeMatrix->nComponent(); i++) {
     
@@ -3900,10 +3902,12 @@ namespace ChronusQ {
         SetMat('N', NB1C, NB1C, MatsT(1.), CScrLLMS, NB1C, ss.twoeH->S().pointer(), NB2C);
     
         // Assemble 4C exchangeMatrix 
-        for(auto i = 0; i < ss.exchangeMatrix->nComponent();i++){
-          PAULI_SPINOR_COMPS c = static_cast<PAULI_SPINOR_COMPS>(i);
-          SetMat('N', NB1C, NB1C, MatsT(1.), exchangeMatrixLL[c].pointer(), NB1C,
-                 (*ss.exchangeMatrix)[c].pointer(), NB2C);
+        if( not CoulombOnly ) {
+          for(auto i = 0; i < ss.exchangeMatrix->nComponent();i++){
+            PAULI_SPINOR_COMPS c = static_cast<PAULI_SPINOR_COMPS>(i);
+            SetMat('N', NB1C, NB1C, MatsT(1.), exchangeMatrixLL[c].pointer(), NB1C,
+                   (*ss.exchangeMatrix)[c].pointer(), NB2C);
+          }
         }
       }
 
@@ -3966,7 +3970,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), XScrLSMZ} };
 
       // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
-      relERICon.twoBodyContract(ss.comm, true, contractDCLL,pert);
+      relERICon.twoBodyContract(ss.comm, true, contractDCLL, pert, CoulombOnly);
 
       // Add Dirac-Coulomb contributions to the LLLL block
       MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLLMS, NB1C, MatsT(1.0), 
@@ -4003,7 +4007,7 @@ namespace ChronusQ {
 #endif
 
 
-      if( std::abs(xHFX) > 1e-12 ) {
+      if( not CoulombOnly ) {
 #if 1 
       std::vector<TwoBodyContraction<MatsT>> contractDCLS =
         { {contract1PDMLL.S().pointer(), CScrLLMS, HerDen, LLSS},
@@ -4025,7 +4029,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), XScrLSMZ} };
 
       // Call the contraction engine to do the assembly of Dirac-Coulomb LLSS
-      relERICon.twoBodyContract(ss.comm, true, contractDCLS,pert);
+      relERICon.twoBodyContract(ss.comm, true, contractDCLS, pert);
 
       // Add Dirac-Coulomb contributions to the LLSS block
       MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMS, NB1C, MatsT(1.0), 

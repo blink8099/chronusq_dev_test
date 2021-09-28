@@ -55,8 +55,11 @@ namespace ChronusQ {
         MPI_Comm comm,
         const bool screen,
         std::vector<TwoBodyContraction<MatsT>> &list,
-        EMPerturbation&) const {
-      directScaffoldLibcint(comm, screen, list);
+        EMPerturbation&,
+        const bool CoulombOnly = false) const {
+      
+      if (CoulombOnly) directScaffoldLibcintCoulombOnly(comm, screen, list);
+      else directScaffoldLibcint(comm, screen, list);
      // directScaffold(comm, screen, list);
 //      twoBodyContract3Index(comm, list);
     }
@@ -71,6 +74,11 @@ namespace ChronusQ {
         const bool,
         std::vector<TwoBodyContraction<MatsT>>&) const;
 
+    void directScaffoldLibcintCoulombOnly(
+        MPI_Comm,
+        const bool,
+        std::vector<TwoBodyContraction<MatsT>>&) const;
+    
     void twoBodyContract3Index(
         MPI_Comm,
         std::vector<TwoBodyContraction<MatsT>>&) const;
