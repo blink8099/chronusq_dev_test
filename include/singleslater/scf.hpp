@@ -762,9 +762,9 @@ namespace ChronusQ {
 
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::MOIntsTransformationTest(EMPerturbation &pert) {
-    
+   
     // test on MO integral transfromations
-    MOIntsTransformer<MatsT, IntsT> TF(memManager, *this, SSFOCK_N6);  
+    MOIntsTransformer<MatsT, IntsT> TF(memManager, *this, INCORE_N6);  
     //TF.setMORanges(0, 0);  
 
     std::cout << "\n --------- Test on MO Ints Transformation----- \n" << std::endl;
@@ -774,7 +774,7 @@ namespace ChronusQ {
     bool antiSymm = false;
 
     InCore4indexTPI<MatsT> MOERI(memManager, nMO); 
-    TF.transformERI(pert, MOERI.pointer(), "pqrs", antiSymm);
+    TF.transformTPI(pert, MOERI.pointer(), "pqrs", antiSymm);
 
     OnePInts<MatsT> hCore(memManager, nMO); 
     TF.transformHCore(hCore.pointer());
@@ -795,7 +795,7 @@ namespace ChronusQ {
     InCore4indexTPI<MatsT> MOERI2(memManager, nMO); 
     MOIntsTransformer<MatsT, IntsT> TF2(memManager, *this, INCORE_N5);  
     
-    TF2.transformERI(pert, MOERI2.pointer(), "pqrs", antiSymm);
+    TF2.transformTPI(pert, MOERI2.pointer(), "pqrs", antiSymm);
     SCFEnergy = MatsT(0.);
     for (auto i = 0; i < this->nO; i++) {
       SCFEnergy += hCore(i, i);

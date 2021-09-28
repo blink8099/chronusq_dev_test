@@ -34,20 +34,20 @@
 namespace ChronusQ {
 
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::cacheAOERIInCore() {
+  void MOIntsTransformer<MatsT,IntsT>::cacheAOTPIInCore() {
       
-      // cache AOERI
-      if (not AOERI_) {
+      // cache AOTPI
+      if (not AOTPI_) {
         if(ss_.nC == 1) {
-          AOERI_ = std::make_shared<InCore4indexTPI<MatsT>>(
+          AOTPI_ = std::make_shared<InCore4indexTPI<MatsT>>(
                     *std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(ss_.aoints.TPI)); 
         } else if (ss_.nC == 2) {
           std::cout << "  * Using bare Coulomb Operator for 2e Integrals" << std::endl;
-          AOERI_ = std::make_shared<InCore4indexTPI<MatsT>>(
+          AOTPI_ = std::make_shared<InCore4indexTPI<MatsT>>(
             std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(ss_.aoints.TPI)
               ->template spatialToSpinBlock<MatsT>()); 
         } else if (ss_.nC == 4) {
-          AOERI_ = std::dynamic_pointer_cast<InCore4indexTPI<MatsT>>(
+          AOTPI_ = std::dynamic_pointer_cast<InCore4indexTPI<MatsT>>(
             std::make_shared<InCore4indexRelERI<MatsT>>(
               std::dynamic_pointer_cast<InCore4indexRelERI<IntsT>>(ss_.aoints.TPI)
                 ->template spatialToSpinBlock<MatsT>()));
@@ -55,16 +55,16 @@ namespace ChronusQ {
       }
 
      return; 
-  }; // MOIntsTransformer::cacheAOERIInCore
+  }; // MOIntsTransformer::cacheAOTPIInCore
   
   /**
-   *  \brief subset tranform ERI using incore  
+   *  \brief subset tranform TPI using incore  
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::subsetTransformERIInCoreN5(
-    const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * MOERI, bool antiSymm) {
+  void MOIntsTransformer<MatsT,IntsT>::subsetTransformTPIInCoreN5(
+    const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * MOTPI, bool antiSymm) {
       
-      cacheAOERIInCore(); 
+      cacheAOTPIInCore(); 
        
       size_t nAO = ss_.mo[0].dimension();
       size_t poff = off_sizes[0].first;
@@ -86,43 +86,43 @@ namespace ChronusQ {
       
       // get the Coulomb part
       if (ss_.nC != 4) {
-        AOERI_->subsetTransform('N', MO, nAO, off_sizes, MOERI);
+        AOTPI_->subsetTransform('N', MO, nAO, off_sizes, MOTPI);
       } else {
-        auto AOERI4C = std::dynamic_pointer_cast<InCore4indexRelERI<MatsT>>(AOERI_);
-        AOERI4C->subsetTransform('N', MO, nAO, off_sizes, MOERI);
+        auto AOTPI4C = std::dynamic_pointer_cast<InCore4indexRelERI<MatsT>>(AOTPI_);
+        AOTPI4C->subsetTransform('N', MO, nAO, off_sizes, MOTPI);
       }
 
-      // get exchange part if anti-symmetrize MOERI
+      // get exchange part if anti-symmetrize MOTPI
       if (antiSymm) {
         
         MatsT * SCR  = memManager_.malloc<MatsT>(npqrs);
         bool qsSymm = (qoff == soff) and (nq == ns); 
         if (qsSymm) {
-          SetMat('N', npq, nrs, MatsT(1.), MOERI, npq, SCR, npq);
+          SetMat('N', npq, nrs, MatsT(1.), MOTPI, npq, SCR, npq);
         } else { 
           std::vector<std::pair<size_t, size_t>> exchange_off_sizes 
             = {{poff,np},{soff,ns},{roff,nr},{qoff,nq}};
           if (ss_.nC != 4) {
-            AOERI_->subsetTransform('N', MO, nAO, exchange_off_sizes, SCR); 
+            AOTPI_->subsetTransform('N', MO, nAO, exchange_off_sizes, SCR); 
           } else {
-            auto AOERI4C = std::dynamic_pointer_cast<InCore4indexRelERI<MatsT>>(AOERI_);
-            AOERI4C->subsetTransform('N', MO, nAO, exchange_off_sizes, SCR); 
+            auto AOTPI4C = std::dynamic_pointer_cast<InCore4indexRelERI<MatsT>>(AOTPI_);
+            AOTPI4C->subsetTransform('N', MO, nAO, exchange_off_sizes, SCR); 
           }
         } 
       
-      // Anti-symmetrize MOERI
+      // Anti-symmetrize MOTPI
 #pragma omp parallel for schedule(static) collapse(4) default(shared)       
         for (auto s = 0ul; s < ns; s++)
         for (auto r = 0ul; r < nr; r++) 
         for (auto q = 0ul; q < nq; q++)
         for (auto p = 0ul; p < np; p++) {     
-            MOERI[p + q*np + r*npq + s*npqr] -= SCR[p + s*np + r*nps + q*npsr]; 
+            MOTPI[p + q*np + r*npq + s*npqr] -= SCR[p + s*np + r*nps + q*npsr]; 
         }
         
         memManager_.free(SCR);
       }
       
       return; 
-  }; // MOIntsTransformer<MatsT,IntsT>::subsetTransformERIInCoreN5
+  }; // MOIntsTransformer<MatsT,IntsT>::subsetTransformTPIInCoreN5
   
 }; // namespace ChronusQ

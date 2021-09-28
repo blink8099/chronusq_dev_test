@@ -34,15 +34,15 @@
 namespace ChronusQ {
 
   /**
-   *  \brief transform ERI to form anti-symmetric ERI
+   *  \brief transform AO TPI to form MO TPI
    *  thru SingleSlater formfock 
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::subsetTransformERISSFockN6(EMPerturbation & pert, 
-    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOERI, bool antiSymm) {
+  void MOIntsTransformer<MatsT,IntsT>::subsetTransformTPISSFockN6(EMPerturbation & pert, 
+    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOTPI, bool antiSymm) {
 
     // disable 1C case
-    if (ss_.nC == 1) CErr("ERI Transformation thru SSFOCK_N6 NYI for 1C");
+    if (ss_.nC == 1) CErr("TPI Transformation thru SSFOCK_N6 NYI for 1C");
     
     size_t poff = off_sizes[0].first;
     size_t qoff = off_sizes[1].first;
@@ -76,15 +76,15 @@ namespace ChronusQ {
         nAO, nAO, 1, MatsT(1.), ss_.mo[0].pointer() + (q+qoff)*nAO, nAO,
         ss_.mo[0].pointer() + (p+poff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
       
-      // Hack SS to get ASYMERIpq
+      // Hack SS to get ASYMTPIpq
       *(ss_.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>(true, true);
       ss_.fockBuilder->formGD(ss_, pert, false, xHFX, false);
-      auto MOERIpq = ss_.twoeH->template spinGather<MatsT>();
+      auto MOTPIpq = ss_.twoeH->template spinGather<MatsT>();
 
       // copy
-      SetMat('N', nAO, nAO, MatsT(1.), MOERIpq.pointer(), nAO, SCR + (p + q*np)*nAO2, nAO);
+      SetMat('N', nAO, nAO, MatsT(1.), MOTPIpq.pointer(), nAO, SCR + (p + q*np)*nAO2, nAO);
       if (pqSymm) { 
-         if (p < q) SetMat('C', nAO, nAO, MatsT(1.), MOERIpq.pointer(), nAO, SCR + (q + p*np)*nAO2, nAO); 
+         if (p < q) SetMat('C', nAO, nAO, MatsT(1.), MOTPIpq.pointer(), nAO, SCR + (q + p*np)*nAO2, nAO); 
          else if (pqSame) break;
       }
      
@@ -92,7 +92,7 @@ namespace ChronusQ {
 
     MatsT * SCR2 = nullptr;
     
-    if (ns == nAO) SCR2 = MOERI;
+    if (ns == nAO) SCR2 = MOTPI;
     else SCR2  = memManager_.malloc<MatsT>(nAO * npqr);
     
     // 3/4 transfromation: SCR2(nu p q, r) = SCR(mu,nu p q)^H * C(mu, r)
@@ -105,11 +105,11 @@ namespace ChronusQ {
         npqr, ns, nAO, MatsT(1.), SCR2, nAO, 
         ss_.mo[0].pointer() + soff*nAO, nAO, MatsT(0.), SCR, npqr);
     
-    SetMat('N', npq, nr*ns, MatsT(1.), SCR, npq, MOERI, npq); 
+    SetMat('N', npq, nr*ns, MatsT(1.), SCR, npq, MOTPI, npq); 
     memManager_.free(SCR);
     if (ns != nAO) memManager_.free(SCR2);
   
-  }; // MOIntsTransformer::subsetTransformERISSFockN6
+  }; // MOIntsTransformer::subsetTransformTPISSFockN6
   
 
 }; // namespace ChronusQ

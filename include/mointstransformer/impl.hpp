@@ -124,22 +124,22 @@ namespace ChronusQ {
    *  \brief main interface to transform HCore 
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::transformERI(EMPerturbation & pert, 
-    MatsT* MOERI, const std::string & moType, bool antiSymm) {
+  void MOIntsTransformer<MatsT,IntsT>::transformTPI(EMPerturbation & pert, 
+    MatsT* MOTPI, const std::string & moType, bool antiSymm) {
     
-    if (ss_.nC == 1) CErr("transformERI not implemented for 1C");
+    if (ss_.nC == 1) CErr("transformTPI not implemented for 1C");
 
     auto off_sizes = parseMOType(moType);
     
-    if (ERITransAlg_ == SSFOCK_N6) {
-      subsetTransformERISSFockN6(pert, off_sizes, MOERI, antiSymm);
-    } else if (ERITransAlg_ == INCORE_N5) {
-      subsetTransformERIInCoreN5(off_sizes, MOERI, antiSymm);
+    if (TPITransAlg_ == DIRECT_N6 or TPITransAlg_ == INCORE_N6) {
+      subsetTransformTPISSFockN6(pert, off_sizes, MOTPI, antiSymm);
+    } else if (TPITransAlg_ == INCORE_N5) {
+      subsetTransformTPIInCoreN5(off_sizes, MOTPI, antiSymm);
     } else {
       CErr("DIRECT_N5 NYI");
     }
 
 
-  }; // MOIntsTransformer::transformERI 
+  }; // MOIntsTransformer::transformTPI 
 
 }; // namespace ChronusQ

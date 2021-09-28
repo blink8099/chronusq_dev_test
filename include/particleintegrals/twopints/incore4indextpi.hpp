@@ -157,7 +157,7 @@ namespace ChronusQ {
         out << "  Two particle integral:" << std::endl;
       else
         out << "  TPI[" << s << "]:" << std::endl;
-      out << "  " << std::setw(28) << "  Contraction Algorithm:";
+      out << "    * Contraction Algorithm: ";
       out << "INCORE (Gemm)";
       out << std::endl;
       if (printFull) {

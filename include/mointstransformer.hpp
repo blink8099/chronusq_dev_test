@@ -32,14 +32,6 @@
 
 namespace ChronusQ {
 
-  /**
-   *  The operator types to evaluate integrals.
-   */
-  enum ERI_TRANSFORMATION_ALG {
-      SSFOCK_N6 = 0, // hack thru ss.formfock
-      INCORE_N5 = 1,
-      DIRECT_N5 = 2, // NYI
-  };
   
   /**
    *  \brief Templated class to handle AO to MO integral transformation
@@ -52,9 +44,9 @@ namespace ChronusQ {
   protected:
 
     CQMemManager &memManager_; ///< CQMemManager to allocate matricies
-    ERI_TRANSFORMATION_ALG ERITransAlg_;
+    TPI_TRANSFORMATION_ALG TPITransAlg_;
     SingleSlater<MatsT,IntsT> & ss_;
-    std::shared_ptr<InCore4indexTPI<MatsT>> AOERI_ = nullptr;
+    std::shared_ptr<InCore4indexTPI<MatsT>> AOTPI_ = nullptr;
 
     // variables for moints type
     std::vector<std::set<char>> symbol_sets_;
@@ -67,8 +59,8 @@ namespace ChronusQ {
     MOIntsTransformer( const MOIntsTransformer & ) = default;
     MOIntsTransformer( MOIntsTransformer && ) = default;
     MOIntsTransformer( CQMemManager &mem, SingleSlater<MatsT,IntsT> & ss,
-      ERI_TRANSFORMATION_ALG alg = SSFOCK_N6):
-        memManager_(mem), ss_(ss), ERITransAlg_(alg) {
+      TPI_TRANSFORMATION_ALG alg = DIRECT_N6):
+        memManager_(mem), ss_(ss), TPITransAlg_(alg) {
       
         if (ss.nC == 1) {
           CErr("1C MOInts NYI !");   
@@ -95,13 +87,13 @@ namespace ChronusQ {
     void transformHCore(MatsT * MOHCore, const std::string & moType = "pq");
     void subsetTransformHCore(const std::vector<std::pair<size_t,size_t>> &, MatsT*);
     
-    // Methods to transform ERI 
-    void transformERI(EMPerturbation & pert, MatsT* MOERI, 
+    // Methods to transform TPI 
+    void transformTPI(EMPerturbation & pert, MatsT* MOTPI, 
       const std::string & moType = "pqrs", bool antiSymm = true);
-    void subsetTransformERISSFockN6(EMPerturbation &, 
+    void subsetTransformTPISSFockN6(EMPerturbation &, 
       const std::vector<std::pair<size_t,size_t>> &, MatsT*, bool antiSymm = true);
-    void cacheAOERIInCore();
-    void subsetTransformERIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, 
+    void cacheAOTPIInCore();
+    void subsetTransformTPIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, 
       MatsT*, bool antiSymm = true);
 
     virtual ~MOIntsTransformer() {};
