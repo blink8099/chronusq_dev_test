@@ -39,7 +39,7 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::subsetTransformTPISSFockN6(EMPerturbation & pert, 
-    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOTPI, bool antiSymm) {
+    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOTPI) {
 
     // disable 1C case
     if (ss_.nC == 1) CErr("TPI Transformation thru SSFOCK_N6 NYI for 1C");
@@ -62,8 +62,6 @@ namespace ChronusQ {
     MatsT * SCR  = memManager_.malloc<MatsT>(nAO2 * npq);
     
     bool pqSymm = (poff == qoff) and (np == nq); 
-    double xHFX = antiSymm ? 1.0: 0.0; 
-    std::cout << "antiSymm ="  << antiSymm << " xHFX = " << xHFX << std::endl;
     
     // 1/2 transformation to obtain SCR(mu, nu, p, q)
     for (auto q = 0; q <  nq; q++) 
@@ -78,7 +76,7 @@ namespace ChronusQ {
       
       // Hack SS to get ASYMTPIpq
       *(ss_.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>(true, true);
-      ss_.fockBuilder->formGD(ss_, pert, false, xHFX, false);
+      ss_.fockBuilder->formGD(ss_, pert, false, 0., pqSame);
       auto MOTPIpq = ss_.twoeH->template spinGather<MatsT>();
 
       // copy
@@ -106,6 +104,7 @@ namespace ChronusQ {
         ss_.mo[0].pointer() + soff*nAO, nAO, MatsT(0.), SCR, npqr);
     
     SetMat('N', npq, nr*ns, MatsT(1.), SCR, npq, MOTPI, npq); 
+    
     memManager_.free(SCR);
     if (ns != nAO) memManager_.free(SCR2);
   

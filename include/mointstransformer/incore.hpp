@@ -62,29 +62,13 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::subsetTransformTPIInCoreN5(
-    const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * MOTPI, bool antiSymm) {
+    const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * MOTPI) {
       
       cacheAOTPIInCore(); 
        
       size_t nAO = ss_.mo[0].dimension();
-      size_t poff = off_sizes[0].first;
-      size_t qoff = off_sizes[1].first;
-      size_t roff = off_sizes[2].first;
-      size_t soff = off_sizes[3].first;
-      size_t np = off_sizes[0].second;
-      size_t nq = off_sizes[1].second;
-      size_t nr = off_sizes[2].second;
-      size_t ns = off_sizes[3].second;
-      size_t npq = np * nq;
-      size_t nrs = nr * ns;
-      size_t nps = np * ns;
-      size_t npqr = npq * nr;
-      size_t npsr = nps * nr;
-      size_t npqrs = npq * nrs;
-      
       auto MO = ss_.mo[0].pointer();
       
-      // get the Coulomb part
       if (ss_.nC != 4) {
         AOTPI_->subsetTransform('N', MO, nAO, off_sizes, MOTPI);
       } else {
@@ -92,36 +76,6 @@ namespace ChronusQ {
         AOTPI4C->subsetTransform('N', MO, nAO, off_sizes, MOTPI);
       }
 
-      // get exchange part if anti-symmetrize MOTPI
-      if (antiSymm) {
-        
-        MatsT * SCR  = memManager_.malloc<MatsT>(npqrs);
-        bool qsSymm = (qoff == soff) and (nq == ns); 
-        if (qsSymm) {
-          SetMat('N', npq, nrs, MatsT(1.), MOTPI, npq, SCR, npq);
-        } else { 
-          std::vector<std::pair<size_t, size_t>> exchange_off_sizes 
-            = {{poff,np},{soff,ns},{roff,nr},{qoff,nq}};
-          if (ss_.nC != 4) {
-            AOTPI_->subsetTransform('N', MO, nAO, exchange_off_sizes, SCR); 
-          } else {
-            auto AOTPI4C = std::dynamic_pointer_cast<InCore4indexRelERI<MatsT>>(AOTPI_);
-            AOTPI4C->subsetTransform('N', MO, nAO, exchange_off_sizes, SCR); 
-          }
-        } 
-      
-      // Anti-symmetrize MOTPI
-#pragma omp parallel for schedule(static) collapse(4) default(shared)       
-        for (auto s = 0ul; s < ns; s++)
-        for (auto r = 0ul; r < nr; r++) 
-        for (auto q = 0ul; q < nq; q++)
-        for (auto p = 0ul; p < np; p++) {     
-            MOTPI[p + q*np + r*npq + s*npqr] -= SCR[p + s*np + r*nps + q*npsr]; 
-        }
-        
-        memManager_.free(SCR);
-      }
-      
       return; 
   }; // MOIntsTransformer<MatsT,IntsT>::subsetTransformTPIInCoreN5
   

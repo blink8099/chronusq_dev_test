@@ -131,15 +131,55 @@ namespace ChronusQ {
 
     auto off_sizes = parseMOType(moType);
     
+    // get the Coulomb part
     if (TPITransAlg_ == DIRECT_N6 or TPITransAlg_ == INCORE_N6) {
-      subsetTransformTPISSFockN6(pert, off_sizes, MOTPI, antiSymm);
+      subsetTransformTPISSFockN6(pert, off_sizes, MOTPI);
     } else if (TPITransAlg_ == INCORE_N5) {
-      subsetTransformTPIInCoreN5(off_sizes, MOTPI, antiSymm);
+      subsetTransformTPIInCoreN5(off_sizes, MOTPI);
     } else {
       CErr("DIRECT_N5 NYI");
     }
 
+    // get exchange part if anti-symmetrize MOTPI
+    if (antiSymm) {
+      
+      size_t qoff = off_sizes[1].first;
+      size_t soff = off_sizes[3].first;
+      size_t np = off_sizes[0].second;
+      size_t nq = off_sizes[1].second;
+      size_t nr = off_sizes[2].second;
+      size_t ns = off_sizes[3].second;
+      size_t npq = np * nq;
+      size_t nps = np * ns;
+      size_t npqr = npq * nr;
+      size_t npsr = nps * nr;
+      
+      bool qsSymm = (qoff == soff) and (nq == ns); 
+      MatsT * SCR = nullptr;
+      if (qsSymm) {
+         SCR = MOTPI;
+      } else {
+        SCR = memManager_.malloc<MatsT>(npqr*ns);
+        std::string moType_exchange = "";
+        moType_exchange += moType[0];
+        moType_exchange += moType[3];
+        moType_exchange += moType[2];
+        moType_exchange += moType[1];
+        transformTPI(pert, SCR, moType_exchange, false); 
+      }
+    
+#pragma omp parallel for schedule(static) collapse(2) default(shared)       
+      for (auto s = 0ul; s < ns; s++)
+      for (auto r = 0ul; r < nr; r++) 
+      for (auto q = 0ul; q <= s; q++) 
+      for (auto p = 0ul; p < np; p++) { 
+          MOTPI[p + q*np + r*npq + s*npqr] -= SCR[p + s*np + r*nps + q*npsr]; 
+          MOTPI[p + s*np + r*npq + q*npqr] = - MOTPI[p + q*np + r*npq + s*npqr]; 
+      }
+        
+      if(not qsSymm) memManager_.free(SCR);
 
+    }
   }; // MOIntsTransformer::transformTPI 
 
 }; // namespace ChronusQ

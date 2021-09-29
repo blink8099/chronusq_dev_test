@@ -89,12 +89,11 @@ namespace ChronusQ {
     
     // Methods to transform TPI 
     void transformTPI(EMPerturbation & pert, MatsT* MOTPI, 
-      const std::string & moType = "pqrs", bool antiSymm = true);
+      const std::string & moType = "pqrs", bool antiSymm = false);
     void subsetTransformTPISSFockN6(EMPerturbation &, 
-      const std::vector<std::pair<size_t,size_t>> &, MatsT*, bool antiSymm = true);
+      const std::vector<std::pair<size_t,size_t>> &, MatsT* );
     void cacheAOTPIInCore();
-    void subsetTransformTPIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, 
-      MatsT*, bool antiSymm = true);
+    void subsetTransformTPIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, MatsT*);
 
     virtual ~MOIntsTransformer() {};
 
