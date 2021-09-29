@@ -24,78 +24,14 @@
 #pragma once
 
 #include <mointstransformer.hpp>
-#include <mointstransformer/ssfock.hpp>
-#include <mointstransformer/incore.hpp>
+#include <mointstransformer/moranges.hpp>
+#include <mointstransformer/hcore.hpp>
+#include <mointstransformer/tpi_ssfock.hpp>
+#include <mointstransformer/tpi_incore_n5.hpp>
 #include <util/timer.hpp>
-#include <cqlinalg.hpp>
-#include <matrix.hpp>
-#include <cqlinalg/blas1.hpp>
-#include <cqlinalg/blasutil.hpp>
-#include <particleintegrals/twopints/incoreritpi.hpp>
 
 namespace ChronusQ {
 
-  /**
-   *  \brief set up MO ranges 
-   */
-  template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::addMORanges(const std::set<char> & symSet,
-    const std::pair<size_t, size_t> & range) {
-      
-      symbol_sets_.push_back(symSet);
-      mo_ranges_.push_back(range);
- 
-  }; // MOIntsTransformer::addMORanges  
-  
-  template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::setMORanges(size_t nFrozenCore, size_t nFrozenVirt) {
-    
-      // set 4C for no-pair approximation
-      size_t fourCompOffset = (ss_.nC == 4) ? ss_.nAlphaOrbital() * 2: 0;
-
-      size_t nO = ss_.nO - nFrozenCore;
-      size_t nV = ss_.nV - nFrozenVirt; 
-      size_t nT = nO + nV;
-      
-      resetMORanges();
-
-      // general indices
-      addMORanges({'p','q','r','s'}, {fourCompOffset + nFrozenCore, nT});
-      
-      // hole indices
-      addMORanges({'i','j','k','l'}, {fourCompOffset + nFrozenCore, nO});
-      
-      // particle indices
-      addMORanges({'a','b','c','d'}, {fourCompOffset + ss_.nO, nV}); 
-
-  }; // MOIntsTransformer::setMORanges
-  
-  /**
-   *  \brief parsing the mo ints types to offsizes 
-   */
-  template <typename MatsT, typename IntsT>
-  std::vector<std::pair<size_t,size_t>> 
-    MOIntsTransformer<MatsT,IntsT>::parseMOType(const std::string & moType) {
-      
-      std::vector<std::pair<size_t,size_t>> off_sizes;
-      
-      bool foundMOType;
-      for (const auto& ch: moType) {
-        
-        foundMOType = false;
-        for (auto i = 0ul; i < symbol_sets_.size(); i++) {
-          if (symbol_sets_[i].count(ch)) {
-            off_sizes.push_back(mo_ranges_[i]);
-            foundMOType = true;
-            break;
-          }
-        }
-        if (not foundMOType) CErr("Wrong MO Type in parseMOIntsType");
-      }
-      
-      return off_sizes;
-  }; // MOIntsTransformer::parseMOIntsType
-  
   /**
    *  \brief main interface to transform HCore 
    */
@@ -108,20 +44,7 @@ namespace ChronusQ {
   }; // MOIntsTransformer::transformHCore
   
   /**
-   *  \brief transform a subset of HCore 
-   */
-  template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::subsetTransformHCore(
-    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOHCore) {
-    
-    size_t nAO = ss_.nAlphaOrbital() * ss_.nC;
-    auto AOHCore = ss_.coreH->template spinGather<MatsT>();
-    AOHCore.subsetTransform('N', ss_.mo[0].pointer(), nAO, off_sizes, MOHCore, false); 
-  
-  }; // MOIntsTransformer::subsetTransformHCore 
-  
-  /**
-   *  \brief main interface to transform HCore 
+   *  \brief main interface to transform TPI
    */
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::transformTPI(EMPerturbation & pert, 

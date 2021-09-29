@@ -29,7 +29,7 @@
 #include <fields.hpp>
 #include <util/files.hpp>
 
-// #define TEST_MOINTSTRANSFORMER
+#define TEST_MOINTSTRANSFORMER
 
 namespace ChronusQ {
 

@@ -26,6 +26,7 @@
 #include <fields.hpp>
 #include <singleslater.hpp>
 #include <singleslater/neo_singleslater.hpp>
+#include <matrix.hpp>
 #include <particleintegrals/twopints/incoreritpi.hpp>
 
 #include <type_traits>
@@ -47,6 +48,7 @@ namespace ChronusQ {
     TPI_TRANSFORMATION_ALG TPITransAlg_;
     SingleSlater<MatsT,IntsT> & ss_;
     std::shared_ptr<InCore4indexTPI<MatsT>> AOTPI_ = nullptr;
+    std::shared_ptr<SquareMatrix<MatsT>>    AOHCore_ = nullptr;
 
     // variables for moints type
     std::vector<std::set<char>> symbol_sets_;
@@ -61,9 +63,17 @@ namespace ChronusQ {
     MOIntsTransformer( CQMemManager &mem, SingleSlater<MatsT,IntsT> & ss,
       TPI_TRANSFORMATION_ALG alg = DIRECT_N6):
         memManager_(mem), ss_(ss), TPITransAlg_(alg) {
-      
+        
+        if (ss.nC == 4) {
+          auto & hamiltonianOptions = ss.fockBuilder->getHamiltonianOptions();
+          if (hamiltonianOptions.Gaunt or
+              hamiltonianOptions.DiracCoulombSSSS or 
+              hamiltonianOptions.Gauge) 
+          CErr("MOIntsTransformer for above Hamiltonian Options is NYI !");
+        }
+
         if (ss.nC == 1) {
-          CErr("1C MOInts NYI !");   
+          CErr("1C MOIntsTransformer NYI !");   
         } else if (alg == DIRECT_N5) {
           CErr("DIRECT N5 MOIntsTransformer NYI !");   
         }
