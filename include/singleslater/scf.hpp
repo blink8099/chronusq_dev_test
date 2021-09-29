@@ -765,8 +765,8 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::MOIntsTransformationTest(EMPerturbation &pert) {
    
     // test on MO integral transfromations
-    MOIntsTransformer<MatsT, IntsT> N5TF(memManager, *this, INCORE_N6);
-    MOIntsTransformer<MatsT, IntsT> N6TF(memManager, *this, INCORE_N5);  
+    MOIntsTransformer<MatsT, IntsT> N5TF(memManager, *this, INCORE_N5);
+    MOIntsTransformer<MatsT, IntsT> N6TF(memManager, *this, INCORE_N6);  
 
     std::cout << "\n --------- Test on MO Ints Transformation----- \n" << std::endl;
     
@@ -792,11 +792,12 @@ namespace ChronusQ {
 
 #else     
     
-    std::vector<std::string> testcases = {"pqrs", "ijkl", "abcd", "pqia", "ijab"};
+    std::vector<std::string> testcases = {"pqrs", "ijkl", "abcd", "pqia", "ijab", "iajb" };
     for (auto & moType: testcases) {
       N6MOERI.clear();
       N5MOERI.clear();
 
+      std::cout << "---- Test: " << moType << std::endl; 
       auto timeIdN6 = tick();
       N6TF.transformTPI(pert, N6MOERI.pointer(), moType, false);
       auto timeDur = tock(timeIdN6);
@@ -815,7 +816,6 @@ namespace ChronusQ {
         for (auto l = 0; l < nMO; l++) 
           N6MOERI(i, j, k, l) -= N5MOERI(i, j, k, l);
         
-        std::cout << "---- Test: " << moType << std::endl; 
         N6TF.printOffSizes(N6TF.parseMOType(moType));
         N6MOERI.output(std::cout, "INCORE_N6 ERI - INCORE_N5 ERI", true);
         }
