@@ -349,6 +349,8 @@ namespace ChronusQ {
     static std::shared_ptr<GradContractions<MatsU,IntsT>>
     convert(const std::shared_ptr<GradContractions<MatsT,IntsT>>&);
 
+    bool contractSecond = false;
+
   }; // class GradientContractions
 
 }; // namespace ChronusQ

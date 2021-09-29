@@ -88,7 +88,11 @@ namespace ChronusQ {
 
     for(size_t iAtm = 0; iAtm < nAtoms; iAtm++) 
     for(size_t iXYZ = 0; iXYZ < 3     ; iXYZ++) { 
+      if( atoms[iAtm].quantum )
+        continue;
       for(size_t jAtm = 0; jAtm < nAtoms; jAtm++){ 
+        if( atoms[jAtm].quantum )
+          continue;
         if(iAtm == jAtm) continue;
         nucRepForce[iAtm][iXYZ] += 
           atoms[jAtm].nucCharge *

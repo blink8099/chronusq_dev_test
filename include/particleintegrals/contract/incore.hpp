@@ -581,6 +581,7 @@ namespace ChronusQ {
     for (auto i = 0; i < nGrad; i++) {
       auto casted = std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(this->grad_[i]);
       InCore4indexTPIContraction<MatsT,IntsT> contraction(*casted);
+      contraction.contractSecond = this->contractSecond;
       contraction.twoBodyContract(comm, screen, list[i], pert);
     }
 

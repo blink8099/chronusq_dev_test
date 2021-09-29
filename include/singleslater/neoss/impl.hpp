@@ -85,9 +85,13 @@ namespace ChronusQ {
     // Copy gradient integrals
     for( auto& gradSys1: other.gradInterInts ) {
       for( auto& gradSys2: gradSys1.second ) {
-        auto& label1 = gradSys1.first;
-        gradInterInts.insert({label1, {}});
-        gradInterInts[label1].insert(gradSys2);
+
+        auto label1 = gradSys1.first;
+        auto label2 = gradSys2.first;
+        auto intPtr = gradSys2.second.second;
+        auto contractSecond = gradSys2.second.first;
+
+        addGradientIntegrals(label1, label2, intPtr, contractSecond);
       }
     }
 
@@ -158,9 +162,20 @@ namespace ChronusQ {
     applyToEach([&](SubSSPtr& ss) {
         auto localGrad = ss->getGrad(pert, equil, saveInts);
         for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+          std::cout << "Local Gradient Atom " << iGrad/3 << " XYZ " << iGrad%3 << ": " << localGrad[iGrad] << std::endl;
+        }
+        for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
           gradient[iGrad] += localGrad[iGrad] - this->molecule().nucRepForce[iGrad/3][iGrad%3];
         }
     });
+
+    // DELETE ME
+    std::cout << std::setprecision(14) << std::endl;
+    for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+      std::cout << "Gradient Atom " << iGrad/3 << " XYZ " << iGrad%3 << ": " 
+        << std::setw(20) << gradient[iGrad] << std::endl;
+    }
+    CErr("All done");
 
     return gradient;
 

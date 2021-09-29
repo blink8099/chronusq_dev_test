@@ -444,8 +444,8 @@ namespace ChronusQ {
               tempss = neobase->getSubSSBase("Protonic");
             }
             NumGradient grad(input, tempss, basis);
-            // grad.doGrad(acc);
-            grad.eriGrad<double>(acc);
+            grad.doGrad(acc);
+            //grad.eriGrad<double>(acc);
           }
 
         }

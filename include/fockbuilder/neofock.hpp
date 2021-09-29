@@ -39,6 +39,7 @@ namespace ChronusQ {
     SingleSlater<MatsT,IntsT>* aux_ss = nullptr;
     SquareMatrix<MatsT>* outMat = nullptr;
     std::shared_ptr<TPIContractions<MatsT,IntsT>> contraction = nullptr;
+    GradInts<TwoPInts,IntsT>* gradTPI = nullptr;
     FockBuilder<MatsT, IntsT>* upstream = nullptr;
 
     public:
@@ -79,6 +80,10 @@ namespace ChronusQ {
       upstream = up;
     }
 
+    void setGradientIntegrals(GradInts<TwoPInts,IntsT>* tpi) {
+      gradTPI = tpi;
+    }
+
     // Find the first non-NEO fockbuilder upstream and return it
     FockBuilder<MatsT,IntsT>* getNonNEOUpstream() {
       if( auto p = dynamic_cast<NEOFockBuilder<MatsT,IntsT>*>(upstream) ) {
@@ -91,6 +96,8 @@ namespace ChronusQ {
 
     // Inter-SingleSlater interaction
     void formepJ(SingleSlater<MatsT,IntsT>&, bool increment = false);
+    std::vector<double> formepJGrad(SingleSlater<MatsT,IntsT>&,
+      EMPerturbation&, double xHFX);
 
     // Interface method
     virtual void formFock(SingleSlater<MatsT,IntsT>&, EMPerturbation&,

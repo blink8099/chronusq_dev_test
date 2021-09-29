@@ -31,7 +31,7 @@
 #include <iostream>
 
 
-//#define COEFF_DEBUG
+#define COEFF_DEBUG
 
 namespace ChronusQ {
 

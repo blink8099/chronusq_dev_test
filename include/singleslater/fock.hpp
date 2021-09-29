@@ -169,8 +169,7 @@ namespace ChronusQ {
     // Total gradient
     std::vector<double> gradient(nGrad, 0.);
 
-    HamiltonianOptions opts;
-    opts.OneEScalarRelativity = false;
+    HamiltonianOptions opts = this->aoints.options_;
 
     auto printGrad = [&](std::string name, std::vector<double>& vecgrad) {
       std::cout << name << std::endl;
@@ -197,7 +196,7 @@ namespace ChronusQ {
 
 
     std::vector<double> coreGrad = coreHBuilder->getGrad(pert, *this);
-    //printGrad("Core H Gradient:", coreGrad);
+    printGrad("Core H Gradient:", coreGrad);
 
 
     // 2e contribution
@@ -233,6 +232,14 @@ namespace ChronusQ {
         Gemm('N','N',NB,NB,NB,MatsT(1.),gradOrtho[iGrad].pointer(),NB,
           ortho[0].pointer(),NB,MatsT(0.),dvv.pointer(),NB);
 
+        std::cout << "igrad: " << iGrad << std::endl;
+        ortho[0].output(std::cout, "V", true);
+        gradOrtho[iGrad].output(std::cout, "dV", true);
+        vdv.output(std::cout, "VdV", true);
+        dvv.output(std::cout, "dVV", true);
+        fockMatrix->output(std::cout, "F", true);
+
+
         // Form FVdV and dVVF
         for( auto iSp = 0; iSp < nSp; iSp++ ) {
           auto comp = static_cast<PAULI_SPINOR_COMPS>(iSp);
@@ -241,6 +248,8 @@ namespace ChronusQ {
           Gemm('N','N',NB,NB,NB,MatsT(1.),dvv.pointer(),NB,
             (*fockMatrix)[comp].pointer(),NB,MatsT(1.),SCR[comp].pointer(),NB);
         }
+
+        SCR.output(std::cout, "FVdV + dVVF", true);
 
         // Trace
         double gradVal = this->template computeOBProperty<double,SCALAR>(
@@ -265,16 +274,17 @@ namespace ChronusQ {
         size_t iXYZ = iGrad%3;
         gradient[iGrad] = coreGrad[iGrad] + twoEGrad[iGrad] - 0.5*gradVal
                           + this->molecule().nucRepForce[iAt][iXYZ];
+        std::cout << "huh?? " << iGrad << " " << gradient[iGrad] << std::endl;
         nucGrad.push_back(this->molecule().nucRepForce[iAt][iXYZ]);
       }
 
     }
 
-    //printGrad("Nuclear Gradient:", nucGrad);
-    //printGrad("G Gradient:", twoEGrad);
-    //printGrad("Pulay Gradient:", pulayGrad);
+    printGrad("Nuclear Gradient:", nucGrad);
+    printGrad("G Gradient:", twoEGrad);
+    printGrad("Pulay Gradient:", pulayGrad);
 
-    //this->onePDM->output(std::cout, "OnePDM in Gradient Contractions", true);
+    this->onePDM->output(std::cout, "OnePDM in Gradient Contractions", true);
 
     return gradient;
 
