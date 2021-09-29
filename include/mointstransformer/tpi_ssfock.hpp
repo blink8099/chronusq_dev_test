@@ -43,7 +43,8 @@ namespace ChronusQ {
 
     // disable 1C case
     if (ss_.nC == 1) CErr("TPI Transformation thru SSFOCK_N6 NYI for 1C");
-    
+    SquareMatrix<MatsT> onePDMCache = *ss_.onePDM; 
+
     size_t poff = off_sizes[0].first;
     size_t qoff = off_sizes[1].first;
     size_t roff = off_sizes[2].first;
@@ -107,7 +108,8 @@ namespace ChronusQ {
     
     memManager_.free(SCR);
     if (ns != nAO) memManager_.free(SCR2);
-  
+    *ss_.onePDM = onePDMCache; 
+
   }; // MOIntsTransformer::subsetTransformTPISSFockN6
   
 
