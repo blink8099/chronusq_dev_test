@@ -178,7 +178,7 @@ namespace ChronusQ {
     // Common to all guess: form new set of orbitals from
     // initial guess at Fock.
     EMPerturbation pert; // Dummy EM perturbation
-#if 0    
+#if 1    
     getNewOrbitals(pert,false);
 #else     
     if (scfControls.scfAlg != _SKIP_SCF or 
@@ -1019,7 +1019,7 @@ namespace ChronusQ {
     }
 
     // MO coefficients from AO to othonormalized basis
-    // orthoAOMO();
+    orthoAOMO();
 
     // MO swapping if requested
     if( this->moPairs[0].size() != 0 ) this->swapMOs(this->moPairs,SpinType::isAlpha);
