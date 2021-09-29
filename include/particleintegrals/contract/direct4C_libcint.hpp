@@ -43,7 +43,7 @@
 #include <chrono>
 
 
-// #define _SHZ_SCREEN_4C
+#define _SHZ_SCREEN_4C
 
 #define _CONTRACTION_
 
