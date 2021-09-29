@@ -88,5 +88,23 @@ namespace ChronusQ {
       return off_sizes;
   }; // MOIntsTransformer::parseMOIntsType
   
+  /**
+   *  \brief print offsizes 
+   */
+  template <typename MatsT, typename IntsT>
+  void MOIntsTransformer<MatsT,IntsT>::printOffSizes(
+    const std::vector<std::pair<size_t,size_t>> & off_size) { 
+    std::cout << "----MO Ranges: " << std::endl;
+    
+    size_t counter = 0;
+    for (auto & size: off_size) {
+      counter ++;
+      std::cout << "Index " << counter << ": from " << std::setw(5)
+                << size.first + 1 << " to " << std::setw(5)
+                << size.first + size.second << std::endl;
+    }
+    std::cout << std::endl;
+  }
+
 
 }; // namespace ChronusQ

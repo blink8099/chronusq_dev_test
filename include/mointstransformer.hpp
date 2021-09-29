@@ -92,6 +92,7 @@ namespace ChronusQ {
     void setMORanges(size_t nFrozenCore = 0, size_t nFrozenVirt = 0);  
     // void setMORanges(MOSpacePartition); TODO: implement for CAS type   
     std::vector<std::pair<size_t,size_t>> parseMOType(const std::string &);
+    void printOffSizes(const std::vector<std::pair<size_t,size_t>> &);
 
     // Methods to transform HCore 
     void transformHCore(MatsT * MOHCore, const std::string & moType = "pq");

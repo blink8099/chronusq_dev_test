@@ -765,58 +765,53 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::MOIntsTransformationTest(EMPerturbation &pert) {
    
     // test on MO integral transfromations
-    MOIntsTransformer<MatsT, IntsT> TF(memManager, *this, INCORE_N6);  
-    //TF.setMORanges(0, 0);  
+    MOIntsTransformer<MatsT, IntsT> N5TF(memManager, *this, INCORE_N6);
+    MOIntsTransformer<MatsT, IntsT> N6TF(memManager, *this, INCORE_N5);  
 
     std::cout << "\n --------- Test on MO Ints Transformation----- \n" << std::endl;
-
+    
     size_t NB  = this->nAlphaOrbital() * nC;
     size_t nMO = (this->nC == 4) ? NB / 2: NB;
-    bool antiSymm = false;
-
-    InCore4indexTPI<MatsT> MOERI(memManager, nMO); 
-    TF.transformTPI(pert, MOERI.pointer(), "pqrs", antiSymm);
-
+    InCore4indexTPI<MatsT> N6MOERI(memManager, nMO); 
+    InCore4indexTPI<MatsT> N5MOERI(memManager, nMO); 
     OnePInts<MatsT> hCore(memManager, nMO); 
-    TF.transformHCore(hCore.pointer());
 
-    MatsT SCFEnergy = MatsT(0.);
-    for (auto i = 0; i < this->nO; i++) {
-      SCFEnergy += hCore(i, i);
-      for (auto j = 0; j < this->nO; j++)
-        SCFEnergy += 0.5 * MOERI(i, i, j, j); 
-    }
+#if 0
+    std::cout << "---- Test: Reconstruct SCF Energy" << std::end; 
+    N6TF.transformHCore(hCore.pointer());
+    N6TF.transformTPI(pert, N6MOERI.pointer(), "pqrs", true);
     
-
-    std::cout << "SSFOCK_N6 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
-    MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
-    // prettyPrintSmart(std::cout,"SSFOCK_N6 ERI", MOERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
-   
-    InCore4indexTPI<MatsT> MOERI2(memManager, nMO); 
-    MOIntsTransformer<MatsT, IntsT> TF2(memManager, *this, INCORE_N5);  
-    
-    TF2.transformTPI(pert, MOERI2.pointer(), "pqrs", antiSymm);
     SCFEnergy = MatsT(0.);
     for (auto i = 0; i < this->nO; i++) {
       SCFEnergy += hCore(i, i);
       for (auto j = 0; j < this->nO; j++)
-        SCFEnergy += 0.5 * MOERI2(i, i, j, j); 
+        SCFEnergy += 0.5 * N6MOERI(i, i, j, j); 
     }
-    std::cout << "INCORE_N5 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
-    MOERI2.output(std::cout, "INCORE_N5 ERI", true);
-    
-    InCore4indexTPI<MatsT> MOERI_Diff(memManager, nMO); 
-    MOERI_Diff.clear();
-#pragma omp parallel for schedule(static) collapse(4) default(shared)       
-    for (auto i = 0; i < nMO; i++) 
-    for (auto j = 0; j < nMO; j++) 
-    for (auto k = 0; k < nMO; k++) 
-    for (auto l = 0; l < nMO; l++) 
-      MOERI_Diff(i, j, k, l) = MOERI(i, j, k, l) - MOERI2(i, j, k, l);
+    std::cout << "SSFOCK_N6 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
+    N6MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
 
-    MOERI_Diff.output(std::cout, "SSFOCK_N6 ERI - INCORE_N5 ERI", true);
+#else     
     
-    // prettyPrintSmart(std::cout,"INCORE_N5 ERI", MOERI.pointer(), nMO*nMO, nMO*nMO, nMO*nMO);
+    std::vector<std::string> testcases = {"pqrs", "ijkl", "abcd", "pqia", "ijab"};
+    for (auto & moType: testcases) {
+      N6MOERI.clear();
+      N5MOERI.clear();
+      N6TF.transformTPI(pert, N6MOERI.pointer(), moType, false);
+      N5TF.transformTPI(pert, N5MOERI.pointer(), moType, false);
+#pragma omp parallel for schedule(static) collapse(4) default(shared)       
+      for (auto i = 0; i < nMO; i++) 
+      for (auto j = 0; j < nMO; j++) 
+      for (auto k = 0; k < nMO; k++) 
+      for (auto l = 0; l < nMO; l++) 
+        N6MOERI(i, j, k, l) -= N5MOERI(i, j, k, l);
+      
+      std::cout << "---- Test: " << moType << std::endl; 
+      N6TF.printOffSizes(N6TF.parseMOType(moType));
+      N6MOERI.output(std::cout, "INCORE_N6 ERI - INCORE_N5 ERI", true);
+    }
+
+#endif
+
     std::cout << "\n --------- End of the Test (on MO Ints Transformation)----- \n" << std::endl;
   }; // SingleSlater<MatsT>::MOIntsTransformationTest
   
