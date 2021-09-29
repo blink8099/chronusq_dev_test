@@ -796,18 +796,29 @@ namespace ChronusQ {
     for (auto & moType: testcases) {
       N6MOERI.clear();
       N5MOERI.clear();
+
+      auto timeIdN6 = tick();
       N6TF.transformTPI(pert, N6MOERI.pointer(), moType, false);
-      N5TF.transformTPI(pert, N5MOERI.pointer(), moType, false);
-#pragma omp parallel for schedule(static) collapse(4) default(shared)       
-      for (auto i = 0; i < nMO; i++) 
-      for (auto j = 0; j < nMO; j++) 
-      for (auto k = 0; k < nMO; k++) 
-      for (auto l = 0; l < nMO; l++) 
-        N6MOERI(i, j, k, l) -= N5MOERI(i, j, k, l);
+      auto timeDur = tock(timeIdN6);
       
-      std::cout << "---- Test: " << moType << std::endl; 
-      N6TF.printOffSizes(N6TF.parseMOType(moType));
-      N6MOERI.output(std::cout, "INCORE_N6 ERI - INCORE_N5 ERI", true);
+      std::cout << " - Time (N6) for transforming " << moType  <<  " = " << timeDur << " s\n"; 
+
+      if (this->aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::INCORE_N6) {
+        auto timeIdN5 = tick();
+        N5TF.transformTPI(pert, N5MOERI.pointer(), moType, false);
+        auto timeDur = tock(timeIdN5);
+        std::cout << " - Time (N5) for transforming " << moType  <<  " = " << timeDur << " s\n"; 
+#pragma omp parallel for schedule(static) collapse(4) default(shared)       
+        for (auto i = 0; i < nMO; i++) 
+        for (auto j = 0; j < nMO; j++) 
+        for (auto k = 0; k < nMO; k++) 
+        for (auto l = 0; l < nMO; l++) 
+          N6MOERI(i, j, k, l) -= N5MOERI(i, j, k, l);
+        
+        std::cout << "---- Test: " << moType << std::endl; 
+        N6TF.printOffSizes(N6TF.parseMOType(moType));
+        N6MOERI.output(std::cout, "INCORE_N6 ERI - INCORE_N5 ERI", true);
+        }
     }
 
 #endif
