@@ -658,7 +658,6 @@ namespace ChronusQ {
 
 
 
-
     /******************************************/
     /*                                        */
     /* Start of Dirac-Coulomb LL and C(2)-SS  */
@@ -955,7 +954,7 @@ namespace ChronusQ {
   
       } // OpenMP context
  
-      MatsT iscale = dcomplex(0.0, 1.0);
+      dcomplex iscale = dcomplex(0.0, 1.0);
 
       for( auto iTh  = 0; iTh < nThreads; iTh++) {
  

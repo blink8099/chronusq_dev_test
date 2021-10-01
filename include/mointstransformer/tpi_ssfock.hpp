@@ -41,8 +41,6 @@ namespace ChronusQ {
   void MOIntsTransformer<MatsT,IntsT>::subsetTransformTPISSFockN6(EMPerturbation & pert, 
     const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOTPI) {
 
-    // disable 1C case
-    if (ss_.nC == 1) CErr("TPI Transformation thru SSFOCK_N6 NYI for 1C");
     PauliSpinorSquareMatrices<MatsT> onePDMCache = *ss_.onePDM; 
 
     size_t poff = off_sizes[0].first;
@@ -63,7 +61,8 @@ namespace ChronusQ {
     MatsT * SCR  = memManager_.malloc<MatsT>(nAO2 * npq);
     
     bool pqSymm = (poff == qoff) and (np == nq); 
-    
+    MatsT * MOTPIpq_ptr = nullptr;
+
     // 1/2 transformation to obtain SCR(mu, nu, p, q)
     for (auto q = 0; q <  nq; q++) 
     for (auto p = 0; p <  np; p++) {
@@ -76,14 +75,24 @@ namespace ChronusQ {
         ss_.mo[0].pointer() + (p+poff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
       
       // Hack SS to get ASYMTPIpq
-      *(ss_.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>(true, true);
+      if (ss_.nC > 1) 
+        *(ss_.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>(true, true);
+      else
+        ss_.onePDM->S() = spinBlockForm1PDM;
+
       ss_.fockBuilder->formGD(ss_, pert, false, 0., pqSame);
-      auto MOTPIpq = ss_.twoeH->template spinGather<MatsT>();
+      
+      if (ss_.nC > 1) { 
+        auto MOTPIpq = ss_.twoeH->template spinGather<MatsT>();
+        MOTPIpq_ptr = MOTPIpq.pointer();
+      } else {
+        MOTPIpq_ptr = ss_.coulombMatrix->pointer();
+      }
 
       // copy
-      SetMat('N', nAO, nAO, MatsT(1.), MOTPIpq.pointer(), nAO, SCR + (p + q*np)*nAO2, nAO);
+      SetMat('N', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, SCR + (p + q*np)*nAO2, nAO);
       if (pqSymm) { 
-         if (p < q) SetMat('C', nAO, nAO, MatsT(1.), MOTPIpq.pointer(), nAO, SCR + (q + p*np)*nAO2, nAO); 
+         if (p < q) SetMat('C', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, SCR + (q + p*np)*nAO2, nAO); 
          else if (pqSame) break;
       }
      

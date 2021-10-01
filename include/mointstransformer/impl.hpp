@@ -50,7 +50,7 @@ namespace ChronusQ {
   void MOIntsTransformer<MatsT,IntsT>::transformTPI(EMPerturbation & pert, 
     MatsT* MOTPI, const std::string & moType, bool antiSymm) {
     
-    if (ss_.nC == 1) CErr("transformTPI not implemented for 1C");
+    // if (ss_.nC == 1) CErr("transformTPI not implemented for 1C");
 
     auto off_sizes = parseMOType(moType);
     

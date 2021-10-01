@@ -37,6 +37,9 @@ namespace ChronusQ {
   /**
    *  \brief Templated class to handle AO to MO integral transformation
    *  for both one-body and two-body terms 
+   *
+   *  WARNING: for 1C only alpha part of the MO (mo[0]) is used 
+   *
    */
 
   template<typename MatsT, typename IntsT>
@@ -72,9 +75,11 @@ namespace ChronusQ {
           CErr("MOIntsTransformer for above Hamiltonian Options is NYI !");
         }
 
-        if (ss.nC == 1) {
-          CErr("1C MOIntsTransformer NYI !");   
-        } else if (alg == DIRECT_N5) {
+        // if (ss.nC == 1) {
+        //   CErr("1C MOIntsTransformer NYI !");   
+        // } 
+        
+        if (alg == DIRECT_N5) {
           CErr("DIRECT N5 MOIntsTransformer NYI !");   
         }
         

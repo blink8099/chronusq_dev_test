@@ -777,16 +777,26 @@ namespace ChronusQ {
     OnePInts<MatsT> hCore(memManager, nMO); 
 
 #if 0
-    std::cout << "---- Test: Reconstruct SCF Energy" << std::end; 
+    std::cout << "---- Test: Reconstruct SCF Energy" << std::endl; 
     N6TF.transformHCore(hCore.pointer());
-    N6TF.transformTPI(pert, N6MOERI.pointer(), "pqrs", true);
+    N6TF.transformTPI(pert, N6MOERI.pointer(), "pqrs", false);
     
-    SCFEnergy = MatsT(0.);
-    for (auto i = 0; i < this->nO; i++) {
-      SCFEnergy += hCore(i, i);
-      for (auto j = 0; j < this->nO; j++)
-        SCFEnergy += 0.5 * N6MOERI(i, i, j, j); 
+    MatsT SCFEnergy = MatsT(0.);
+    if(this->nC > 1) {
+      for (auto i = 0; i < this->nO; i++) {
+        SCFEnergy += hCore(i, i);
+        for (auto j = 0; j < this->nO; j++)
+          SCFEnergy += 0.5 * (N6MOERI(i, i, j, j) - N6MOERI(i, j, j, i)); 
+      }
+    } else {
+      for (auto i = 0; i < this->nO/2; i++) {
+        SCFEnergy += hCore(i, i);
+        for (auto j = 0; j < this->nO/2; j++)
+          SCFEnergy += N6MOERI(i, i, j, j) - 0.5 * N6MOERI(i, j, j, i); 
+      }
+      SCFEnergy *= 2.0;
     }
+
     std::cout << "SSFOCK_N6 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
     N6MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
 
@@ -818,7 +828,7 @@ namespace ChronusQ {
         
         N6TF.printOffSizes(N6TF.parseMOType(moType));
         N6MOERI.output(std::cout, "INCORE_N6 ERI - INCORE_N5 ERI", true);
-        }
+      }
     }
 
 #endif

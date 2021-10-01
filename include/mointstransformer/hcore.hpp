@@ -38,8 +38,12 @@ namespace ChronusQ {
     
     // populate AOHCore
     if (not AOHCore_) {
-      AOHCore_ = std::make_shared<SquareMatrix<MatsT>>(
-        ss_.coreH->template spinGather<MatsT>());
+      if(ss_.nC == 1) {
+        AOHCore_ = std::make_shared<SquareMatrix<MatsT>>(0.5*ss_.coreH->S());
+      } else { 
+        AOHCore_ = std::make_shared<SquareMatrix<MatsT>>(
+          ss_.coreH->template spinGather<MatsT>());
+      }
     }
     
     AOHCore_->subsetTransform('N', ss_.mo[0].pointer(), nAO, off_sizes, MOHCore, false); 

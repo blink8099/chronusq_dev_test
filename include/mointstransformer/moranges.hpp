@@ -44,11 +44,15 @@ namespace ChronusQ {
     
       // set 4C for no-pair approximation
       size_t fourCompOffset = (ss_.nC == 4) ? ss_.nAlphaOrbital() * 2: 0;
+      size_t oneCompFactor  = (ss_.nC == 1) ? 2: 1;
 
-      size_t nO = ss_.nO - nFrozenCore;
-      size_t nV = ss_.nV - nFrozenVirt; 
+      size_t nO = ss_.nO/oneCompFactor - nFrozenCore;
+      size_t nV = ss_.nV/oneCompFactor - nFrozenVirt; 
       size_t nT = nO + nV;
       
+      std::cout << "nO = " << nO << std::endl;
+      std::cout << "nV = " << nV << std::endl;
+
       resetMORanges();
 
       // general indices
