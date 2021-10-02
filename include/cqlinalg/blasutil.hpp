@@ -229,6 +229,39 @@ namespace ChronusQ {
     size_t LDAB, _F2 *ASmall, size_t LDAS, 
     std::vector<std::pair<size_t,size_t>> &SubMatCut);
 
+  /**
+   * \brief Multiply a series of matrices on the right with a given matrix
+   *
+   * C_i = \alpha AB_i for all B_i in V
+   *
+   * If the matrices are of different dimension, the A matrix is assumed to
+   * be tensored with the appropriate identity matrix to give the dimension of
+   * the A matrix.
+   *
+   * e.g.
+   *
+   * B = | a b |  A = | e |  -->  C = | ea eb |
+   *     | c d |                      | ec ed |
+   *
+   * \param[in] M      Number of rows in A
+   * \param[in] N      Numer of columns in B
+   * \param[in] KA     Number of columns in A
+   * \param[in] KB     Number of rows in B. Must be a multiple of KA.
+   * \param[in] alpha  Scalar in multiplication
+   * \param[in] A      Pointer to A
+   * \param[in] LDA    Leading dimension of A
+   * \param[in] V      Vector of pointers to B matrices
+   * \param[in] LDB    Leading dimension of B
+   * \param[in] SCR    Scratch space, at least M*N. Only referenced if any B_i
+   *                   is the same as any C_i
+   * \param[out] U     Vector of pointers to C matrices. Can be the same as V.
+   * \param[out] LDC   Leading dimension of C
+   */
+   template <typename Apha, typename ATyp, typename BTyp, typename CTyp>
+   void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, Apha alpha,
+     ATyp* A, size_t LDA, std::vector<BTyp*> V, size_t LDB, CTyp* SCR,
+     std::vector<CTyp*> U, size_t LDC);
+
 }; // namespace ChronusQ
 
 

@@ -25,6 +25,8 @@
 #include <cqlinalg/blasext.hpp>
 #include <cerr.hpp>
 
+#include <util/matout.hpp>
+
 namespace ChronusQ {
 
   template <typename T> T ComplexScale();
@@ -589,6 +591,89 @@ namespace ChronusQ {
   void IncBySubMat(size_t M, size_t N, size_t MSub, size_t NSub, dcomplex *ABig, 
     size_t LDAB, dcomplex *ASmall, size_t LDAS, 
     std::vector<std::pair<size_t,size_t>> &SubMatCut);
+
+
+  template <typename Apha, typename ATyp, typename BTyp, typename CTyp>
+  void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, Apha alpha,
+    ATyp* A, size_t LDA, std::vector<BTyp*> V, size_t LDB, CTyp* SCR,
+    std::vector<CTyp*> U, size_t LDC) {
+ 
+    size_t X;
+    if( KB % KA == 0 )
+      X = KB / KA;
+    else
+      CErr("KB is not a multiple of KA; No implicit identity tensor possible");
+ 
+    if( V.size() != U.size() )
+      CErr("Different number of input and output matrices in TransformLeft");
+ 
+    for(auto iMat = 0; iMat < V.size(); iMat++) {
+ 
+      BTyp* B = V[iMat];
+      CTyp* C = U[iMat];
+      bool inPlace = ((void*)B != (void*)C);
+      CTyp* GemmOut = inPlace ? C : SCR;
+      size_t GemmLD = inPlace ? LDC : M;
+
+      for(auto iBlock = 0; iBlock < X; iBlock++) {
+ 
+        blas::gemm(
+          blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
+          M, N, KA,
+          alpha,
+          A, LDA,
+          B + iBlock*KA, LDB,
+          CTyp(0.),
+          GemmOut, GemmLD);
+
+        if( !inPlace )
+          SetMat('N', M, N, CTyp(1.), GemmOut, M, C + iBlock*KA, LDC);
+        else
+          GemmOut += KA;
+      }
+ 
+    }
+  }
+ 
+  template
+  void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, double alpha,
+    double* A, size_t LDA, std::vector<double*> V, size_t LDB, double* SCR,
+    std::vector<double*> U, size_t LDC);
+ 
+  template
+  void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, dcomplex alpha,
+    double* A, size_t LDA, std::vector<double*> V, size_t LDB, dcomplex* SCR,
+    std::vector<dcomplex*> U, size_t LDC);
+ 
+  template
+  void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, double alpha,
+    dcomplex* A, size_t LDA, std::vector<double*> V, size_t LDB, dcomplex* SCR,
+    std::vector<dcomplex*> U, size_t LDC);
+ 
+  template
+  void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, double alpha,
+    double* A, size_t LDA, std::vector<dcomplex*> V, size_t LDB, dcomplex* SCR,
+    std::vector<dcomplex*> U, size_t LDC);
+ 
+  template
+  void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, double alpha,
+    dcomplex* A, size_t LDA, std::vector<dcomplex*> V, size_t LDB, dcomplex* SCR,
+    std::vector<dcomplex*> U, size_t LDC);
+ 
+  template
+  void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, dcomplex alpha,
+    double* A, size_t LDA, std::vector<dcomplex*> V, size_t LDB, dcomplex* SCR,
+    std::vector<dcomplex*> U, size_t LDC);
+ 
+  template
+  void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, dcomplex alpha,
+    dcomplex* A, size_t LDA, std::vector<double*> V, size_t LDB, dcomplex* SCR,
+    std::vector<dcomplex*> U, size_t LDC);
+ 
+  template
+  void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, dcomplex alpha,
+    dcomplex* A, size_t LDA, std::vector<dcomplex*> V, size_t LDB, dcomplex* SCR,
+    std::vector<dcomplex*> U, size_t LDC);
 
 }; // namespace ChronusQ
 
