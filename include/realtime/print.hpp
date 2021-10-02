@@ -48,6 +48,9 @@ namespace ChronusQ {
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::printRTHeader() {
     
+    // No printing if silent
+    if( this->printLevel == 0 ) return;
+
     std::cout << BannerTop << std::endl;
     std::cout << "Real-Time Propagation Settings:" << std::endl << std::endl;
 
@@ -156,24 +159,35 @@ namespace ChronusQ {
 
     std::cout << std::endl << std::fixed << std::right;
 
-    std::cout << std::setprecision(4);
-    std::cout << std::setw(11) << "Time (AU)" << " ";
+    if( this->printLevel == 1 ) {
+      std::cout << std::setprecision(4);
+      std::cout << std::setw(11) << "Time (AU)" << " ";
 
-    std::cout << std::setprecision(10);
-    std::cout << std::setw(16) << "Energy (Eh)" << " ";
+      std::cout << std::setprecision(10);
+      std::cout << std::setw(16) << "Energy (Eh)" << " ";
 
-    std::cout << std::setprecision(8);
-    std::cout << std::setw(16) << "Dipole (X)" << " ";
-    std::cout << std::setw(16) << "Dipole (Y)" << " ";
-    std::cout << std::setw(16) << "Dipole (Z)" << " ";
+      std::cout << std::setprecision(8);
+      std::cout << std::setw(16) << "Dipole (X)" << " ";
+      std::cout << std::setw(16) << "Dipole (Y)" << " ";
+      std::cout << std::setw(16) << "Dipole (Z)" << " ";
 
-    std::cout << std::endl << bannerTop << std::endl << std::endl;
+      std::cout << std::endl << bannerTop << std::endl << std::endl;
+    }
 
   };
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::printRTStep() { 
+    if(this->printLevel == 1) {
+      printStepSummary();
+    }
+    else if(this->printLevel > 1) {
+      printStepDetail();
+    }
+  };
 
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::printStepSummary() { 
     std::cout << std::fixed << std::right;
 
     std::cout << std::setprecision(4);
@@ -189,9 +203,27 @@ namespace ChronusQ {
 
     std::cout << std::endl;
 
-
-    
   }; 
+
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::printStepDetail() { 
+    std::cout << bannerTop << "\n\n";
+    std::cout << std::fixed << std::right;
+    std::cout << "Step: " << std::setw(7) << curState.iStep << '\n';
+
+    std::cout << std::setprecision(5) << "Time: ";
+    std::cout << std::setw(11) << curState.xTime << " (au) | ";
+    std::cout << std::setw(11) << curState.xTime * FSPerAUTime << " (fs)\n";
+
+    std::cout << std::setprecision(12) << "Energy: ";
+    std::cout << std::setw(24) << propagator_.totalEnergy << " (Hartree)\n";
+
+    std::cout << std::setprecision(8) << "Dipole: ";
+    std::cout << std::setw(16) << propagator_.elecDipole[0]*EBohrPerDebye << " ";
+    std::cout << std::setw(16) << propagator_.elecDipole[1]*EBohrPerDebye << " ";
+    std::cout << std::setw(16) << propagator_.elecDipole[2]*EBohrPerDebye << " (Debye)";
+    std::cout << std::endl;
+  };
 
 }; // namespace ChronusQ
 

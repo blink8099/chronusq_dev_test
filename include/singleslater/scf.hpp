@@ -644,34 +644,15 @@ namespace ChronusQ {
     // Transform MOs on MPI root as slave processes do not have
     // updated MO coefficients
     if( MPIRank(comm) == 0 ) {
+
       MatsT* SCR = this->memManager.template malloc<MatsT>(Nmo * Northo);
-
-      // Transform MO1
-      // For 2- and 4-component, shift for alpha and beta
-      for (size_t shift = 0; shift < Nmo; shift += Northo) {
-
-        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
-             Northo, Nmo, Northo,
-             MatsT(1.), ortho[0].pointer(), Northo,
-             this->mo[0].pointer() + shift, Nmo,
-             MatsT(0.), SCR, Northo);
-        SetMat('N', Northo, Nmo, MatsT(1.), SCR, Northo,
-               this->mo[0].pointer() + shift, Nmo);
-
+      std::vector<MatsT*> moPointers;
+      for(auto& moObj: this->mo) {
+        moPointers.push_back(moObj.pointer());
       }
 
-      if( nC == 1 and not iCS ) {
-
-        // Transform MO2
-        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
-             Northo, Nmo, Northo,
-             MatsT(1.), ortho[0].pointer(), Northo,
-             this->mo[1].pointer(), Nmo,
-             MatsT(0.), SCR, Northo);
-        SetMat('N', Northo, Nmo, MatsT(1.), SCR, Northo,
-               this->mo[1].pointer(), Nmo);
-
-      }
+      TransformLeft(Northo, Nmo, Northo, Nmo, MatsT(1.), ortho[0].pointer(),
+        Northo, moPointers, Nmo, SCR, moPointers, Nmo);
 
       this->memManager.free(SCR);
 

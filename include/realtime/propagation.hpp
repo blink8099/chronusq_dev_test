@@ -178,6 +178,10 @@ namespace ChronusQ {
 
       // Print progress line in the output file
       printRTStep();
+      if( this->orbitalPopFreq != 0 &&
+          curState.iStep % this->orbitalPopFreq == 0) {
+        orbitalPop();
+      }
 
 
 
@@ -431,14 +435,21 @@ namespace ChronusQ {
     
     savFile.createGroup("RT");
 
-    savFile.createDataSet<double>("RT/TIME",
-        {maxPoints});
-    savFile.createDataSet<double>("RT/ENERGY",
-        {maxPoints});
-    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE",
-        {maxPoints,3});
-    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE_FIELD",
-        {maxPoints,3});
+    savFile.createDataSet<double>("RT/TIME", {maxPoints});
+    savFile.createDataSet<double>("RT/ENERGY", {maxPoints});
+    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE", {maxPoints,3});
+    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE_FIELD", {maxPoints,3});
+
+    if( this->orbitalPopFreq != 0 ) {
+      hsize_t nPop = (maxPoints / this->orbitalPopFreq);
+      if( this->orbitalPopFreq != 1 &&
+          (maxPoints-1) % this->orbitalPopFreq == 0 )
+        nPop += 1;
+      if( maxPoints == 1 )
+        nPop = 1;
+      hsize_t nOrbs = propagator_.nOrbital();
+      savFile.createDataSet<double>("RT/ORBITALPOPULATION", {nPop, nOrbs});
+    }
   }; // RealTime::createRTDataSets
 
 
@@ -523,6 +534,102 @@ namespace ChronusQ {
       }
     }
   }; // RealTime::saveState
+
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::orbitalPop() { 
+
+    bool unrestricted = (propagator_.mo.size() > 1);
+    bool twocomp = (propagator_.nC == 2);
+
+    // Gather the orthonormal density into the full spinor form
+    auto fullDen = propagator_.onePDMOrtho->template spinGather<dcomplex>();
+
+    if( propagator_.nC > 2 ) {
+      CErr("Real time orbital population not implemented for > 2c");
+    }
+
+    //
+    // Form the ortho to MO transform in the full spinor form
+    //
+    
+    // Allocation
+    size_t fullDim = fullDen.dimension();
+    SquareMatrix<dcomplex> orthoTrans(memManager_, fullDim); 
+    orthoTrans.clear();
+    auto& mos = propagator_.mo;
+
+    size_t moDim = mos[0].dimension();
+    auto bbOffset = 2*moDim*moDim + moDim;
+
+    // Transform AO MO to ortho MO
+    dcomplex* ortho = propagator_.ortho[1].pointer();
+    size_t orthoDim = propagator_.ortho[1].dimension();
+    std::vector<dcomplex*> moPointers;
+    std::vector<dcomplex*> outPointers;
+    for(auto i = 0; i < mos.size(); i++) {
+      moPointers.push_back(mos[i].pointer());
+      outPointers.push_back(orthoTrans.pointer() + i*bbOffset);
+    }
+    if(propagator_.iCS) {
+      moPointers.push_back(mos[0].pointer());
+      outPointers.push_back(orthoTrans.pointer() + bbOffset);
+    }
+
+    TransformLeft(orthoDim, moDim, orthoDim, moDim, dcomplex(1.), ortho, orthoDim,
+      moPointers, moDim, (dcomplex*)nullptr, outPointers, fullDim);
+
+    // Transform the orthonormal density into the MO basis
+    SquareMatrix<dcomplex> moDen = fullDen.transform('N', orthoTrans.pointer(),
+      fullDim, fullDim);
+
+    std::vector<double> population;
+    for(auto i = 0; i < fullDim; i++) {
+      population.push_back(std::real(moDen(i,i)));
+    }
+
+    if( savFile.exists() ) {
+      hsize_t location = curState.iStep / this->orbitalPopFreq;
+      savFile.partialWriteData("RT/ORBITALPOPULATION", population.data(),
+        {location, 0}, {1, fullDim}, {0, 0}, {1, fullDim});
+    }
+
+    // Printing 
+    if( this->printLevel > 1 ) {
+
+      size_t orbPerRow = 5;
+      auto printBlock = [&](std::string header, size_t& start, size_t n){
+        std::cout << header << std::endl;
+        std::cout << std::fixed << std::setprecision(11);
+        
+        for(auto idx = 0; idx < n; idx += orbPerRow) {
+
+          size_t end = idx + orbPerRow < n ? orbPerRow : n - idx;
+          for(auto idummy = idx; idummy < idx+end; idummy++) {
+            std::cout << std::setw(15) << population[start+idummy];
+          }
+          std::cout << '\n';
+        }
+        start += n;
+      };
+
+      if( this->printLevel > 3 )
+        moDen.output(std::cout, "MO Density Matrix", true);
+
+      size_t start = 0;
+      if( not twocomp ) {
+        printBlock("Alpha occupied orbitals", start, propagator_.nOA);
+        printBlock("Alpha virtual orbitals", start, propagator_.nVA);
+        printBlock("Beta occupied orbitals", start, propagator_.nOB);
+        printBlock("Beta virtual orbitals", start, propagator_.nVB);
+      }
+      else {
+        printBlock("Occupied orbitals", start, propagator_.nO);
+        printBlock("Virtual orbitals", start, propagator_.nV);
+      }
+      std::cout << std::flush;
+    }
+
+  };
 
 
 }; // namespace ChronusQ

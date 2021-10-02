@@ -247,6 +247,7 @@ namespace ChronusQ {
 
     // Transformation functions to and from the orthonormal basis
     void ao2orthoFock();
+    void ao2orthoMOs();
     void ortho2aoDen();
     void ortho2aoMOs();
 

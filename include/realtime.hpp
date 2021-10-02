@@ -100,6 +100,9 @@ namespace ChronusQ {
 
     IntegrationProgress curState;  ///< Current state of the time propagation
     IntegrationData     data;      ///< Data collection
+
+    size_t printLevel = 1; ///< Amount of printing in RT calc
+    size_t orbitalPopFreq = 0; ///< Amount of printing in RT calc
     
     bool restart   = false; ///< Restarting calc from bin file
 
@@ -192,10 +195,13 @@ namespace ChronusQ {
     void saveState(EMPerturbation&);
     void restoreState(); 
     void createRTDataSets();
+    void orbitalPop();
 
     // Progress functions
     void printRTHeader();
     void printRTStep();
+    void printStepSummary();
+    void printStepDetail();
     void appendStepRecord();
 
 
