@@ -66,6 +66,9 @@ namespace ChronusQ {
 
     ///< mo[0] : Full (nC > 1) / ALPHA (nC == 1) MO coefficient matrix
     ///< mo[1] : BETA (nC == 1) MO coefficient matrix
+    /// The order of AO Basis in mo[0]:
+    ///    * 2C: [Alpha, Beta]
+    ///    * 4C: [Alpha Large, Alpha Small, Beta Large, Beta Small]
     std::vector<SquareMatrix<MatsT>> mo;
     double* eps1; ///< Full (nC > 1) / ALPHA (nC == 1) Fock eigenvalues
     double* eps2; ///< BETA (nC == 1) Fock eigenvalues

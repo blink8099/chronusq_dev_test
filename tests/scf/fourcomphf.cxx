@@ -29,7 +29,6 @@
  *       to be implemented.
  */
 
-
 // Two electron U-Pu 184+ test Dirac-HF no 2ERI relativitic, LLLL only
 TEST( FOURCHF, UPu_184_plus_P_NR_pointnuc ) {
 
@@ -48,7 +47,7 @@ TEST( FOURCHF, UPu_184_plus_P_DC_pointnuc ) {
 
 };
 
-// Two electron U-Pu 184+ test Dirac-Couloumb with X2CHF guess
+// Two electron U-Pu 184+ test Dirac-Couloumb with X2CHF guess (readden)
 TEST( FOURCHF, UPu_184_plus_P_DC_X2CGuess_pointnuc ) {
 
   CQSCFTEST( "scf/serial/fourcomp/UPu_184+_P_DC_X2CGuess_pointnuc",
@@ -56,6 +55,17 @@ TEST( FOURCHF, UPu_184_plus_P_DC_X2CGuess_pointnuc ) {
     false, false, false, false, false, true, false, "UPu_184+_X2C_pointnuc.scr.bin" );
 
 };
+
+#ifndef _CQ_GENERATE_TESTS
+// Two electron U-Pu 184+ test Dirac-Couloumb with readmo
+TEST( FOURCHF, UPu_184_plus_P_DC_pointnuc_readmo ) {
+
+  CQSCFTEST( "scf/serial/fourcomp/UPu_184+_P_DC_pointnuc_readmo",
+    "UPu_184+_P_DC_pointnuc.bin.ref",1e-8,
+    false, false, false, false, false, true, true);
+
+};
+#endif
 
 // Two electron U-Pu 184+ test Dirac-Couloumb-Gaunt
 TEST( FOURCHF, UPu_184_plus_P_DCG_pointnuc ) {
@@ -169,6 +179,17 @@ TEST( FOURCHF, PAR_UPu_184_plus_P_DCG_pointnuc ) {
 
 };
 
+#ifndef _CQ_GENERATE_TESTS
+// Two electron U-Pu 184+ test Dirac-Couloumb with readmo
+TEST( FOURCHF, PAR_UPu_184_plus_P_DC_pointnuc_readmo ) {
+
+  CQSCFTEST( "scf/parallel/fourcomp/UPu_184+_P_DC_pointnuc_readmo",
+    "UPu_184+_P_DC_pointnuc.bin.ref",1e-8,
+    false, false, false, false, false, true, true);
+
+};
+#endif
+
 // Two electron U-Pu 184+ test Dirac-HF no 2ERI relativitic, LLLL only
 TEST( FOURCHF, PAR_UPu_184_plus_P_NR_finitenuc ) {
 
@@ -224,6 +245,5 @@ TEST( FOURCHF, PAR_UPu_184_plus_P_DCGGS_finitenuc ) {
 };
 
 #endif
-
 
 

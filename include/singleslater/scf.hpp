@@ -773,59 +773,59 @@ namespace ChronusQ {
     const size_t NB2  = NB * NB;
     const size_t NBC  = this->nC * NB;
     const size_t NBC2 = NBC * NBC;
-
-    if( this->nC == 4 ) CErr("orthoAOMO NYI for 4c",std::cout);
+    
 
     // Transform MOs on MPI root as slave processes do not have
     // updated MO coefficients
     if( MPIRank(comm) == 0 ) {
       // Reorthogonalize MOs wrt S
-      MatsT* SCR  = this->memManager.template malloc<MatsT>(NBC*NBC);
-      MatsT* SCR2 = this->memManager.template malloc<MatsT>(NBC*NBC);
+      MatsT* SCR = this->memManager.template malloc<MatsT>(NBC*NBC);
+      MatsT* dummy = nullptr; 
+      size_t S_size = (nC == 4) ? 2*NB: NB;
+      size_t S_size2 = S_size * S_size;
+      std::vector<MatsT*> SCRPointers, moPointers;
+      for(auto& moObj: this->mo) {
+        moPointers.push_back(moObj.pointer());
+        SCRPointers.push_back(this->memManager.template malloc<MatsT>(NBC*NBC));
+      } 
 
-      // SCR2 = C**H S C
-      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
-                 NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-                 this->mo[0].pointer(),NBC,MatsT(0.),SCR,NBC);
-      if( this->nC == 2 )
-        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
-                   NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-                   this->mo[0].pointer()+NB,NBC,MatsT(0.),SCR+NB,NBC);
-
-      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,
-                 NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
-
-      // SCR2 = L L**H -> L
-      int INFO = lapack::potrf(lapack::Uplo::Lower,NBC,SCR2,NBC);
-
-      // SCR2 = L^-1
-      INFO = lapack::trtri(lapack::Uplo::Lower,lapack::Diag::NonUnit,NBC,SCR2,NBC);
-
-      // MO1 = MO1 * L^-H
-      blas::trmm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Lower,
-                 blas::Op::ConjTrans,blas::Diag::NonUnit,NBC,NBC,MatsT(1.),SCR2,NBC,this->mo[0].pointer(),NBC);
-
-      // Reorthogonalize MOB
-      if( this->nC == 1 and not this->iCS ) {
-        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
-                   NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-             this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
+      // Copy the overlap over to SCR
+      if ( nC != 4 ) {
+        SetMat('N', S_size, S_size, MatsT(1.), 
+          this->aoints.overlap->pointer(), S_size, SCR, S_size); 
+      } else if( nC == 4 ) {
+        SetMat('N', S_size, S_size, MatsT(0.), SCRPointers[0], S_size, SCR, S_size); 
+        // 4C May need a Ints type check (SetMat) to capture GIAO.
+        SetMatRE('N',NB,NB,1.,
+                 reinterpret_cast<double*>(this->aoints.overlap->pointer()),NB,
+                 SCR,S_size);
+        SetMatRE('N',NB,NB,1./(2*SpeedOfLight*SpeedOfLight),
+                 reinterpret_cast<double*>(this->aoints.kinetic->pointer()),NB,
+                 SCR+S_size*NB+NB,S_size);
+      }
+      
+      // in SCRPointer = S C
+      TransformLeft(S_size, NBC, S_size, NBC, MatsT(1.), SCR, S_size, 
+        moPointers, NBC, dummy, SCRPointers, NBC);
+      
+      for (auto i = 0; i < moPointers.size(); i++ ) {
+        // SCR = C**H S C
         blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,
-                   NB,NB,NB,MatsT(1.),this->mo[1].pointer(),NBC,SCR,NB,MatsT(0.),SCR2,NB);
+          NBC,NBC,NBC,MatsT(1.),moPointers[i],NBC,SCRPointers[i],NBC,MatsT(0.),SCR,NBC);
+        // SCR = L L**H -> L
+        int INFO = lapack::potrf(lapack::Uplo::Lower,NBC,SCR,NBC);
 
-        // SCR2 = L L**H -> L
-        INFO = lapack::potrf(lapack::Uplo::Lower,NB,SCR2,NB);
-
-        // SCR2 = L^-1
-        INFO = lapack::trtri(lapack::Uplo::Lower,lapack::Diag::NonUnit,NB,SCR2,NB);
-
-        // MO2 = MO2 * L^-H
+        // SCR = L^-1
+        INFO = lapack::trtri(lapack::Uplo::Lower,lapack::Diag::NonUnit,NBC,SCR,NBC);
+      
+        // MO = MO * L^-H
         blas::trmm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Lower,
-                   blas::Op::ConjTrans,blas::Diag::NonUnit,NB,NB,MatsT(1.),SCR2,NB,this->mo[1].pointer(),NB);
-
+          blas::Op::ConjTrans,blas::Diag::NonUnit,NBC,NBC,MatsT(1.),SCR,NBC,moPointers[i],NBC);
       }
 
-      this->memManager.free(SCR,SCR2);
+
+      this->memManager.free(SCR);
+      for(auto& SCRptr: SCRPointers) this->memManager.free(SCRptr);
     }
 
 #ifdef CQ_ENABLE_MPI

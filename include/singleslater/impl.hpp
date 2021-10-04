@@ -145,6 +145,8 @@ namespace ChronusQ {
 
     size_t NB = this->basisSet().nBasis;
 
+    moPairs.resize(2, {});
+    
     if( nC != 4 ) {
       SPIN_OPERATOR_ALLOC(NB,fockMatrix);
       SPIN_OPERATOR_ALLOC(NB,fockMatrixOrtho);
@@ -155,7 +157,6 @@ namespace ChronusQ {
       ortho.emplace_back(memManager, NB);
       ortho.emplace_back(memManager, NB);
 
-      moPairs.resize(2, {});
 
       SPIN_OPERATOR_ALLOC(NB,exchangeMatrix);
       SPIN_OPERATOR_ALLOC(NB,twoeH);
