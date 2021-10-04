@@ -902,8 +902,6 @@ namespace ChronusQ {
       std::cout << "    * Reading in guess orbitals from file "
         << savFile.fName() << "\n";
 
-    if( this->nC == 4 ) CErr("READMO NYI for 4c",std::cout);
-
     if( MPIRank(comm) == 0 ) {
 
       size_t t_hash = std::is_same<MatsT,double>::value ? 1 : 2;
