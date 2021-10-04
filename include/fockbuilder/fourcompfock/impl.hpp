@@ -165,11 +165,13 @@ namespace ChronusQ {
     std::fill_n(contract1PDMLS.Z().pointer(),NB1C2,1.0);
 #endif
 
+    // Initializtion of resulting matries
     if(not increment) {
+      ss.twoeH->clear();
       ss.coulombMatrix->clear();
       ss.exchangeMatrix->clear();
     };
-
+    
 
 
     /**********************************************/
@@ -240,13 +242,6 @@ namespace ChronusQ {
  
     } // DIRECT_COULOMB
 
-    // if (not HerDen) {
-    // ss.twoeH->clear();
-    // if(not increment) {
-    //   ss.coulombMatrix->clear();
-    //   ss.exchangeMatrix->clear();
-    // };
-    // }
 
     /**********************************************/
     /*                                            */
@@ -281,9 +276,9 @@ namespace ChronusQ {
 		      ss.coulombMatrix->pointer(), NB2C, ss.coulombMatrix->pointer(), NB2C);
       MatAdd('N','N', NB1C, NB1C, iscale, Scr2, NB1C, MatsT(1.0), 
 		      ss.coulombMatrix->pointer(), NB2C, ss.coulombMatrix->pointer(), NB2C);
-      MatAdd('N','N', NB1C, NB1C, iscale, Scr4, NB1C, MatsT(1.0), 
-		      ss.coulombMatrix->pointer(), NB2C, ss.coulombMatrix->pointer(), NB2C);
       MatAdd('N','N', NB1C, NB1C, iscale, Scr3, NB1C, MatsT(1.0), 
+		      ss.coulombMatrix->pointer(), NB2C, ss.coulombMatrix->pointer(), NB2C);
+      MatAdd('N','N', NB1C, NB1C, iscale, Scr4, NB1C, MatsT(1.0), 
 		      ss.coulombMatrix->pointer(), NB2C, ss.coulombMatrix->pointer(), NB2C);
 #ifdef _PRINT_MATRICES
 
@@ -318,11 +313,23 @@ namespace ChronusQ {
   
       // Store SS block into 2C spin scattered matrices 
       // These scaling factors were modified to take into account the issue of storing the 
-      // Coulomb portion in the exchange matrix, this will be fixed later
-      SetMat('N', NB1C, NB1C, MatsT(scale),       Scr1, NB1C, ss.coulombMatrix->pointer()+SS,      NB2C);
-      SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr2, NB1C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
-      SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr4, NB1C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
-      SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr3, NB1C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
+      // Coulomb portion of C(2)-(SS|SS) are directly put to twoeH 
+      MatAdd('N','N', NB1C, NB1C, MatsT(2.0*scale),  Scr1, NB1C, MatsT(1.0), 
+                      ss.twoeH->S().pointer()+SS, NB2C,
+                      ss.twoeH->S().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, MatsT(2.0*iscale), Scr2, NB1C, MatsT(1.0), 
+                      ss.twoeH->X().pointer()+SS, NB2C,
+                      ss.twoeH->X().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, MatsT(2.0*iscale), Scr3, NB1C, MatsT(1.0), 
+                      ss.twoeH->Y().pointer()+SS, NB2C,
+                      ss.twoeH->Y().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, MatsT(2.0*iscale), Scr4, NB1C, MatsT(1.0), 
+                      ss.twoeH->Z().pointer()+SS, NB2C,
+                      ss.twoeH->Z().pointer()+SS, NB2C);
+      //SetMat('N', NB1C, NB1C, MatsT(scale),       Scr1, NB1C, ss.coulombMatrix->pointer()+SS,      NB2C);
+      //SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr2, NB1C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
+      //SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr3, NB1C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
+      //SetMat('N', NB1C, NB1C, MatsT(-2.0*iscale), Scr4, NB1C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
 #ifdef _PRINT_MATRICES
   
       std::cout<<"After SSSS"<<std::endl;
@@ -464,7 +471,9 @@ namespace ChronusQ {
       /*------------------------------------------*/
       /*   End of Dirac-Coulomb (LL|SS) / (SS|LL) */
       /*------------------------------------------*/
+    
     } // HH all the terms for (LL|SS)/(SS|LL) block are exchange types
+      
       auto durERIDC = tock(topERIDC);
       std::cout << "Dirac-Coulomb Contraction duration   = " << durERIDC << std::endl;
     }
@@ -2621,11 +2630,8 @@ namespace ChronusQ {
 
     // Form GD: G[D] = 2.0*J[D] - K[D]
     if( std::abs(xHFX) > 1e-12 ) {
-      *ss.twoeH = -xHFX * *ss.exchangeMatrix;
-    } else {
-      ss.twoeH->clear();
-      *ss.twoeH = -1.0 * *ss.exchangeMatrix;
-    }
+      *ss.twoeH -= xHFX * *ss.exchangeMatrix;
+    } 
     // G[D] += 2*J[D]
     *ss.twoeH += 2.0 * *ss.coulombMatrix;
 
