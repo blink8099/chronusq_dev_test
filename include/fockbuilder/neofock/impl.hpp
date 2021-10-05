@@ -99,6 +99,7 @@ namespace ChronusQ {
 
       // Coulomb
       JList.emplace_back(mem, NB);
+      JList.back().clear();
       tempCont.push_back(
          {aux_ss->onePDM->S().pointer(), JList.back().pointer(), true, COULOMB}
       );

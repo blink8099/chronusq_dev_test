@@ -2053,12 +2053,12 @@ namespace ChronusQ {
     //
     // TODO: MPI is also likely broken for this
     //
-    std::cout << "Top directScaffoldGrad" << std::endl;
 
-    DirectTPI<IntsT> &eri =
+    DirectTPI<IntsT> &tpi =
         dynamic_cast<DirectTPI<IntsT>&>(*this->grad_[0]);
-    CQMemManager& memManager_ = eri.memManager();
-    BasisSet& basisSet_ = eri.basisSet();
+    CQMemManager& memManager_ = tpi.memManager();
+    BasisSet& basisSet_  = this->contractSecond ? tpi.basisSet2() : tpi.basisSet();
+    BasisSet& basisSet2_ = this->contractSecond ? tpi.basisSet()  : tpi.basisSet2();
 
     size_t nThreads  = GetNumThreads();
     size_t LAThreads = GetLAThreads();
@@ -2068,7 +2068,9 @@ namespace ChronusQ {
     SetLAThreads(1); // Turn off parallelism in LA functions
 
     const size_t nBasis   = basisSet_.nBasis;
+    const size_t snBasis  = basisSet2_.nBasis;
     const size_t nShell   = basisSet_.nShell;
+    const size_t snShell  = basisSet2_.nShell;
     const size_t nTotGrad = cList.size();
     const size_t nMat     = cList[0].size();
 
@@ -2081,7 +2083,8 @@ namespace ChronusQ {
 
     // Construct engine for master thread
     engines[0] = libint2::Engine(libint2::Operator::coulomb,
-      basisSet_.maxPrim, basisSet_.maxL, 1);
+      std::max(basisSet_.maxPrim, basisSet2_.maxPrim), 
+      std::max(basisSet_.maxL, basisSet2_.maxL),1);
 
     // Allocate scratch for raw integral batches
     size_t maxShellSize = 
@@ -2090,10 +2093,16 @@ namespace ChronusQ {
           return sh1.size() < sh2.size();
         })->size();
 
+    size_t maxShellSize2 = 
+      std::max_element(basisSet2_.shells.begin(),basisSet2_.shells.end(),
+        [](libint2::Shell &sh1, libint2::Shell &sh2) {
+          return sh1.size() < sh2.size();
+        })->size();
+
     // lenIntBuffer is allocated to be able to store ERI's of the shell with
     // the highest angular momentum
     size_t lenIntBuffer = 
-      maxShellSize * maxShellSize * maxShellSize * maxShellSize; 
+      maxShellSize * maxShellSize * maxShellSize2 * maxShellSize2; 
 
     lenIntBuffer *= sizeof(MatsT) / sizeof(double);
 
@@ -2151,7 +2160,6 @@ namespace ChronusQ {
     std::vector<size_t> nSkip(nThreads,0);
 
 
-    std::cout << "Before parallel" << std::endl;
     //
     // Parallel region - start work
     //
@@ -2179,7 +2187,6 @@ namespace ChronusQ {
     for(size_t s1(0ul), bf1_s(0ul), s12(0ul); s1 < nShell; bf1_s+=n1, s1++) { 
 
       n1 = basisSet_.shells[s1].size(); // Size of Shell 1
-      std::cout << "n1: " << n1 << std::endl;
       shell_atoms[0] = basisSet_.mapSh2Cen[s1]; // Atomic center of shell 1
 
     auto sigPair12_it = basisSet_.shellData.shData.at(s1).begin();
@@ -2187,7 +2194,6 @@ namespace ChronusQ {
       size_t bf2_s = basisSet_.mapSh2Bf[s2];
 
       n2 = basisSet_.shells[s2].size(); // Size of Shell 2
-      std::cout << "n2: " << n2 << std::endl;
       shell_atoms[1] = basisSet_.mapSh2Cen[s2]; // Atomic center of shell 2
 
       const auto * sigPair12 = sigPair12_it->get();
@@ -2213,12 +2219,12 @@ namespace ChronusQ {
 
 
       size_t n3,n4;
+      size_t s3_max = (&basisSet_ == &basisSet2_) ? S3_MAX : snShell - 1;
 
-      for(size_t s3(0ul), bf3_s(0ul), s34(0ul); s3 <= S3_MAX; s3++, bf3_s += n3) { 
+      for(size_t s3(0ul), bf3_s(0ul), s34(0ul); s3 <= s3_max; s3++, bf3_s += n3) { 
 
-        n3 = basisSet_.shells[s3].size(); // Size of Shell 3
-        std::cout << "n3: " << n3 << std::endl;
-        shell_atoms[2] = basisSet_.mapSh2Cen[s3]; // Atomic center of shell 3
+        n3 = basisSet2_.shells[s3].size(); // Size of Shell 3
+        shell_atoms[2] = basisSet2_.mapSh2Cen[s3]; // Atomic center of shell 3
 
 
 // The upper bound of s4 is either s2 or s3 based on s1 and s3 for
@@ -2228,9 +2234,11 @@ namespace ChronusQ {
 #elif defined(_USE_FOUR_FOLD)
         size_t s4_max =  s3;
 #endif
+      if (&basisSet_ != &basisSet2_)
+        s4_max =  s3;
 
-      auto sigPair34_it = basisSet_.shellData.shData.at(s3).begin();
-      for( const size_t& s4 : basisSet_.shellData.sigShellPair[s3] ) {
+      auto sigPair34_it = basisSet2_.shellData.shData.at(s3).begin();
+      for( const size_t& s4 : basisSet2_.shellData.sigShellPair[s3] ) {
 
         if (s4 > s4_max)
           break;  // for each s3, s4 are stored in monotonically increasing
@@ -2239,17 +2247,10 @@ namespace ChronusQ {
         const auto * sigPair34 = sigPair34_it->get();
         sigPair34_it++;
                     
-        size_t bf4_s = basisSet_.mapSh2Bf[s4];
+        size_t bf4_s = basisSet2_.mapSh2Bf[s4];
 
-        n4 = basisSet_.shells[s4].size(); // Size of Shell 4
-        std::cout << "n4: " << n4 << std::endl;
-        shell_atoms[3] = basisSet_.mapSh2Cen[s4]; // Atomic center of shell 4
-
-        std::cout << "SHELL ATOMS: [";
-        std::cout << shell_atoms[0] << ",";
-        std::cout << shell_atoms[1] << ",";
-        std::cout << shell_atoms[2] << ",";
-        std::cout << shell_atoms[3] << "]" << std::endl;
+        n4 = basisSet2_.shells[s4].size(); // Size of Shell 4
+        shell_atoms[3] = basisSet2_.mapSh2Cen[s4]; // Atomic center of shell 4
 
 #ifdef _FULL_DIRECT
 
@@ -2257,7 +2258,9 @@ namespace ChronusQ {
         double s34_deg = (s3 == s4) ? 1.0 : 2.0;
 
         // Degeneracy factor for s1, s2, s3, s4 quartet
-        double s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
+        double s12_34_deg = 2.0;
+        if (&basisSet_ == &basisSet2_)
+          s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
 
         // Total degeneracy factor
         double s1234_deg = s12_deg * s34_deg * s12_34_deg;
@@ -2268,8 +2271,8 @@ namespace ChronusQ {
           libint2::Operator::coulomb, libint2::BraKet::xx_xx, 1>(
           basisSet_.shells[s1],
           basisSet_.shells[s2],
-          basisSet_.shells[s3],
-          basisSet_.shells[s4]);
+          basisSet2_.shells[s3],
+          basisSet2_.shells[s4]);
 
         // Scale the buffer by the degeneracy factor and store
         // in infBuffer
@@ -2299,8 +2302,6 @@ namespace ChronusQ {
         const size_t xyz = iGrad % 3; // Cartesian component of gradient
         const size_t iSh = iGrad / 3; // Shell on which the gradient is taken
 
-        std::cout << "iSh: " << iSh << "Atom: " << shell_atoms[iSh] << std::endl;
-
         // Gradient component that is relevant for this contraction
         std::vector<TwoBodyContraction<MatsT>>& gradList =
           cList[shell_atoms[iSh]*3 + xyz];
@@ -2317,7 +2318,6 @@ namespace ChronusQ {
           // Hermetian contraction
           if( gradList[iMat].HER ) { 
             if ( gradList[iMat].contType == COULOMB ) {
-            std::cout << "COULOMB CONTRACTION" << std::endl;
             // loop over basis functions in the shell quartet
             for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)
             for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++) {
@@ -2328,63 +2328,57 @@ namespace ChronusQ {
             for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++)
             for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) {
 
-              std::cout << "(" << i << "," << j << "," << k << ","<< l << ")" << std::endl;
-              std::cout << "(" << bf1 << "," << bf2 << "," << bf3 << ","<< bf4 << ")" << std::endl;
-              std::cout << intBuffer_Grad_loc[ijkl] << std::endl;
-
               // J(1,2) += I * X(4,3)
-              *Xp1 += *GetRealPtr(gradList[iMat].X,bf4,bf3,nBasis) * intBuffer_Grad_loc[ijkl];
+              *Xp1 += *GetRealPtr(gradList[iMat].X,bf4,bf3,snBasis) * intBuffer_Grad_loc[ijkl];
 
               // J(4,3) += I * X(1,2)
-              *GetRealPtr(AX_Grad_loc[iMat],bf4,bf3,nBasis) +=  X1 * intBuffer_Grad_loc[ijkl];
+              if (&basisSet_ == &basisSet2_)
+                *GetRealPtr(AX_Grad_loc[iMat],bf4,bf3,nBasis) +=  X1 * intBuffer_Grad_loc[ijkl];
 
               // J(2,1) and J(3,4) are handled on symmetrization after
               // contraction
             } // kl loop
             } // ij loop
 
-            } else if( gradList[iMat].contType == EXCHANGE )
-            for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)      
-            for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++)       
-            for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++) {
+            } else if( gradList[iMat].contType == EXCHANGE ) {
+              if (&basisSet_ != &basisSet2_)
+                CErr("No exchange contraction between two different basis!", std::cout);
+              for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)      
+              for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++)       
+              for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++) {
 
-              // Cache i,j,k variables
-              b1 = bf1 + bf3*nBasis;
-              b2 = bf2 + bf3*nBasis;
+                // Cache i,j,k variables
+                b1 = bf1 + bf3*nBasis;
+                b2 = bf2 + bf3*nBasis;
 
-              T1 = 0.5 * SmartConj(gradList[iMat].X[b1]);
-              T2 = 0.5 * SmartConj(gradList[iMat].X[b2]);
+                T1 = 0.5 * SmartConj(gradList[iMat].X[b1]);
+                T2 = 0.5 * SmartConj(gradList[iMat].X[b2]);
 
-            for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) { 
+              for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) { 
 
-              // Indicies are swapped here to loop over contiguous memory
-                
-              // K(1,3) += 0.5 * I * X(2,4) = 0.5 * I * CONJ(X(4,2)) (**HER**)
-              AX_Grad_loc[iMat][b1]           += 0.5 * SmartConj(gradList[iMat].X[bf4+nBasis*bf2]) * intBuffer_Grad_loc[ijkl];
+                // Indicies are swapped here to loop over contiguous memory
+                  
+                // K(1,3) += 0.5 * I * X(2,4) = 0.5 * I * CONJ(X(4,2)) (**HER**)
+                AX_Grad_loc[iMat][b1]           += 0.5 * SmartConj(gradList[iMat].X[bf4+nBasis*bf2]) * intBuffer_Grad_loc[ijkl];
 
-              // K(4,2) += 0.5 * I * X(3,1) = 0.5 * I * CONJ(X(1,3)) (**HER**)
-              AX_Grad_loc[iMat][bf4 + bf2*nBasis] += T1 * intBuffer_Grad_loc[ijkl];
+                // K(4,2) += 0.5 * I * X(3,1) = 0.5 * I * CONJ(X(1,3)) (**HER**)
+                AX_Grad_loc[iMat][bf4 + bf2*nBasis] += T1 * intBuffer_Grad_loc[ijkl];
 
-              // K(4,1) += 0.5 * I * X(3,2) = 0.5 * I * CONJ(X(2,3)) (**HER**)
-              AX_Grad_loc[iMat][bf4 + bf1*nBasis] += T2 * intBuffer_Grad_loc[ijkl];
+                // K(4,1) += 0.5 * I * X(3,2) = 0.5 * I * CONJ(X(2,3)) (**HER**)
+                AX_Grad_loc[iMat][bf4 + bf1*nBasis] += T2 * intBuffer_Grad_loc[ijkl];
 
-              // K(2,3) += 0.5 * I * X(1,4) = 0.5 * I * CONJ(X(4,1)) (**HER**)
-              AX_Grad_loc[iMat][b2]           += 0.5 * SmartConj(gradList[iMat].X[bf4+nBasis*bf1]) * intBuffer_Grad_loc[ijkl];
+                // K(2,3) += 0.5 * I * X(1,4) = 0.5 * I * CONJ(X(4,1)) (**HER**)
+                AX_Grad_loc[iMat][b2]           += 0.5 * SmartConj(gradList[iMat].X[bf4+nBasis*bf1]) * intBuffer_Grad_loc[ijkl];
 
-            } // l loop
-            } // ijk
+              } // l loop
+              } // ijk
+            } // EXCHANGE
 
           // Nonhermitian
           } else {
             CErr("Nonhermetian NYI!");
 
           } // Symmetry
-
-#pragma omp critical
-        {
-          std::cout << "AXthread local location: " << AX_Grad_loc[iMat] << std::endl;
-          prettyPrintSmart(std::cout, "AXthread local", AX_Grad_loc[iMat], nBasis, nBasis, nBasis);
-        }
 
         } // Matrices
 
@@ -2399,17 +2393,11 @@ namespace ChronusQ {
     
     } // omp parallel
 
-    std::cout << "After parallel" << std::endl;
-
     MatsT* SCR = memManager_.malloc<MatsT>(nBasis * nBasis);
     for( auto iGrad = 0; iGrad < nTotGrad; iGrad++ )
     for( auto iMat = 0; iMat < nMat;  iMat++ ) 
     for( auto iTh  = 0; iTh < nThreads; iTh++) {
 
-      std::cout << "Thread " << iTh << std::endl;
-      prettyPrintSmart(std::cout, "AXthread", AXthreads[iTh][iGrad][iMat],
-        nBasis, nBasis, nBasis);
-  
       if( cList[iGrad][iMat].HER ) {
 
         MatAdd('N','C',nBasis,nBasis,MatsT(0.5),AXthreads[iTh][iGrad][iMat],
@@ -2438,7 +2426,6 @@ namespace ChronusQ {
     // Turn threads for LA back on
     SetLAThreads(LAThreads);
 
-    std::cout << "Bottom directScaffoldGrad" << std::endl;
   }
 
 }; // namespace ChronusQ

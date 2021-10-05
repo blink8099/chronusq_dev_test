@@ -308,10 +308,24 @@ namespace ChronusQ {
 
         // Gradient integrals
         // FIXME: Figure out where to put this allocation
-        std::vector<std::shared_ptr<InCore4indexTPI<double>>> ints;
+//#define INCORE_GRAD
+#ifdef INCORE_GRAD
+        std::cout << "in core gradients" << std::endl;
+#define GRADTPI InCore4indexTPI
+#define ETPI_LIST *memManager,basis->nBasis
+#define PTPI_LIST *memManager,prot_basis->nBasis
+#define EPTPI_LIST *memManager,basis->nBasis,prot_basis->nBasis
+#else
+        std::cout << "direct contracted gradients" << std::endl;
+#define GRADTPI DirectTPI
+#define ETPI_LIST *memManager,*basis,*basis,mol,1e-12
+#define PTPI_LIST *memManager,*prot_basis,*prot_basis,mol,1e-12
+#define EPTPI_LIST *memManager,*basis,*prot_basis,mol,1e-12
+#endif
+        std::vector<std::shared_ptr<GRADTPI<double>>> ints;
         for ( auto i = 0; i < mol.atoms.size() * 3; i++ )
           ints.push_back(
-            std::make_shared<InCore4indexTPI<double>>(*memManager, basis->nBasis)
+            std::make_shared<GRADTPI<double>>(ETPI_LIST)
           );
 
         auto casted = std::dynamic_pointer_cast<Integrals<double>>(aoints);
@@ -321,15 +335,15 @@ namespace ChronusQ {
 
         // NEO gradient integrals
         if( doNEO ) {
-          std::vector<std::shared_ptr<InCore4indexTPI<double>>> pints_g;
-          std::vector<std::shared_ptr<InCore4indexTPI<double>>> epints_g;
+          std::vector<std::shared_ptr<GRADTPI<double>>> pints_g;
+          std::vector<std::shared_ptr<GRADTPI<double>>> epints_g;
 
           for ( auto i = 0; i < mol.atoms.size() * 3; i++ ) {
             pints_g.push_back(
-              std::make_shared<InCore4indexTPI<double>>(*memManager, prot_basis->nBasis)
+              std::make_shared<GRADTPI<double>>(PTPI_LIST)
             );
             epints_g.push_back(
-              std::make_shared<InCore4indexTPI<double>>(*memManager, basis->nBasis, prot_basis->nBasis)
+              std::make_shared<GRADTPI<double>>(EPTPI_LIST)
             );
           }
 
