@@ -170,6 +170,10 @@ namespace ChronusQ {
       }
     }
 
+    // Pauil Matrice representation to spinor representation
+    template <typename IntsU>
+    InCore4indexRelERI<IntsU> spatialToSpinBlock() const;
+    
     template <typename TransT>
     InCore4indexRelERI<typename std::conditional<
     (std::is_same<IntsT, dcomplex>::value or
@@ -188,6 +192,18 @@ namespace ChronusQ {
       return transInts;
     }
 
+    template <typename TransT, typename OutT>
+    void subsetTransform(
+        char TRANS, const TransT* T, int LDT,
+        const std::vector<std::pair<size_t,size_t>> &off_size,
+        OutT* out, bool increment = false) const;
+    
+    template <typename TransT, typename OutT>
+    void subsetTransformWithLSComps(
+        const std::string & LSComps, char TRANS, 
+        const TransT* TL, int LDTL, const TransT* TS, int LDTS,
+        const std::vector<std::pair<size_t,size_t>> &off_size,
+        const IntsT * in, OutT* out, bool increment = false) const;
     virtual ~InCore4indexRelERI() {}
 
   }; // class InCore4indexRelERI

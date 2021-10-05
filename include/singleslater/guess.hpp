@@ -178,7 +178,13 @@ namespace ChronusQ {
     // Common to all guess: form new set of orbitals from
     // initial guess at Fock.
     EMPerturbation pert; // Dummy EM perturbation
+#if 1    
     getNewOrbitals(pert,false);
+#else     
+    if (scfControls.scfAlg != _SKIP_SCF or 
+        scfControls.guess == CORE or 
+        scfControls.guess == SAD) getNewOrbitals(pert,false);
+#endif
 
     // If RANDOM guess, scale the densites appropriately
     // *** Replicates on all MPI processes ***
@@ -976,8 +982,6 @@ namespace ChronusQ {
       // Read in MO1
       std::cout << "    * Found SCF/MO1 !" << std::endl;
       savFile.readData(prefix + "MO1",this->mo[0].pointer());
-
-
 
       // Unrestricted calculations
       if( this->nC == 1 and not this->iCS ) {

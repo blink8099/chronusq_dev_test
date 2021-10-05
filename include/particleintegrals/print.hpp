@@ -23,6 +23,7 @@
  */
 #pragma once
 #include <integrals.hpp>
+#include <particleintegrals/twopints/gtodirecttpi.hpp>
 #include <cxxapi/output.hpp>
 
 
@@ -81,6 +82,20 @@ namespace ChronusQ {
       }
     }
     
+    out << "    * AO to MO Transformation Algorithm (if used): "; 
+    
+    if (aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::INCORE_N6)
+       out << "INCORE N6";
+    else if (aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::DIRECT_N6)
+       out << "DIRECT N6";
+    else if (aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::INCORE_N6)
+       out << "INCORE N5";
+    else if (aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::DIRECT_N5)
+       out << "DIRECT N5";
+    else
+       CErr("Unrecognized TPI_TRANSFORMATION_ALG in aoints");
+
+    out << std::endl;
 
     out << std::endl << BannerEnd << std::endl;
 

@@ -64,7 +64,7 @@ namespace ChronusQ {
     }
 
     // Form the Hartree-Fock perturbation tensor (see include/fockbuilder/impl.hpp for docs)
-    virtual void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
+    virtual void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1., bool HerDen = true);
 
     // Form the EPJ contribution to Fock matrix (see include/fockbuilder/impl.hpp for docs)
     virtual void formepJ(NEOSingleSlater<MatsT,IntsT> &, NEOSingleSlater<MatsT,IntsT> &, bool increment = false, double xHFX = 1.);

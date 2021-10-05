@@ -42,6 +42,8 @@ namespace ChronusQ {
   class CoreHBuilder;
   template <typename MatsT, typename IntsT>
   class FockBuilder;
+  template <typename MatsT, typename IntsT>
+  class MOIntsTransformer;
 
   /**
    *  \brief The SingleSlater class. The typed abstract interface for all
@@ -125,7 +127,6 @@ namespace ChronusQ {
     // Method specific propery storage
     std::vector<double> mullikenCharges;
     std::vector<double> lowdinCharges;
-
 
 
     // Constructors
@@ -292,8 +293,11 @@ namespace ChronusQ {
     void fockDamping();
     void scfDIIS(size_t);
 
-
-
+    // Method to produce a test on integral transformation 
+#ifdef TEST_MOINTSTRANSFORMER
+    void MOIntsTransformationTest(EMPerturbation &);
+#endif    
+    std::shared_ptr<MOIntsTransformer<MatsT, IntsT>> generateMOIntsTransformer();
 
     // MO Transformations
     void MOFOCK();
@@ -305,6 +309,7 @@ namespace ChronusQ {
 // Include declaration of CoreHBuilder and FockBuilder
 #include <corehbuilder.hpp>
 #include <fockbuilder.hpp>
+#include <mointstransformer.hpp>
 
 // Include headers for specializations of SingleSlater
 #include <singleslater/hartreefock.hpp> // HF specialization

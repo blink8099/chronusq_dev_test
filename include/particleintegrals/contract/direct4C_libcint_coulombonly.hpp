@@ -54,8 +54,9 @@ namespace ChronusQ {
 
 
   /**************************/
-  /* Libcint 4C-direct Implementation */
+  /* Libcint 4C-direct Implementation With Coulomb only-type of contraction*/
   /**************************/
+
   // For DCB Hamiltonian,
   // 12 density matrices upon input stored as
   // LL(MS,MX,MY,MZ), SS(MS,MX,MY,MZ), LS(MS,MX,MY,MZ)
@@ -64,17 +65,20 @@ namespace ChronusQ {
   // LL(MS,MX,MY,MZ), SS(MS,MX,MY,MZ), LS(MS,MX,MY,MZ)
   //
   //
-  // Density Matrices are assumed as Hermitian here
+  // Density Matrices are NOT assumed as Hermitian here
   //
- 
   template <typename MatsT, typename IntsT>
-  void GTODirectRelERIContraction<MatsT,IntsT>::directScaffoldLibcint(
+  void GTODirectRelERIContraction<MatsT,IntsT>::directScaffoldLibcintCoulombOnly(
     MPI_Comm comm, const bool screen,
     std::vector<TwoBodyContraction<MatsT>> &matList) const {
-
-    if (not matList[0].HER) 
-      CErr("Non-Hermitian Density in 4C Contraction (Couloumb + Exchange) is NYI");
     
+    // turn off terms that are NYI
+    if (matList[0].contType == TWOBODY_CONTRACTION_TYPE::LLSS or
+        matList[0].contType == TWOBODY_CONTRACTION_TYPE::SSSS or
+        matList[0].contType == TWOBODY_CONTRACTION_TYPE::GAUNT or
+        matList[0].contType == TWOBODY_CONTRACTION_TYPE::GAUGE)
+        CErr("Specificed 4C Contraction (Coulomb Only) is NYI");
+
     DirectTPI<IntsT> &originalERI =
         dynamic_cast<DirectTPI<IntsT>&>(this->ints_);
     CQMemManager& memManager_ = originalERI.memManager();
@@ -100,7 +104,7 @@ namespace ChronusQ {
     size_t LAThreads = GetLAThreads();
     SetLAThreads(1); // Turn off parallelism in LA functions
 
-
+    bool HerDen = matList[0].HER;
 
     /****************************/
     /* Format Basis for Libcint */
@@ -418,7 +422,7 @@ namespace ChronusQ {
 
     /***********************************/
     /*                                 */
-    /* Start of Bare-Coulomb-Exchange  */
+    /* Start of Bare-Coulomb           */
     /*                                 */
     /***********************************/
 
@@ -430,8 +434,8 @@ namespace ChronusQ {
 
 #ifdef _SHZ_SCREEN_4C
       // Compute shell block norms (∞-norm) of matList.X
-      // CLLMS, XLLMS, XLLMX, XLLMY, XLLMZ Densitry matrices
-      int mMat = 5;
+      // CLLMS, Densitry matrices
+      int mMat = 1;
       double *ShBlkNorms_raw = memManager_.malloc<double>(mMat*nShell*nShell);
       std::vector<double*> ShBlkNorms;
   
@@ -540,15 +544,7 @@ namespace ChronusQ {
           if(int2e_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
 
           auto ADCLLMS = AX_loc[CLLMS];
-          auto ADXLLMS = AX_loc[XLLMS];
-          auto ADXLLMX = AX_loc[XLLMX];
-          auto ADXLLMY = AX_loc[XLLMY];
-          auto ADXLLMZ = AX_loc[XLLMZ];
           auto DCLLMS  = matList[CLLMS].X;
-          auto DXLLMS  = matList[XLLMS].X;
-          auto DXLLMX  = matList[XLLMX].X;
-          auto DXLLMY  = matList[XLLMY].X;
-          auto DXLLMZ  = matList[XLLMZ].X;
  
           // Scale the buffer by the degeneracy factor and store
           for(auto i = 0ul; i < nQuad; i++) buff[i] *= 0.5*s1234_deg;
@@ -570,32 +566,9 @@ namespace ChronusQ {
             auto bf14 = bf1 + bf4*nBasis;
             auto bf13 = bf1 + bf3*nBasis;
  
-            // Start of Coulomb
-            ADCLLMS[bf12] += buff[mnkl]*DCLLMS[bf43].real();
-            ADCLLMS[bf34] += buff[mnkl]*DCLLMS[bf21].real();
-
-            // Start of Exchange
-            buff[mnkl] *= 0.5;
-            ADXLLMS[bf14] += buff[mnkl]*DXLLMS[bf23];
-            ADXLLMX[bf14] += buff[mnkl]*DXLLMX[bf23];
-            ADXLLMY[bf14] += buff[mnkl]*DXLLMY[bf23];
-            ADXLLMZ[bf14] += buff[mnkl]*DXLLMZ[bf23];
-  
-            ADXLLMS[bf13] += buff[mnkl]*DXLLMS[bf24];
-            ADXLLMX[bf13] += buff[mnkl]*DXLLMX[bf24];
-            ADXLLMY[bf13] += buff[mnkl]*DXLLMY[bf24];
-            ADXLLMZ[bf13] += buff[mnkl]*DXLLMZ[bf24];
-  
-            ADXLLMS[bf24] += buff[mnkl]*DXLLMS[bf13];
-            ADXLLMX[bf24] += buff[mnkl]*DXLLMX[bf13];
-            ADXLLMY[bf24] += buff[mnkl]*DXLLMY[bf13];
-            ADXLLMZ[bf24] += buff[mnkl]*DXLLMZ[bf13];
-  
-            ADXLLMS[bf23] += buff[mnkl]*DXLLMS[bf14];
-            ADXLLMX[bf23] += buff[mnkl]*DXLLMX[bf14];
-            ADXLLMY[bf23] += buff[mnkl]*DXLLMY[bf14];
-            ADXLLMZ[bf23] += buff[mnkl]*DXLLMZ[bf14];
-
+            ADCLLMS[bf12] += buff[mnkl]*(DCLLMS[bf43] + DCLLMS[bf34]);
+            ADCLLMS[bf34] += buff[mnkl]*(DCLLMS[bf21] + DCLLMS[bf12]);
+            
           }; // bf1
           }; // bf2
           }; // bf3
@@ -611,10 +584,10 @@ namespace ChronusQ {
   
       MatsT* SCR = memManager_.malloc<MatsT>(nBasis * nBasis);
 
-      // Take care of the Hermitian symmetry for CLLMS, XLLMS, XLLMX, XLLMY, XLLMZ
-      for( auto iMat = 0; iMat < 5;  iMat++ ) 
+      // Take care of the symmetry for CLLMS
+      for( auto iMat = 0; iMat < 1;  iMat++ ) 
       for( auto iTh  = 0; iTh < nThreads; iTh++) {
-        MatAdd('N','C',nBasis,nBasis,MatsT(0.5),AXthreads[iTh][iMat],nBasis,MatsT(0.5),
+        MatAdd('N','T',nBasis,nBasis,MatsT(0.25),AXthreads[iTh][iMat],nBasis,MatsT(0.25),
           AXthreads[iTh][iMat],nBasis,SCR,nBasis);
         MatAdd('N','N',nBasis,nBasis,MatsT(1.), SCR,nBasis, 
           MatsT(1.), matList[iMat].AX,nBasis,matList[iMat].AX,nBasis);
@@ -641,21 +614,9 @@ namespace ChronusQ {
 
     /*********************************/
     /*                               */
-    /* End of Bare-Coulomb-Exchange  */
+    /* End of Bare-Coulomb           */
     /*                               */
     /*********************************/
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     /******************************************/
@@ -738,6 +699,8 @@ namespace ChronusQ {
         int shls[4];
         double *buff = &buffAll[nERI*buffN4*thread_id];
         double *cache = cacheAll+cache_size*thread_id;
+
+        MatsT TmpDen; 
   
         for(size_t s1(0), bf1_s(0), s1234(0); s1 < nShell; bf1_s+=n1, s1++) { 
   
@@ -908,10 +871,10 @@ namespace ChronusQ {
   
             //KLMN
             if(bf3 >= bf4 ) {
-              ADCLLMS[bf34] +=  ERIBuffCD[DotPrdKLMN]*DCSSMS[bf21].real()
-                               -ERIBuffCD[CrossZKLMN]*DCSSMZ[bf21].imag()
-                               -ERIBuffCD[CrossXKLMN]*DCSSMX[bf21].imag()
-                               -ERIBuffCD[CrossYKLMN]*DCSSMY[bf21].imag();
+              ADCLLMS[bf34] +=  ERIBuffCD[DotPrdKLMN]*(DCSSMS[bf21] + DCSSMS[bf12])
+                               +dcomplex(0.,1.)*ERIBuffCD[CrossZKLMN]*(DCSSMZ[bf21]-DCSSMZ[bf12])
+                               +dcomplex(0.,1.)*ERIBuffCD[CrossXKLMN]*(DCSSMX[bf21]-DCSSMX[bf12])
+                               +dcomplex(0.,1.)*ERIBuffCD[CrossYKLMN]*(DCSSMY[bf21]-DCSSMY[bf12]);
             }
            
             /*------------------------------------------*/
@@ -919,21 +882,18 @@ namespace ChronusQ {
             /*------------------------------------------*/
   
   
-  
-  
-  
             /*+++++++++++++++++++++++++++++++++++++++++++++++++*/
             /* Start of Dirac-Coulomb C(2)-(SS|SS) Contraction */
             /*+++++++++++++++++++++++++++++++++++++++++++++++++*/
   
-  
             /* MNKL */
             if (bf1 >= bf2) {
-              ADCSSMS[bf12] += ERIBuffAB[DotPrdMNKL]*DCLLMS[bf43].real();
-              ADCSSMX[bf12] += ERIBuffAB[CrossXMNKL]*DCLLMS[bf43].real();
-              ADCSSMY[bf12] += ERIBuffAB[CrossYMNKL]*DCLLMS[bf43].real();
-              ADCSSMZ[bf12] += ERIBuffAB[CrossZMNKL]*DCLLMS[bf43].real();
-            } 
+              TmpDen = DCLLMS[bf43]+DCLLMS[bf34];
+              ADCSSMS[bf12] += ERIBuffAB[DotPrdMNKL]*TmpDen;
+              ADCSSMX[bf12] += ERIBuffAB[CrossXMNKL]*TmpDen;
+              ADCSSMY[bf12] += ERIBuffAB[CrossYMNKL]*TmpDen;
+              ADCSSMZ[bf12] += ERIBuffAB[CrossZMNKL]*TmpDen;
+            }
   
             /*-----------------------------------------------*/
             /* End of Dirac-Coulomb C(2)-(SS|SS) Contraction */
@@ -954,14 +914,15 @@ namespace ChronusQ {
   
       } // OpenMP context
  
-      dcomplex iscale = dcomplex(0.0, 1.0);
+      MatsT  scale = MatsT(0.5);
+      MatsT iscale = scale * dcomplex(0.0, 1.0);
 
       for( auto iTh  = 0; iTh < nThreads; iTh++) {
  
-        MatAdd('N','N',nBasis,nBasis,MatsT(1.0),AXthreads[iTh][CLLMS],nBasis,MatsT(1.0),
+        MatAdd('N','N',nBasis,nBasis,scale,AXthreads[iTh][CLLMS],nBasis,MatsT(1.0),
            matList[CLLMS].AX,nBasis,matList[CLLMS].AX,nBasis);
 
-        MatAdd('N','N',nBasis,nBasis,MatsT(1.0),AXthreads[iTh][CSSMS],nBasis,MatsT(1.0),
+        MatAdd('N','N',nBasis,nBasis,scale,AXthreads[iTh][CSSMS],nBasis,MatsT(1.0),
            matList[CSSMS].AX,nBasis,matList[CSSMS].AX,nBasis);
 
         MatAdd('N','N',nBasis,nBasis, iscale, AXthreads[iTh][CSSMX],nBasis,MatsT(1.0),
@@ -985,11 +946,11 @@ namespace ChronusQ {
 
       for( auto i = 0; i < nBasis; i++ ) 
       for( auto j = 0; j < i; j++ ) {
-        ADCLLMS[j + i*nBasis] = std::conj(ADCLLMS[i + j*nBasis]);
-        ADCSSMS[j + i*nBasis] = std::conj(ADCSSMS[i + j*nBasis]);
-        ADCSSMX[j + i*nBasis] = std::conj(ADCSSMX[i + j*nBasis]);
-        ADCSSMY[j + i*nBasis] = std::conj(ADCSSMY[i + j*nBasis]);
-        ADCSSMZ[j + i*nBasis] = std::conj(ADCSSMZ[i + j*nBasis]);
+        ADCLLMS[j + i*nBasis] = ADCLLMS[i + j*nBasis];
+        ADCSSMS[j + i*nBasis] = ADCSSMS[i + j*nBasis];
+        ADCSSMX[j + i*nBasis] = -ADCSSMX[i + j*nBasis];
+        ADCSSMY[j + i*nBasis] = -ADCSSMY[i + j*nBasis];
+        ADCSSMZ[j + i*nBasis] = -ADCSSMZ[i + j*nBasis];
       }
 #endif
 
@@ -1017,390 +978,6 @@ namespace ChronusQ {
     /*   End of Dirac-Coulomb LL and C(2)-SS  */
     /*                                        */
     /******************************************/
-
-
-
-
-
-
-
-    /***************************/
-    /*                         */
-    /* Start of (LLSS)/(SSLL)  */
-    /*                         */
-    /***************************/
-
-    if( matList[0].contType == TWOBODY_CONTRACTION_TYPE::LLSS ) {
-
-
-#ifdef _REPORT_INTEGRAL_TIMINGS
-      auto topDirectLS = tick();
-#endif
-
-#ifdef _SHZ_SCREEN_4C
-      // Compute shell block norms (∞-norm) of matList.X
-      // XLSMS, XLSMX, XLSMY, XLSMZ Densitry matrices
-      int mMat = 4;
-      double *ShBlkNorms_raw = memManager_.malloc<double>(mMat*nShell*nShell);
-      std::vector<double*> ShBlkNorms;
-  
-      auto iOff = 0;
-      ShellBlockNorm(basisSet_.shells,matList[XLSMS].X,nBasis,ShBlkNorms_raw + iOff);
-      ShBlkNorms.emplace_back(ShBlkNorms_raw + iOff);
-  
-      iOff += nShell*nShell;
-      ShellBlockNorm(basisSet_.shells,matList[XLSMX].X,nBasis,ShBlkNorms_raw + iOff);
-      ShBlkNorms.emplace_back(ShBlkNorms_raw + iOff);
-  
-      iOff += nShell*nShell;
-      ShellBlockNorm(basisSet_.shells,matList[XLSMY].X,nBasis,ShBlkNorms_raw + iOff);
-      ShBlkNorms.emplace_back(ShBlkNorms_raw + iOff);
-  
-      iOff += nShell*nShell;
-      ShellBlockNorm(basisSet_.shells,matList[XLSMZ].X,nBasis,ShBlkNorms_raw + iOff);
-      ShBlkNorms.emplace_back(ShBlkNorms_raw + iOff);
-  
-      // Get the max over all the matricies for the shell block ∞-norms
-      for(auto k = 0; k < nShell*nShell; k++) {
-  
-        double mx = std::abs(ShBlkNorms[0][k]);
-        for(auto iMat = 0; iMat < mMat; iMat++)
-          mx = std::max(mx,std::abs(ShBlkNorms[iMat][k]));
-        ShBlkNorms[0][k] = mx;
-   
-      }
-#endif
-
-      nERI = 9;
-      buffAll = memManager_.malloc<double>(nERI*buffN4*nThreads);
-      cacheAll = memManager_.malloc<double>(cache_size*nThreads);
-      ERIBuffer = memManager_.malloc<double>(2*4*NB4*nThreads);
-      memset(AXRaw,0,nThreads*nMat*nBasis*nBasis*sizeof(MatsT));
-      std::vector<size_t> nSkipLS(nThreads,0);
-  
-      #pragma omp parallel
-      {
-  
-        dcomplex iscale = dcomplex(0.0, 1.0);
-  
-        size_t thread_id = GetThreadID();
-  
-        auto &AX_loc = AXthreads[thread_id];
-  
-        double *ERIBuffAB   = &ERIBuffer[thread_id*4*NB4];
-        double *ERIBuffCD   = &ERIBuffer[nThreads*4*NB4 + thread_id*4*NB4];
-  
-        size_t n1,n2,n3,n4,m,n,k,l,mnkl,bf1,bf2,bf3,bf4;
-        size_t s4_max;
-  
-        int shls[4];
-        double *buff = &buffAll[nERI*buffN4*thread_id];
-        double *cache = cacheAll+cache_size*thread_id;
-  
-        for(size_t s1(0), bf1_s(0), s1234(0); s1 < nShell; bf1_s+=n1, s1++) { 
-  
-          n1 = basisSet_.shells[s1].size(); // Size of Shell 1
-  
-        for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++) {
-  
-          n2 = basisSet_.shells[s2].size(); // Size of Shell 2
-  
-#ifdef _SHZ_SCREEN_4C
-          double shMax12 = ShBlkNorms[0][s1 + s2*nShell];
-#endif
-  
-        for(size_t s3(0), bf3_s(0); s3 < nShell; bf3_s+=n3, s3++) {
-  
-          n3 = basisSet_.shells[s3].size(); // Size of Shell 3
-          s4_max = (s1 == s3) ? s2 : s3; // Determine the unique max of Shell 4
-  
-#ifdef _SHZ_SCREEN_4C
-          double shMax123 = std::max(ShBlkNorms[0][s1 + s3*nShell], ShBlkNorms[0][s2 + s3*nShell]);
-          shMax123 = std::max(shMax123,shMax12);
-#endif
-   
-  
-        for(size_t s4(0), bf4_s(0); s4 <= s3; bf4_s+=n4, s4++, s1234++) {
-  
-          n4 = basisSet_.shells[s4].size(); // Size of Shell 4
-  
-          // Round Robbin work distribution
-          #ifdef _OPENMP
-          if( s1234 % nThreads != thread_id ) continue;
-          #endif
-  
-#ifdef _SHZ_SCREEN_4C
-  
-          double shMax = std::max(ShBlkNorms[0][s1 + s4*nShell],
-                                  std::max(ShBlkNorms[0][s2 + s4*nShell],
-                                           ShBlkNorms[0][s3 + s4*nShell]));
-  
-          shMax = std::max(shMax,shMax123);
-
-          if((shMax*SchwarzSSSS[s3+s4*nShell]*SchwarzERI[s1 + s2*nShell]) <
-             eri.threshSchwarz()) { nSkipLS[thread_id]++; continue; }
-#endif
-  
-          auto nQuad = n1*n2*n3*n4;
-  
-          shls[0] = int(s3);
-          shls[1] = int(s4);
-          shls[2] = int(s1);
-          shls[3] = int(s2);
-  
-          if(int2e_ipvip1_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
-  
-          for(n =   maxShellSize, mnkl = 0ul; n <   maxShellSize + n2; ++n) 
-          for(m = 0                         ; m <                  n1; ++m) 
-          for(l = 3*maxShellSize            ; l < 3*maxShellSize + n4; ++l)
-          for(k = 2*maxShellSize            ; k < 2*maxShellSize + n3; ++k, ++mnkl) {
-   
-            auto MNKL = m + n*NB + k*NB2 + l*NB3;
-            auto KLMN = k + l*NB + m*NB2 + n*NB3;
-  
-            /* Dirac-Coulomb */
-            // ∇C∙∇D(mn|kl)
-            auto dCdotdD = buff[AxBx*nQuad+mnkl] + buff[AyBy*nQuad+mnkl] + buff[AzBz*nQuad+mnkl];
-            // ∇Ax∇B(mn|kl)
-            auto dCcrossdD_x =  buff[AyBz*nQuad+mnkl] - buff[AzBy*nQuad+mnkl];
-            auto dCcrossdD_y = -buff[AxBz*nQuad+mnkl] + buff[AzBx*nQuad+mnkl];
-            auto dCcrossdD_z =  buff[AxBy*nQuad+mnkl] - buff[AyBx*nQuad+mnkl];
-  
-  
-            // ∇A∙∇B(kl|mn) followed by ∇Ax∇B(kl|mn) X, Y, and Z
-            // (kl|mn)
-            ERIBuffAB[      KLMN] =  dCdotdD;
-            ERIBuffAB[  NB4+KLMN] =  dCcrossdD_x;
-            ERIBuffAB[NB4_2+KLMN] =  dCcrossdD_y;
-            ERIBuffAB[NB4_3+KLMN] =  dCcrossdD_z;
-  
-            // ∇C∙∇D(mn|kl) followed by ∇Cx∇D(mn|kl) X, Y, and Z
-            // (mn|kl)
-            ERIBuffCD[      MNKL] =  dCdotdD;
-            ERIBuffCD[  NB4+MNKL] =  dCcrossdD_x;
-            ERIBuffCD[NB4_2+MNKL] =  dCcrossdD_y;
-            ERIBuffCD[NB4_3+MNKL] =  dCcrossdD_z;
-  
-        } // ∇C∙∇D integral preparation loop
-  
-  
-  
-  
-#ifdef _CONTRACTION_ // Contraction
-
-          auto ADXLSMS  = AX_loc[XLSMS];
-          auto ADXLSMX  = AX_loc[XLSMX];
-          auto ADXLSMY  = AX_loc[XLSMY];
-          auto ADXLSMZ  = AX_loc[XLSMZ];
-          auto DXLSMS = matList[XLSMS].X;
-          auto DXLSMX = matList[XLSMX].X;
-          auto DXLSMY = matList[XLSMY].X;
-          auto DXLSMZ = matList[XLSMZ].X;
- 
-          for(m = 0ul,            bf1 = bf1_s; m <                  n1; ++m, bf1++) {
-          for(n =   maxShellSize, bf2 = bf2_s; n <   maxShellSize + n2; ++n, bf2++) {
-            auto mn1 = m + n*NB;
-            auto mn2 = m*NB2 + n*NB3;
-            auto bf1nB = bf1*nBasis;
-            auto bf2nB = bf2*nBasis;
-
-          for(k = 2*maxShellSize, bf3 = bf3_s; k < 2*maxShellSize + n3; ++k, bf3++) {
-            auto bf3nB = bf3*nBasis;
-            auto kmn1 = mn1 + k*NB2;
-            auto kmn2 = k + mn2;
-
-          for(l = 3*maxShellSize, bf4 = bf4_s; l < 3*maxShellSize + n4; ++l, bf4++) {
-            auto MNKL = kmn1 + l*NB3;
-            auto KLMN = kmn2 + l*NB;
-
-            auto bf4nB= bf4*nBasis;  
-
-            auto bf14 = bf1 + bf4nB;
-            auto bf24 = bf2 + bf4nB;
-            auto bf23 = bf2 + bf3nB;
-            auto bf13 = bf1 + bf3nB;
-            auto bf41 = bf4 + bf1nB;
-            auto bf31 = bf3 + bf1nB;
-            auto bf32 = bf3 + bf2nB;
-            auto bf42 = bf4 + bf2nB;
-  
-            auto DotPrdMNKL = MNKL;
-            auto CrossXMNKL = MNKL+NB4;
-            auto CrossYMNKL = MNKL+NB4_2;
-            auto CrossZMNKL = MNKL+NB4_3;
-  
-            auto DotPrdKLMN = KLMN;
-            auto CrossXKLMN = KLMN+NB4;
-            auto CrossYKLMN = KLMN+NB4_2;
-            auto CrossZKLMN = KLMN+NB4_3;
-  
-  
-            /*++++++++++++++++++++++++++++++++++++++++++*/
-            /* Start of Dirac-Coulomb (LL|SS) / (SS|LL) */
-            /*++++++++++++++++++++++++++++++++++++++++++*/
-  
-  
- 
-            //MNKL
-            ADXLSMS[bf14]+= -ERIBuffCD[DotPrdMNKL]*DXLSMS[bf23]
-                            -( ERIBuffCD[CrossZMNKL]*DXLSMZ[bf23]
-                              +ERIBuffCD[CrossXMNKL]*DXLSMX[bf23]
-                              +ERIBuffCD[CrossYMNKL]*DXLSMY[bf23])*iscale;
-  
-            ADXLSMX[bf14]+= -ERIBuffCD[CrossXMNKL]*DXLSMS[bf23]*iscale
-                            -ERIBuffCD[CrossYMNKL]*DXLSMZ[bf23]
-                            -ERIBuffCD[DotPrdMNKL]*DXLSMX[bf23]
-                            +ERIBuffCD[CrossZMNKL]*DXLSMY[bf23];
-  
-            ADXLSMY[bf14]+= -ERIBuffCD[CrossYMNKL]*DXLSMS[bf23]*iscale
-                            +ERIBuffCD[CrossXMNKL]*DXLSMZ[bf23]
-                            -ERIBuffCD[DotPrdMNKL]*DXLSMY[bf23]
-                            -ERIBuffCD[CrossZMNKL]*DXLSMX[bf23];
-  
-            ADXLSMZ[bf14]+= -ERIBuffCD[CrossZMNKL]*DXLSMS[bf23]*iscale
-                            -ERIBuffCD[DotPrdMNKL]*DXLSMZ[bf23]
-                            +ERIBuffCD[CrossYMNKL]*DXLSMX[bf23]
-                            -ERIBuffCD[CrossXMNKL]*DXLSMY[bf23];
-  
-            //MNLK
-            if(bf3_s!=bf4_s) {
-  
-              ADXLSMS[bf13]+= -ERIBuffCD[DotPrdMNKL]*DXLSMS[bf24]
-                              +( ERIBuffCD[CrossZMNKL]*DXLSMZ[bf24]
-                                +ERIBuffCD[CrossXMNKL]*DXLSMX[bf24]
-                                +ERIBuffCD[CrossYMNKL]*DXLSMY[bf24])*iscale;
-  
-              ADXLSMX[bf13]+=  ERIBuffCD[CrossXMNKL]*DXLSMS[bf24]*iscale
-                              +ERIBuffCD[CrossYMNKL]*DXLSMZ[bf24]
-                              -ERIBuffCD[DotPrdMNKL]*DXLSMX[bf24]
-                              -ERIBuffCD[CrossZMNKL]*DXLSMY[bf24];
-  
-              ADXLSMY[bf13]+=  ERIBuffCD[CrossYMNKL]*DXLSMS[bf24]*iscale
-                              -ERIBuffCD[CrossXMNKL]*DXLSMZ[bf24]
-                              +ERIBuffCD[CrossZMNKL]*DXLSMX[bf24]
-                              -ERIBuffCD[DotPrdMNKL]*DXLSMY[bf24];
-  
-              ADXLSMZ[bf13]+=  ERIBuffCD[CrossZMNKL]*DXLSMS[bf24]*iscale
-                              -ERIBuffCD[DotPrdMNKL]*DXLSMZ[bf24]
-                              -ERIBuffCD[CrossYMNKL]*DXLSMX[bf24]
-                              +ERIBuffCD[CrossXMNKL]*DXLSMY[bf24];
-  
-            }
-  
-            //NMKL
-            if(bf1_s!=bf2_s){
-              ADXLSMS[bf24]+= -ERIBuffCD[DotPrdMNKL]*DXLSMS[bf13]
-                              -( ERIBuffCD[CrossZMNKL]*DXLSMZ[bf13]
-                                +ERIBuffCD[CrossXMNKL]*DXLSMX[bf13]
-                                +ERIBuffCD[CrossYMNKL]*DXLSMY[bf13])*iscale;
-  
-              ADXLSMX[bf24]+= -ERIBuffCD[CrossXMNKL]*DXLSMS[bf13]*iscale
-                              -ERIBuffCD[CrossYMNKL]*DXLSMZ[bf13]
-                              -ERIBuffCD[DotPrdMNKL]*DXLSMX[bf13]
-                              +ERIBuffCD[CrossZMNKL]*DXLSMY[bf13];
-  
-              ADXLSMY[bf24]+= -ERIBuffCD[CrossYMNKL]*DXLSMS[bf13]*iscale
-                              +ERIBuffCD[CrossXMNKL]*DXLSMZ[bf13]
-                              -ERIBuffCD[CrossZMNKL]*DXLSMX[bf13]
-                              -ERIBuffCD[DotPrdMNKL]*DXLSMY[bf13];
-  
-              ADXLSMZ[bf24]+= -ERIBuffCD[CrossZMNKL]*DXLSMS[bf13]*iscale
-                              -ERIBuffCD[DotPrdMNKL]*DXLSMZ[bf13]
-                              +ERIBuffCD[CrossYMNKL]*DXLSMX[bf13]
-                              -ERIBuffCD[CrossXMNKL]*DXLSMY[bf13];
-  
-              if(bf3_s!=bf4_s) {
-  
-                ADXLSMS[bf23]+= -ERIBuffCD[DotPrdMNKL]*DXLSMS[bf14]
-                                +( ERIBuffCD[CrossZMNKL]*DXLSMZ[bf14]
-                                  +ERIBuffCD[CrossXMNKL]*DXLSMX[bf14]
-                                  +ERIBuffCD[CrossYMNKL]*DXLSMY[bf14])*iscale;
-  
-                ADXLSMX[bf23]+= +ERIBuffCD[CrossXMNKL]*DXLSMS[bf14]*iscale
-                                +ERIBuffCD[CrossYMNKL]*DXLSMZ[bf14]
-                                -ERIBuffCD[DotPrdMNKL]*DXLSMX[bf14]
-                                -ERIBuffCD[CrossZMNKL]*DXLSMY[bf14];
-  
-                ADXLSMY[bf23]+= +ERIBuffCD[CrossYMNKL]*DXLSMS[bf14]*iscale
-                                -ERIBuffCD[CrossXMNKL]*DXLSMZ[bf14]
-                                +ERIBuffCD[CrossZMNKL]*DXLSMX[bf14]
-                                -ERIBuffCD[DotPrdMNKL]*DXLSMY[bf14];
-  
-                ADXLSMZ[bf23]+= +ERIBuffCD[CrossZMNKL]*DXLSMS[bf14]*iscale
-                                -ERIBuffCD[DotPrdMNKL]*DXLSMZ[bf14]
-                                -ERIBuffCD[CrossYMNKL]*DXLSMX[bf14]
-                                +ERIBuffCD[CrossXMNKL]*DXLSMY[bf14];
-  
-              }
-            }
-  
-            /*------------------------------------------*/
-            /*   End of Dirac-Coulomb (LL|SS) / (SS|LL) */
-            /*------------------------------------------*/
-          }
-        }
-        }  
-          } // contraction loop
-  
-#endif // Contraction
-  
-  
-        }; // loop s4
-        }; // loop s3
-        }; // loop s2
-        }; // loop s1
-  
-  
-      } // OpenMP context
-  
-  
-      for( auto iTh  = 0; iTh < nThreads; iTh++) {
-   
-        MatAdd('N','N',nBasis,nBasis,MatsT(1.0),AXthreads[iTh][XLSMS],nBasis,MatsT(1.0),
-           matList[XLSMS].AX,nBasis,matList[XLSMS].AX,nBasis);
-
-        MatAdd('N','N',nBasis,nBasis,MatsT(1.0),AXthreads[iTh][XLSMX],nBasis,MatsT(1.0),
-           matList[XLSMX].AX,nBasis,matList[XLSMX].AX,nBasis);
-
-        MatAdd('N','N',nBasis,nBasis,MatsT(1.0),AXthreads[iTh][XLSMY],nBasis,MatsT(1.0),
-           matList[XLSMY].AX,nBasis,matList[XLSMY].AX,nBasis);
-
-        MatAdd('N','N',nBasis,nBasis,MatsT(1.0),AXthreads[iTh][XLSMZ],nBasis,MatsT(1.0),
-           matList[XLSMZ].AX,nBasis,matList[XLSMZ].AX,nBasis);
-  
-      };
-   
-      memManager_.free(ERIBuffer);
-      memManager_.free(buffAll, cacheAll);
-#ifdef _SHZ_SCREEN_4C
-      if(ShBlkNorms_raw!=nullptr) memManager_.free(ShBlkNorms_raw);
-#endif
-  
-#ifdef _REPORT_INTEGRAL_TIMINGS
-      size_t nIntSkipLS = std::accumulate(nSkipLS.begin(),nSkipLS.end(),0);
-      std::cout << "Dirac-Coulomb-LS Screened " << nIntSkipLS << std::endl;
-  
-      auto durDirectLS = tock(topDirectLS);
-      std::cout << "Dirac-Coulomb-LS AO Direct Contraction took " <<  durDirectLS << " s\n"; 
-  
-      std::cout << std::endl;
-#endif
-
-    } // if(LLSS)
-
-    /***************************/
-    /*                         */
-    /*   End of (LLSS)/(SSLL)  */
-    /*                         */
-    /***************************/
-
-
-
-
-
-
-
-
 
 
 
@@ -4179,14 +3756,14 @@ namespace ChronusQ {
   }
 
   template <>
-  void GTODirectRelERIContraction<double,double>::directScaffoldLibcint(
+  void GTODirectRelERIContraction<double,double>::directScaffoldLibcintCoulombOnly(
     MPI_Comm comm, const bool screen,
     std::vector<TwoBodyContraction<double>> &matList) const {
     CErr("Dirac-Coulomb + Real is an invalid option",std::cout);  
   }
 
   template <>
-  void GTODirectRelERIContraction<dcomplex,dcomplex>::directScaffoldLibcint(
+  void GTODirectRelERIContraction<dcomplex,dcomplex>::directScaffoldLibcintCoulombOnly(
     MPI_Comm comm, const bool screen,
     std::vector<TwoBodyContraction<dcomplex>> &matList) const {
     CErr("Complex integral is is an invalid option",std::cout);  

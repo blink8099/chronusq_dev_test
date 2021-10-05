@@ -67,7 +67,7 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   void FockBuilder<MatsT,IntsT>::formGD(SingleSlater<MatsT,IntsT> &ss,
-    EMPerturbation &pert, bool increment, double xHFX) {
+    EMPerturbation &pert, bool increment, double xHFX, bool HerDen) {
 
     // Decide list of onePDMs to use
     PauliSpinorSquareMatrices<MatsT> &contract1PDM
@@ -84,7 +84,7 @@ namespace ChronusQ {
     }
 
     std::vector<TwoBodyContraction<MatsT>> contract =
-      { {contract1PDM.S().pointer(), ss.coulombMatrix->pointer(), true, COULOMB} };
+      { {contract1PDM.S().pointer(), ss.coulombMatrix->pointer(), HerDen, COULOMB} };
 
     // Determine how many (if any) exchange terms to calculate
     if( std::abs(xHFX) > 1e-12 and not increment and ss.nC == 1 and
@@ -105,18 +105,18 @@ namespace ChronusQ {
 
     } else if( std::abs(xHFX) > 1e-12 ) {
       contract.push_back(
-          {contract1PDM.S().pointer(), ss.exchangeMatrix->pointer(), true, EXCHANGE}
+          {contract1PDM.S().pointer(), ss.exchangeMatrix->pointer(), HerDen, EXCHANGE}
       );
       if (ss.exchangeMatrix->hasZ())
         contract.push_back(
-            {contract1PDM.Z().pointer(), ss.exchangeMatrix->Z().pointer(), true, EXCHANGE}
+            {contract1PDM.Z().pointer(), ss.exchangeMatrix->Z().pointer(), HerDen, EXCHANGE}
         );
       if (ss.exchangeMatrix->hasXY()) {
         contract.push_back(
-            {contract1PDM.Y().pointer(), ss.exchangeMatrix->Y().pointer(), true, EXCHANGE}
+            {contract1PDM.Y().pointer(), ss.exchangeMatrix->Y().pointer(), HerDen, EXCHANGE}
         );
         contract.push_back(
-            {contract1PDM.X().pointer(), ss.exchangeMatrix->X().pointer(), true, EXCHANGE}
+            {contract1PDM.X().pointer(), ss.exchangeMatrix->X().pointer(), HerDen, EXCHANGE}
         );
       }
     }

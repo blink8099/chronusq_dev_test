@@ -26,6 +26,7 @@
 #include <particleintegrals/twopints.hpp>
 //#include <util/time.hpp>
 #include <cxxapi/output.hpp>
+#include <util/matout.hpp>
 
 namespace ChronusQ {
 
@@ -156,7 +157,7 @@ namespace ChronusQ {
         out << "  Two particle integral:" << std::endl;
       else
         out << "  TPI[" << s << "]:" << std::endl;
-      out << "  " << std::setw(28) << "  Contraction Algorithm:";
+      out << "    * Contraction Algorithm: ";
       out << "INCORE (Gemm)";
       out << std::endl;
       if (printFull) {
@@ -168,8 +169,10 @@ namespace ChronusQ {
         for(auto j = 0ul; j < NB; j++)
         for(auto k = 0ul; k < sNB; k++)
         for(auto l = 0ul; l < sNB; l++){
-          out << "    (" << i << "," << j << "|" << k << "," << l << ")  ";
-          out << operator()(i,j,k,l) << std::endl;
+          if (std::abs(operator()(i,j,k,l)) > PRINT_SMALL) {
+            out << "    (" << i << "," << j << "|" << k << "," << l << ")  ";
+            out << operator()(i,j,k,l) << std::endl;
+          }
         };
         out << bannerEnd << std::endl;
       }
@@ -189,7 +192,7 @@ namespace ChronusQ {
     }
 
     template <typename IntsU>
-    InCore4indexTPI<IntsU> spatialToSpinBlock() const;
+    InCore4indexTPI<IntsU> spatialToSpinBlock(char TRANS1 = 'I', char TRANS2 = 'I') const;
 
     template <typename TransT>
     InCore4indexTPI<typename std::conditional<

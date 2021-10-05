@@ -37,9 +37,12 @@ namespace ChronusQ {
     CHOLESKY
   }; ///< Orthonormalization Scheme
 
-
-
-
+  enum TPI_TRANSFORMATION_ALG {
+      INCORE_N6 = 0, // hack thru ss.formfock
+      DIRECT_N6 = 1, // hack thru ss.formfock
+      INCORE_N5 = 2,
+      DIRECT_N5 = 3, // NYI
+  };
 
   /**
    *  \brief Abstract Base class for AOIntegrals
@@ -52,6 +55,7 @@ namespace ChronusQ {
     
     SafeFile savFile; ///< Hard storage of integrals
     HamiltonianOptions options_;
+    TPI_TRANSFORMATION_ALG TPITransAlg = TPI_TRANSFORMATION_ALG::DIRECT_N6;
 
     // Default copy and move ctors
     IntegralsBase( const IntegralsBase & ) = default;

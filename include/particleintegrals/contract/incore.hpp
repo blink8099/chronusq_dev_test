@@ -125,46 +125,50 @@ namespace ChronusQ {
       std::swap(NB,sNB);
       std::swap(NB2,sNB2);
     }
+    
+    const bool sameIntsTMatsT = std::is_same<IntsT,MatsT>::value;
 
-    IntsT *X  = reinterpret_cast<IntsT*>(C.X);
-    IntsT *AX = reinterpret_cast<IntsT*>(C.AX);
+    // for Hermitian densities, output Coulomb Matrix is same type as IntsT
+    if (C.HER or sameIntsTMatsT) {
 
-    // Extract the real part of X if X is Hermetian and if the ints are
-    // real
-    const bool extractRealPartX = 
-      C.HER and std::is_same<IntsT,double>::value and 
-      std::is_same<MatsT,dcomplex>::value;
+      IntsT *X  = reinterpret_cast<IntsT*>(C.X);
+      IntsT *AX = reinterpret_cast<IntsT*>(C.AX);
 
-    // Allocate scratch if IntsT and MatsT are different
-    const bool allocAXScratch = not std::is_same<IntsT,MatsT>::value;
+      // Extract the real part of X if X is Hermetian and if the ints are
+      // real
+      const bool extractRealPartX = 
+        C.HER and std::is_same<IntsT,double>::value and 
+        std::is_same<MatsT,dcomplex>::value;
+
+      // Allocate scratch if IntsT and MatsT are different
+      const bool allocAXScratch = not std::is_same<IntsT,MatsT>::value;
+
+      if( extractRealPartX ) {
+
+        size_t Xdim = this->auxContract ? sNB2 : NB2;
+        X = memManager_.malloc<IntsT>(Xdim);
+        for(auto k = 0ul; k < Xdim; k++) X[k] = std::real(C.X[k]);
+      }
+
+      if( allocAXScratch ) {
+
+        AX = memManager_.malloc<IntsT>(NB2);
+        std::fill_n(AX,NB2,0.);
+
+      }
 
 
-    if( extractRealPartX ) {
+      #ifdef _BULLET_PROOF_INCORE
 
-      size_t Xdim = this->auxContract ? sNB2 : NB2;
-      X = memManager_.malloc<IntsT>(Xdim);
-      for(auto k = 0ul; k < Xdim; k++) X[k] = std::real(C.X[k]);
-    }
+      size_t NB3 = sNB * NB2;
+      for(auto i = 0; i < NB; ++i)
+      for(auto j = 0; j < NB; ++j)
+      for(auto k = 0; k < sNB; ++k)
+      for(auto l = 0; l < sNB; ++l)
 
-    if( allocAXScratch ) {
+        C.AX[i + j*NB] += tpi4I(i, j, l, k) * C.X[k + l*NB];
 
-      AX = memManager_.malloc<IntsT>(NB2);
-      std::fill_n(AX,NB2,0.);
-
-    }
-
-
-    #ifdef _BULLET_PROOF_INCORE
-
-    size_t NB3 = sNB * NB2;
-    for(auto i = 0; i < NB; ++i)
-    for(auto j = 0; j < NB; ++j)
-    for(auto k = 0; k < sNB; ++k)
-    for(auto l = 0; l < sNB; ++l)
-
-      C.AX[i + j*NB] += tpi4I(i, j, l, k) * C.X[k + l*NB];
-
-    #else
+      #else
 
     if( std::is_same<IntsT,dcomplex>::value )
       blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
@@ -174,32 +178,39 @@ namespace ChronusQ {
       else
         blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),sNB2,X,sNB2,IntsT(0.),AX,NB2);
 
-    // if Complex ints + Hermitian, conjugate
-    if( std::is_same<IntsT,dcomplex>::value and C.HER )
-      IMatCopy('R',NB,NB,IntsT(1.),AX,NB,NB);
+      // if Complex ints + Hermitian, conjugate
+      if( std::is_same<IntsT,dcomplex>::value and C.HER )
+        IMatCopy('R',NB,NB,IntsT(1.),AX,NB,NB);
 
-    // If non-hermetian, transpose
-    if( not C.HER )  {
+      // If non-hermetian, transpose
+      if( not C.HER )  {
 
-      IMatCopy('T',NB,NB,IntsT(1.),AX,NB,NB);
+        IMatCopy('T',NB,NB,IntsT(1.),AX,NB,NB);
 
-    }
+      }
 
-    #endif
+      #endif
 
-    // Cleanup temporaries
-    if( extractRealPartX ) memManager_.free(X);
-    if( allocAXScratch ) {
+      // Cleanup temporaries
+      if( extractRealPartX ) memManager_.free(X);
+      if( allocAXScratch ) {
 
-      std::copy_n(AX,NB2,C.AX);
-      memManager_.free(AX);
+        std::copy_n(AX,NB2,C.AX);
+        memManager_.free(AX);
 
+      }
+    
+    // for non-hermiatin and MatsT = dcomplex, IntsT = double
+    } else {
+      if (not this->auxContract)
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB2,1,sNB2,MatsT(1.),tpi4I.pointer(),NB2,C.X,sNB2,MatsT(0.),C.AX,NB2);
+      else
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB2,1,sNB2,MatsT(1.),tpi4I.pointer(),sNB2,C.X,sNB2,MatsT(0.),C.AX,NB2);
     }
 
     ProgramTimer::tock("J Contract");
 
   }; // InCore4indexERIContraction::JContract
-
 
   template <typename MatsT, typename IntsT>
   void InCore4indexTPIContraction<MatsT, IntsT>::KContract(

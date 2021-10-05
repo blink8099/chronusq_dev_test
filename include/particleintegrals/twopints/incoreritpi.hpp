@@ -164,7 +164,7 @@ namespace ChronusQ {
         out << "  Electron repulsion integral:" << std::endl;
       else
         out << "  ERI[" << s << "]:" << std::endl;
-      out << "  " << std::setw(28) << "  Contraction Algorithm:";
+      out << "    * Contraction Algorithm: ";
       out << "INCORE RI (Gemm)";
       out << std::endl;
       if (printFull) {
@@ -280,7 +280,7 @@ namespace ChronusQ {
         out << "  Electron repulsion integral:" << std::endl;
       else
         out << "  ERI[" << s << "]:" << std::endl;
-      out << "  " << std::setw(28) << "  Contraction Algorithm:";
+      out << "    * Contraction Algorithm: ";
       out << "INCORE auxiliary basis RI (Gemm)";
       out << std::endl;
       if (printFull) {
@@ -430,7 +430,7 @@ namespace ChronusQ {
         out << "  Electron repulsion integral:" << std::endl;
       else
         out << "  ERI[" << s << "]:" << std::endl;
-      out << "  " << std::setw(28) << "  Contraction Algorithm:";
+      out << "    * Contraction Algorithm: ";
       out << "INCORE Cholesky decomposition RI (Gemm)";
       out << std::endl;
       if (printFull) {

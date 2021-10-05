@@ -144,6 +144,7 @@ namespace ChronusQ {
 #endif
 
     size_t NB = this->basisSet().nBasis;
+    moPairs.resize(2, {});
 
     moPairs.resize(2, {});
     
@@ -156,7 +157,6 @@ namespace ChronusQ {
       ortho.reserve(2);
       ortho.emplace_back(memManager, NB);
       ortho.emplace_back(memManager, NB);
-
 
       SPIN_OPERATOR_ALLOC(NB,exchangeMatrix);
       SPIN_OPERATOR_ALLOC(NB,twoeH);
@@ -215,7 +215,7 @@ namespace ChronusQ {
     deltaOnePDM = nullptr;
 
   }; // SingleSlater<MatsT>::dealloc
-
+ 
 }; // namespace ChronusQ
 
 
