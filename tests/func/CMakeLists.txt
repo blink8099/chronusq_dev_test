@@ -50,6 +50,7 @@ add_cq_test( DIRECT_CONTRACTION functest "DIRECT_CONTRACTION*" )
 add_cq_test( ORDQZ              functest "ORDQZ.*" )
 add_cq_test( GPLHR              functest "GPLHR.*" )
 add_cq_test( DAVIDSON           functest "DAVIDSON.*" )
+add_cq_test( CQMEMMANAGER       functest "CQMEM.*" )
 
 if( CQ_ENABLE_MPI )
   add_cq_mpi_test( GPLHR_MPI 2 functest "GPLHR.*" )
