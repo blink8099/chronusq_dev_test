@@ -23,6 +23,7 @@
  */
 #pragma once
 #include <particleintegrals.hpp>
+#include <matrix.hpp>
 #include <util/mpi.hpp>
 
 namespace ChronusQ {
@@ -72,7 +73,27 @@ namespace ChronusQ {
 
 
   }; // struct TwoBodyContraction
+  
+  /**
+   *  The RelTwoBodyContraction struct. Stores information
+   *  pertinant for a relativisitc two body operator contraction with
+   *  a one body (2 index) operator. z.B. The density matrix.
+   */
+  template <typename T>
+  struct TwoBodyRelContraction {
 
+    std::shared_ptr<PauliSpinorSquareMatrices<T>>  X;  ///< 1-Body (2 index) operator to contraction
+    std::shared_ptr<PauliSpinorSquareMatrices<T>>  AX; ///< 1-Body (2 index) storage for the contraction
+
+    bool HER; ///< Whether or not X is hermetian
+
+    TWOBODY_CONTRACTION_TYPE contType;
+
+    double* ERI4 = nullptr;
+
+    INTEGRAL_TRANSPOSE intTrans;
+
+  }; // struct RelTwoBodyContraction
 
   /**
    *  \brief Templated class to handle the evaluation and storage of
@@ -112,7 +133,7 @@ namespace ChronusQ {
         TwoPInts(other.memManager(), other.nBasis(), other.snBasis()) {
       if (std::is_same<IntsU, dcomplex>::value
           and std::is_same<IntsT, double>::value)
-        CErr("Cannot create a Real TwoEInts from a Complex one.");
+        CErr("Cannot create a Real TwoPInts from a Complex one.");
     }
 
     // return the basis numbers of the second particle

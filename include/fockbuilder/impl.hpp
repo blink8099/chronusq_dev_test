@@ -30,6 +30,7 @@
 #include <particleintegrals/twopints/incoreritpi.hpp>
 #include <fockbuilder/rofock/impl.hpp>
 #include <fockbuilder/fourcompfock/impl.hpp>
+#include <fockbuilder/fourcompfock/batchgd.hpp>
 #include <fockbuilder/matrixfock.hpp>
 
 #include <typeinfo>
@@ -68,23 +69,77 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void FockBuilder<MatsT,IntsT>::formGD(SingleSlater<MatsT,IntsT> &ss,
     EMPerturbation &pert, bool increment, double xHFX, bool HerDen) {
-
+  
     // Decide list of onePDMs to use
     PauliSpinorSquareMatrices<MatsT> &contract1PDM
         = increment ? *ss.deltaOnePDM : *ss.onePDM;
+    
+    std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> 
+      onePDMs, coulombMatrices, exchangeMatrices, twoeHs;
+    
+    // setup pointers 
+    if (increment) onePDMs.push_back(ss.deltaOnePDM);
+    else onePDMs.push_back(ss.onePDM);
+     
+    exchangeMatrices.push_back(ss.exchangeMatrix);
+    twoeHs.push_back(ss.twoeH);
+    
+    coulombMatrices.push_back(
+      std::make_shared<PauliSpinorSquareMatrices<MatsT>>(
+      ss.memManager, ss.coulombMatrix->dimension(), false, false)
+    );
+
+    formRawGDInBatches(ss, pert, increment, xHFX, HerDen, onePDMs, coulombMatrices, exchangeMatrices, twoeHs);
+    
+    * ss.coulombMatrix = coulombMatrices[0]->S(); 
+    
+  } // FockBuilder::formGD 
+  
+  /**
+   *  \brief Forms the Hartree-Fock perturbation tensor
+   *
+   *  actual work 
+   */
+  template <typename MatsT, typename IntsT>
+  void FockBuilder<MatsT,IntsT>::formRawGDInBatches(SingleSlater<MatsT,IntsT> &ss,
+    EMPerturbation &pert, bool increment, double xHFX, bool HerDen, 
+    std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> & onePDMs, 
+    std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> & coulombMatrices, 
+    std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> & exchangeMatrices,
+    std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> & twoeHs) {
 
     size_t NB = ss.basisSet().nBasis;
+    size_t nBatch = onePDMs.size();
+    bool computeCoulomb  = coulombMatrices.size() > 0;
+    bool computeExchange = (std::abs(xHFX) > 1e-12) and exchangeMatrices.size() > 0;
+    bool computeTwoeHs   = twoeHs.size() > 0;
+    
+    if (not computeCoulomb and not computeExchange and not computeTwoeHs) {
+     CErr("Nothing specified to compute in FockBuilder::formRawGDInBatches");
+    }  
+
     if( ss.nC == 4 )
       CErr("4C formGD is implemented in class FourCompFock.");
 
     // Zero out J and K[i]
     if(not increment) {
-      ss.coulombMatrix->clear();
-      ss.exchangeMatrix->clear();
+      for (auto i = 0ul; i < nBatch; i++) {
+        if (computeCoulomb)  coulombMatrices[i]->clear();
+        if (computeExchange) exchangeMatrices[i]->clear();
+        if (computeTwoeHs)   twoeHs[i]->clear();
+      }
     }
 
-    std::vector<TwoBodyContraction<MatsT>> contract =
-      { {contract1PDM.S().pointer(), ss.coulombMatrix->pointer(), HerDen, COULOMB} };
+    std::vector<TwoBodyContraction<MatsT>> contract;
+    
+    if (computeCoulomb or computeTwoeHs) {
+      auto & coulombContainers = computeCoulomb ? coulombMatrices: twoeHs;
+      for (auto i = 0ul; i < nBatch; i++) {
+        contract.push_back(
+          {onePDMs[i]->S().pointer(), coulombContainers[i]->S().pointer(), HerDen, COULOMB}
+        );
+      }
+    }
 
     // Determine how many (if any) exchange terms to calculate
     if( std::abs(xHFX) > 1e-12 and not increment and ss.nC == 1 and
@@ -93,31 +148,38 @@ namespace ChronusQ {
       ROOT_ONLY(ss.comm);
       auto ritpi = std::dynamic_pointer_cast<InCoreRITPIContraction<MatsT, IntsT>>(ss.TPI);
 
-      SquareMatrix<MatsT> AAblock(ss.exchangeMatrix->memManager(), NB);
+      SquareMatrix<MatsT> AAblock(exchangeMatrices[0]->memManager(), NB);
       ritpi->KCoefContract(ss.comm, ss.nOA, ss.mo[0].pointer(), AAblock.pointer());
       if(ss.iCS) {
-        *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock);
+        
+        for (auto i = 0ul; i < nBatch; i++) 
+          *exchangeMatrices[i] = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock);
+      
       } else {
-        SquareMatrix<MatsT> BBblock(ss.exchangeMatrix->memManager(), NB);
+        SquareMatrix<MatsT> BBblock(exchangeMatrices[0]->memManager(), NB);
         ritpi->KCoefContract(ss.comm, ss.nOB, ss.mo[1].pointer(), BBblock.pointer());
-        *ss.exchangeMatrix = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock, BBblock);
+        
+        for (auto i = 0ul; i < nBatch; i++) 
+          *exchangeMatrices[i] = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(AAblock, BBblock);
       }
 
-    } else if( std::abs(xHFX) > 1e-12 ) {
-      contract.push_back(
-          {contract1PDM.S().pointer(), ss.exchangeMatrix->pointer(), HerDen, EXCHANGE}
-      );
-      if (ss.exchangeMatrix->hasZ())
+    } else if(computeExchange) {
+      for (auto i = 0ul; i < nBatch; i++) { 
         contract.push_back(
-            {contract1PDM.Z().pointer(), ss.exchangeMatrix->Z().pointer(), HerDen, EXCHANGE}
+            {onePDMs[i]->S().pointer(), exchangeMatrices[i]->S().pointer(), HerDen, EXCHANGE}
         );
-      if (ss.exchangeMatrix->hasXY()) {
-        contract.push_back(
-            {contract1PDM.Y().pointer(), ss.exchangeMatrix->Y().pointer(), HerDen, EXCHANGE}
-        );
-        contract.push_back(
-            {contract1PDM.X().pointer(), ss.exchangeMatrix->X().pointer(), HerDen, EXCHANGE}
-        );
+        if (exchangeMatrices[i]->hasZ())
+          contract.push_back(
+            {onePDMs[i]->Z().pointer(), exchangeMatrices[i]->Z().pointer(), HerDen, EXCHANGE}
+          );
+        if (exchangeMatrices[i]->hasXY()) {
+          contract.push_back(
+            {onePDMs[i]->Y().pointer(), exchangeMatrices[i]->Y().pointer(), HerDen, EXCHANGE}
+          );
+          contract.push_back(
+            {onePDMs[i]->X().pointer(), exchangeMatrices[i]->X().pointer(), HerDen, EXCHANGE}
+          );
+        }
       }
     }
 
@@ -125,16 +187,21 @@ namespace ChronusQ {
 
     ROOT_ONLY(ss.comm); // Return if not root (J/K only valid on root process)
 
+    if (computeTwoeHs) {
+      for (auto i = 0ul; i < nBatch; i++) { 
+        // G[D] += 2*J[D]
+        if (computeCoulomb) {
+          *twoeHs[i] += 2.0 * *coulombMatrices[i];
+        } else {
+          *twoeHs[i] *= 2.0;
+        }
 
-    // Form GD: G[D] = 2.0*J[D] - K[D]
-    if( std::abs(xHFX) > 1e-12 ) {
-      *ss.twoeH = -xHFX * *ss.exchangeMatrix;
-    } else {
-      ss.twoeH->clear();
+        // Form GD: G[D] = 2.0*J[D] - K[D]
+        if (computeExchange) {
+          *twoeHs[i] -= xHFX * *exchangeMatrices[i];
+        } 
+      }
     }
-    // G[D] += 2*J[D]
-    *ss.twoeH += 2.0 * *ss.coulombMatrix;
-
 #if 0
   //printJ(std::cout);
     printK(std::cout);
@@ -143,6 +210,30 @@ namespace ChronusQ {
 
   } // FockBuilder::formGD
 
+  /*******************************************************************************/
+  /* Compute memory requirement for build 4C GD in Batches                       */
+  /* Returns:                                                                    */
+  /*   size_t SCR size needed for one batch                                      */
+  /*   IMPORTANT HERE: size are all in MatsT                                     */
+  /*******************************************************************************/
+  template <typename MatsT, typename IntsT>
+  size_t FockBuilder<MatsT,IntsT>::formRawGDSCRSizePerBatch(SingleSlater<MatsT,IntsT> &ss,
+    bool CoulombOnly) const {
+  
+      size_t SCRSize  = 0ul;
+  
+      if( std::dynamic_pointer_cast<GTODirectTPIContraction<MatsT,IntsT>>(ss.TPI) ) {
+        
+        GTODirectTPIContraction<MatsT,IntsT> &ERICon =
+            *std::dynamic_pointer_cast<GTODirectTPIContraction<MatsT,IntsT>>(ss.TPI);
+        
+        size_t nConPerBatch = CoulombOnly ? 1: 5;
+
+        SCRSize += ERICon.directScaffoldNewSCRSize() * nConPerBatch;
+      } 
+      
+      return SCRSize;
+  } // FockBuilder::formRawGDSCRSizePerBatch
 
   /**
    *  \brief Forms the Hartree-Fock perturbation tensor

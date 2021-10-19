@@ -29,7 +29,12 @@ namespace ChronusQ {
 
   template <typename MatsT, typename IntsT>
   class GTODirectRelERIContraction : public GTODirectTPIContraction<MatsT,IntsT> {
-
+  
+  protected:
+    
+    size_t libcintCacheSize(const TWOBODY_CONTRACTION_TYPE &, int *, const int, 
+      int *, const int, double *) const; 
+  
   public:
 
     IntsT *ERI4DCB = nullptr; // Storage for 3-index DCB ERI intermediates
@@ -64,6 +69,19 @@ namespace ChronusQ {
 //      twoBodyContract3Index(comm, list);
     }
 
+    virtual void twoBodyRelContract(
+        MPI_Comm comm,
+        const bool screen,
+        std::vector<TwoBodyRelContraction<MatsT>> &list,
+        EMPerturbation&,
+        const bool CoulombOnly = false) const {
+      
+      if (CoulombOnly) directRelScaffoldLibcintCoulombOnly(comm, screen, list);
+      else CErr("Exchange Term NYI in twoBodyRelContract"); 
+     // directScaffold(comm, screen, list);
+//      twoBodyContract3Index(comm, list);
+    }
+    
     void directScaffold(
         MPI_Comm,
         const bool,
@@ -78,6 +96,15 @@ namespace ChronusQ {
         MPI_Comm,
         const bool,
         std::vector<TwoBodyContraction<MatsT>>&) const;
+    
+    void directRelScaffoldLibcintCoulombOnly(
+        MPI_Comm,
+        const bool,
+        std::vector<TwoBodyRelContraction<MatsT>>&) const;
+   
+    size_t directRelScaffoldLibcintSCRSize(
+      const TWOBODY_CONTRACTION_TYPE &,
+      const bool) const;
     
     void twoBodyContract3Index(
         MPI_Comm,

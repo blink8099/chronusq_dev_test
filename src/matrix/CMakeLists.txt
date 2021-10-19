@@ -23,6 +23,7 @@
 add_library(matrix STATIC
 transform.cxx
 spatialtospinor.cxx
+components.cxx
 arithmetic/squarematrix.cxx
 arithmetic/paulispinormatrices.cxx
 arithmetic/scaledmatrix.cxx

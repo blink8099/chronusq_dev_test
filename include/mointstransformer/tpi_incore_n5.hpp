@@ -34,27 +34,32 @@
 namespace ChronusQ {
 
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::cacheAOTPIInCore() {
+  std::shared_ptr<InCore4indexTPI<MatsT>> 
+  MOIntsTransformer<MatsT,IntsT>::getAOTPIInCore(bool cacheAOTPI) {
       
       // cache AOTPI
-      if (not AOTPI_) {
+      auto AOTPI = ints_cache_.getIntegral<InCore4indexTPI,MatsT>("AOTPI");
+
+      if (not AOTPI) { 
         if(ss_.nC == 1) {
-          AOTPI_ = std::make_shared<InCore4indexTPI<MatsT>>(
+          AOTPI = std::make_shared<InCore4indexTPI<MatsT>>(
                     *std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(ss_.aoints.TPI)); 
         } else if (ss_.nC == 2) {
           std::cout << "  * Using bare Coulomb Operator for 2e Integrals" << std::endl;
-          AOTPI_ = std::make_shared<InCore4indexTPI<MatsT>>(
+          AOTPI = std::make_shared<InCore4indexTPI<MatsT>>(
             std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(ss_.aoints.TPI)
               ->template spatialToSpinBlock<MatsT>()); 
         } else if (ss_.nC == 4) {
-          AOTPI_ = std::dynamic_pointer_cast<InCore4indexTPI<MatsT>>(
+          AOTPI = std::dynamic_pointer_cast<InCore4indexTPI<MatsT>>(
             std::make_shared<InCore4indexRelERI<MatsT>>(
               std::dynamic_pointer_cast<InCore4indexRelERI<IntsT>>(ss_.aoints.TPI)
                 ->template spatialToSpinBlock<MatsT>()));
         }
-      }
 
-     return; 
+        if (cacheAOTPI) ints_cache_.addIntegral("AOTPI", AOTPI);
+      } 
+
+     return AOTPI; 
   }; // MOIntsTransformer::cacheAOTPIInCore
   
   /**
@@ -62,17 +67,17 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::subsetTransformTPIInCoreN5(
-    const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * MOTPI) {
+    const std::vector<std::pair<size_t,size_t>> & off_sizes, MatsT * MOTPI, bool cacheIntermediates) {
       
-      cacheAOTPIInCore(); 
+      auto AOTPI = getAOTPIInCore(cacheIntermediates); 
        
       size_t nAO = ss_.mo[0].dimension();
       auto MO = ss_.mo[0].pointer();
       
       if (ss_.nC != 4) {
-        AOTPI_->subsetTransform('N', MO, nAO, off_sizes, MOTPI);
+        AOTPI->subsetTransform('N', MO, nAO, off_sizes, MOTPI);
       } else {
-        auto AOTPI4C = std::dynamic_pointer_cast<InCore4indexRelERI<MatsT>>(AOTPI_);
+        auto AOTPI4C = std::dynamic_pointer_cast<InCore4indexRelERI<MatsT>>(AOTPI);
         AOTPI4C->subsetTransform('N', MO, nAO, off_sizes, MOTPI);
       }
 

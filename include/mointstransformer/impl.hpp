@@ -48,23 +48,24 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::transformTPI(EMPerturbation & pert, 
-    MatsT* MOTPI, const std::string & moType, bool antiSymm) {
+    MatsT* MOTPI, const std::string & moType, bool cacheIntermediates, bool withExchange) {
     
-    // if (ss_.nC == 1) CErr("transformTPI not implemented for 1C");
-
     auto off_sizes = parseMOType(moType);
     
     // get the Coulomb part
     if (TPITransAlg_ == DIRECT_N6 or TPITransAlg_ == INCORE_N6) {
-      subsetTransformTPISSFockN6(pert, off_sizes, MOTPI);
+      subsetTransformTPISSFockN6(pert, off_sizes, MOTPI, moType, cacheIntermediates);
     } else if (TPITransAlg_ == INCORE_N5) {
-      subsetTransformTPIInCoreN5(off_sizes, MOTPI);
+      subsetTransformTPIInCoreN5(off_sizes, MOTPI, cacheIntermediates);
     } else {
       CErr("DIRECT_N5 NYI");
     }
 
-    // get exchange part if anti-symmetrize MOTPI
-    if (antiSymm) {
+    // get exchange part if needed
+    // for 2c/4c: it's antisymmetrized integrals (pq|rs) - (ps|rq)
+    // for 1c: it's scaled for spins, so exchange part will be scaled with 0.5. 
+    //         So (pq|rs) - 0.5 * (ps|rq) will be computed
+    if (withExchange) {
       
       size_t qoff = off_sizes[1].first;
       size_t soff = off_sizes[3].first;
@@ -78,31 +79,49 @@ namespace ChronusQ {
       size_t npsr = nps * nr;
       
       bool qsSymm = (qoff == soff) and (nq == ns); 
-      MatsT * SCR = nullptr;
+      
+      MatsT fc = ss_.nC == 1 ? 0.5: 1.0;
+
       if (qsSymm) {
-         SCR = MOTPI;
+        #pragma omp parallel for schedule(static) collapse(2) default(shared)       
+        for (auto r = 0ul; r < nr; r++) 
+        for (auto p = 0ul; p < np; p++) {
+          MatsT tmp1, tmp2;
+          size_t pqrs, psrq;
+          auto prnpq = p + r*npq;
+          auto prnps = p + r*nps;
+          for (auto s = 0ul; s < ns; s++)
+          for (auto q = 0ul; q <= s; q++) {
+            pqrs = prnpq + q*np + s*npqr;
+            psrq = prnps + s*np + q*npsr;
+            tmp1 = MOTPI[pqrs];
+            tmp2 = MOTPI[psrq];
+            MOTPI[pqrs] = tmp1 - fc * tmp2;
+            MOTPI[psrq] = tmp2 - fc * tmp1;
+          }
+        }
       } else {
-        SCR = memManager_.malloc<MatsT>(npqr*ns);
+        
+        MatsT * SCR = memManager_.malloc<MatsT>(npqr*ns);
         std::string moType_exchange = "";
         moType_exchange += moType[0];
         moType_exchange += moType[3];
         moType_exchange += moType[2];
         moType_exchange += moType[1];
-        transformTPI(pert, SCR, moType_exchange, false); 
-      }
-    
-#pragma omp parallel for schedule(static) collapse(2) default(shared)       
-      for (auto s = 0ul; s < ns; s++)
-      for (auto r = 0ul; r < nr; r++) 
-      for (auto q = 0ul; q <= s; q++) 
-      for (auto p = 0ul; p < np; p++) { 
-          MOTPI[p + q*np + r*npq + s*npqr] -= SCR[p + s*np + r*nps + q*npsr]; 
-          MOTPI[p + s*np + r*npq + q*npqr] = - MOTPI[p + q*np + r*npq + s*npqr]; 
-      }
-        
-      if(not qsSymm) memManager_.free(SCR);
+        transformTPI(pert, SCR, moType_exchange, true, false); 
 
-    }
+#pragma omp parallel for schedule(static) collapse(2) default(shared)       
+        for (auto s = 0ul; s < ns; s++)
+        for (auto r = 0ul; r < nr; r++) 
+        for (auto q = 0ul; q < nq; q++) 
+        for (auto p = 0ul; p < np; p++) { 
+          MOTPI[p + q*np + r*npq + s*npqr] -= fc * SCR[p + s*np + r*nps + q*npsr]; 
+        }
+        
+        memManager_.free(SCR);
+      }
+    }  
+  
   }; // MOIntsTransformer::transformTPI 
 
 }; // namespace ChronusQ

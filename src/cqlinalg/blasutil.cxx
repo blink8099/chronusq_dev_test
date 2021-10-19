@@ -252,15 +252,161 @@ namespace ChronusQ {
       const dcomplex *AZ, size_t LDAZ, const dcomplex *AY, size_t LDAY, const dcomplex *AX,
       size_t LDAX, bool zeroXY, bool zeroZ);
 
+  /*
+   *  Component Scatter a square matrix
+   *
+   *  A ==> [ A_LL, A_LS ] 
+   *        [ A_SL, A_SS ]
+   *
+   */
+  
+  template <typename _F1, typename _F2>
+  void ComponentScatter(size_t NL, size_t NS, const _F1 *A, size_t LDA,
+      _F2 ScaleLL, _F2 *ALL, size_t LDALL, _F2 ScaleLS, _F2 *ALS, size_t LDALS,
+      _F2 ScaleSL, _F2 *ASL, size_t LDASL, _F2 ScaleSS, _F2 *ASS, size_t LDASS,
+      bool increment) { 
 
+    size_t LS = NL*LDA;
+    size_t SL = NL;
+    size_t SS = LS + SL;
+    
+    if (increment) {
+      if (ALL) MatAdd('N','N',NL,NL,ScaleLL,A   ,LDA,_F2(1.),ALL,LDALL,ALL,LDALL); 
+      if (ALS) MatAdd('N','N',NL,NS,ScaleLS,A+LS,LDA,_F2(1.),ALS,LDALS,ALS,LDALS); 
+      if (ASL) MatAdd('N','N',NS,NL,ScaleSL,A+SL,LDA,_F2(1.),ASL,LDASL,ASL,LDASL); 
+      if (ASS) MatAdd('N','N',NS,NS,ScaleSS,A+SS,LDA,_F2(1.),ASS,LDASS,ASS,LDASS); 
+    } else {
+      if (ALL) SetMat('N',NL,NL,ScaleLL,A   ,LDA,ALL,LDALL); 
+      if (ALS) SetMat('N',NL,NS,ScaleLS,A+LS,LDA,ALS,LDALS); 
+      if (ASL) SetMat('N',NS,NL,ScaleSL,A+SL,LDA,ASL,LDASL); 
+      if (ASS) SetMat('N',NS,NS,ScaleSS,A+SS,LDA,ASS,LDASS); 
+    }
+  };
+  
+  template <typename _F1, typename _F2>
+  void ComponentScatter(size_t NL, size_t NS, const _F1 *A, size_t LDA,
+      _F2 *ALL, size_t LDALL, _F2 *ALS, size_t LDALS,
+      _F2 *ASL, size_t LDASL, _F2 *ASS, size_t LDASS,
+      bool increment) { 
 
+    ComponentScatter(NL,NS,A,LDA,_F2(1.),ALL,LDALL,_F2(1.),ALS,LDALS,
+      _F2(1.),ASL,LDASL,_F2(1.),ASS,LDASS,increment);
+  };
 
+  /*
+   *  Component Scatter a square matrix
+   *
+   *  [ A_LL, A_LS ]  ==>  A
+   *  [ A_SL, A_SS ]       
+   *
+   */
+  template <typename _F1, typename _F2>
+  void ComponentGather(size_t NL, size_t NS, _F1 *A, size_t LDA,
+    char TransLL, _F2 ScaleLL, const _F2 *ALL, size_t LDALL, 
+    char TransLS, _F2 ScaleLS, const _F2 *ALS, size_t LDALS,
+    char TransSL, _F2 ScaleSL, const _F2 *ASL, size_t LDASL, 
+    char TransSS, _F2 ScaleSS, const _F2 *ASS, size_t LDASS,
+    bool increment) {
+  
+    size_t LS = NL*LDA;
+    size_t SL = NL;
+    size_t SS = LS + SL;
+  
+    if (increment) {
+      if (ALL) MatAdd(TransLL,'N',NL,NL,ScaleLL,ALL,LDALL,_F2(1.),A   ,LDA,A   ,LDA); 
+      if (ALS) MatAdd(TransLS,'N',NL,NS,ScaleLS,ALS,LDALS,_F2(1.),A+LS,LDA,A+LS,LDA); 
+      if (ASL) MatAdd(TransSL,'N',NS,NL,ScaleSL,ASL,LDASL,_F2(1.),A+SL,LDA,A+SL,LDA); 
+      if (ASS) MatAdd(TransSS,'N',NS,NS,ScaleSS,ASS,LDASS,_F2(1.),A+SS,LDA,A+SS,LDA); 
+    } else {
+      if (ALL) SetMat(TransLL,NL,NL,ScaleLL,ALL,LDALL,A   ,LDA); 
+      if (ALS) SetMat(TransLS,NL,NS,ScaleLS,ALS,LDALS,A+LS,LDA); 
+      if (ASL) SetMat(TransSL,NS,NL,ScaleSL,ASL,LDASL,A+SL,LDA); 
+      if (ASS) SetMat(TransSS,NS,NS,ScaleSS,ASS,LDASS,A+SS,LDA); 
+    }
+  };
 
+  template <typename _F1, typename _F2>
+  void ComponentGather(size_t NL, size_t NS, _F1 *A, size_t LDA,
+    const _F2 *ALL, size_t LDALL, const _F2 *ALS, size_t LDALS,
+    const _F2 *ASL, size_t LDASL, const _F2 *ASS, size_t LDASS,
+    bool increment) {
+    
+    ComponentGather(NL,NS,A,LDA,'N',_F2(1.),ALL,LDALL,'N',_F2(1.),ALS,LDALS,
+      'N',_F2(1.),ASL,LDASL,'N',_F2(1.),ASS,LDASS,increment);
 
+  };
 
+  template 
+  void ComponentScatter(size_t NL, size_t NS, const double *A, size_t LDA, 
+    double ScaleLL, double *ALL, size_t LDALL, double ScaleLS, double *ALS, size_t LDALS, 
+    double ScaleSL, double *ASL, size_t LDASL, double ScaleSS, double *ASS, size_t LDASS, 
+    bool increment);
+  
+  template 
+  void ComponentScatter(size_t NL, size_t NS, const double *A, size_t LDA, 
+    dcomplex ScaleLL, dcomplex *ALL, size_t LDALL, dcomplex ScaleLS, dcomplex *ALS, size_t LDALS, 
+    dcomplex ScaleSL, dcomplex *ASL, size_t LDASL, dcomplex ScaleSS, dcomplex *ASS, size_t LDASS, 
+    bool increment);
+  
+  template 
+  void ComponentScatter(size_t NL, size_t NS, const dcomplex *A, size_t LDA, 
+    dcomplex ScaleLL, dcomplex *ALL, size_t LDALL, dcomplex ScaleLS, dcomplex *ALS, size_t LDALS, 
+    dcomplex ScaleSL, dcomplex *ASL, size_t LDASL, dcomplex ScaleSS, dcomplex *ASS, size_t LDASS, 
+    bool increment);
+  
+  template 
+  void ComponentScatter(size_t NL, size_t NS, const double *A, size_t LDA, 
+    double *ALL, size_t LDALL, double *ALS, size_t LDALS, 
+    double *ASL, size_t LDASL, double *ASS, size_t LDASS, bool increment);
+    
+  template 
+  void ComponentScatter(size_t NL, size_t NS, const double *A, size_t LDA, 
+    dcomplex *ALL, size_t LDALL, dcomplex *ALS, size_t LDALS, 
+    dcomplex *ASL, size_t LDASL, dcomplex *ASS, size_t LDASS, bool increment);
 
+  template 
+  void ComponentScatter(size_t NL, size_t NS, const dcomplex *A, size_t LDA, 
+    dcomplex *ALL, size_t LDALL, dcomplex *ALS, size_t LDALS, 
+    dcomplex *ASL, size_t LDASL, dcomplex *ASS, size_t LDASS, bool increment);
 
+  template 
+  void ComponentGather(size_t NL, size_t NS, double *A, size_t LDA, 
+    char TransLL, double ScaleLL, const double *ALL, size_t LDALL, 
+    char TransLS, double ScaleLS, const double *ALS, size_t LDALS, 
+    char TransSL, double ScaleSL, const double *ASL, size_t LDASL, 
+    char TransSS, double ScaleSS, const double *ASS, size_t LDASS, 
+    bool increment);
 
+  template 
+  void ComponentGather(size_t NL, size_t NS, dcomplex *A, size_t LDA, 
+    char TransLL, double ScaleLL, const double *ALL, size_t LDALL, 
+    char TransLS, double ScaleLS, const double *ALS, size_t LDALS, 
+    char TransSL, double ScaleSL, const double *ASL, size_t LDASL, 
+    char TransSS, double ScaleSS, const double *ASS, size_t LDASS, 
+    bool increment);
+
+  template 
+  void ComponentGather(size_t NL, size_t NS, dcomplex *A, size_t LDA, 
+    char TransLL, dcomplex ScaleLL, const dcomplex *ALL, size_t LDALL, 
+    char TransLS, dcomplex ScaleLS, const dcomplex *ALS, size_t LDALS, 
+    char TransSL, dcomplex ScaleSL, const dcomplex *ASL, size_t LDASL, 
+    char TransSS, dcomplex ScaleSS, const dcomplex *ASS, size_t LDASS, 
+    bool increment);
+
+  template 
+  void ComponentGather(size_t NL, size_t NS, double *A, size_t LDA, 
+    const double *ALL, size_t LDALL, const double *ALS, size_t LDALS, 
+    const double *ASL, size_t LDASL, const double *ASS, size_t LDASS, bool increment);
+  
+  template 
+  void ComponentGather(size_t NL, size_t NS, dcomplex *A, size_t LDA, 
+    const double *ALL, size_t LDALL, const double *ALS, size_t LDALS, 
+    const double *ASL, size_t LDASL, const double *ASS, size_t LDASS, bool increment);
+  
+  template 
+  void ComponentGather(size_t NL, size_t NS, dcomplex *A, size_t LDA, 
+    const dcomplex *ALL, size_t LDALL, const dcomplex *ALS, size_t LDALS, 
+    const dcomplex *ASL, size_t LDASL, const dcomplex *ASS, size_t LDASS, bool increment);
 
 
   template <typename _F1, typename _F2, typename _FScale>
@@ -674,6 +820,100 @@ namespace ChronusQ {
   void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, dcomplex alpha,
     dcomplex* A, size_t LDA, std::vector<dcomplex*> V, size_t LDB, dcomplex* SCR,
     std::vector<dcomplex*> U, size_t LDC);
+
+
+  template <typename ATyp, typename TTyp, typename BTyp>
+  void PairTransformation(char TRANST, const TTyp * T1, size_t LDT1, size_t OffK, 
+    const TTyp * T2, size_t LDT2, size_t OffL,
+    char TRANSA, const ATyp * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, BTyp * B, size_t NK, size_t NL, ATyp * ASCR, BTyp * SCR, bool increment) {
+
+    blas::Op OP_TRANS;
+    if (TRANST == 'T') {
+      OP_TRANS = blas::Op::Trans;
+    } else if (TRANST == 'C') {
+      OP_TRANS = blas::Op::ConjTrans;
+    } else if (TRANST == 'N') {
+      OP_TRANS = blas::Op::NoTrans;
+      OffK *= LDT1;
+      OffL *= LDT2;
+    } else CErr("Wrong TRANST in PairTransformation");
+    
+    const ATyp * AP = nullptr; 
+    
+    // Pre-processing A 
+    if(TRANSA == 'N') AP = A;
+    else if(TRANSA == 'R') {
+      SetMat('R', NI*NJ, NM, ATyp(1.), A, NI*NJ, ASCR, NI*NJ);
+      AP = ASCR; 
+    } else if (TRANSA == 'C' or TRANSA == 'T') {
+      SetMat(TRANSA, NM, NI*NJ, ATyp(1.), A, NM, ASCR, NI*NJ);
+      AP = ASCR; 
+    } else CErr("Wrong TRANSA in PairTransformation");
+
+    // first transformation
+    // SCR(J M, K) = A(I, J M)^H @ T(I, K)
+    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
+      NJ*NM, NK, NI, ATyp(1.), AP, NI, T1+OffK, LDT1, BTyp(0.), SCR, NJ*NM);
+
+    // second transformation
+    BTyp outFactor = increment ? 1.0 : 0.0;
+    // B(M K, L) = SCR(J, M K)^H @ T(J, L) 
+    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
+      NM*NK, NL, NJ, BTyp(1.), SCR, NJ, T2+OffL, LDT2, outFactor, B, NM*NK);
+    
+    // Post-processing B
+    if (TRANSB == 'N')      IMatCopy('T', NM, NK*NL, BTyp(1.), B, NM, NK*NL); 
+    else if (TRANSB == 'R') IMatCopy('C', NM, NK*NL, BTyp(1.), B, NM, NK*NL); 
+    else if (TRANSB == 'C') IMatCopy('R', NM, NK*NL, BTyp(1.), B, NM, NM); 
+    else if (TRANSB == 'T') ; // do nothing
+    else CErr("Wrong TRANSB in PairTransformation");
+  
+  } // PairTransformation
+
+  template 
+  void PairTransformation(char TRANST, const double * T1, size_t LDT1, size_t OffK, 
+    const double * T2, size_t LDT2, size_t OffL,
+    char TRANSA, const double * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, double * B, size_t NK, size_t NL, double * ASCR, double * SCR, bool increment);
+
+  template 
+  void PairTransformation(char TRANST, const double * T1, size_t LDT1, size_t OffK, 
+    const double * T2, size_t LDT2, size_t OffL,
+    char TRANSA, const dcomplex * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, dcomplex * B, size_t NK, size_t NL, dcomplex * ASCR, dcomplex * SCR, bool increment);
+
+  template 
+  void PairTransformation(char TRANST, const dcomplex * T1, size_t LDT1, size_t OffK, 
+     const dcomplex * T2, size_t LDT2, size_t OffL,
+    char TRANSA, const double * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, dcomplex * B, size_t NK, size_t NL, double * ASCR, dcomplex * SCR, bool increment);
+
+  template 
+  void PairTransformation(char TRANST, const dcomplex * T1, size_t LDT1, size_t OffK, 
+    const dcomplex * T2, size_t LDT2, size_t OffL,
+    char TRANSA, const dcomplex * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, dcomplex * B, size_t NK, size_t NL, dcomplex * ASCR, dcomplex * SCR, bool increment);
+
+  template 
+  void PairTransformation(char TRANST, const double * T, size_t LDT, size_t OffK, size_t OffL,
+    char TRANSA, const double * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, double * B, size_t NK, size_t NL, double * ASCR, double * SCR, bool increment);
+
+  template 
+  void PairTransformation(char TRANST, const double * T, size_t LDT, size_t OffK, size_t OffL,
+    char TRANSA, const dcomplex * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, dcomplex * B, size_t NK, size_t NL, dcomplex * ASCR, dcomplex * SCR, bool increment);
+
+  template 
+  void PairTransformation(char TRANST, const dcomplex * T, size_t LDT, size_t OffK, size_t OffL,
+    char TRANSA, const double * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, dcomplex * B, size_t NK, size_t NL, double * ASCR, dcomplex * SCR, bool increment);
+
+  template 
+  void PairTransformation(char TRANST, const dcomplex * T, size_t LDT, size_t OffK, size_t OffL,
+    char TRANSA, const dcomplex * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, dcomplex * B, size_t NK, size_t NL, dcomplex * ASCR, dcomplex * SCR, bool increment);
 
 }; // namespace ChronusQ
 

@@ -88,7 +88,7 @@ namespace ChronusQ {
        out << "INCORE N6";
     else if (aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::DIRECT_N6)
        out << "DIRECT N6";
-    else if (aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::INCORE_N6)
+    else if (aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::INCORE_N5)
        out << "INCORE N5";
     else if (aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::DIRECT_N5)
        out << "DIRECT N5";

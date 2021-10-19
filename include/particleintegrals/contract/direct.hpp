@@ -41,11 +41,13 @@
 
 #define _FULL_DIRECT
 //#define _SUB_TIMINGS
-//#define _REPORT_INTEGRAL_TIMINGS
+#define _REPORT_INTEGRAL_TIMINGS
 
 //#define _PRECOMPUTE_SHELL_PAIRS
 
 #define _SHZ_SCREEN
+#define _SEPARATED_SHZ_SCREEN
+
 
 #ifndef _FULL_DIRECT
   #define _BATCH_DIRECT
@@ -1432,6 +1434,7 @@ namespace ChronusQ {
       []( TwoBodyContraction<MatsT> & x ) -> bool { return not x.HER; });
 
 
+    bool sameBasisSet12 = &basisSet_ == &basisSet2_;
 #ifdef _SHZ_SCREEN
     // Compute schwarz bounds if we haven't already
     if(tpi.schwarz() == nullptr or tpi.schwarz2() == nullptr) 
@@ -1440,6 +1443,7 @@ namespace ChronusQ {
     double * schwarz1 = this->auxContract ? tpi.schwarz2() : tpi.schwarz();
     double * schwarz2 = this->auxContract ? tpi.schwarz()  : tpi.schwarz2();
 
+    if (sameBasisSet12) schwarz2 = schwarz1;
 #endif
 
 
@@ -1502,18 +1506,51 @@ namespace ChronusQ {
 
 #ifdef _SHZ_SCREEN
     // Compute shell block norms (∞-norm) of matList.X
-    double *ShBlkNorms_raw = memManager_.malloc<double>(nMat*snShell*snShell);
-    std::vector<double*> ShBlkNorms;
-    for(auto iMat = 0, iOff = 0; iMat < nMat; iMat++, iOff += snShell*snShell ) {
-      ShellBlockNorm(basisSet2_.shells,matList[iMat].X,snBasis,ShBlkNorms_raw + iOff);
-      ShBlkNorms.emplace_back(ShBlkNorms_raw + iOff);
-    }
+    // for all matrix
+    size_t nShBlkNormsMat = nMat + (nMat == 1 ? 0: 1);
+    double *ShBlkNorms_raw = memManager_.malloc<double>(nShBlkNormsMat*snShell*snShell);
+    double *ShBlkNorms = ShBlkNorms_raw; 
+    std::vector<double*> ShBlkNorms_Mat(nMat, nullptr);
+    
+    if (NonHermitian and not sameBasisSet12)
+      CErr("EPAI Contraction does not support non-Hermitian type.");
+    
+    size_t ShBlkNorms_Mat_Off = nMat == 1 ? 0: 1;
+    
+    // #pragma omp parallel for 
+    for(auto iMat = 0; iMat < nMat; iMat++) {
+      
+      ShBlkNorms_Mat[iMat] = ShBlkNorms_raw + (iMat+ShBlkNorms_Mat_Off)*snShell*snShell;
+      
+      double * ShBlkNorms_i = ShBlkNorms_Mat[iMat];
+      
+      ShellBlockNorm(basisSet2_.shells,matList[iMat].X,snBasis,ShBlkNorms_i);
+      for(auto j = 0; j < snShell*snShell; j++)
+        ShBlkNorms_i[j] = std::abs(ShBlkNorms_i[j]);
 
+      // symmetrize nonHermitian ShBlkNorms
+      if (not matList[iMat].HER) {
+        for(auto k = 0; k < nShell; k++)
+        for(auto l = 0; l < k;      l++) {
+          double mx = std::max(ShBlkNorms_i[k + l*nShell],
+                               ShBlkNorms_i[l + k*nShell]);
+          ShBlkNorms_i[k + l*nShell] = mx;
+          ShBlkNorms_i[l + k*nShell] = mx;
+        }
+      }
+    }
+    
+    // Get the max over all the matricies for the shell block ∞-norms
+    if (nMat != 1) { 
+      memset(ShBlkNorms,0.,snShell*snShell*sizeof(double));
+      #pragma omp parallel for 
+      for(auto i = 0; i < snShell*snShell; i++) 
+      for(auto iMat = 0; iMat < nMat; iMat++)
+        ShBlkNorms[i] = std::max(ShBlkNorms[i], ShBlkNorms_Mat[iMat][i]);
+    }
+    
     // Find the max value of shell block ∞-norms of all matList.X
-    double maxShBlkNorm = 0.;
-    for(auto iMat = 0; iMat < nMat; iMat++)
-      maxShBlkNorm = std::max(maxShBlkNorm,
-        *std::max_element(ShBlkNorms[iMat],ShBlkNorms[iMat] + snShell*snShell) ); 
+    double maxShBlkNorm = *std::max_element(ShBlkNorms, ShBlkNorms + snShell*snShell);
 
     size_t maxnPrim4 = 
       basisSet2_.maxPrim * basisSet2_.maxPrim * basisSet2_.maxPrim * 
@@ -1535,35 +1572,6 @@ namespace ChronusQ {
       );
 #endif
 
-    // Get the max over all the matricies for the shell block ∞-norms
-    // OVERWRITES ShBlkNorms[0]
-    if( !NonHermitian ) {
-      for(auto k = 0; k < snShell*snShell; k++) {
-        double mx = std::abs(ShBlkNorms[0][k]);
-        for(auto iMat = 1; iMat < nMat; iMat++)
-          mx = std::max(mx,std::abs(ShBlkNorms[iMat][k]));
-        ShBlkNorms[0][k] = mx;
-      }
-    } else {
-      if (&basisSet_ != &basisSet2_)
-        CErr("EPAI Contraction does not support non-Hermitian type.");
-      for(auto i = 0; i < nShell; i++)
-      for(auto j = 0; j <= i; j++) {
-        double mx = 
-          std::max(std::abs(ShBlkNorms[0][i + j*nShell]),
-                   std::abs(ShBlkNorms[0][j + i*nShell]));
-
-        for(auto iMat = 1; iMat < nMat; iMat++)
-          mx = std::max(mx,
-            std::max(std::abs(ShBlkNorms[iMat][i + j*nShell]),
-                     std::abs(ShBlkNorms[iMat][j + i*nShell])));
-
-        ShBlkNorms[0][i + j*nShell] = mx;
-        ShBlkNorms[0][j + i*nShell] = mx;
-      }
-    }
-
-
 #else
     // Set Linbint precision
     engines[0].set_precision(std::numeric_limits<double>::epsilon());
@@ -1576,9 +1584,11 @@ namespace ChronusQ {
     std::chrono::duration<double> durInner(0.), durCont(0.), durSymm(0.), durZero(0.);
 #endif
 
-    // Keeping track of number of integrals skipped
-    std::vector<size_t> nSkip(nThreads,0);
-
+    // Keeping track of number of integrals and contration skipped
+    std::vector<size_t> nIntSkip(nThreads,0);
+#ifdef _SEPARATED_SHZ_SCREEN    
+    std::vector<size_t> nConSkip(nThreads,0);
+#endif
     // MPI info
     size_t mpiChunks = (snShell * (snShell + 1) / 2) / mpiSize;
     size_t mpiS12St  = mpiRank * mpiChunks;
@@ -1586,6 +1596,7 @@ namespace ChronusQ {
     if( mpiRank == (mpiSize - 1) ) mpiS12End = (snShell * (snShell + 1) / 2);
 
     auto topDirect = tick();
+    
     #pragma omp parallel
     {
 
@@ -1601,12 +1612,24 @@ namespace ChronusQ {
     
     auto &AX_loc = AXthreads[thread_id];
 
-
     double * intBuffer_loc  = intBuffer  + thread_id*lenIntBuffer;
     double * intBuffer2_loc = intBuffer2 + thread_id*lenIntBuffer;
 
-
     size_t n1,n2;
+    
+    std::vector<size_t> contract_Mat(nMat);
+    size_t iCon, nCon;
+
+#if defined(_SHZ_SCREEN) && defined(_SEPARATED_SHZ_SCREEN)
+    std::vector<double> shMax123_Mat(nMat);
+    if (nMat == 1) {
+      contract_Mat[0] = 0;
+      nCon = 1;
+    }
+#else
+    std::iota(contract_Mat.begin(), contract_Mat.end(), 0);
+    nCon = nMat;
+#endif
 
     // Always Loop over s2 <= s1
     for(size_t s1(0ul), bf1_s(0ul), s12(0ul); s1 < nShell; bf1_s+=n1, s1++) { 
@@ -1639,7 +1662,7 @@ namespace ChronusQ {
       double shz12 = 0, shMax12 = 0;
       if( screen ) {
         shz12 = schwarz1[s1 + s2*nShell];
-        shMax12 = ShBlkNorms[0][s1 + s2*nShell];
+        shMax12 = ShBlkNorms[s1 + s2*nShell];
       }
 #endif
 
@@ -1661,14 +1684,22 @@ namespace ChronusQ {
 #ifdef _SHZ_SCREEN
 
         double shMax123 = 0;
-        if( screen and (&basisSet_ == &basisSet2_) ) {
+        if( screen and sameBasisSet12 ) {
           // Pre-calculate shell-block norm max's that only
           // depend on shells 1,2 and 3
           shMax123 = 
-            std::max(ShBlkNorms[0][s1 + s3*nShell], 
-                     ShBlkNorms[0][s2 + s3*nShell]);
+            std::max(ShBlkNorms[s1 + s3*nShell], 
+                     ShBlkNorms[s2 + s3*nShell]);
 
           shMax123 = std::max(shMax123,shMax12);
+#ifdef _SEPARATED_SHZ_SCREEN          
+          if (nMat != 1)
+          for (auto iMat = 0; iMat < nMat; iMat++)
+            shMax123_Mat[iMat] = 
+              std::max(ShBlkNorms_Mat[iMat][s1 + s2*nShell],
+              std::max(ShBlkNorms_Mat[iMat][s1 + s3*nShell],
+                       ShBlkNorms_Mat[iMat][s2 + s3*nShell]));
+#endif
         }
 
 #endif
@@ -1703,30 +1734,53 @@ namespace ChronusQ {
 
         if( screen ) {
           // Compute Shell norm max
-          if (&basisSet_ == &basisSet2_) {
-            shMax = 
-              std::max(ShBlkNorms[0][s1 + s4*nShell],
-              std::max(ShBlkNorms[0][s2 + s4*nShell],
-                       ShBlkNorms[0][s3 + s4*nShell]));
-
+          shMax = ShBlkNorms[s3 + s4*snShell];
+          
+          if (sameBasisSet12) {
+            shMax = std::max(shMax,
+                      std::max(ShBlkNorms[s1 + s4*nShell],
+                               ShBlkNorms[s2 + s4*nShell]));
             shMax = std::max(shMax,shMax123);
           }
-          else 
-            shMax = ShBlkNorms[0][s3 + s4*snShell];
-
-
+          
+          // for same basissets, schwarz2 has been changed to schwarz1
+          if((shMax * shz12 * schwarz2[s3 + s4*snShell]) <
+             tpi.threshSchwarz()) { 
+            nIntSkip[thread_id]++; 
+#ifdef _SEPARATED_SHZ_SCREEN
+            nConSkip[thread_id] += nMat;
 #endif
+            std::cout << "s1234 = " << s1 << " " << s2 << " " << s3 << " " << s4 << std::endl;
+            continue; 
+          }
 
-          if (&basisSet_ != &basisSet2_) {
-            if((shMax * shz12 * schwarz2[s3 + s4*snShell]) <
-               tpi.threshSchwarz()) { nSkip[thread_id]++; continue; }
+#ifdef _SEPARATED_SHZ_SCREEN
+          if (nMat != 1) {
+            nCon = 0;
+            for (auto iMat = 0ul; iMat < nMat; iMat++) {
+              shMax = ShBlkNorms_Mat[iMat][s3 + s4*snShell]; 
+              if (sameBasisSet12) {
+                shMax = std::max(shMax, 
+                          std::max(ShBlkNorms_Mat[iMat][s1 + s4*nShell],
+                                   ShBlkNorms_Mat[iMat][s2 + s4*nShell]));
+                shMax = std::max(shMax,shMax123_Mat[iMat]);
+              } 
+              
+              // for same basissets, schwarz2 has been changed to schwarz1
+              if((shMax * shz12 * schwarz2[s3 + s4*snShell]) <
+                 tpi.threshSchwarz()) { 
+                 nConSkip[thread_id]++; 
+              } else {   
+                 contract_Mat[nCon] = iMat;
+                 nCon++; 
+              }
+            }
           }
-          else {
-            if((shMax * shz12 * schwarz1[s3 + s4*snShell]) <
-               tpi.threshSchwarz()) { nSkip[thread_id]++; continue; }
-          }
+#endif
         }
       
+#endif
+
 #ifdef _FULL_DIRECT
 
         // Degeneracy factor for s3,s4 pair
@@ -1765,12 +1819,20 @@ namespace ChronusQ {
         // Libint2 internal screening
         const double *buff = buf_vec[0];
 
-        if(buff == nullptr) { nSkip[thread_id]++; continue; }
+        if(buff == nullptr) { 
+          nIntSkip[thread_id]++; 
+          
+#ifdef _SEPARATED_SHZ_SCREEN
+          nConSkip[thread_id] += nCon;
+#endif          
+          continue; 
+        }
 
 #ifdef _FULL_DIRECT
 
 // Flag to turn contraction on and off
 #if 1
+
 #ifdef _REPORT_INTEGRAL_TIMINGS
 //        ProgramTimer::tick("Direct Den Contract");
 #endif
@@ -1786,8 +1848,9 @@ namespace ChronusQ {
         MatsT      T1,T2,T3,T4;
         MatsT      *Tp1,*Tp2;
 
-
-        for(auto iMat = 0; iMat < nMat; iMat++) {
+        for(iCon = 0; iCon < nCon; iCon++) {
+          
+          auto iMat = contract_Mat[iCon]; 
           
           // Hermetian contraction
           if ( matList[iMat].HER ) {
@@ -1949,8 +2012,12 @@ namespace ChronusQ {
 
 
 #ifdef _REPORT_INTEGRAL_TIMINGS
-    size_t nIntSkip = std::accumulate(nSkip.begin(),nSkip.end(),0);
-    std::cout << "Screened " << nIntSkip << std::endl;
+    size_t nIntSkipAcc = std::accumulate(nIntSkip.begin(),nIntSkip.end(),0);
+    std::cout << "Skipped Intgral:     " << nIntSkipAcc << std::endl;
+#ifdef _SEPARATED_SHZ_SCREEN    
+    size_t nConSkipAcc = std::accumulate(nConSkip.begin(),nConSkip.end(),0);
+    std::cout << "Skipped Contraction: " << nConSkipAcc << std::endl;
+#endif
 
     auto durDirect = tock(topDirect);
     std::cout << "Coulomb-Exchange AO Direct Contraction took " <<  durDirect << " s\n"; 
@@ -2039,7 +2106,7 @@ namespace ChronusQ {
 #ifdef _SHZ_SCREEN
     memManager_.free(ShBlkNorms_raw);
 #endif
-    if(AXRaw != nullptr) memManager_.free(AXRaw);
+    if(AXRaw) memManager_.free(AXRaw);
 
     // Turn threads for LA back on
     SetLAThreads(LAThreads);
@@ -2048,6 +2115,63 @@ namespace ChronusQ {
 
   };
 
+  template <typename MatsT, typename IntsT>
+  size_t GTODirectTPIContraction<MatsT,IntsT>::directScaffoldNewSCRSize() const {
+
+    size_t threadSCRSize  = 0ul;
+    size_t generalSCRSize = 0ul; 
+    
+    // SCR needed for integrals
+    DirectTPI<IntsT> &tpi = dynamic_cast<DirectTPI<IntsT>&>(this->ints_);
+    BasisSet& basisSet_  = this->auxContract ? tpi.basisSet2() : tpi.basisSet();
+    BasisSet& basisSet2_ = this->auxContract ? tpi.basisSet()  : tpi.basisSet2();
+    
+    const size_t nBasis   = basisSet_.nBasis;
+    const size_t snBasis  = basisSet2_.nBasis;
+    const size_t nShell   = basisSet_.nShell;
+    const size_t snShell  = basisSet2_.nShell;
+    size_t nThreads  = GetNumThreads();
+    
+    // create a dummy engine to figure out sizes
+    libint2::Engine engine(libint2::Operator::coulomb, 
+      std::max(basisSet_.maxPrim, basisSet2_.maxPrim),
+      std::max(basisSet_.maxL, basisSet2_.maxL),0);
+
+    // Allocate scratch for raw integral batches
+    size_t maxShellSize = 
+      std::max_element(basisSet_.shells.begin(),basisSet_.shells.end(),
+        [](libint2::Shell &sh1, libint2::Shell &sh2) {
+          return sh1.size() < sh2.size();
+        })->size();
+
+    size_t maxShellSize2 = 
+      std::max_element(basisSet2_.shells.begin(),basisSet2_.shells.end(),
+        [](libint2::Shell &sh1, libint2::Shell &sh2) {
+          return sh1.size() < sh2.size();
+        })->size();
+
+    // lenIntBuffer is allocated to be able to store EPAI's of the 
+    // shell with the highest angular momentum
+    // seems that lenIntBuffer is already in MatsT
+    size_t lenIntBuffer = 
+      maxShellSize * maxShellSize * maxShellSize2 * maxShellSize2; 
+
+    size_t nBuffer = 2;
+    
+    threadSCRSize += nBuffer*lenIntBuffer; 
+    
+    // SCR needed for contraction storage in each thread
+    if (nThreads != 1) threadSCRSize += nBasis*nBasis;
+
+#ifdef _SHZ_SCREEN
+    // 1 for general shell block ∞-norms and 1 for each matrix
+    generalSCRSize += snShell*snShell*2;  
+
+#endif
+
+    return threadSCRSize * nThreads + generalSCRSize;
+  }; // GTODirectTPIContraction::directScaffoldNewSCRSize()
+  
   void GIAODirectERIContraction::twoBodyContract(
       MPI_Comm c,
       const bool screen,

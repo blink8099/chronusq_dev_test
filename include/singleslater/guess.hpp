@@ -151,7 +151,8 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::formGuess(const SingleSlaterOptions &ssOptions) {
 
     ProgramTimer::tick("Form Guess");
-
+     
+    // populate AO-fock Matrix
     if( printLevel > 0 )
       std::cout << "  *** Forming Initial Guess Density for SCF Procedure ***"
                 << std::endl << std::endl;
@@ -178,13 +179,17 @@ namespace ChronusQ {
     // Common to all guess: form new set of orbitals from
     // initial guess at Fock.
     EMPerturbation pert; // Dummy EM perturbation
-#if 1    
-    getNewOrbitals(pert,false);
-#else     
-    if (scfControls.scfAlg != _SKIP_SCF or 
-        scfControls.guess == CORE or 
-        scfControls.guess == SAD) getNewOrbitals(pert,false);
+    
+    // leave this out for future
+#if 0
+    // populate MO-FOCK
+    if (scfControls.scfAlg == _SKIP_SCF and
+        (scfControls.guess == READMO 
+         or scfControls.guess == FCHKMO))
+      MOFOCK();
+    else
 #endif
+      getNewOrbitals(pert,false);
 
     // If RANDOM guess, scale the densites appropriately
     // *** Replicates on all MPI processes ***

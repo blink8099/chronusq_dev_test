@@ -36,7 +36,7 @@ namespace ChronusQ {
       
       symbol_sets_.push_back(symSet);
       mo_ranges_.push_back(range);
- 
+
   }; // MOIntsTransformer::addMORanges  
   
   template <typename MatsT, typename IntsT>
@@ -63,7 +63,7 @@ namespace ChronusQ {
       
       // particle indices
       addMORanges({'a','b','c','d'}, {fourCompOffset + ss_.nO, nV}); 
-
+      
   }; // MOIntsTransformer::setMORanges
   
   /**
@@ -92,6 +92,20 @@ namespace ChronusQ {
       return off_sizes;
   }; // MOIntsTransformer::parseMOIntsType
   
+  /*
+   * \brief get unique symbols
+   */ 
+  template <typename MatsT, typename IntsT>
+  char MOIntsTransformer<MatsT,IntsT>::getUniqueSymbol(char type) {
+  
+      for (auto i = 0ul; i < symbol_sets_.size(); i++) {
+        if (symbol_sets_[i].count(type)) {
+          return *symbol_sets_[i].begin();
+        }
+      }
+      CErr("Wrong MO Type in parseMOIntsType");
+  }; // MOIntsTransformer::getUniqueSymbol
+
   /**
    *  \brief print offsizes 
    */

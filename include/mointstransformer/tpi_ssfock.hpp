@@ -33,15 +33,22 @@
 
 namespace ChronusQ {
 
+  #define ALLOCATE_AND_CLEAR_CACHE_IF_NECESSARY(ALLOCATION) \
+    try { ALLOCATION; } \
+    catch (...) { \
+      ints_cache_.clear(); \
+      try { ALLOCATION; } \
+      catch (...) { CErr("Not Enough Memory in subsetTransformTPISSFockN6");} \
+    }
+ 
   /**
    *  \brief transform AO TPI to form MO TPI
    *  thru SingleSlater formfock 
    */
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::subsetTransformTPISSFockN6(EMPerturbation & pert, 
-    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOTPI) {
-
-    PauliSpinorSquareMatrices<MatsT> onePDMCache = *ss_.onePDM; 
+    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOTPI, 
+    const std::string & moType, bool cacheIntermediates) {
 
     size_t poff = off_sizes[0].first;
     size_t qoff = off_sizes[1].first;
@@ -51,74 +58,184 @@ namespace ChronusQ {
     size_t nq = off_sizes[1].second;
     size_t nr = off_sizes[2].second;
     size_t ns = off_sizes[3].second;
+    bool pqSymm = (poff == qoff) and (np == nq); 
+    std::string moType_cache = "HalfTMOTPI-" 
+      + getUniqueSymbol(moType[0]) + getUniqueSymbol(moType[1]);
+    
+    // check pq and rs can be swapped to accelarate the computation 
+    bool rsSymm = (roff == soff) and (nr == ns); 
+    bool swap_pq_rs = false;
+    if (rsSymm) {
+      std::string rs_moType_cache = "HalfTMOTPI-" 
+        + getUniqueSymbol(moType[2]) + getUniqueSymbol(moType[3]); 
+      if (not pqSymm) swap_pq_rs = true;
+      else {
+        auto pqCache = ints_cache_.getIntegral<InCore4indexTPI, MatsT>(moType_cache); 
+        auto rsCache = ints_cache_.getIntegral<InCore4indexTPI, MatsT>(rs_moType_cache); 
+        
+        if (not pqCache and rsCache) swap_pq_rs = true;
+      }
+    
+      if (swap_pq_rs) {
+        std::swap(poff, roff); 
+        std::swap(qoff, soff); 
+        std::swap(np, nr); 
+        std::swap(nq, ns); 
+        pqSymm = true;
+        moType_cache = rs_moType_cache; 
+      }
+    }
+    
     size_t npq = np * nq;
     size_t npqr = npq * nr;
 
     size_t nAO = ss_.nAlphaOrbital() * ss_.nC;
+    size_t NB  = ss_.nAlphaOrbital();
     size_t nAO2 = nAO * nAO;
     
-    SquareMatrix<MatsT> spinBlockForm1PDM(memManager_, nAO);
-    MatsT * SCR  = memManager_.malloc<MatsT>(nAO2 * npq);
+    MatsT * halfTMOTPI_ptr = nullptr, *dummy_ptr = nullptr;
+    std::shared_ptr<InCore4indexTPI<MatsT>> halfTMOTPI = nullptr; 
+    if (not pqSymm) cacheIntermediates = false;
     
-    bool pqSymm = (poff == qoff) and (np == nq); 
-    MatsT * MOTPIpq_ptr = nullptr;
-
-    // 1/2 transformation to obtain SCR(mu, nu, p, q)
-    for (auto q = 0; q <  nq; q++) 
-    for (auto p = 0; p <  np; p++) {
+    if (cacheIntermediates) {
+      halfTMOTPI = ints_cache_.getIntegral<InCore4indexTPI, MatsT>(moType_cache);
+      if (halfTMOTPI) halfTMOTPI_ptr = halfTMOTPI->pointer();
+    } 
+    
+    //
+    // 1/2 transformation to obtain halfTMOTPI_ptr(mu, nu, p, q)
+    //
+    if (not halfTMOTPI) {
       
-      // outer product to make a fake ss onePDM of Dqp
-      bool pqSame = p == q;
+      ALLOCATE_AND_CLEAR_CACHE_IF_NECESSARY(
+        if (pqSymm) {
+          halfTMOTPI = std::make_shared<InCore4indexTPI<MatsT>>(memManager_, nAO, np);
+          halfTMOTPI_ptr = halfTMOTPI->pointer();
+        } else {  
+          halfTMOTPI_ptr  = memManager_.malloc<MatsT>(nAO2 * npq);
+        }
+      )
 
-      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
-        nAO, nAO, 1, MatsT(1.), ss_.mo[0].pointer() + (q+qoff)*nAO, nAO,
-        ss_.mo[0].pointer() + (p+poff)*nAO, nAO, MatsT(0.), spinBlockForm1PDM.pointer(), nAO);
+      SquareMatrix<MatsT> SCR(memManager_, nAO);
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> pq1PDMs, pqMOTPIs, dummy;
+      MatsT *MOTPIpq_ptr = nullptr, *density_ptr = nullptr; 
+      bool is4C = ss_.nC == 4;
+      bool is2C = ss_.nC == 2;
+      bool is1C = ss_.nC == 1;
+      size_t pqSCRSize = is4C ? 2*NB: NB;
       
-      // Hack SS to get ASYMTPIpq
-      if (ss_.nC > 1) 
-        *(ss_.onePDM) = spinBlockForm1PDM.template spinScatter<MatsT>(true, true);
-      else
-        ss_.onePDM->S() = spinBlockForm1PDM;
+      // find out maximum batch size base on current memory limit
+      
+      // SCR size form fockbuilder
+      size_t fockGDSCRSize = ss_.fockBuilder->formRawGDSCRSizePerBatch(ss_, true); 
+      
+      // SCR size for spinor density and half-transformed integrals
+      fockGDSCRSize += is4C ? pqSCRSize*pqSCRSize: 2*pqSCRSize*pqSCRSize;  
+      size_t maxNBatch = 0;
+      double allow_extra = 0.2;
+      
+      ALLOCATE_AND_CLEAR_CACHE_IF_NECESSARY(
+        maxNBatch = memManager_.max_avail_allocatable<MatsT>(size_t(fockGDSCRSize*(1.+allow_extra))); 
+        if(maxNBatch == 0) 
+          CErr(" Memory is not enough for 1 density in subsetTransformTPISSFockN6");
+      )
 
-      ss_.fockBuilder->formGD(ss_, pert, false, 0., pqSame);
+      std::vector<std::pair<size_t,size_t>> pqJobs;
       
-      if (ss_.nC > 1) { 
-        auto MOTPIpq = ss_.twoeH->template spinGather<MatsT>();
-        MOTPIpq_ptr = MOTPIpq.pointer();
-      } else {
-        MOTPIpq_ptr = ss_.coulombMatrix->pointer();
+      for (auto q = 0ul; q <  nq; q++) 
+      for (auto p = 0ul; p <  np; p++) {
+        pqJobs.push_back({p,q});
+        if (pqSymm and p == q) break; 
       }
+      
+      size_t NJob = pqJobs.size();
+      size_t NJobComplete  = 0ul;
+      size_t NJobToDo = 0ul;
 
-      // copy
-      SetMat('N', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, SCR + (p + q*np)*nAO2, nAO);
-      if (pqSymm) { 
-         if (p < q) SetMat('C', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, SCR + (q + p*np)*nAO2, nAO); 
-         else if (pqSame) break;
-      }
+      while (NJobComplete < NJob) { 
+        
+        size_t p, q;
+        NJobToDo = std::min(maxNBatch, NJob-NJobComplete);
+
+        std::cout << "NJob         = " << NJob << std::endl;
+        std::cout << "NJobComplete = " << NJobComplete << std::endl;
+        std::cout << "NJobToDo     = " << NJobToDo << std::endl;
+        std::cout << "maxNBatch    = " << maxNBatch << std::endl;
+
+        
+        // build fake densities in batch
+        for (auto i = 0ul; i < NJobToDo; i++) { 
+          
+          p = pqJobs[i + NJobComplete].first; 
+          q = pqJobs[i + NJobComplete].second; 
+          
+          pq1PDMs.push_back(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager_, pqSCRSize, is4C, is4C));  
+          
+          // 4C will reuse pq1PDM as densities are component scattered anyways
+          if (is4C) pqMOTPIs.push_back(pq1PDMs.back());
+          else pqMOTPIs.push_back(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager_, pqSCRSize, is4C, is4C));  
+          
+          if (is1C) {
+            density_ptr = pq1PDMs.back()->S().pointer();
+          } else {
+            density_ptr = SCR.pointer();
+          }
+        
+          blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
+            nAO, nAO, 1, MatsT(1.), ss_.mo[0].pointer() + (q+qoff)*nAO, nAO,
+            ss_.mo[0].pointer() + (p+poff)*nAO, nAO, MatsT(0.), density_ptr, nAO);
+          
+          if (not is1C) *pq1PDMs.back() = SCR.template spinScatter<MatsT>(is4C, is4C); 
+        
+        }
+        
+        // do contraction to get half-transformed integrals
+        if (is1C) ss_.fockBuilder->formRawGDInBatches(ss_, pert, false, 0., false, pq1PDMs, pqMOTPIs, dummy, dummy);
+        else ss_.fockBuilder->formRawGDInBatches(ss_, pert, false, 0., false, pq1PDMs, dummy, dummy, pqMOTPIs);
+        
+        // copy over to SCR
+        for (auto i = 0ul; i < NJobToDo; i++) { 
+          p = pqJobs[i + NJobComplete].first; 
+          q = pqJobs[i + NJobComplete].second; 
+           
+          if (not is1C) {
+            SCR = pqMOTPIs[i]->template spinGather<MatsT>();
+            MOTPIpq_ptr = SCR.pointer(); 
+          } else MOTPIpq_ptr = pqMOTPIs[i]->S().pointer();
+          
+          SetMat('N', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, halfTMOTPI_ptr + (p + q*np)*nAO2, nAO);
+          if (pqSymm and p < q)  
+            SetMat('C', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, halfTMOTPI_ptr + (q + p*np)*nAO2, nAO); 
+        }
+
+        // increment and clear SCR after job done
+        NJobComplete += NJobToDo; 
+        pq1PDMs.clear();
+        pqMOTPIs.clear();
+      
+      } // main loop
+      
+      if (cacheIntermediates) ints_cache_.addIntegral(moType_cache, halfTMOTPI);
      
-    } // 1/2 transformation
+    } //  if there is no cache
 
-    MatsT * SCR2 = nullptr;
+    MatsT * SCR = nullptr;
     
-    if (ns == nAO) SCR2 = MOTPI;
-    else SCR2  = memManager_.malloc<MatsT>(nAO * npqr);
+    ALLOCATE_AND_CLEAR_CACHE_IF_NECESSARY(
+      SCR  = memManager_.malloc<MatsT>(nAO * npqr);
+    )
     
-    // 3/4 transfromation: SCR2(nu p q, r) = SCR(mu,nu p q)^H * C(mu, r)
-    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans,
-        nAO*npq, nr, nAO, MatsT(1.), SCR, nAO, 
-        ss_.mo[0].pointer() + roff*nAO, nAO, MatsT(0.), SCR2, nAO*npq);
-    
-    // 4/4 transfromation: (p q| r, s) = SCR2(nu, p q r)^H * C(nu, s)
-    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans,
-        npqr, ns, nAO, MatsT(1.), SCR2, nAO, 
-        ss_.mo[0].pointer() + soff*nAO, nAO, MatsT(0.), SCR, npqr);
-    
-    SetMat('N', npq, nr*ns, MatsT(1.), SCR, npq, MOTPI, npq); 
-    
-    memManager_.free(SCR);
-    if (ns != nAO) memManager_.free(SCR2);
-    *ss_.onePDM = onePDMCache; 
+    char TransMOTPI = swap_pq_rs ? 'N': 'T';
 
+    PairTransformation('N', ss_.mo[0].pointer(), nAO, roff, soff,
+      'N', halfTMOTPI_ptr, nAO, nAO, npq, 
+      TransMOTPI, MOTPI, nr, ns, dummy_ptr, SCR, false); 
+
+    // free memories
+    halfTMOTPI = nullptr;
+    if (not pqSymm) memManager_.free(halfTMOTPI_ptr);
+    if (SCR) memManager_.free(SCR);
+ 
   }; // MOIntsTransformer::subsetTransformTPISSFockN6
   
 

@@ -191,6 +191,8 @@ namespace ChronusQ {
         MPI_Comm,
         const bool,
         std::vector<TwoBodyContraction<MatsT>>&) const;
+    
+    size_t directScaffoldNewSCRSize() const;
 
     void direct4CScaffold(
         MPI_Comm,

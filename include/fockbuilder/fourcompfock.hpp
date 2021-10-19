@@ -60,6 +60,20 @@ namespace ChronusQ {
     void formGDInCore(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1., bool HerDen = true);
     void formGDDirect(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1., bool HerDen = true);
     void formGD3Index(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1., bool HerDen = true);
+    
+    void formRawGDInBatches(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool, double, bool, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &,
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &);
+
+    void formRawGDInBatchesDirect(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool, double, bool, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &,
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &);
+    
+    size_t formRawGDSCRSizePerBatch(SingleSlater<MatsT,IntsT> &, bool) const;
 
     // Form a fock matrix (see include/fockbuilder/impl.hpp for docs)
     virtual void formFock(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);

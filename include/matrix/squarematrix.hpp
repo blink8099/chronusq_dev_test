@@ -44,7 +44,7 @@ namespace ChronusQ {
   protected:
     size_t N_;
     CQMemManager &memManager_; ///< CQMemManager to allocate matricies
-    MatsT *ptr_ = nullptr; ///< Raw matrix storage (2 index)
+    MatsT *ptr_ = nullptr;     ///< Raw matrix storage (2 index)
 
   public:
 
@@ -184,7 +184,29 @@ namespace ChronusQ {
 
     template <typename MatsU>
     SquareMatrix<MatsU> spatialToSpinBlock() const;
-
+    
+    
+    template <typename MatsU>
+    void componentScatter(SquareMatrix<MatsU> & LL,
+                          SquareMatrix<MatsU> & LS,
+                          SquareMatrix<MatsU> & SL,
+                          SquareMatrix<MatsU> & SS,
+                          bool increment = false) const;
+     
+    template <typename MatsU>
+    void componentGather(const SquareMatrix<MatsU> & LL,
+                         const SquareMatrix<MatsU> & LS,
+                         const SquareMatrix<MatsU> & SL,
+                         const SquareMatrix<MatsU> & SS,
+                         bool increment = false);
+     
+    template <typename MatsU>
+    static SquareMatrix<MatsT>
+    componentGatherBuild(const SquareMatrix<MatsU> & LL,
+                         const SquareMatrix<MatsU> & LS,
+                         const SquareMatrix<MatsU> & SL,
+                         const SquareMatrix<MatsU> & SS);
+    
     template <typename TransT>
     SquareMatrix<typename std::conditional<
     (std::is_same<MatsT, dcomplex>::value or
@@ -201,13 +223,15 @@ namespace ChronusQ {
     void malloc() {
       if (ptr_) memManager_.free(ptr_);
       size_t N2 = N_*N_;
-      try { ptr_ = memManager_.malloc<MatsT>(N2); }
-      catch(...) {
-        std::cout << std::fixed;
-        std::cout << "Insufficient memory for the full INTS matrix ("
-                  << (N2/1e9) * sizeof(double) << " GB)" << std::endl;
-        std::cout << std::endl << memManager_ << std::endl;
-        CErr();
+      if (N2 != 0) {
+        try { ptr_ = memManager_.malloc<MatsT>(N2); }
+        catch(...) {
+          std::cout << std::fixed;
+          std::cout << "Insufficient memory for the full INTS matrix ("
+                    << (N2/1e9) * sizeof(double) << " GB)" << std::endl;
+          std::cout << std::endl << memManager_ << std::endl;
+          throw std::bad_alloc();
+        }
       }
     }
 
