@@ -779,7 +779,9 @@ namespace ChronusQ {
 #if 0
     std::cout << "---- Test: Reconstruct SCF Energy" << std::endl; 
     N6TF.transformHCore(hCore.pointer());
+    auto timeIdN6 = tick();
     N6TF.transformTPI(pert, N6MOERI.pointer(), "pqrs", false);
+    auto timeDur = tock(timeIdN6);
     
     MatsT SCFEnergy = MatsT(0.);
     if(this->nC > 1) {
@@ -800,23 +802,24 @@ namespace ChronusQ {
     std::cout << "SSFOCK_N6 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
     N6MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
 
+    std::cout << " - Time (N6) for transforming pqrs " <<  " = " << timeDur << " s\n"; 
 #else     
     
-    std::vector<std::string> testcases = {"pqrs", "ijkl", "abcd", "pqia", "ijab", "iajb" };
+    std::vector<std::string> testcases = {"ijkl", "abcd", "pqia", "ipab", "ijab", "pqrs"};
     for (auto & moType: testcases) {
       N6MOERI.clear();
       N5MOERI.clear();
 
       std::cout << "---- Test: " << moType << std::endl; 
       auto timeIdN6 = tick();
-      N6TF.transformTPI(pert, N6MOERI.pointer(), moType, false);
+      N6TF.transformTPI(pert, N6MOERI.pointer(), moType, true, false);
       auto timeDur = tock(timeIdN6);
       
       std::cout << " - Time (N6) for transforming " << moType  <<  " = " << timeDur << " s\n"; 
 
       if (this->aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::INCORE_N6) {
         auto timeIdN5 = tick();
-        N5TF.transformTPI(pert, N5MOERI.pointer(), moType, false);
+        N5TF.transformTPI(pert, N5MOERI.pointer(), moType, true, false);
         auto timeDur = tock(timeIdN5);
         std::cout << " - Time (N5) for transforming " << moType  <<  " = " << timeDur << " s\n"; 
 #pragma omp parallel for schedule(static) collapse(4) default(shared)       

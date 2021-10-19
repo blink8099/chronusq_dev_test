@@ -42,11 +42,9 @@
 
 #include <chrono>
 
-
-#define _SHZ_SCREEN_4C
-
 #define _CONTRACTION_
 
+#define _SEPARATED_SHZ_SCREEN_4C
 
 #include <libcint.hpp>
 
@@ -936,7 +934,6 @@ namespace ChronusQ {
 
       };
 
-#if 1
       // Take care of the Hermitian symmetry in the LL and SS blocks
       auto ADCLLMS = matList[CLLMS].AX;
       auto ADCSSMS = matList[CSSMS].AX;
@@ -952,7 +949,6 @@ namespace ChronusQ {
         ADCSSMY[j + i*nBasis] = -ADCSSMY[i + j*nBasis];
         ADCSSMZ[j + i*nBasis] = -ADCSSMZ[i + j*nBasis];
       }
-#endif
 
       memManager_.free(ERIBuffer);
       memManager_.free(buffAll, cacheAll);
@@ -3753,31 +3749,1219 @@ namespace ChronusQ {
     // Turn threads for LA back on
     SetLAThreads(LAThreads);
 
-  }
+  };
 
   template <>
   void GTODirectRelERIContraction<double,double>::directScaffoldLibcintCoulombOnly(
     MPI_Comm comm, const bool screen,
     std::vector<TwoBodyContraction<double>> &matList) const {
     CErr("Dirac-Coulomb + Real is an invalid option",std::cout);  
-  }
+  };
 
   template <>
   void GTODirectRelERIContraction<dcomplex,dcomplex>::directScaffoldLibcintCoulombOnly(
     MPI_Comm comm, const bool screen,
     std::vector<TwoBodyContraction<dcomplex>> &matList) const {
     CErr("Complex integral is is an invalid option",std::cout);  
+  };
+
+ 
+
+
+
+
+
+
+
+
+
+  
+  /*******************************************************************************/
+  /*                                                                             */
+  /* Libcint Batch 4C-direct Implementation With Coulomb only-type of contraction*/
+  /*                                                                             */
+  /*******************************************************************************/
+
+  template <typename MatsT, typename IntsT>
+  void GTODirectRelERIContraction<MatsT,IntsT>::directRelScaffoldLibcintCoulombOnly(
+    MPI_Comm comm, const bool screen,
+    std::vector<TwoBodyRelContraction<MatsT>> &matList) const {
+    
+    // turn off terms that are NYI
+    size_t mMat;
+    const size_t nMat = matList.size();
+
+    if (matList[0].contType == TWOBODY_CONTRACTION_TYPE::BARE_COULOMB) mMat = 1;
+    else if (matList[0].contType == TWOBODY_CONTRACTION_TYPE::LLLL)    mMat = 2; 
+    else CErr("NYI contractType in directRelScaffoldLibcintCoulombOnly");
+    const size_t nBatch = nMat / mMat;
+
+#ifdef _SHZ_SCREEN_4C
+    enum SHZScreenType {
+      NoScreen,
+      ScreenS,
+      ScreenAll
+    };
+    
+    std::vector<SHZScreenType> matScreen;
+    if (matList[0].contType == TWOBODY_CONTRACTION_TYPE::BARE_COULOMB) 
+       matScreen = {ScreenS};
+    else if (matList[0].contType == TWOBODY_CONTRACTION_TYPE::LLLL)
+       matScreen = {ScreenAll, ScreenS};
+    else CErr("NYI contractType in directRelScaffoldLibcintCoulombOnly");
+#endif
+    
+    DirectTPI<IntsT> &originalERI =
+        dynamic_cast<DirectTPI<IntsT>&>(this->ints_);
+    CQMemManager& memManager_ = originalERI.memManager();
+    BasisSet& originalBasisSet_ = originalERI.basisSet();
+    Molecule& molecule_ = originalERI.molecule();
+
+    if (originalBasisSet_.forceCart)
+      CErr("Libcint + cartesian GTO NYI.");
+
+    BasisSet basisSet_ = originalBasisSet_.groupGeneralContractionBasis();
+
+    size_t buffSize = std::max_element(basisSet_.shells.begin(),
+                                       basisSet_.shells.end(),
+                                       [](libint2::Shell &a, libint2::Shell &b) {
+                                         return a.size() < b.size();
+                                       })->size();
+
+    DirectTPI<IntsT> &eri = originalERI;
+    
+    // Determine the number of OpenMP threads
+    size_t nThreads  = GetNumThreads();
+    size_t LAThreads = GetLAThreads();
+    // no need to do that as LA functions are not used in parallel region
+    // SetLAThreads(1); // Turn off parallelism in LA functions
+  
+    bool HerDen = matList[0].HER;
+  
+    /****************************/
+    /* Format Basis for Libcint */
+    /****************************/
+
+    int nAtoms = molecule_.nAtoms;
+    int nShells = basisSet_.nShell;
+    int iAtom, iShell, off;
+
+    // ATM_SLOTS = 6; BAS_SLOTS = 8;
+    int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
+    int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
+    double *env = memManager_.template malloc<double>(basisSet_.getLibcintEnvLength(molecule_));
+
+
+    basisSet_.setLibcintEnv(molecule_, atm, bas, env);
+    size_t cache_size = libcintCacheSize(matList[0].contType, atm, nAtoms, bas, nShells, env);
+
+    enum ERI_2ND_DERIV {
+      AxBx,
+      AxBy,
+      AxBz,
+      AyBx,
+      AyBy,
+      AyBz,
+      AzBx,
+      AzBy,
+      AzBz
+    };
+
+    /*-------------------------------------*/
+    /* End of Basis Formatting for Libcint */
+    /*-------------------------------------*/
+
+
+    // Get threads result buffer
+    size_t buffN4 = buffSize*buffSize*buffSize*buffSize;
+
+    // 81 is for fourth-derivative; 9 for second derivative
+    int nERI;
+    double *buffAll = nullptr;
+    double *cacheAll = nullptr;
+    double *ERIBuffer = nullptr;
+
+    size_t maxShellSize = buffSize;
+    size_t NB  = maxShellSize*4;
+    size_t NB2 = NB*NB;
+    size_t NB3 = NB2*NB;
+    size_t NB4 = NB2*NB2;
+    size_t NB4_2 = 2*NB4;
+    size_t NB4_3 = 3*NB4;
+
+    const size_t nBasis   = basisSet_.nBasis;
+    const size_t nShell   = basisSet_.nShell;
+
+
+    
+    // initialize AX and allocate scratch space
+
+    for(auto iMat = 0; iMat < nMat; iMat++) {
+      matList[iMat].AX->clear(); 
+    }
+   
+    // make copies for each thread
+    std::vector<std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>>> AXthreads;
+    for(auto iTh = 0; iTh < nThreads; iTh++) {
+      AXthreads.emplace_back();
+      for(auto iMat = 0; iMat < nMat; iMat++) {
+        AXthreads.back().push_back(
+          std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager_, nBasis, 
+            matList[iMat].AX->hasZ(), matList[iMat].AX->hasXY())); 
+      }
+    }
+
+    SetLAThreads(1); // Turn off parallelism in LA functions
+    
+    #pragma omp parallel for
+    for(auto iTh = 0; iTh < nThreads; iTh++) 
+    for(auto iMat = 0; iMat < nMat; iMat++)
+      AXthreads[iTh][iMat]->clear();
+    
+    SetLAThreads(LAThreads);// Turn threads for LA back on
+    
+    
+    
+    /************************************/
+    /*                                  */
+    /* Preparation of Schwarz Screening */
+    /*                                  */
+    /************************************/
+
+
+    double *SchwarzSSSS = nullptr;
+
+    double *SchwarzERI = nullptr;
+
+    if(matList[0].contType == TWOBODY_CONTRACTION_TYPE::BARE_COULOMB or
+       matList[0].contType == TWOBODY_CONTRACTION_TYPE::LLLL or
+       matList[0].contType == TWOBODY_CONTRACTION_TYPE::LLSS) {
+//      if(SchwarzERI == nullptr) eri.computeSchwarz();
+  
+#ifdef _REPORT_INTEGRAL_TIMINGS
+      auto topERIchwarz = tick();
+#endif
+  
+      nERI = 1;
+      buffAll = memManager_.malloc<double>(nERI*buffN4*nThreads);
+      cacheAll = memManager_.malloc<double>(cache_size*nThreads);
+      SchwarzERI = memManager_.malloc<double>(nShell*nShell);
+      memset(SchwarzERI,0,nShell*nShell*sizeof(double));
+  
+      #pragma omp parallel
+      {
+  
+        size_t thread_id = GetThreadID();
+        size_t n1,n2;
+  
+        int shls[4];
+        double *buff = &buffAll[nERI*buffN4*thread_id];
+        double *cache = cacheAll+cache_size*thread_id;
+  
+        // set up Schwarz screening
+        for(size_t s1(0), bf1_s(0), s12(0); s1 < basisSet_.nShell; bf1_s+=n1, s1++) { 
+  
+          n1 = basisSet_.shells[s1].size(); // Size of Shell 1
+  
+        for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++, s12++) {
+  
+          n2 = basisSet_.shells[s2].size(); // Size of Shell 2
+  
+          // Round Robbin work distribution
+          #ifdef _OPENMP
+          if( s12 % nThreads != thread_id ) continue;
+          #endif
+  
+          shls[0] = int(s1);
+          shls[1] = int(s2);
+          shls[2] = int(s1);
+          shls[3] = int(s2);
+  
+          auto nQuad = n1*n2*n1*n2;
+  
+          if(int2e_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+
+          for(size_t iERI(0); iERI < nERI*nQuad; iERI++) 
+            SchwarzERI[s1+s2*nShell] = std::max(SchwarzERI[s1+s2*nShell], std::abs(buff[iERI]));
+  
+          SchwarzERI[s1+s2*nShell] = std::sqrt(SchwarzERI[s1+s2*nShell]);
+          SchwarzERI[s2+s1*nShell] = SchwarzERI[s1+s2*nShell];
+  
+        }
+        }
+  
+      };
+
+      memManager_.free(buffAll, cacheAll);
+  
+#ifdef _REPORT_INTEGRAL_TIMINGS
+      auto durERIchwarz = tock(topERIchwarz);
+//      std::cout << "ERI Schwarz took " <<  durERIchwarz << " s\n"; 
+  
+      //std::cout << std::endl;
+#endif
+  
+    };
+ 
+
+    if(matList[0].contType == TWOBODY_CONTRACTION_TYPE::SSSS or 
+       matList[0].contType == TWOBODY_CONTRACTION_TYPE::LLLL or
+       matList[0].contType == TWOBODY_CONTRACTION_TYPE::LLSS) {
+  
+#ifdef _REPORT_INTEGRAL_TIMINGS
+      auto topSSSSSchwarz = tick();
+#endif
+  
+      nERI = 81;
+      buffAll = memManager_.malloc<double>(nERI*buffN4*nThreads);
+      cacheAll = memManager_.malloc<double>(cache_size*nThreads);
+      SchwarzSSSS = memManager_.malloc<double>(nShell*nShell);
+      memset(SchwarzSSSS,0,nShell*nShell*sizeof(double));
+  
+      #pragma omp parallel
+      {
+  
+        double C2 = 1./(4*SpeedOfLight*SpeedOfLight);
+        size_t thread_id = GetThreadID();
+        size_t n1,n2;
+  
+        int shls[4];
+        double *buff = &buffAll[nERI*buffN4*thread_id];
+        double *cache = cacheAll+cache_size*thread_id;
+  
+        // set up Schwarz screening
+        for(size_t s1(0), bf1_s(0), s12(0); s1 < basisSet_.nShell; bf1_s+=n1, s1++) { 
+  
+          n1 = basisSet_.shells[s1].size(); // Size of Shell 1
+  
+        for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++, s12++) {
+  
+          n2 = basisSet_.shells[s2].size(); // Size of Shell 2
+  
+          // Round Robbin work distribution
+          #ifdef _OPENMP
+          if( s12 % nThreads != thread_id ) continue;
+          #endif
+  
+          shls[0] = int(s1);
+          shls[1] = int(s2);
+          shls[2] = int(s1);
+          shls[3] = int(s2);
+  
+          auto nQuad = n1*n2*n1*n2;
+  
+          if(int2e_ipvip1ipvip2_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+
+          for(size_t iERI(0); iERI < nERI*nQuad; iERI++) 
+            SchwarzSSSS[s1+s2*nShell] = std::max(SchwarzSSSS[s1+s2*nShell], std::abs(buff[iERI]));
+  
+          SchwarzSSSS[s1+s2*nShell] = C2*std::sqrt(SchwarzSSSS[s1+s2*nShell]);
+          SchwarzSSSS[s2+s1*nShell] = SchwarzSSSS[s1+s2*nShell];
+  
+        }
+        }
+  
+      };
+
+      memManager_.free(buffAll, cacheAll);
+  
+#ifdef _REPORT_INTEGRAL_TIMINGS
+      auto durSSSSSchwarz = tock(topSSSSSchwarz);
+//      std::cout << "∇A∇B∇C∇D Schwarz took " <<  durSSSSSchwarz << " s\n"; 
+  
+      //std::cout << std::endl;
+#endif
+  
+    };
+    /****************************************/
+    /*                                      */
+    /* End Preparation of Schwarz Screening */
+    /*                                      */
+    /****************************************/
+    
+
+
+#ifdef _SHZ_SCREEN_4C
+    /******************************************************/
+    /*                                                    */
+    /*Compute shell block norms (∞-norm) of all matList.X */
+    /*                                                    */
+    /******************************************************/
+    
+  
+      // check Densitry matrices
+      double * ShBlkNorms_raw = memManager_.malloc<double>((nBatch+1)*nShell*nShell);
+      double * ShBlkNorms = ShBlkNorms_raw;
+      std::vector<double*> ShBlkNorms_batch;
+      { 
+        double * ShBlkNormsSCR = memManager_.malloc<double>(nShell*nShell*nThreads);
+        std::vector<double*> ShBlkNormsSCR_batch;
+        for (auto iBatch = 0ul; iBatch < nBatch; iBatch++) 
+          ShBlkNorms_batch.push_back(ShBlkNorms_raw+(iBatch+1)*nShell*nShell);
+        
+        for( auto iTh = 0ul; iTh < nThreads; iTh++)
+          ShBlkNormsSCR_batch.push_back(ShBlkNormsSCR+iTh*nShell*nShell); 
+        
+        memset(ShBlkNorms_raw,0.,(nBatch+1)*nShell*nShell*sizeof(double));
+      
+        #define POPMAX_SHELLBLOCKNORMS(DEN) \
+          ShellBlockNorm(basisSet_.shells, DEN, nBasis, ShBlkNormsSCR_i); \
+          for (auto i = 0ul; i < nShell*nShell; i++) { \
+            ShBlkNorms_i[i] = std::max(ShBlkNorms_i[i],std::abs(ShBlkNormsSCR_i[i])); \
+          }
+        
+        SetLAThreads(1); // Turn off parallelism in LA functions
+        
+        #pragma omp parallel for 
+        for (auto iBatch = 0ul; iBatch < nBatch; iBatch++) { 
+          auto matOff = iBatch*mMat;
+          auto ShBlkNorms_i    = ShBlkNorms_batch[iBatch]; 
+          auto ShBlkNormsSCR_i = ShBlkNormsSCR_batch[GetThreadID()]; 
+          for (auto iMat = 0ul; iMat < mMat; iMat++) {
+            if (matScreen[iMat] == 0) continue;
+            auto matX = matList[iMat + matOff].X;  
+            POPMAX_SHELLBLOCKNORMS(matX->S().pointer()); 
+            if (matScreen[iMat] > 1) {
+              if (matX->hasZ()) 
+                POPMAX_SHELLBLOCKNORMS(matX->Z().pointer());
+              if (matX->hasXY()) { 
+                POPMAX_SHELLBLOCKNORMS(matX->Y().pointer());
+                POPMAX_SHELLBLOCKNORMS(matX->X().pointer());
+              } 
+            }
+          }
+          
+          // symmetrize nonHermitian ShBlkNorms
+          if (not HerDen) {
+            for (auto k = 0ul; k < nShell; k++)
+            for (auto l = 0ul; l < k     ; l++) {
+              double mx = std::max(ShBlkNorms_i[k + l*nShell], ShBlkNorms_i[l + k*nShell]);
+              ShBlkNorms_i[k + l*nShell] = mx;
+              ShBlkNorms_i[l + k*nShell] = mx;
+            }
+          }
+        }
+        
+        SetLAThreads(LAThreads);// Turn threads for LA back on
+        memManager_.free(ShBlkNormsSCR);
+        
+        // get the maximum from all batches 
+        #pragma omp parallel for 
+        for (auto i = 0ul; i < nShell*nShell; i++) 
+        for (auto iBatch = 0ul; iBatch < nBatch; iBatch++) 
+          ShBlkNorms[i] = std::max(ShBlkNorms_batch[iBatch][i], ShBlkNorms[i]); 
+        
+      } 
+    /******************************************************/
+    /*                                                    */
+    /*End of Compute shell block norms (∞-norm) of all matList.X */
+    /*                                                    */
+    /******************************************************/
+#endif
+    
+    
+    
+    /***********************************/
+    /*                                 */
+    /* Start of Bare-Coulomb           */
+    /*                                 */
+    /***********************************/
+  
+    if( matList[0].contType == TWOBODY_CONTRACTION_TYPE::BARE_COULOMB ) {
+  
+#ifdef _REPORT_INTEGRAL_TIMINGS
+      auto topDirect = tick();
+      std::vector<double> durDirectInt(nThreads, 0.);
+      std::vector<double> durDirectCon(nThreads, 0.);
+#endif
+  
+      // Keeping track of number of integrals and contraction skipped
+      std::vector<size_t> nIntSkip(nThreads,0);
+#ifdef _SEPARATED_SHZ_SCREEN_4C      
+      std::vector<size_t> nConSkip(nThreads,0);
+#endif    
+      nERI = 1;
+      buffAll = memManager_.malloc<double>(nERI*buffN4*nThreads);
+      cacheAll = memManager_.malloc<double>(cache_size*nThreads);
+      
+      #pragma omp parallel
+      {
+        int thread_id = GetThreadID();
+        
+        auto &AX_loc = AXthreads[thread_id];
+        
+        size_t n1,n2,n3,n4,m,n,k,l,mnkl,bf1,bf2,bf3,bf4;
+        size_t bf43,bf34,bf21,bf12;
+        size_t s4_max;
+        int shls[4];
+        double *buff = &buffAll[buffN4*thread_id];
+        double *cache = cacheAll+cache_size*thread_id;
+        
+        MatsT *ADCLLMS, *DCLLMS; 
+        std::vector<size_t> contract_batch(nBatch);
+        size_t iCon, nCon, matOff;
+
+#if defined(_SHZ_SCREEN_4C) && defined(_SEPARATED_SHZ_SCREEN_4C)
+        std::vector<double> shMax123_batch(nBatch);
+#else
+        std::iota(contract_batch.begin(), contract_batch.end(), 0);
+        nCon = nBatch;
+#endif
+
+        for(size_t s1(0), bf1_s(0), s1234(0); s1 < nShells; 
+            bf1_s+=n1, s1++) { 
+  
+          n1 = basisSet_.shells[s1].size(); // Size of Shell 1
+  
+        for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++) {
+  
+          n2 = basisSet_.shells[s2].size(); // Size of Shell 2
+          // Deneneracy factor for s1,s2 pair
+          double s12_deg = (s1 == s2) ? 1.0 : 2.0;
+
+#ifdef _SHZ_SCREEN_4C
+          double shMax12 = ShBlkNorms[s1 + s2*nShell];
+#endif
+  
+        for(size_t s3(0), bf3_s(0); s3 <= s1; bf3_s+=n3, s3++) {
+  
+          n3 = basisSet_.shells[s3].size(); // Size of Shell 3
+          s4_max = (s1 == s3) ? s2 : s3; // Determine the unique max of Shell 4
+
+#ifdef _SHZ_SCREEN_4C
+          double shMax123 = std::max(ShBlkNorms[s1 + s3*nShell], 
+                                     ShBlkNorms[s2 + s3*nShell]);
+
+          shMax123 = std::max(shMax123,shMax12);
+#ifdef _SEPARATED_SHZ_SCREEN_4C
+          for (auto iBatch = 0ul; iBatch < nBatch; iBatch++)
+             shMax123_batch[iBatch] = 
+               std::max(ShBlkNorms_batch[iBatch][s1 + s2*nShell],
+               std::max(ShBlkNorms_batch[iBatch][s1 + s3*nShell],
+                        ShBlkNorms_batch[iBatch][s2 + s3*nShell]));
+#endif
+#endif 
+
+        for(size_t s4(0), bf4_s(0); s4 <= s4_max; bf4_s+=n4, s4++, s1234++) {
+  
+          n4 = basisSet_.shells[s4].size(); // Size of Shell 4
+  
+          // Round Robbin work distribution
+          #ifdef _OPENMP
+          if( s1234 % nThreads != thread_id ) continue;
+          #endif
+  
+#ifdef _SHZ_SCREEN_4C
+          double shMax = std::max(ShBlkNorms[s1 + s4*nShell],
+                         std::max(ShBlkNorms[s2 + s4*nShell],
+                                  ShBlkNorms[s3 + s4*nShell]));
+
+          shMax = std::max(shMax,shMax123);
+
+          if((shMax*SchwarzERI[s1+s2*nShell]*SchwarzERI[s3+s4*nShell]) <
+              eri.threshSchwarz()) {  
+            nIntSkip[thread_id]++;
+#ifdef _SEPARATED_SHZ_SCREEN_4C
+            nConSkip[thread_id] += nBatch;
+#endif            
+            continue; 
+          }
+          
+#ifdef _SEPARATED_SHZ_SCREEN_4C
+          nCon = 0;
+          for (auto iBatch = 0ul; iBatch < nBatch; iBatch++) {
+            shMax = std::max(ShBlkNorms_batch[iBatch][s1 + s4*nShell],
+                    std::max(ShBlkNorms_batch[iBatch][s2 + s4*nShell],
+                             ShBlkNorms_batch[iBatch][s3 + s4*nShell]));
+            shMax = std::max(shMax, shMax123_batch[iBatch]); 
+             
+            if((shMax*SchwarzERI[s1+s2*nShell]*SchwarzERI[s3+s4*nShell]) <
+              eri.threshSchwarz()) {
+              nConSkip[thread_id] ++;
+            } else {
+              contract_batch[nCon] = iBatch; 
+              nCon++;  
+            }
+          }
+#endif
+#endif 
+
+#ifdef _REPORT_INTEGRAL_TIMINGS
+          auto topDirectInt = tick();
+#endif
+          // Degeneracy factor for s3,s4 pair
+          double s34_deg = (s3 == s4) ? 1.0 : 2.0;
+          // Degeneracy factor for s1, s2, s3, s4 quartet
+          double s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
+          // Total degeneracy factor
+          double s1234_deg = s12_deg * s34_deg * s12_34_deg;
+   
+          auto nQuad = n1*n2*n3*n4;
+
+          shls[0] = int(s1);
+          shls[1] = int(s2);
+          shls[2] = int(s3);
+          shls[3] = int(s4);
+
+          if(int2e_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+
+          // Scale the buffer by the degeneracy factor and store
+          for(auto i = 0ul; i < nQuad; i++) buff[i] *= 0.5*s1234_deg;
+
+#ifdef _REPORT_INTEGRAL_TIMINGS
+          durDirectInt[thread_id] += tock(topDirectInt); 
+#endif
+
+#ifdef _CONTRACTION_ // Contraction
+          
+#ifdef _REPORT_INTEGRAL_TIMINGS
+          auto topDirectCon = tick();
+#endif
+          for (auto iCon = 0ul; iCon < nCon; iCon++) {  
+            
+            matOff = contract_batch[iCon] * mMat; 
+            ADCLLMS = AX_loc[matOff]->S().pointer();
+            DCLLMS  = matList[matOff].X->S().pointer();
+
+          for(l = 0ul, bf4 = bf4_s, mnkl=0ul ; l < n4; ++l, bf4++) {
+  
+          for(k = 0ul, bf3 = bf3_s           ; k < n3; ++k, bf3++) {
+            bf43 = bf4 + bf3*nBasis;
+            bf34 = bf3 + bf4*nBasis;
+  
+          for(n = 0ul, bf2 = bf2_s           ; n < n2; ++n, bf2++) {
+  
+          for(m = 0ul, bf1 = bf1_s           ; m < n1; ++m, bf1++, ++mnkl) {
+            bf21 = bf2 + bf1*nBasis;
+            bf12 = bf1 + bf2*nBasis;
+ 
+            ADCLLMS[bf12] += buff[mnkl]*(DCLLMS[bf43] + DCLLMS[bf34]);
+            ADCLLMS[bf34] += buff[mnkl]*(DCLLMS[bf21] + DCLLMS[bf12]);
+            
+          }; // bf1
+          }; // bf2
+          }; // bf3
+          }; // bf4  
+          }; // iCon
+
+#endif // Contraction
+        
+#ifdef _REPORT_INTEGRAL_TIMINGS
+        durDirectCon[thread_id] += tock(topDirectCon);
+#endif
+        }; // s4
+        }; // s3
+        }; // s2
+        }; // s1
+          
+      
+      } // OpenMP context 
+      
+      SquareMatrix<MatsT> SCR(memManager_, nBasis);
+      
+      // Take care of the symmetry for CLLMS
+      for( auto iMat = 0; iMat < nMat;  iMat++ ) 
+      for( auto iTh  = 0; iTh < nThreads; iTh++) {
+        
+        MatAdd('N','T',nBasis,nBasis,MatsT(0.25),AXthreads[iTh][iMat]->S().pointer(),nBasis,
+          MatsT(0.25),AXthreads[iTh][iMat]->S().pointer(),nBasis,SCR.pointer(),nBasis);
+        
+        matList[iMat].AX->S() += SCR;
+      
+      }
+     
+      memManager_.free(buffAll, cacheAll);
+    
+#ifdef _REPORT_INTEGRAL_TIMINGS
+      size_t nIntSkipAcc = std::accumulate(nIntSkip.begin(),nIntSkip.end(),0);
+      double durDirectIntAcc = std::accumulate(durDirectInt.begin(), durDirectInt.end(),0.);
+      double durDirectConAcc = std::accumulate(durDirectCon.begin(), durDirectCon.end(),0.);
+      
+      std::cout << std::endl;
+      std::cout << "Bare-Coulomb-Exchange Skipped Integral   : " << nIntSkipAcc << std::endl;
+#ifdef _SEPARATED_SHZ_SCREEN_4C
+      size_t nConSkipAcc = std::accumulate(nConSkip.begin(),nConSkip.end(),0);
+      std::cout << "                      Skipped Contraction: " << nConSkipAcc << std::endl;
+#endif
+
+      auto durDirect = tock(topDirect);
+      std::cout << "Bare-Coulomb-Exchange AO Direct Contraction took " <<  durDirect 
+                << " s for " << nBatch << " Batch" << std::endl; 
+      std::cout << "                            Build Integrals took " <<  durDirectIntAcc << " s" 
+                << " from all " << nThreads << " thread(s)" << std::endl;
+      std::cout << "                            Contractions    took " <<  durDirectConAcc << " s" 
+                << " from all " << nThreads << " thread(s)" << std::endl;
+      std::cout << std::endl;
+#endif
+    
+    };
+
+    /*********************************/
+    /*                               */
+    /* End of Bare-Coulomb           */
+    /*                               */
+    /*********************************/
+  
+    /******************************************/
+    /*                                        */
+    /* Start of Dirac-Coulomb LL and C(2)-SS  */
+    /*                                        */
+    /******************************************/
+    
+    if( matList[0].contType == TWOBODY_CONTRACTION_TYPE::LLLL ) {
+
+ 
+#ifdef _REPORT_INTEGRAL_TIMINGS
+      auto topDirectLL = tick();
+      std::vector<double> durDirectLLInt(nThreads, 0.);
+      std::vector<double> durDirectLLCon(nThreads, 0.);
+#endif
+      enum X_COMP {
+        DSS,
+        DLLMS,
+      };
+
+      enum AX_COMP {
+        CLLMS,
+        CSS,
+      };
+
+      // 81 is for fourth-derivative; 9 for second derivative
+      nERI = 9;
+      buffAll = memManager_.malloc<double>(nERI*buffN4*nThreads);
+      cacheAll = memManager_.malloc<double>(cache_size*nThreads);
+      ERIBuffer = memManager_.malloc<double>(2*4*NB4*nThreads);
+
+      // Keeping track of number of integrals skipped
+      std::vector<size_t> nIntSkipLL(nThreads,0);
+#ifdef _SEPARATED_SHZ_SCREEN_4C
+      std::vector<size_t> nConSkipLL(nThreads,0);
+#endif
+
+      #pragma omp parallel
+      {
+
+        double C2 = 1./(4*SpeedOfLight*SpeedOfLight);
+  
+        size_t thread_id = GetThreadID();
+  
+        auto &AX_loc = AXthreads[thread_id];
+  
+        double *ERIBuffAB   = &ERIBuffer[thread_id*4*NB4];
+        double *ERIBuffCD   = &ERIBuffer[nThreads*4*NB4 + thread_id*4*NB4];
+  
+        size_t n1,n2,n3,n4,m,n,k,l,mnkl,bf1,bf2,bf3,bf4;
+        size_t bf3nB,bf34,bf43,bf1nB,bf21,bf12;
+        size_t mNB2,mnNBkNB2,mnNB,mNB2nNB3,kmNB2nNB,kmNB2nNB3; 
+        size_t KLMN, DotPrdKLMN, CrossZKLMN, CrossXKLMN, CrossYKLMN,
+          MNKL, DotPrdMNKL, CrossXMNKL, CrossYMNKL, CrossZMNKL;
+
+        size_t s4_max;
+  
+        int shls[4];
+        double *buff = &buffAll[nERI*buffN4*thread_id];
+        double *cache = cacheAll+cache_size*thread_id;
+        
+        MatsT *ADCLLMS, *ADCSSMS, *ADCSSMX, *ADCSSMY, *ADCSSMZ,
+          *DCLLMS, *DCSSMS, *DCSSMX, *DCSSMY, *DCSSMZ;
+
+        MatsT TmpDen; 
+        std::vector<size_t> contract_batch(nBatch);
+        size_t iCon, nCon, matOff;
+
+#if !defined(_SHZ_SCREEN_4C) || !defined(_SEPARATED_SHZ_SCREEN_4C)
+        std::iota(contract_batch.begin(), contract_batch.end(), 0);
+        nCon = nBatch;
+#endif
+  
+        for(size_t s1(0), bf1_s(0), s1234(0); s1 < nShell; bf1_s+=n1, s1++) { 
+  
+          n1 = basisSet_.shells[s1].size(); // Size of Shell 1
+  
+        for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++) {
+  
+          n2 = basisSet_.shells[s2].size(); // Size of Shell 2
+          // Deneneracy factor for s1,s2 pair
+          double s12_deg = (s1 == s2) ? 1.0 : 2.0;
+  
+        for(size_t s3(0), bf3_s(0); s3 < nShell; bf3_s+=n3, s3++) {
+  
+          n3 = basisSet_.shells[s3].size(); // Size of Shell 3
+          s4_max = (s1 == s3) ? s2 : s3; // Determine the unique max of Shell 4
+  
+        for(size_t s4(0), bf4_s(0); s4 <= s3; bf4_s+=n4, s4++, s1234++) {
+  
+          n4 = basisSet_.shells[s4].size(); // Size of Shell 4
+
+          // Round Robbin work distribution
+          #ifdef _OPENMP
+          if( s1234 % nThreads != thread_id ) continue;
+          #endif
+
+#ifdef _SHZ_SCREEN_4C
+
+          double shMax = std::max(ShBlkNorms[s1 + s2*nShell],ShBlkNorms[s3 + s4*nShell]);
+
+          if((shMax*SchwarzSSSS[s1+s2*nShell]*SchwarzERI[s3 + s4*nShell]) <
+             eri.threshSchwarz()) { 
+            nIntSkipLL[thread_id]++; 
+#ifdef _SEPARATED_SHZ_SCREEN_4C
+            nConSkipLL[thread_id] += nBatch; 
+#endif            
+            continue; 
+          }
+
+#ifdef _SEPARATED_SHZ_SCREEN_4C
+          nCon = 0;
+          for (auto iBatch = 0ul; iBatch < nBatch; iBatch++) {
+             
+            shMax = std::max(ShBlkNorms_batch[iBatch][s1 + s2*nShell],
+                             ShBlkNorms_batch[iBatch][s3 + s4*nShell]);
+            
+            if((shMax*SchwarzSSSS[s1+s2*nShell]*SchwarzERI[s3+s4*nShell]) <
+              eri.threshSchwarz()) {
+              nConSkipLL[thread_id]++;
+            } else {
+              contract_batch[nCon] = iBatch;
+              nCon++;
+            }
+          }
+#endif
+
+#endif
+
+#ifdef _REPORT_INTEGRAL_TIMINGS
+          auto topDirectLLInt = tick();
+#endif
+          // Degeneracy factor for s3,s4 pair
+          double s34_deg = (s3 == s4) ? 1.0 : 2.0;
+
+          auto nQuad = n1*n2*n3*n4;
+  
+          shls[0] = int(s1);
+          shls[1] = int(s2);
+          shls[2] = int(s3);
+          shls[3] = int(s4);
+  
+          if(int2e_ipvip1_sph(buff, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, cache)==0) continue;
+
+ 
+          for(l = 3*maxShellSize, mnkl = 0ul; l < 3*maxShellSize + n4; ++l) {
+            auto lNB3 = l*NB3;
+            auto lNB  = l*NB;
+
+          for(k = 2*maxShellSize            ; k < 2*maxShellSize + n3; ++k) {
+            auto kNB2lNB3 = k*NB2 + lNB3;
+            auto klNB  = k + lNB;
+
+          for(n =   maxShellSize            ; n <   maxShellSize + n2; ++n) {
+            auto nNBkNB2lNB3 = n*NB + kNB2lNB3;
+            auto klNBnNB3    = klNB + n*NB3;
+
+          for(m = 0                         ; m <                  n1; ++m, ++mnkl) {
+   
+            /* Dirac-Coulomb */
+            // ∇A∙∇B(mn|kl)
+            auto dAdotdB = buff[AxBx*nQuad+mnkl] + buff[AyBy*nQuad+mnkl] + buff[AzBz*nQuad+mnkl];
+            // ∇Ax∇B(mn|kl)
+            auto dAcrossdB_x =  buff[AyBz*nQuad+mnkl] - buff[AzBy*nQuad+mnkl];
+            auto dAcrossdB_y = -buff[AxBz*nQuad+mnkl] + buff[AzBx*nQuad+mnkl];
+            auto dAcrossdB_z =  buff[AxBy*nQuad+mnkl] - buff[AyBx*nQuad+mnkl];
+  
+            //auto MNKL = m + n*NB + k*NB2 + l*NB3;
+            MNKL = m + nNBkNB2lNB3;
+            //auto KLMN = k + l*NB + m*NB2 + n*NB3;
+            KLMN = m*NB2 + klNBnNB3;
+  
+  
+            // ∇A∙∇B(mn|kl) followed by ∇Ax∇B(mn|kl) X, Y, and Z
+            // (mn|kl)
+            ERIBuffAB[       MNKL] =  (double)s34_deg*dAdotdB;
+            ERIBuffAB[   NB4+MNKL] =  (double)s34_deg*dAcrossdB_x;
+            ERIBuffAB[ NB4_2+MNKL] =  (double)s34_deg*dAcrossdB_y;
+            ERIBuffAB[ NB4_3+MNKL] =  (double)s34_deg*dAcrossdB_z;
+  
+            // ∇C∙∇D(kl|nm) followed by ∇Cx∇D(kl|nm) X, Y, and Z
+            // (kl|mn)
+            ERIBuffCD[       KLMN] =  (double)s12_deg*dAdotdB;
+            ERIBuffCD[   NB4+KLMN] =  (double)s12_deg*dAcrossdB_x;
+            ERIBuffCD[ NB4_2+KLMN] =  (double)s12_deg*dAcrossdB_y;
+            ERIBuffCD[ NB4_3+KLMN] =  (double)s12_deg*dAcrossdB_z;
+ 
+          }
+          }
+          } 
+          } // ∇A∇B integral preparation loop
+
+#ifdef _REPORT_INTEGRAL_TIMINGS
+         durDirectLLInt[thread_id] += tock(topDirectLLInt);
+#endif
+
+#ifdef _CONTRACTION_ // Contraction
+
+#ifdef _REPORT_INTEGRAL_TIMINGS
+          auto topDirectLLCon = tick();
+#endif
+
+          for (iCon = 0ul; iCon < nCon; iCon++) {  
+            
+            matOff = contract_batch[iCon] * mMat;
+            
+            ADCLLMS = AX_loc[CLLMS + matOff]->S().pointer();
+            ADCSSMS = AX_loc[CSS + matOff]->S().pointer();
+            ADCSSMX = AX_loc[CSS + matOff]->X().pointer();
+            ADCSSMY = AX_loc[CSS + matOff]->Y().pointer();
+            ADCSSMZ = AX_loc[CSS + matOff]->Z().pointer();
+
+            DCLLMS  = matList[DLLMS + matOff].X->S().pointer();
+            DCSSMS  = matList[DSS + matOff].X->S().pointer();
+            DCSSMX  = matList[DSS + matOff].X->X().pointer();
+            DCSSMY  = matList[DSS + matOff].X->Y().pointer();
+            DCSSMZ  = matList[DSS + matOff].X->Z().pointer();
+
+          for(m = 0ul,            bf1 = bf1_s; m <                  n1; ++m, bf1++) {
+            mNB2 = m*NB2;
+            bf1nB = bf1*nBasis;
+
+          for(n =   maxShellSize, bf2 = bf2_s; n <   maxShellSize + n2; ++n, bf2++) {
+            mNB2nNB3 = mNB2 + n*NB3;
+            mnNB     = m + n*NB;
+            bf21 = bf2 + bf1nB;
+            bf12 = bf1 + bf2*nBasis;
+
+          for(k = 2*maxShellSize, bf3 = bf3_s; k < 2*maxShellSize + n3; ++k, bf3++) {
+            mnNBkNB2  = mnNB + k*NB2;
+            kmNB2nNB3 = k + mNB2nNB3;
+            bf3nB = bf3*nBasis;
+
+          for(l = 3*maxShellSize, bf4 = bf4_s; l < 3*maxShellSize + n4; ++l, bf4++) {
+  
+            MNKL = mnNBkNB2 + l*NB3;
+            KLMN = kmNB2nNB3 + l*NB;
+  
+            bf43 = bf4 + bf3nB;
+            bf34 = bf3 + bf4*nBasis;
+  
+            DotPrdMNKL = MNKL;
+            CrossXMNKL = MNKL+NB4;
+            CrossYMNKL = MNKL+NB4_2;
+            CrossZMNKL = MNKL+NB4_3;
+  
+            DotPrdKLMN = KLMN;
+            CrossXKLMN = KLMN+NB4;
+            CrossYKLMN = KLMN+NB4_2;
+            CrossZKLMN = KLMN+NB4_3;
+  
+            /*++++++++++++++++++++++++++++++++++++++++++++*/
+            /* Start of Dirac-Coulomb (LL|LL) Contraction */
+            /*++++++++++++++++++++++++++++++++++++++++++++*/
+  
+            //KLMN
+            if(bf3 >= bf4 ) {
+              ADCLLMS[bf34] +=  ERIBuffCD[DotPrdKLMN]*(DCSSMS[bf21] + DCSSMS[bf12])
+                               +dcomplex(0.,1.)*ERIBuffCD[CrossZKLMN]*(DCSSMZ[bf21]-DCSSMZ[bf12])
+                               +dcomplex(0.,1.)*ERIBuffCD[CrossXKLMN]*(DCSSMX[bf21]-DCSSMX[bf12])
+                               +dcomplex(0.,1.)*ERIBuffCD[CrossYKLMN]*(DCSSMY[bf21]-DCSSMY[bf12]);
+            }
+           
+            /*------------------------------------------*/
+            /* End of Dirac-Coulomb (LL|LL) Contraction */
+            /*------------------------------------------*/
+  
+  
+            /*+++++++++++++++++++++++++++++++++++++++++++++++++*/
+            /* Start of Dirac-Coulomb C(2)-(SS|SS) Contraction */
+            /*+++++++++++++++++++++++++++++++++++++++++++++++++*/
+  
+            /* MNKL */
+            if (bf1 >= bf2) {
+              TmpDen = DCLLMS[bf43]+DCLLMS[bf34];
+              ADCSSMS[bf12] += ERIBuffAB[DotPrdMNKL]*TmpDen;
+              ADCSSMX[bf12] += ERIBuffAB[CrossXMNKL]*TmpDen;
+              ADCSSMY[bf12] += ERIBuffAB[CrossYMNKL]*TmpDen;
+              ADCSSMZ[bf12] += ERIBuffAB[CrossZMNKL]*TmpDen;
+            }
+  
+            /*-----------------------------------------------*/
+            /* End of Dirac-Coulomb C(2)-(SS|SS) Contraction */
+            /*-----------------------------------------------*/
+          };
+          };
+          };  
+          }; 
+          }; // iBatch
+
+#endif // Contraction
+
+#ifdef _REPORT_INTEGRAL_TIMINGS
+        durDirectLLCon[thread_id] += tock(topDirectLLCon); 
+#endif
+        }; // loop s4
+        }; // loop s3
+        }; // loop s2
+        }; // loop s1
+
+      } // OpenMP context
+
+   
+      MatsT  scale = MatsT(0.5);
+      MatsT iscale = scale * dcomplex(0.0, 1.0);
+      
+      for( auto iTh  = 0; iTh < nThreads; iTh++) {
+      for (auto iBatch = 0ul, matOff = 0ul; iBatch < nBatch; iBatch++, matOff+=mMat) {  
+        matList[CLLMS + matOff].AX->S() +=  scale * AXthreads[iTh][CLLMS + matOff]->S();  
+        matList[CSS   + matOff].AX->S() +=  scale * AXthreads[iTh][CSS   + matOff]->S();  
+        matList[CSS   + matOff].AX->X() += iscale * AXthreads[iTh][CSS   + matOff]->X();  
+        matList[CSS   + matOff].AX->Y() += iscale * AXthreads[iTh][CSS   + matOff]->Y();  
+        matList[CSS   + matOff].AX->Z() += iscale * AXthreads[iTh][CSS   + matOff]->Z();  
+      }}
+    
+      // Take care of the symmetry in the LL and SS blocks
+      for (auto iBatch = 0ul, matOff = 0ul; iBatch < nBatch; iBatch++, matOff+=mMat) {  
+        auto ADCLLMS = matList[CLLMS + matOff].AX->S().pointer();
+        auto ADCSSMS = matList[CSS   + matOff].AX->S().pointer();
+        auto ADCSSMX = matList[CSS   + matOff].AX->X().pointer();
+        auto ADCSSMY = matList[CSS   + matOff].AX->Y().pointer();
+        auto ADCSSMZ = matList[CSS   + matOff].AX->Z().pointer();
+        for( auto i = 0; i < nBasis; i++ ) 
+        for( auto j = 0; j < i; j++ ) {
+          ADCLLMS[j + i*nBasis] =  ADCLLMS[i + j*nBasis];
+          ADCSSMS[j + i*nBasis] =  ADCSSMS[i + j*nBasis];
+          ADCSSMX[j + i*nBasis] = -ADCSSMX[i + j*nBasis];
+          ADCSSMY[j + i*nBasis] = -ADCSSMY[i + j*nBasis];
+          ADCSSMZ[j + i*nBasis] = -ADCSSMZ[i + j*nBasis];
+        }
+      } 
+      
+      memManager_.free(ERIBuffer);
+      memManager_.free(buffAll, cacheAll);
+    
+#ifdef _REPORT_INTEGRAL_TIMINGS
+      size_t nIntSkipAccLL = std::accumulate(nIntSkipLL.begin(),nIntSkipLL.end(),0);
+      double durDirectLLIntAcc = std::accumulate(durDirectLLInt.begin(), durDirectLLInt.end(),0.);
+      double durDirectLLConAcc = std::accumulate(durDirectLLCon.begin(), durDirectLLCon.end(),0.);
+      
+      std::cout << std::endl;
+      std::cout << "Dirac-Coulomb-LL/C(2)-SS Skipped Integral   : " << nIntSkipAccLL << std::endl;
+#ifdef _SEPARATED_SHZ_SCREEN_4C
+      size_t nConSkipAccLL = std::accumulate(nConSkipLL.begin(),nConSkipLL.end(),0);
+      std::cout << "                         Skipped Contraction: " << nConSkipAccLL << std::endl;
+#endif
+      auto durDirectLL = tock(topDirectLL);
+      std::cout << "Dirac-Coulomb-LL/C(2)-SS AO Direct Contraction took " <<  durDirectLL 
+                << " s for " << nBatch << " Batch " << std::endl; 
+      std::cout << "                               Build Integrals took " <<  durDirectLLIntAcc << " s" 
+                << " from all " << nThreads << " thread(s)" << std::endl;
+      std::cout << "                               Contractions    took " <<  durDirectLLConAcc << " s"
+                << " from all " << nThreads << " thread(s)" << std::endl;
+
+      std::cout << std::endl;
+#endif
+    
+    } // if(LLLL)
+    
+    /******************************************/
+    /*                                        */
+    /*   End of Dirac-Coulomb LL and C(2)-SS  */
+    /*                                        */
+    /******************************************/
+
+#ifdef _SHZ_SCREEN_4C
+    if(ShBlkNorms_raw) memManager_.free(ShBlkNorms_raw);
+    if(SchwarzSSSS)    memManager_.free(SchwarzSSSS);
+    if(SchwarzERI)     memManager_.free(SchwarzERI);
+#endif
+  
+    memManager_.free(atm);
+    memManager_.free(bas);
+    memManager_.free(env);
+  
+    // Turn threads for LA back on
+    // SetLAThreads(LAThreads);
+  
+  }; // GTODirectRelERIContraction::directRelScaffoldLibcintCoulombOnly
+  
+  template <>
+  void GTODirectRelERIContraction<double,double>::directRelScaffoldLibcintCoulombOnly(
+    MPI_Comm comm, const bool screen,
+    std::vector<TwoBodyRelContraction<double>> &matList) const {
+    CErr("Dirac-Coulomb + Real is an invalid option",std::cout);  
+  }
+
+  template <>
+  void GTODirectRelERIContraction<dcomplex,dcomplex>::directRelScaffoldLibcintCoulombOnly(
+    MPI_Comm comm, const bool screen,
+    std::vector<TwoBodyRelContraction<dcomplex>> &matList) const {
+    CErr("Complex integral is is an invalid option",std::cout);  
+  }
+  
+  template <typename MatsT, typename IntsT>
+  size_t GTODirectRelERIContraction<MatsT,IntsT>::libcintCacheSize(
+    const TWOBODY_CONTRACTION_TYPE & contType, int * atm, const int nAtoms, 
+    int * bas, const int nShells, double * env) const {
+    
+    size_t cache_size = 0ul;
+    for (int i = 0; i < nShells; i++) {
+      size_t n;
+      int shls[4]{i,i,i,i};
+      if(contType == TWOBODY_CONTRACTION_TYPE::BARE_COULOMB or
+         contType == TWOBODY_CONTRACTION_TYPE::LLLL or
+         contType == TWOBODY_CONTRACTION_TYPE::LLSS) {
+        n = int2e_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+      }
+      if(contType == TWOBODY_CONTRACTION_TYPE::SSSS or
+         contType == TWOBODY_CONTRACTION_TYPE::LLLL or
+         contType == TWOBODY_CONTRACTION_TYPE::LLSS) {
+        n = int2e_ipvip1ipvip2_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+      }
+      if(contType == TWOBODY_CONTRACTION_TYPE::LLLL or
+         contType == TWOBODY_CONTRACTION_TYPE::LLSS) {
+        n = int2e_ipvip1_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+      }
+      if(contType == TWOBODY_CONTRACTION_TYPE::GAUNT) {
+        n = int2e_ip1ip2_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+      }
+      if(contType == TWOBODY_CONTRACTION_TYPE::GAUGE) {
+        n = int2e_gauge_r1_ssp1sps2_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+        n = int2e_gauge_r2_ssp1sps2_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+        n = int2e_gauge_r1_ssp1ssp2_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+        n = int2e_gauge_r2_ssp1ssp2_sph(nullptr, nullptr, shls, atm, nAtoms, bas, nShells, env, nullptr, nullptr);
+        cache_size = std::max(cache_size, n);
+      }
+    }
+
+    return cache_size; 
+  }
+
+  /*******************************************************************************/
+  /*                                                                             */
+  /* Compute memory requirement for Libcint Batch 4C-direct                      */
+  /* Returns:                                                                    */
+  /*   size_t SCR size needed for one batch                                      */
+  /*   IMPORTANT HERE: size are all in MatsT(dcomplex)                           */
+  /*******************************************************************************/
+  
+  template <typename MatsT, typename IntsT>
+  size_t GTODirectRelERIContraction<MatsT,IntsT>::directRelScaffoldLibcintSCRSize(
+    const TWOBODY_CONTRACTION_TYPE & contType, const bool CoulombOnly) const {
+    
+    // disable NYI part
+    if (not CoulombOnly or
+        contType == TWOBODY_CONTRACTION_TYPE::LLSS or
+        contType == TWOBODY_CONTRACTION_TYPE::SSSS or
+        contType == TWOBODY_CONTRACTION_TYPE::GAUNT or
+        contType == TWOBODY_CONTRACTION_TYPE::GAUGE) 
+      CErr("NYI contType in directRelScaffoldSCRSize"); 
+    
+    size_t threadSCRSize  = 0ul;
+    size_t generalSCRSize = 0ul;
+  
+    DirectTPI<IntsT> &originalERI =
+        dynamic_cast<DirectTPI<IntsT>&>(this->ints_);
+    CQMemManager& memManager_ = originalERI.memManager();
+    BasisSet& originalBasisSet_ = originalERI.basisSet();
+    Molecule& molecule_ = originalERI.molecule();
+    
+    if (originalBasisSet_.forceCart)
+      CErr("Libcint + cartesian GTO NYI.");
+    
+    BasisSet  basisSet_ = originalBasisSet_.groupGeneralContractionBasis();
+    
+  
+    int nAtoms      = molecule_.nAtoms;
+    int nShells     = basisSet_.nShell;
+    size_t nBasis   = basisSet_.nBasis;
+  
+    size_t basisSCRSize = nAtoms * ATM_SLOTS
+                         + nShells * BAS_SLOTS
+                         + basisSet_.getLibcintEnvLength(molecule_);
+  
+    size_t buffSize = std::max_element(basisSet_.shells.begin(),
+                                       basisSet_.shells.end(),
+                                       [](libint2::Shell &a, libint2::Shell &b) {
+                                         return a.size() < b.size();
+                                       })->size();
+    
+    int *atm = memManager_.template malloc<int>(nAtoms * ATM_SLOTS);
+    int *bas = memManager_.template malloc<int>(nShells * BAS_SLOTS);
+    double *env = memManager_.template malloc<double>(basisSet_.getLibcintEnvLength(molecule_));
+    
+    basisSet_.setLibcintEnv(molecule_, atm, bas, env);
+    
+    size_t cacheSize = libcintCacheSize(contType, atm, nAtoms, bas, nShells, env);
+    
+    memManager_.free(atm, bas, env);
+    
+    size_t buffN4 = buffSize*buffSize*buffSize*buffSize;
+    
+    int nERI, nERIbuff, nSHZ, mRawMat;
+    size_t maxShellSize = buffSize;
+    size_t NB  = maxShellSize*4;
+    size_t NB4 = NB*NB*NB*NB;
+  
+    // SCR needed for Schwarz Screening
+    if (CoulombOnly) {
+      if (contType == TWOBODY_CONTRACTION_TYPE::BARE_COULOMB) {
+        mRawMat = 1;
+        nERI = 1;
+        nERIbuff = 0;
+      } else if (contType == TWOBODY_CONTRACTION_TYPE::LLLL) {
+        mRawMat = 5;
+        nERI = 9;
+        nERIbuff = 2*4;
+      } else {
+        CErr("NYI contType in directRelScaffoldSCRSize"); 
+      }
+    } else{
+      CErr("NYI contType in directRelScaffoldSCRSize"); 
+    }
+    // SCR needed for integrals  
+    threadSCRSize += nERI*buffN4 + cacheSize + nERIbuff*NB4; 
+    // SCR needed for AX, scale 2 for complex 
+    threadSCRSize += size_t(sizeof(MatsT)/sizeof(double))*mRawMat*nBasis*nBasis; 
+
+#ifdef _SHZ_SCREEN_4C
+    if(contType == TWOBODY_CONTRACTION_TYPE::BARE_COULOMB) nERI = 1;
+    else if (contType == TWOBODY_CONTRACTION_TYPE::LLLL or 
+             contType == TWOBODY_CONTRACTION_TYPE::LLSS or
+             contType == TWOBODY_CONTRACTION_TYPE::SSSS)   nERI = 81;
+    else if (contType == TWOBODY_CONTRACTION_TYPE::GAUNT)  nERI = 9;
+    else if (contType == TWOBODY_CONTRACTION_TYPE::GAUGE)  nERI = 16*2;
+    
+    nSHZ = 3; // 1 for SchwarZERI, 1 for ShBlkNorm, 1 for ShBlkNorm_raw 
+    if (contType == TWOBODY_CONTRACTION_TYPE::LLLL or 
+        contType == TWOBODY_CONTRACTION_TYPE::LLSS) nSHZ += 1;
+    
+    size_t SHZThreadSCRSize  = std::max(nERI*buffN4 + cacheSize, size_t(nShells*nShells));  
+    size_t SHZGeneralSCRSize = nShells*nShells*nSHZ; 
+    
+    threadSCRSize   = std::max(threadSCRSize, SHZThreadSCRSize);
+    generalSCRSize += SHZGeneralSCRSize; 
+#endif
+    
+    // scale to dcomplex
+    // size_t scale = size_t(sizeof(dcomplex)/sizeof(double));
+
+    return (threadSCRSize * GetNumThreads() + generalSCRSize) / 2;
+  }
+
+  template <>
+  size_t GTODirectRelERIContraction<double,double>::directRelScaffoldLibcintSCRSize(
+    const TWOBODY_CONTRACTION_TYPE & contType, const bool CoulombOnly) const {
+    CErr("Dirac-Coulomb + Real is an invalid option",std::cout);  
+  }
+
+  template <>
+  size_t GTODirectRelERIContraction<dcomplex,dcomplex>::directRelScaffoldLibcintSCRSize(
+    const TWOBODY_CONTRACTION_TYPE & contType, const bool CoulombOnly) const {
+    CErr("Complex  is an invalid option",std::cout);  
   }
 
 }; // namespace ChronusQ
-
-
-
-
-
-
-
-
-
-
-

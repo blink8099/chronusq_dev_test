@@ -57,47 +57,32 @@ namespace ChronusQ {
         (std::is_same<IntsT, dcomplex>::value or
          std::is_same<TransT, dcomplex>::value),
         dcomplex, double>::type ResultsT;
+    
     CQMemManager &mem = this->memManager();
-    size_t NB = this->nBasis();
-    std::vector<size_t> offs, SCR_nRows{NB * NB * NB};
-    for (const auto &off_size : off_sizes) {
-      SCR_nRows.push_back(SCR_nRows.back() / NB * off_size.second);
-      if (TRANS == 'T' or TRANS == 'C')
-        offs.push_back(off_size.first);
-      else if (TRANS == 'N')
-        offs.push_back(off_size.first * LDT);
-    }
+    size_t NB  = this->nBasis();
+    size_t NB2 = NB * NB; 
+    size_t np  = off_sizes[0].second;
+    size_t nq  = off_sizes[1].second;
+    size_t nr  = off_sizes[2].second;
+    size_t ns  = off_sizes[3].second;
+     
+    ResultsT* SCR  = mem.malloc<ResultsT>(NB * std::max(NB2*np, np*nq*nr)); 
+    ResultsT* SCR2 = mem.malloc<ResultsT>(NB2 * np * nq); 
+    IntsT * intsTdummy = nullptr;
+    ResultsT * resultsTdummy = nullptr;
 
-    blas::Op OP_TRANS;
-    if (TRANS == 'T') {
-      OP_TRANS = blas::Op::Trans;
-    } else if (TRANS == 'C') {
-      OP_TRANS = blas::Op::ConjTrans;
-    } else if (TRANS == 'N') {
-      OP_TRANS = blas::Op::NoTrans;
-    }
-
-    ResultsT* SCR  = mem.malloc<ResultsT>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
-    ResultsT* SCR2 = mem.malloc<ResultsT>(NB * SCR_nRows[2]);
+    // first half transformation
     // SCR (nu lambda sigma, p) = (mu, nu | lambda sigma)^H @ T(mu, p)
-    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, SCR_nRows[0], off_sizes[0].second, NB,
-        ResultsT(1.), pointer(), NB, T+offs[0], LDT,
-        ResultsT(0.), SCR, SCR_nRows[0]);
-    // SCR2(lambda sigma p, q) = SCR(nu, lambda sigma p)^H @ T(nu, q)
-    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, SCR_nRows[1], off_sizes[1].second, NB,
-        ResultsT(1.), SCR, NB, T+offs[1], LDT,
-        ResultsT(0.), SCR2, SCR_nRows[1]);
+    // SCR2(lambda sigma p, q)  = SCR(nu, lambda sigma p)^H @ T(nu, q)
+    PairTransformation(TRANS, T, LDT, off_sizes[0].first, off_sizes[1].first,
+      'N', pointer(), NB, NB, NB2, 'T', SCR2, np, nq, intsTdummy, SCR, false); 
+    
+    // second half transformation
     // SCR(sigma p q, r) = SCR2(lambda, sigma p q)^H @ T(lambda, r)
-    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, SCR_nRows[2], off_sizes[2].second, NB,
-        ResultsT(1.), SCR2,NB, T+offs[2], LDT,
-        ResultsT(0.), SCR, SCR_nRows[2]);
     // (p q | r, s) = SCR(sigma, p q r)^H @ T(sigma, s)
-    //              = T(mu, p)^H @ T(lambda, r)^H @
-    //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
-    OutT outFactor = increment ? 1.0 : 0.0;
-    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, SCR_nRows[3], off_sizes[3].second, NB,
-        OutT(1.),     SCR, NB, T+offs[3], LDT,
-        outFactor,    out, SCR_nRows[3]);
+    PairTransformation(TRANS, T, LDT, off_sizes[2].first, off_sizes[3].first,
+      'N', SCR2, NB, NB, np * nq, 'T', out, nr, ns, resultsTdummy, SCR, increment); 
+    
     mem.free(SCR, SCR2);
   }
   template void InCore4indexTPI<double>::subsetTransform(
@@ -112,62 +97,66 @@ namespace ChronusQ {
       char TRANS, const dcomplex* T, int LDT,
       const std::vector<std::pair<size_t,size_t>> &off_sizes,
       dcomplex* out, bool increment) const;
-
-  template <>
-  template <>
-  void InCore4indexTPI<dcomplex>::subsetTransform(
+  template void InCore4indexTPI<dcomplex>::subsetTransform(
       char TRANS, const double* T, int LDT,
       const std::vector<std::pair<size_t,size_t>> &off_sizes,
-      dcomplex* out, bool increment) const {
-    CQMemManager &mem = this->memManager();
-    size_t NB = this->nBasis();
-    std::vector<size_t> offs(4), SCR_nRows{NB * NB * NB};
-    for (int i = 3; i >= 0; i--) {
-      SCR_nRows.push_back(SCR_nRows.back() / NB * off_sizes[i].second);
-      if (TRANS == 'T' or TRANS == 'C')
-        offs[i] = off_sizes[i].first;
-      else if (TRANS == 'N')
-        offs[i] = off_sizes[i].first * LDT;
-    }
-    dcomplex* SCR  = mem.malloc<dcomplex>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
-    dcomplex* SCR2 = mem.malloc<dcomplex>(NB * SCR_nRows[2]);
-    
-    if (TRANS == 'T' or TRANS == 'C')
-      TRANS = 'N';
-    else if (TRANS == 'N')
-      TRANS = 'C';
+      dcomplex* out, bool increment) const;
+
+  //template <>
+  //template <>
+  //void InCore4indexTPI<dcomplex>::subsetTransform(
+  //    char TRANS, const double* T, int LDT,
+  //    const std::vector<std::pair<size_t,size_t>> &off_sizes,
+  //    dcomplex* out, bool increment) const {
+  //  CQMemManager &mem = this->memManager();
+  //  size_t NB = this->nBasis();
+  //  std::vector<size_t> offs(4), SCR_nRows{NB * NB * NB};
+  //  for (int i = 3; i >= 0; i--) {
+  //    SCR_nRows.push_back(SCR_nRows.back() / NB * off_sizes[i].second);
+  //    if (TRANS == 'T' or TRANS == 'C')
+  //      offs[i] = off_sizes[i].first;
+  //    else if (TRANS == 'N')
+  //      offs[i] = off_sizes[i].first * LDT;
+  //  }
+  //  dcomplex* SCR  = mem.malloc<dcomplex>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
+  //  dcomplex* SCR2 = mem.malloc<dcomplex>(NB * SCR_nRows[2]);
+  //  
+  //  if (TRANS == 'T' or TRANS == 'C')
+  //    TRANS = 'N';
+  //  else if (TRANS == 'N')
+  //    TRANS = 'C';
 
 
-    blas::Op OP_TRANS;
-    if (TRANS == 'T') {
-      OP_TRANS = blas::Op::Trans;
-    } else if (TRANS == 'C') {
-      OP_TRANS = blas::Op::ConjTrans;
-    } else if (TRANS == 'N') {
-      OP_TRANS = blas::Op::NoTrans;
-    }
-    // SCR (s, mu nu lambda) = T(sigma, s)^H @ (mu nu | lambda, sigma)^H
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[3].second, SCR_nRows[0], NB,
-        dcomplex(1.), T+offs[3], LDT, pointer(), SCR_nRows[0],
-        dcomplex(0.), SCR, off_sizes[3].second);
-    // SCR2(r, s mu nu) = T(lambda, r)^H @ SCR(s mu nu lambda)^H
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[2].second, SCR_nRows[1], NB,
-        dcomplex(1.), T+offs[2], LDT, SCR, SCR_nRows[1],
-        dcomplex(0.), SCR2,off_sizes[2].second);
-    // SCR(q, r s mu) = T(nu, q)^H @ SCR2(r s mu, nu)^H
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[1].second, SCR_nRows[2], NB,
-        dcomplex(1.), T+offs[1], LDT, SCR2,SCR_nRows[2],
-        dcomplex(0.), SCR, off_sizes[1].second);
-    // (p, q | r s) = T(mu, p)^H @ SCR(q r s, mu)^H
-    //              = T(mu, p)^H @ T(lambda, r)^H @
-    //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
-    dcomplex outFactor = increment ? 1.0 : 0.0;
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[0].second, SCR_nRows[3], NB,
-        dcomplex(1.), T+offs[0], LDT, SCR, SCR_nRows[3],
-        outFactor,    out, off_sizes[0].second);
-    mem.free(SCR, SCR2);
-  }
-  
+  //  blas::Op OP_TRANS;
+  //  if (TRANS == 'T') {
+  //    OP_TRANS = blas::Op::Trans;
+  //  } else if (TRANS == 'C') {
+  //    OP_TRANS = blas::Op::ConjTrans;
+  //  } else if (TRANS == 'N') {
+  //    OP_TRANS = blas::Op::NoTrans;
+  //  }
+  //  // SCR (s, mu nu lambda) = T(sigma, s)^H @ (mu nu | lambda, sigma)^H
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[3].second, SCR_nRows[0], NB,
+  //      dcomplex(1.), T+offs[3], LDT, pointer(), SCR_nRows[0],
+  //      dcomplex(0.), SCR, off_sizes[3].second);
+  //  // SCR2(r, s mu nu) = T(lambda, r)^H @ SCR(s mu nu lambda)^H
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[2].second, SCR_nRows[1], NB,
+  //      dcomplex(1.), T+offs[2], LDT, SCR, SCR_nRows[1],
+  //      dcomplex(0.), SCR2,off_sizes[2].second);
+  //  // SCR(q, r s mu) = T(nu, q)^H @ SCR2(r s mu, nu)^H
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[1].second, SCR_nRows[2], NB,
+  //      dcomplex(1.), T+offs[1], LDT, SCR2,SCR_nRows[2],
+  //      dcomplex(0.), SCR, off_sizes[1].second);
+  //  // (p, q | r s) = T(mu, p)^H @ SCR(q r s, mu)^H
+  //  //              = T(mu, p)^H @ T(lambda, r)^H @
+  //  //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
+  //  dcomplex outFactor = increment ? 1.0 : 0.0;
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[0].second, SCR_nRows[3], NB,
+  //      dcomplex(1.), T+offs[0], LDT, SCR, SCR_nRows[3],
+  //      outFactor,    out, off_sizes[0].second);
+  //  mem.free(SCR, SCR2);
+  //}
+ 
  /**
    *  \brief 4 Components
    *         (p q | r s) = T(mu, p)^H @ T(lambda, r)^H @
@@ -196,27 +185,38 @@ namespace ChronusQ {
     size_t NB  = this->nBasis();
     size_t NB2 = NB*NB; 
     CQMemManager &mem = this->memManager();
-    
-    std::vector<size_t> TCols;
-    for (const auto &off_size : off_sizes) {
-      TCols.push_back(off_size.first+off_size.second);
-    }
 
-    size_t TColMax = *std::max_element(TCols.begin(), TCols.end());
-    TransT* TLarge = mem.template malloc<TransT>(NB*TColMax);
-    TransT* TSmall = mem.template malloc<TransT>(NB*TColMax);
+    std::vector<size_t> TColLeft, TColRight;
+    for (const auto &off_size : off_sizes) {
+      TColLeft.push_back(off_size.first);
+      TColRight.push_back(off_size.first+off_size.second);
+    }
+    
+    size_t TColMin = *std::min_element(TColLeft.begin(),  TColLeft.end()); 
+    size_t TColMax = *std::max_element(TColRight.begin(), TColRight.end());
+    size_t NTCol   = TColMax - TColMin;
+    
+    std::vector<std::pair<size_t,size_t>> TCol_off_sizes;
+    for (const auto &off_size : off_sizes)
+      TCol_off_sizes.push_back({off_size.first - TColMin, off_size.second});
+    
+    // copy over large and small MOs
+    TransT* TLarge = mem.template malloc<TransT>(NB*NTCol);
+    TransT* TSmall = mem.template malloc<TransT>(NB*NTCol);
     
     size_t NBHalf = NB / 2;
     if (TRANS == 'N' or TRANS == 'R') { 
-      SetMat('N', NBHalf, TColMax, TransT(1.), T,           LDT, TLarge, NB);
-      SetMat('N', NBHalf, TColMax, TransT(1.), T +  NBHalf, LDT, TSmall, NB);
-      SetMat('N', NBHalf, TColMax, TransT(1.), T +2*NBHalf, LDT, TLarge+NBHalf, NB);
-      SetMat('N', NBHalf, TColMax, TransT(1.), T +3*NBHalf, LDT, TSmall+NBHalf, NB);
+      auto THead = T + TColMin*LDT;
+      SetMat('N', NBHalf, NTCol, TransT(1.), THead,           LDT, TLarge, NB);
+      SetMat('N', NBHalf, NTCol, TransT(1.), THead +  NBHalf, LDT, TSmall, NB);
+      SetMat('N', NBHalf, NTCol, TransT(1.), THead +2*NBHalf, LDT, TLarge+NBHalf, NB);
+      SetMat('N', NBHalf, NTCol, TransT(1.), THead +3*NBHalf, LDT, TSmall+NBHalf, NB);
     } else if (TRANS == 'T' or TRANS == 'C') {
-      SetMat('N', TColMax, NBHalf, TransT(1.), T,               LDT, TLarge, TColMax);
-      SetMat('N', TColMax, NBHalf, TransT(1.), T +  NBHalf*LDT, LDT, TSmall, TColMax);
-      SetMat('N', TColMax, NBHalf, TransT(1.), T +2*NBHalf*LDT, LDT, TLarge+NBHalf*TColMax, TColMax);
-      SetMat('N', TColMax, NBHalf, TransT(1.), T +3*NBHalf*LDT, LDT, TSmall+NBHalf*TColMax, TColMax);
+      auto THead = T + TColMin;
+      SetMat('N', NTCol, NBHalf, TransT(1.), THead,               LDT, TLarge, NTCol);
+      SetMat('N', NTCol, NBHalf, TransT(1.), THead +  NBHalf*LDT, LDT, TSmall, NTCol);
+      SetMat('N', NTCol, NBHalf, TransT(1.), THead +2*NBHalf*LDT, LDT, TLarge+NBHalf*NTCol, NTCol);
+      SetMat('N', NTCol, NBHalf, TransT(1.), THead +3*NBHalf*LDT, LDT, TSmall+NBHalf*NTCol, NTCol);
     } else {
       CErr("Wrong TRANS Input");
     }
@@ -224,13 +224,13 @@ namespace ChronusQ {
     // NR LLLL part
     // std::cout << "----Transform LLLL " << std::endl;
     subsetTransformWithLSComps("LLLL", TRANS, TLarge, NB, TSmall, NB, 
-      off_sizes, this->pointer(), out);
+      TCol_off_sizes, this->pointer(), out);
     
     if (this->nRelComp() > 0) {
 
       // Dirac-Coulomb Term 
-      size_t out_LDA = off_sizes[0].second*off_sizes[1].second;
-      bool outSymm = (off_sizes[0] == off_sizes[2] and off_sizes[1] == off_sizes[3]); 
+//      size_t out_LDA = TCol_off_sizes[0].second*TCol_off_sizes[1].second;
+//      bool outSymm =  (TCol_off_sizes[0] == TCol_off_sizes[2] and TCol_off_sizes[1] == TCol_off_sizes[3]); 
       auto & spinor = components_[0];
       
 //      if (outSymm) {
@@ -253,13 +253,13 @@ namespace ChronusQ {
         // SSLL Transformation
         // std::cout << "----Transform SSLL " << std::endl;
         subsetTransformWithLSComps("SSLL", TRANS, TLarge, NB, TSmall, NB, 
-          off_sizes, spinor.pointer(), out, true);
+          TCol_off_sizes, spinor.pointer(), out, true);
 
         // LLSS Transformation
         // std::cout << "----Transform LLSS " << std::endl;
         SetMat('T', NB2, NB2, IntsT(1.), spinor.pointer(), NB2, SCR, NB2);
         subsetTransformWithLSComps("LLSS", TRANS, TLarge, NB, TSmall, NB, 
-          off_sizes, SCR, out, true);
+          TCol_off_sizes, SCR, out, true);
         
         mem.free(SCR);
 //      }
@@ -317,64 +317,44 @@ namespace ChronusQ {
         dcomplex, double>::type ResultsT;
     
     size_t NB = this->nBasis();
+    size_t NB2 = NB * NB; 
+    size_t np  = off_sizes[0].second;
+    size_t nq  = off_sizes[1].second;
+    size_t nr  = off_sizes[2].second;
+    size_t ns  = off_sizes[3].second;
     CQMemManager &mem = this->memManager();
-    
-    std::vector<size_t> offs, SCR_nRows{NB * NB * NB}, LDT;
+    std::vector<size_t> LDT;
     std::vector<const TransT*> T;
-
-    for (auto i = 0ul; i < off_sizes.size(); i++) {
-
-      SCR_nRows.push_back(SCR_nRows.back() / NB * off_sizes[i].second);
-      
-      if(LSComps[i] == 'L') { 
+    
+    for (const char & c: LSComps) {
+      if(c == 'L') { 
         T.push_back(TL);
         LDT.push_back(LDTL);
-      } else if (LSComps[i] == 'S') {
+      } else if (c == 'S') {
         T.push_back(TS);
         LDT.push_back(LDTS);
       }
-
-      if (TRANS == 'T' or TRANS == 'C')
-        offs.push_back(off_sizes[i].first);
-      else if (TRANS == 'N')
-        offs.push_back(off_sizes[i].first * LDT[i]);
     }
     
-    ResultsT* SCR  = mem.malloc<ResultsT>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
-    ResultsT* SCR2 = mem.malloc<ResultsT>(NB * SCR_nRows[2]);
+    ResultsT* SCR  = mem.malloc<ResultsT>(NB * std::max(NB2*np, np*nq*nr)); 
+    ResultsT* SCR2 = mem.malloc<ResultsT>(NB2 * np * nq); 
+    IntsT * intsTdummy = nullptr;
+    ResultsT * resultsTdummy = nullptr;
     
-    blas::Op OP_TRANS;
-    if (TRANS == 'T') {
-      OP_TRANS = blas::Op::Trans;
-    } else if (TRANS == 'C') {
-      OP_TRANS = blas::Op::ConjTrans;
-    } else if (TRANS == 'N') {
-      OP_TRANS = blas::Op::NoTrans;
-    }
-    
+    // first half transformation
     // SCR (nu lambda sigma, p) = (mu, nu | lambda sigma)^H @ T(mu, p)
-    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
-        SCR_nRows[0], off_sizes[0].second, NB,
-        ResultsT(1.), in, NB, T[0]+offs[0], LDT[0],
-        ResultsT(0.), SCR, SCR_nRows[0]);
-    // SCR2(lambda sigma p, q) = SCR(nu, lambda sigma p)^H @ T(nu, q)
-    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
-        SCR_nRows[1], off_sizes[1].second, NB,
-        ResultsT(1.), SCR, NB, T[1]+offs[1], LDT[1],
-        ResultsT(0.), SCR2, SCR_nRows[1]);
+    // SCR2(lambda sigma p, q)  = SCR(nu, lambda sigma p)^H @ T(nu, q)
+    PairTransformation(TRANS, T[0], LDT[0], off_sizes[0].first, 
+       T[1], LDT[1], off_sizes[1].first, 'N', in, NB, NB, NB2, 
+      'T', SCR2, np, nq, intsTdummy, SCR, false); 
+    
+    // second half transformation
     // SCR(sigma p q, r) = SCR2(lambda, sigma p q)^H @ T(lambda, r)
-    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
-        SCR_nRows[2], off_sizes[2].second, NB,
-        ResultsT(1.), SCR2,NB, T[2]+offs[2], LDT[2],
-        ResultsT(0.), SCR, SCR_nRows[2]);
     // (p q | r, s) = SCR(sigma, p q r)^H @ T(sigma, s)
-    //              = T(mu, p)^H @ T(lambda, r)^H @
-    //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
-    OutT outFactor = increment ? 1.0 : 0.0;
-    blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, OP_TRANS, 
-        SCR_nRows[3], off_sizes[3].second, NB,
-        OutT(1.),     SCR, NB, T[3]+offs[3], LDT[3],
-        outFactor,    out, SCR_nRows[3]);
+    PairTransformation(TRANS, T[2], LDT[2], off_sizes[2].first, 
+      T[3], LDT[3], off_sizes[3].first, 'N', SCR2, NB, NB, np * nq, 
+      'T', out, nr, ns, resultsTdummy, SCR, increment); 
+    
     mem.free(SCR, SCR2);
   };
 
@@ -393,80 +373,85 @@ namespace ChronusQ {
       const dcomplex* TL, int LDTL, const dcomplex* TS, int LDTS,
       const std::vector<std::pair<size_t,size_t>> &off_sizes,
       const dcomplex* in, dcomplex* out, bool increment) const;
-  
-  template <>
-  template <>
-  void InCore4indexRelERI<dcomplex>::subsetTransformWithLSComps(
+  template void InCore4indexRelERI<dcomplex>::subsetTransformWithLSComps(
       const std::string & LSComps, char TRANS, 
       const double* TL, int LDTL, const double* TS, int LDTS,
       const std::vector<std::pair<size_t,size_t>> &off_sizes,
-      const dcomplex* in, dcomplex* out, bool increment) const {
-    
-    CQMemManager &mem = this->memManager();
-    size_t NB = this->nBasis();
-    
-    std::vector<size_t> offs, SCR_nRows{NB * NB * NB}, LDT;
-    std::vector<const double*> T;
+      const dcomplex* in, dcomplex* out, bool increment) const;
+  //
+  //template <>
+  //template <>
+  //void InCore4indexRelERI<dcomplex>::subsetTransformWithLSComps(
+  //    const std::string & LSComps, char TRANS, 
+  //    const double* TL, int LDTL, const double* TS, int LDTS,
+  //    const std::vector<std::pair<size_t,size_t>> &off_sizes,
+  //    const dcomplex* in, dcomplex* out, bool increment) const {
+  //  
+  //  CQMemManager &mem = this->memManager();
+  //  size_t NB = this->nBasis();
+  //  
+  //  std::vector<size_t> offs, SCR_nRows{NB * NB * NB}, LDT;
+  //  std::vector<const double*> T;
 
-    for (auto i = 0ul; i < off_sizes.size(); i++) {
-      SCR_nRows.push_back(SCR_nRows.back() / NB * off_sizes[i].second);
-      
-      if(LSComps[i] == 'L') { 
-        T.push_back(TL);
-        LDT.push_back(LDTL);
-      } else if (LSComps[i] == 'S') {
-        T.push_back(TS);
-        LDT.push_back(LDTS);
-      }
-   
-      if (TRANS == 'T' or TRANS == 'C')
-        offs.push_back(off_sizes[i].first);
-      else if (TRANS == 'N')
-        offs.push_back(off_sizes[i].first * LDT[i]);
-    }
+  //  for (auto i = 0ul; i < off_sizes.size(); i++) {
+  //    SCR_nRows.push_back(SCR_nRows.back() / NB * off_sizes[i].second);
+  //    
+  //    if(LSComps[i] == 'L') { 
+  //      T.push_back(TL);
+  //      LDT.push_back(LDTL);
+  //    } else if (LSComps[i] == 'S') {
+  //      T.push_back(TS);
+  //      LDT.push_back(LDTS);
+  //    }
+  // 
+  //    if (TRANS == 'T' or TRANS == 'C')
+  //      offs.push_back(off_sizes[i].first);
+  //    else if (TRANS == 'N')
+  //      offs.push_back(off_sizes[i].first * LDT[i]);
+  //  }
 
-    dcomplex* SCR  = mem.malloc<dcomplex>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
-    dcomplex* SCR2 = mem.malloc<dcomplex>(NB * SCR_nRows[2]);
-    
-    if (TRANS == 'T' or TRANS == 'C')
-      TRANS = 'N';
-    else if (TRANS == 'N')
-      TRANS = 'C';
-    
-    blas::Op OP_TRANS;
-    if (TRANS == 'T') {
-      OP_TRANS = blas::Op::Trans;
-    } else if (TRANS == 'C') {
-      OP_TRANS = blas::Op::ConjTrans;
-    } else if (TRANS == 'N') {
-      OP_TRANS = blas::Op::NoTrans;
-    }
-    
-    // SCR (s, mu nu lambda) = T(sigma, s)^H @ (mu nu | lambda, sigma)^H
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
-        off_sizes[3].second, SCR_nRows[0], NB,
-        dcomplex(1.), T[3]+offs[3], LDT[3], in, SCR_nRows[0],
-        dcomplex(0.), SCR, off_sizes[3].second);
-    // SCR2(r, s mu nu) = T(lambda, r)^H @ SCR(s mu nu lambda)^H
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
-        off_sizes[2].second, SCR_nRows[1], NB,
-        dcomplex(1.), T[2]+offs[2], LDT[2], SCR, SCR_nRows[1],
-        dcomplex(0.), SCR2,off_sizes[2].second);
-    // SCR(q, r s mu) = T(nu, q)^H @ SCR2(r s mu, nu)^H
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
-        off_sizes[1].second, SCR_nRows[2], NB,
-        dcomplex(1.), T[1]+offs[1], LDT[1], SCR2,SCR_nRows[2],
-        dcomplex(0.), SCR, off_sizes[1].second);
-    // (p, q | r s) = T(mu, p)^H @ SCR(q r s, mu)^H
-    //              = T(mu, p)^H @ T(lambda, r)^H @
-    //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
-    dcomplex outFactor = increment ? 1.0 : 0.0;
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
-        off_sizes[0].second, SCR_nRows[3], NB,
-        dcomplex(1.), T[0]+offs[0], LDT[0], SCR, SCR_nRows[3],
-        outFactor,    out, off_sizes[0].second);
-    mem.free(SCR, SCR2);
-  };
+  //  dcomplex* SCR  = mem.malloc<dcomplex>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
+  //  dcomplex* SCR2 = mem.malloc<dcomplex>(NB * SCR_nRows[2]);
+  //  
+  //  if (TRANS == 'T' or TRANS == 'C')
+  //    TRANS = 'N';
+  //  else if (TRANS == 'N')
+  //    TRANS = 'C';
+  //  
+  //  blas::Op OP_TRANS;
+  //  if (TRANS == 'T') {
+  //    OP_TRANS = blas::Op::Trans;
+  //  } else if (TRANS == 'C') {
+  //    OP_TRANS = blas::Op::ConjTrans;
+  //  } else if (TRANS == 'N') {
+  //    OP_TRANS = blas::Op::NoTrans;
+  //  }
+  //  
+  //  // SCR (s, mu nu lambda) = T(sigma, s)^H @ (mu nu | lambda, sigma)^H
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
+  //      off_sizes[3].second, SCR_nRows[0], NB,
+  //      dcomplex(1.), T[3]+offs[3], LDT[3], in, SCR_nRows[0],
+  //      dcomplex(0.), SCR, off_sizes[3].second);
+  //  // SCR2(r, s mu nu) = T(lambda, r)^H @ SCR(s mu nu lambda)^H
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
+  //      off_sizes[2].second, SCR_nRows[1], NB,
+  //      dcomplex(1.), T[2]+offs[2], LDT[2], SCR, SCR_nRows[1],
+  //      dcomplex(0.), SCR2,off_sizes[2].second);
+  //  // SCR(q, r s mu) = T(nu, q)^H @ SCR2(r s mu, nu)^H
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
+  //      off_sizes[1].second, SCR_nRows[2], NB,
+  //      dcomplex(1.), T[1]+offs[1], LDT[1], SCR2,SCR_nRows[2],
+  //      dcomplex(0.), SCR, off_sizes[1].second);
+  //  // (p, q | r s) = T(mu, p)^H @ SCR(q r s, mu)^H
+  //  //              = T(mu, p)^H @ T(lambda, r)^H @
+  //  //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
+  //  dcomplex outFactor = increment ? 1.0 : 0.0;
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
+  //      off_sizes[0].second, SCR_nRows[3], NB,
+  //      dcomplex(1.), T[0]+offs[0], LDT[0], SCR, SCR_nRows[3],
+  //      outFactor,    out, off_sizes[0].second);
+  //  mem.free(SCR, SCR2);
+  //};
 
   /**
    *  \brief (p q | r s) = T(mu, p)^H @ T(lambda, r)^H @
@@ -519,42 +504,21 @@ namespace ChronusQ {
         (std::is_same<IntsT, dcomplex>::value or
          std::is_same<TransT, dcomplex>::value),
         dcomplex, double>::type ResultsT;
-    std::vector<size_t> offs;
-    for (const auto &off_size : off_sizes) {
-      if (TRANS == 'T' or TRANS == 'C')
-        offs.push_back(off_size.first);
-      else if (TRANS == 'N')
-        offs.push_back(off_size.first * LDT);
-    }
-
-    blas::Op OP_TRANS;
-    if (TRANS == 'T') {
-      OP_TRANS = blas::Op::Trans;
-    } else if (TRANS == 'C') {
-      OP_TRANS = blas::Op::ConjTrans;
-    } else if (TRANS == 'N') {
-      OP_TRANS = blas::Op::NoTrans;
-    }
-
-
-    CQMemManager &mem = this->memManager();
+    
+    size_t np  = off_sizes[0].second;
+    size_t nq  = off_sizes[1].second;
     size_t NB   = this->nBasis();
     size_t NBRI = nRIBasis();
+    CQMemManager &mem = this->memManager();
     IntsT* SCR = mem.malloc<IntsT>(NB * NB * NBRI);
-    ResultsT* SCR2 = mem.malloc<ResultsT>(NB * NBRI * off_sizes[0].second);
+    ResultsT* SCR2 = mem.malloc<ResultsT>(NB * NBRI * np);
+    
     // SCR(mu nu, L) = ( L | mu nu )^T
-    SetMat('T', NBRI, NB*NB, IntsT(1.),
-         pointer(), NBRI, 1, SCR, NB*NB, 1);
     // SCR2(nu L, p) = SCR(mu, nu L)^H @ T(mu, p)
-    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, NB*NBRI, off_sizes[0].second, NB,
-        ResultsT(1.), SCR, NB, T+offs[0], LDT,
-        ResultsT(0.), SCR2, NB*NBRI);
     // ( L | p, q ) = SCR2(nu, L p)^H @ T(nu, q)
-    //              = T(mu, p)^H @ ( L | mu nu ) @ T(nu, q)
-    OutT outFactor = increment ? 1.0 : 0.0;
-    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans, OP_TRANS, NBRI*off_sizes[0].second, off_sizes[1].second, NB,
-        ResultsT(1.), SCR2,NB, T+offs[1], LDT,
-        outFactor, out, NBRI*off_sizes[0].second);
+    PairTransformation(TRANS, T, LDT, off_sizes[0].first, off_sizes[1].first,
+      'T', pointer(), NB, NB, NBRI, 'T', out, np, nq, SCR, SCR2, increment); 
+    
     mem.free(SCR, SCR2);
   }
   template void InCoreRITPI<double>::subsetTransform(
@@ -569,59 +533,63 @@ namespace ChronusQ {
       char TRANS, const dcomplex* T, int LDT,
       const std::vector<std::pair<size_t,size_t>> &off_sizes,
       dcomplex* out, bool increment) const;
-
-  template <>
-  template <>
-  void InCoreRITPI<dcomplex>::subsetTransform(
+  template void InCoreRITPI<dcomplex>::subsetTransform(
       char TRANS, const double* T, int LDT,
       const std::vector<std::pair<size_t,size_t>> &off_sizes,
-      dcomplex* out, bool increment) const {
-    std::vector<size_t> offs;
-    for (const auto &off_size : off_sizes) {
-      if (TRANS == 'T' or TRANS == 'C')
-        offs.push_back(off_size.first);
-      else if (TRANS == 'N')
-        offs.push_back(off_size.first * LDT);
-    }
-    CQMemManager &mem = this->memManager();
-    size_t NB   = this->nBasis();
-    size_t NBRI = nRIBasis();
-    dcomplex* SCR  = mem.malloc<dcomplex>(off_sizes[1].second * NBRI * NB);
-    dcomplex* SCR2 = mem.malloc<dcomplex>(
-          off_sizes[0].second * off_sizes[1].second * NBRI);
-    if (TRANS == 'T' or TRANS == 'C')
-      TRANS = 'N';
-    else if (TRANS == 'N')
-      TRANS = 'C';
+      dcomplex* out, bool increment) const;
 
-    blas::Op OP_TRANS;
-    if (TRANS == 'T') {
-      OP_TRANS = blas::Op::Trans;
-    } else if (TRANS == 'C') {
-      OP_TRANS = blas::Op::ConjTrans;
-    } else if (TRANS == 'N') {
-      OP_TRANS = blas::Op::NoTrans;
-    }
+  //template <>
+  //template <>
+  //void InCoreRITPI<dcomplex>::subsetTransform(
+  //    char TRANS, const double* T, int LDT,
+  //    const std::vector<std::pair<size_t,size_t>> &off_sizes,
+  //    dcomplex* out, bool increment) const {
+  //  std::vector<size_t> offs;
+  //  for (const auto &off_size : off_sizes) {
+  //    if (TRANS == 'T' or TRANS == 'C')
+  //      offs.push_back(off_size.first);
+  //    else if (TRANS == 'N')
+  //      offs.push_back(off_size.first * LDT);
+  //  }
+  //  CQMemManager &mem = this->memManager();
+  //  size_t NB   = this->nBasis();
+  //  size_t NBRI = nRIBasis();
+  //  dcomplex* SCR  = mem.malloc<dcomplex>(off_sizes[1].second * NBRI * NB);
+  //  dcomplex* SCR2 = mem.malloc<dcomplex>(
+  //        off_sizes[0].second * off_sizes[1].second * NBRI);
+  //  if (TRANS == 'T' or TRANS == 'C')
+  //    TRANS = 'N';
+  //  else if (TRANS == 'N')
+  //    TRANS = 'C';
+
+  //  blas::Op OP_TRANS;
+  //  if (TRANS == 'T') {
+  //    OP_TRANS = blas::Op::Trans;
+  //  } else if (TRANS == 'C') {
+  //    OP_TRANS = blas::Op::ConjTrans;
+  //  } else if (TRANS == 'N') {
+  //    OP_TRANS = blas::Op::NoTrans;
+  //  }
 
 
-    // SCR(q, L mu) = T(nu, q)^H @ ( L | mu, nu )^H
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[1].second, NBRI*NB, NB,
-        dcomplex(1.), T+offs[1], LDT, pointer(), NBRI*NB,
-        dcomplex(0.), SCR, off_sizes[1].second);
-    // SCR2(p, q L) = T(mu, p)^H @ SCR(q L, mu)^H
-    blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[0].second, off_sizes[1].second*NBRI, NB,
-        dcomplex(1.), T+offs[0], LDT, SCR, off_sizes[1].second*NBRI,
-        dcomplex(0.), SCR2,off_sizes[0].second);
-    // ( L | p q ) = SCR2(p q, L)^T
-    //             = T(mu, p)^H @ ( L | mu nu ) @ T(nu, q)
-    size_t pq_size = off_sizes[0].second * off_sizes[1].second;
-    if (increment)
-      SetMat('T', pq_size, NBRI, dcomplex(1.), SCR2, pq_size, 1, out, NBRI, 1);
-    else
-      MatAdd('T', 'N', NBRI, pq_size, dcomplex(1.), SCR2, pq_size,
-             dcomplex(1.), out, NBRI, out, NBRI);
-    mem.free(SCR, SCR2);
-  }
+  //  // SCR(q, L mu) = T(nu, q)^H @ ( L | mu, nu )^H
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[1].second, NBRI*NB, NB,
+  //      dcomplex(1.), T+offs[1], LDT, pointer(), NBRI*NB,
+  //      dcomplex(0.), SCR, off_sizes[1].second);
+  //  // SCR2(p, q L) = T(mu, p)^H @ SCR(q L, mu)^H
+  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans, off_sizes[0].second, off_sizes[1].second*NBRI, NB,
+  //      dcomplex(1.), T+offs[0], LDT, SCR, off_sizes[1].second*NBRI,
+  //      dcomplex(0.), SCR2,off_sizes[0].second);
+  //  // ( L | p q ) = SCR2(p q, L)^T
+  //  //             = T(mu, p)^H @ ( L | mu nu ) @ T(nu, q)
+  //  size_t pq_size = off_sizes[0].second * off_sizes[1].second;
+  //  if (increment)
+  //    SetMat('T', pq_size, NBRI, dcomplex(1.), SCR2, pq_size, 1, out, NBRI, 1);
+  //  else
+  //    MatAdd('T', 'N', NBRI, pq_size, dcomplex(1.), SCR2, pq_size,
+  //           dcomplex(1.), out, NBRI, out, NBRI);
+  //  mem.free(SCR, SCR2);
+  //}
 
   /**
    *  \brief B(L, p, q) = T(mu, p)^H @ B(L, mu, nu) @ T(nu, q)
@@ -727,7 +695,7 @@ namespace ChronusQ {
         break;
       }
     for (const std::string &op : miscOps)
-      transInts.misc[op] = ParticleIntegrals::transform(*misc.at(op), TRANS, T, NT, LDT);
+      transInts.misc.integrals[op] = ParticleIntegrals::transform(*misc.integrals.at(op), TRANS, T, NT, LDT);
     return transInts;
   }
 

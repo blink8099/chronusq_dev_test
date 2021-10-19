@@ -44,15 +44,15 @@ namespace ChronusQ {
 
   template<typename MatsT, typename IntsT>
   class MOIntsTransformer {
-
+ 
   protected:
 
     CQMemManager &memManager_; ///< CQMemManager to allocate matricies
     TPI_TRANSFORMATION_ALG TPITransAlg_;
     SingleSlater<MatsT,IntsT> & ss_;
-    std::shared_ptr<InCore4indexTPI<MatsT>> AOTPI_ = nullptr;
-    std::shared_ptr<SquareMatrix<MatsT>>    AOHCore_ = nullptr;
-
+    
+    IntegralsCollection ints_cache_ = IntegralsCollection(); // strorage of cache integral intermediates 
+    
     // variables for moints type
     std::vector<std::set<char>> symbol_sets_;
     std::vector<std::pair<size_t, size_t>> mo_ranges_;
@@ -75,16 +75,13 @@ namespace ChronusQ {
           CErr("MOIntsTransformer for above Hamiltonian Options is NYI !");
         }
 
-        // if (ss.nC == 1) {
-        //   CErr("1C MOIntsTransformer NYI !");   
-        // } 
-        
         if (alg == DIRECT_N5) {
           CErr("DIRECT N5 MOIntsTransformer NYI !");   
         }
         
         // set default MO ranges
         setMORanges();
+
     };
     
     // Methods to parse types of integral indices
@@ -92,11 +89,14 @@ namespace ChronusQ {
         symbol_sets_.clear();
         mo_ranges_.clear();
     };
+    
+    void clearAllCache() { ints_cache_.clear(); };
 
     void addMORanges(const std::set<char> &, const std::pair<size_t, size_t> &);
     void setMORanges(size_t nFrozenCore = 0, size_t nFrozenVirt = 0);  
     // void setMORanges(MOSpacePartition); TODO: implement for CAS type   
     std::vector<std::pair<size_t,size_t>> parseMOType(const std::string &);
+    char getUniqueSymbol(char type);
     void printOffSizes(const std::vector<std::pair<size_t,size_t>> &);
 
     // Methods to transform HCore 
@@ -105,11 +105,11 @@ namespace ChronusQ {
     
     // Methods to transform TPI 
     void transformTPI(EMPerturbation & pert, MatsT* MOTPI, 
-      const std::string & moType = "pqrs", bool antiSymm = false);
+      const std::string & moType = "pqrs", bool cacheIntermediates = true, bool withExchange = false);
     void subsetTransformTPISSFockN6(EMPerturbation &, 
-      const std::vector<std::pair<size_t,size_t>> &, MatsT* );
-    void cacheAOTPIInCore();
-    void subsetTransformTPIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, MatsT*);
+      const std::vector<std::pair<size_t,size_t>> &, MatsT*, const std::string &, bool);
+    std::shared_ptr<InCore4indexTPI<MatsT>> getAOTPIInCore(bool);
+    void subsetTransformTPIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, MatsT*, bool);
 
     virtual ~MOIntsTransformer() {};
 

@@ -37,16 +37,19 @@ namespace ChronusQ {
     size_t nAO = ss_.nAlphaOrbital() * ss_.nC;
     
     // populate AOHCore
-    if (not AOHCore_) {
+    auto AOHCore = ints_cache_.getIntegral<OnePInts,MatsT>("AOHCore");
+    
+    if (not AOHCore) {
       if(ss_.nC == 1) {
-        AOHCore_ = std::make_shared<SquareMatrix<MatsT>>(0.5*ss_.coreH->S());
+        AOHCore = std::make_shared<OnePInts<MatsT>>(0.5*ss_.coreH->S());
       } else { 
-        AOHCore_ = std::make_shared<SquareMatrix<MatsT>>(
+        AOHCore = std::make_shared<OnePInts<MatsT>>(
           ss_.coreH->template spinGather<MatsT>());
       }
+      ints_cache_.addIntegral("AOHCore", AOHCore);
     }
     
-    AOHCore_->subsetTransform('N', ss_.mo[0].pointer(), nAO, off_sizes, MOHCore, false); 
+    AOHCore->subsetTransform('N', ss_.mo[0].pointer(), nAO, off_sizes, MOHCore, false); 
   
   }; // MOIntsTransformer::subsetTransformHCore 
 

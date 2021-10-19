@@ -67,8 +67,29 @@ namespace ChronusQ {
       const _F2 *AZ, size_t LDAZ, const _F2 *AY, size_t LDAY, const _F2 *AX, size_t LDAX,
       bool zeroXY = false, bool zeroZ = false);
 
+  // Component Scatter a matrix 
+  template <typename _F1, typename _F2>
+  void ComponentScatter(size_t NL, size_t NS, const _F1 *A, size_t LDA, 
+      _F2 ScaleLL, _F2 *ALL, size_t LDALL, _F2 ScaleLS, _F2 *ALS, size_t LDALS, 
+      _F2 ScaleSL, _F2 *ASL, size_t LDASL, _F2 ScaleSS, _F2 *ASS, size_t LDASS, 
+      bool increment = false);
+  
+  // Component Scatter a matrix 
+  template <typename _F1, typename _F2>
+  void ComponentScatter(size_t NL, size_t NS, const _F1 *A, size_t LDA, _F2 *ALL, size_t LDALL,
+      _F2 *ALS, size_t LDALS, _F2 *ASL, size_t LDASL, _F2 *ASS, size_t LDASS, bool increment = false);
 
+  // Component Gatter a matrix 
+  template <typename _F1, typename _F2>
+  void ComponentGather(size_t NL, size_t NS, _F1 *A, size_t LDA, 
+      char TransLL, _F2 ScaleLL, const _F2 *ALL, size_t LDALL, char TransLS, const _F2 ScaleLS, _F2 *ALS, size_t LDALS, 
+      char TransSL, _F2 ScaleSL, const _F2 *ASL, size_t LDASL, char TransSS, const _F2 ScaleSS, _F2 *ASS, size_t LDASS, 
+      bool increment = false);
 
+  // Component Gatter a matrix 
+  template <typename _F1, typename _F2>
+  void ComponentGather(size_t NL, size_t NS, _F1 *A, size_t LDA, const _F2 *ALL, size_t LDALL,
+      const _F2 *ALS, size_t LDALS, const _F2 *ASL, size_t LDASL, const _F2 *ASS, size_t LDASS, bool increment = false);
 
 
   // B = ALPHA * OP(A)
@@ -261,6 +282,55 @@ namespace ChronusQ {
    void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, Apha alpha,
      ATyp* A, size_t LDA, std::vector<BTyp*> V, size_t LDB, CTyp* SCR,
      std::vector<CTyp*> U, size_t LDC);
+
+  /**
+   * \brief Transform tensor A with transformation matrix T1 and T2 in pair 
+   *        (first two dim of A)
+   *
+   * B(K, L, M) = T1(I, K+OffK)^H A(I, J, M) @ T2(J, L+OffL) 
+   *
+   * \param [in]  TRANSA    Whether transpose/adjoint A as A(IJ, M) before transformation
+   * \param [in]  DI        Dimension of index I in A
+   * \param [in]  DJ        Dimension of index J in A
+   * \param [in]  DM        Dimension of index M in A
+   * \param [in]  A         Tensor before transformation
+   *
+   * \param [in]  TRANST    Whether transpose/adjoint T1 and T2 
+   * \param [in]  T1        Transformation matrix T1
+   * \param [in]  LDT1      Leading dimension of T1
+   * \param [in]  OffK      offset in index K
+   * \param [in]  T2        Transformation matrix T2
+   * \param [in]  LDT2      Leading dimension of T2
+   * \param [in]  OffL      offset in index L 
+   *
+   * \param [in]  TRANSB    Whether transpose/adjoint B as B(KL, M) after transformation
+   * \param [in]  DK        Dimension of index K in B
+   * \param [in]  DL        Dimension of index L in B
+   * \param [out] B         Tensor after transformation, can be same as A
+   *
+   * \param[in]   ASCR      Scratch space for A at least NI*NJ*NM of ATyp. 
+   *                        Only reference when TRANSA != 'N'
+   * \param[in]   SCR       Scratch space for intermediates, at least NJ*NM*NK of BTyp. 
+   *
+   * \param [in]  increment  Perform B += result if true
+   *
+   */
+
+  template <typename ATyp, typename TTyp, typename BTyp>
+  void PairTransformation(char TRANST, const TTyp * T1, size_t LDT1, size_t OffK, 
+    const TTyp * T2, size_t LDT2, size_t OffL,
+    char TRANSA, const ATyp * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, BTyp * B, size_t NK, size_t NL, ATyp * ASCR, BTyp * SCR, bool increment);
+  
+  template <typename ATyp, typename TTyp, typename BTyp>
+  void PairTransformation(char TRANST, const TTyp * T, size_t LDT, size_t OffK, size_t OffL,
+    char TRANSA, const ATyp * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, BTyp * B, size_t NK, size_t NL, ATyp * ASCR, BTyp * SCR, bool increment) {
+      
+    PairTransformation(TRANST, T, LDT, OffK, T, LDT, OffL, TRANSA, 
+      A, NI, NJ, NM, TRANSB, B, NK, NL, ASCR, SCR, increment);
+    
+  };
 
 }; // namespace ChronusQ
 
