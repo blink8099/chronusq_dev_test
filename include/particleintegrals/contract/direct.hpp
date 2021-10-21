@@ -41,7 +41,7 @@
 
 #define _FULL_DIRECT
 //#define _SUB_TIMINGS
-#define _REPORT_INTEGRAL_TIMINGS
+//#define _REPORT_INTEGRAL_TIMINGS
 
 //#define _PRECOMPUTE_SHELL_PAIRS
 
@@ -1750,7 +1750,6 @@ namespace ChronusQ {
 #ifdef _SEPARATED_SHZ_SCREEN
             nConSkip[thread_id] += nMat;
 #endif
-            std::cout << "s1234 = " << s1 << " " << s2 << " " << s3 << " " << s4 << std::endl;
             continue; 
           }
 
