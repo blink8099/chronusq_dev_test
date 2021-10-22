@@ -24,8 +24,10 @@
 #pragma once
 
 #include <wavefunction.hpp>
+
 #include <util/matout.hpp>
 #include <util/math.hpp>
+#include <physcon.hpp>
 
 namespace ChronusQ {
 
@@ -370,46 +372,80 @@ namespace ChronusQ {
       printOp2 = [](MatsT x) { return std::arg(x); };
     }
 
-    if( this->nC == 2 )
+    if( this->nC >= 2 )
     out << " *** NOTICE: Alpha and Beta Coefficients refer to the SAME "
       << "Canonical MOs ***\n";
 
     out << "\n\nCanonical Molecular Orbital Coefficients (Alpha)";
     if( std::is_same<MatsT,dcomplex>::value )
       out << " Magnitude";
+    if( this->nC == 4 ) out << " for Large component";
 
     prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer(),NOrb,
         molecule(),basisSet(),printOp1);
 
     if( std::is_same<MatsT,dcomplex>::value ) {
       out << "\n\nCanonical Molecular Orbital Coefficients (Alpha) Phase";
+      if( this->nC == 4 ) out << " for Large component"; 
       prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer(),NOrb,
           molecule(),basisSet(),printOp2);
     }
 
-    if( this->nC == 2 or not this->iCS ) {
+    if( this->nC >= 2 or not this->iCS ) {
 
       out << "\n\nCanonical Molecular Orbital Coefficients (Beta)";
       if( std::is_same<MatsT,dcomplex>::value )
         out << " Magnitude";
+      if( this->nC == 4 ) out << " for Large component";
 
       if( this->nC == 1 )
         prettyMOPrint(out,NB,NOrb,this->eps2,this->mo[1].pointer(),NOrb,
             molecule(),basisSet(),printOp1);
       else
-        prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + NB,NOrb,
-            molecule(),basisSet(),printOp1);
+        prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + (this->nC/2)*NB,
+            NOrb,molecule(),basisSet(),printOp1);
 
       if( std::is_same<MatsT,dcomplex>::value ) {
         out << "\n\nCanonical Molecular Orbital Coefficients (Beta) Phase";
+        if( this->nC == 4 ) out << " for Large component";
 
         if( this->nC == 1 )
           prettyMOPrint(out,NB,NOrb,this->eps2,this->mo[1].pointer(),NOrb,
               molecule(),basisSet(),printOp2);
         else
-          prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + NB,NOrb,
-              molecule(),basisSet(),printOp2);
+          prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + (this->nC/2)*NB,
+              NOrb,molecule(),basisSet(),printOp2);
       }
+    }
+
+    if( this->nC == 4 ) {
+
+      out << "\n\nCanonical Molecular Orbital Coefficients (Alpha)";
+      if( std::is_same<MatsT,dcomplex>::value )
+        out << " Magnitude";
+      out << " for Small component";
+      prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + NB,NOrb,
+        molecule(),basisSet(),printOp1);
+
+      if( std::is_same<MatsT,dcomplex>::value ) {
+        out << "\n\nCanonical Molecular Orbital Coefficients (Alpha) Phase for Small component";
+        prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + NB,NOrb,
+        molecule(),basisSet(),printOp2);
+      }
+
+      out << "\n\nCanonical Molecular Orbital Coefficients (Beta)";
+      if( std::is_same<MatsT,dcomplex>::value )
+        out << " Magnitude";
+      out << " for Small component";
+      prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + 3*NB,NOrb,
+        molecule(),basisSet(),printOp1);
+
+      if( std::is_same<MatsT,dcomplex>::value ) {
+        out << "\n\nCanonical Molecular Orbital Coefficients (Beta) Phase for Small component";
+        prettyMOPrint(out,NB,NOrb,this->eps1,this->mo[0].pointer() + 3*NB,NOrb,
+        molecule(),basisSet(),printOp2);
+      }
+
     }
     out << "\n" << BannerEnd << "\n\n";
 
@@ -418,23 +454,40 @@ namespace ChronusQ {
     if (printLevel == 2 or printLevel == 3) {
 
     // Analysis angular momentum components of MOs
-    if( this->nC == 2 )
+    if( this->nC >= 2 )
     out << " *** NOTICE: Alpha and Beta Analysis refer to the SAME "
       << "Canonical MOs ***\n";
 
     out << "\n\nCanonical Molecular Orbital Analysis (Alpha)";
+    if( this->nC == 4 ) out << " for Large component";
     analyzeMOPrint(out, NB, NOrb, aoints.overlap->pointer(), this->mo[0].pointer(),
             NOrb, molecule(), basisSet(), this->memManager);
 
-    if( this->nC == 2 or not this->iCS ) {
+    if( this->nC >= 2 or not this->iCS ) {
       out << "\n\nCanonical Molecular Orbital Analysis (Beta)";
+      if( this->nC == 4 ) out << " for Large component";
       if( this->nC == 1 )
         analyzeMOPrint(out, NB, NOrb, aoints.overlap->pointer(),
               this->mo[1].pointer(), NOrb, molecule(), basisSet(), this->memManager);
       else
         analyzeMOPrint(out, NB, NOrb, aoints.overlap->pointer(),
-              this->mo[0].pointer() + NB, NOrb, molecule(), basisSet(),
+              this->mo[0].pointer() + (this->nC/2)*NB, NOrb, molecule(), basisSet(),
               this->memManager);
+
+    }
+
+    if( this->nC == 4 ) {
+      IntsT* ssOverlap = this->memManager.malloc<IntsT>(NB*NB);
+      SetMat('N',NB,NB,1./(2*SpeedOfLight*SpeedOfLight),this->aoints.kinetic->pointer(),
+                NB,ssOverlap,NB);
+      out << "\n\nCanonical Molecular Orbital Analysis (Alpha) for Small component";
+      analyzeMOPrint(out, NB, NOrb, ssOverlap, this->mo[0].pointer() + NB,
+            NOrb, molecule(), basisSet(), this->memManager);
+      out << "\n\nCanonical Molecular Orbital Analysis (Beta) for Small component";
+      analyzeMOPrint(out, NB, NOrb, ssOverlap, this->mo[0].pointer() + 3*NB,
+            NOrb, molecule(), basisSet(), this->memManager);
+      this->memManager.free(ssOverlap);
+
     }
 
     out << "\n" << BannerEnd << "\n\n";
