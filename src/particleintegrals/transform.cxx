@@ -35,6 +35,96 @@
 
 namespace ChronusQ {
 
+
+  /**
+   *  \brief 4 Components AO to MO subset Tranfrom with LS Components
+   *         (p q | r s) = T(mu, p)^H @ T(lambda, r)^H @
+   *             (mu nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
+   *
+   *  \param [in]  TRANS     Whether transpose/adjoint T
+   *  \param [in]  T         Transformation matrix is as (Large, Small)
+   *  \param [in]  LDT       Leading dimension of T
+   *  \param [in]  off_sizes Vector of 4 pairs,
+   *                         a pair of offset and size for each index.
+   *  \param [out] out       Return the contraction result.
+   *  \param [in]  increment Perform out += result if true
+   */
+  template <typename IntsT>
+  template <typename TransT, typename OutT>
+  void InCore4indexRelERI<IntsT>::subsetTransformWithLSComps(
+      const std::string & LSComps, char TRANS, 
+      const TransT* TL, int LDTL, const TransT* TS, int LDTS,
+      const std::vector<std::pair<size_t,size_t>> &off_sizes,
+      const IntsT* in, OutT* out, bool increment) const {
+
+    typedef typename std::conditional<
+        (std::is_same<IntsT, dcomplex>::value or
+         std::is_same<TransT, dcomplex>::value),
+        dcomplex, double>::type ResultsT;
+    
+    size_t NB = this->nBasis();
+    size_t NB2 = NB * NB; 
+    size_t np  = off_sizes[0].second;
+    size_t nq  = off_sizes[1].second;
+    size_t nr  = off_sizes[2].second;
+    size_t ns  = off_sizes[3].second;
+    CQMemManager &mem = this->memManager();
+    std::vector<size_t> LDT;
+    std::vector<const TransT*> T;
+    
+    for (const char & c: LSComps) {
+      if(c == 'L') { 
+        T.push_back(TL);
+        LDT.push_back(LDTL);
+      } else if (c == 'S') {
+        T.push_back(TS);
+        LDT.push_back(LDTS);
+      }
+    }
+    
+    ResultsT* SCR  = mem.malloc<ResultsT>(NB * std::max(NB2*np, np*nq*nr)); 
+    ResultsT* SCR2 = mem.malloc<ResultsT>(NB2 * np * nq); 
+    IntsT * intsTdummy = nullptr;
+    ResultsT * resultsTdummy = nullptr;
+    
+    // first half transformation
+    // SCR (nu lambda sigma, p) = (mu, nu | lambda sigma)^H @ T(mu, p)
+    // SCR2(lambda sigma p, q)  = SCR(nu, lambda sigma p)^H @ T(nu, q)
+    PairTransformation(TRANS, T[0], LDT[0], off_sizes[0].first, 
+       T[1], LDT[1], off_sizes[1].first, 'N', in, NB, NB, NB2, 
+      'T', SCR2, np, nq, intsTdummy, SCR, false); 
+    
+    // second half transformation
+    // SCR(sigma p q, r) = SCR2(lambda, sigma p q)^H @ T(lambda, r)
+    // (p q | r, s) = SCR(sigma, p q r)^H @ T(sigma, s)
+    PairTransformation(TRANS, T[2], LDT[2], off_sizes[2].first, 
+      T[3], LDT[3], off_sizes[3].first, 'N', SCR2, NB, NB, np * nq, 
+      'T', out, nr, ns, resultsTdummy, SCR, increment); 
+    
+    mem.free(SCR, SCR2);
+  };
+
+  template void InCore4indexRelERI<double>::subsetTransformWithLSComps(
+      const std::string & LSComps, char TRANS, 
+      const double* TL, int LDTL, const double* TS, int LDTS,
+      const std::vector<std::pair<size_t,size_t>> &off_sizes,
+      const double* in, double* out, bool increment) const;
+  template void InCore4indexRelERI<double>::subsetTransformWithLSComps(
+      const std::string & LSComps, char TRANS, 
+      const dcomplex* TL, int LDTL, const dcomplex* TS, int LDTS,
+      const std::vector<std::pair<size_t,size_t>> &off_sizes,
+      const double* in, dcomplex* out, bool increment) const;
+  template void InCore4indexRelERI<dcomplex>::subsetTransformWithLSComps(
+      const std::string & LSComps, char TRANS, 
+      const dcomplex* TL, int LDTL, const dcomplex* TS, int LDTS,
+      const std::vector<std::pair<size_t,size_t>> &off_sizes,
+      const dcomplex* in, dcomplex* out, bool increment) const;
+  template void InCore4indexRelERI<dcomplex>::subsetTransformWithLSComps(
+      const std::string & LSComps, char TRANS, 
+      const double* TL, int LDTL, const double* TS, int LDTS,
+      const std::vector<std::pair<size_t,size_t>> &off_sizes,
+      const dcomplex* in, dcomplex* out, bool increment) const;
+
   /**
    *  \brief (p q | r s) = T(mu, p)^H @ T(lambda, r)^H @
    *             (mu nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
@@ -290,168 +380,6 @@ namespace ChronusQ {
       const std::vector<std::pair<size_t,size_t>> &off_sizes,
       dcomplex* out, bool increment) const;
   
-  /**
-   *  \brief 4 Components AO to MO subset Tranfrom with LS Components
-   *         (p q | r s) = T(mu, p)^H @ T(lambda, r)^H @
-   *             (mu nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
-   *
-   *  \param [in]  TRANS     Whether transpose/adjoint T
-   *  \param [in]  T         Transformation matrix is as (Large, Small)
-   *  \param [in]  LDT       Leading dimension of T
-   *  \param [in]  off_sizes Vector of 4 pairs,
-   *                         a pair of offset and size for each index.
-   *  \param [out] out       Return the contraction result.
-   *  \param [in]  increment Perform out += result if true
-   */
-  template <typename IntsT>
-  template <typename TransT, typename OutT>
-  void InCore4indexRelERI<IntsT>::subsetTransformWithLSComps(
-      const std::string & LSComps, char TRANS, 
-      const TransT* TL, int LDTL, const TransT* TS, int LDTS,
-      const std::vector<std::pair<size_t,size_t>> &off_sizes,
-      const IntsT* in, OutT* out, bool increment) const {
-
-    typedef typename std::conditional<
-        (std::is_same<IntsT, dcomplex>::value or
-         std::is_same<TransT, dcomplex>::value),
-        dcomplex, double>::type ResultsT;
-    
-    size_t NB = this->nBasis();
-    size_t NB2 = NB * NB; 
-    size_t np  = off_sizes[0].second;
-    size_t nq  = off_sizes[1].second;
-    size_t nr  = off_sizes[2].second;
-    size_t ns  = off_sizes[3].second;
-    CQMemManager &mem = this->memManager();
-    std::vector<size_t> LDT;
-    std::vector<const TransT*> T;
-    
-    for (const char & c: LSComps) {
-      if(c == 'L') { 
-        T.push_back(TL);
-        LDT.push_back(LDTL);
-      } else if (c == 'S') {
-        T.push_back(TS);
-        LDT.push_back(LDTS);
-      }
-    }
-    
-    ResultsT* SCR  = mem.malloc<ResultsT>(NB * std::max(NB2*np, np*nq*nr)); 
-    ResultsT* SCR2 = mem.malloc<ResultsT>(NB2 * np * nq); 
-    IntsT * intsTdummy = nullptr;
-    ResultsT * resultsTdummy = nullptr;
-    
-    // first half transformation
-    // SCR (nu lambda sigma, p) = (mu, nu | lambda sigma)^H @ T(mu, p)
-    // SCR2(lambda sigma p, q)  = SCR(nu, lambda sigma p)^H @ T(nu, q)
-    PairTransformation(TRANS, T[0], LDT[0], off_sizes[0].first, 
-       T[1], LDT[1], off_sizes[1].first, 'N', in, NB, NB, NB2, 
-      'T', SCR2, np, nq, intsTdummy, SCR, false); 
-    
-    // second half transformation
-    // SCR(sigma p q, r) = SCR2(lambda, sigma p q)^H @ T(lambda, r)
-    // (p q | r, s) = SCR(sigma, p q r)^H @ T(sigma, s)
-    PairTransformation(TRANS, T[2], LDT[2], off_sizes[2].first, 
-      T[3], LDT[3], off_sizes[3].first, 'N', SCR2, NB, NB, np * nq, 
-      'T', out, nr, ns, resultsTdummy, SCR, increment); 
-    
-    mem.free(SCR, SCR2);
-  };
-
-  template void InCore4indexRelERI<double>::subsetTransformWithLSComps(
-      const std::string & LSComps, char TRANS, 
-      const double* TL, int LDTL, const double* TS, int LDTS,
-      const std::vector<std::pair<size_t,size_t>> &off_sizes,
-      const double* in, double* out, bool increment) const;
-  template void InCore4indexRelERI<double>::subsetTransformWithLSComps(
-      const std::string & LSComps, char TRANS, 
-      const dcomplex* TL, int LDTL, const dcomplex* TS, int LDTS,
-      const std::vector<std::pair<size_t,size_t>> &off_sizes,
-      const double* in, dcomplex* out, bool increment) const;
-  template void InCore4indexRelERI<dcomplex>::subsetTransformWithLSComps(
-      const std::string & LSComps, char TRANS, 
-      const dcomplex* TL, int LDTL, const dcomplex* TS, int LDTS,
-      const std::vector<std::pair<size_t,size_t>> &off_sizes,
-      const dcomplex* in, dcomplex* out, bool increment) const;
-  template void InCore4indexRelERI<dcomplex>::subsetTransformWithLSComps(
-      const std::string & LSComps, char TRANS, 
-      const double* TL, int LDTL, const double* TS, int LDTS,
-      const std::vector<std::pair<size_t,size_t>> &off_sizes,
-      const dcomplex* in, dcomplex* out, bool increment) const;
-  //
-  //template <>
-  //template <>
-  //void InCore4indexRelERI<dcomplex>::subsetTransformWithLSComps(
-  //    const std::string & LSComps, char TRANS, 
-  //    const double* TL, int LDTL, const double* TS, int LDTS,
-  //    const std::vector<std::pair<size_t,size_t>> &off_sizes,
-  //    const dcomplex* in, dcomplex* out, bool increment) const {
-  //  
-  //  CQMemManager &mem = this->memManager();
-  //  size_t NB = this->nBasis();
-  //  
-  //  std::vector<size_t> offs, SCR_nRows{NB * NB * NB}, LDT;
-  //  std::vector<const double*> T;
-
-  //  for (auto i = 0ul; i < off_sizes.size(); i++) {
-  //    SCR_nRows.push_back(SCR_nRows.back() / NB * off_sizes[i].second);
-  //    
-  //    if(LSComps[i] == 'L') { 
-  //      T.push_back(TL);
-  //      LDT.push_back(LDTL);
-  //    } else if (LSComps[i] == 'S') {
-  //      T.push_back(TS);
-  //      LDT.push_back(LDTS);
-  //    }
-  // 
-  //    if (TRANS == 'T' or TRANS == 'C')
-  //      offs.push_back(off_sizes[i].first);
-  //    else if (TRANS == 'N')
-  //      offs.push_back(off_sizes[i].first * LDT[i]);
-  //  }
-
-  //  dcomplex* SCR  = mem.malloc<dcomplex>(NB * std::max(SCR_nRows[1], SCR_nRows[3]));
-  //  dcomplex* SCR2 = mem.malloc<dcomplex>(NB * SCR_nRows[2]);
-  //  
-  //  if (TRANS == 'T' or TRANS == 'C')
-  //    TRANS = 'N';
-  //  else if (TRANS == 'N')
-  //    TRANS = 'C';
-  //  
-  //  blas::Op OP_TRANS;
-  //  if (TRANS == 'T') {
-  //    OP_TRANS = blas::Op::Trans;
-  //  } else if (TRANS == 'C') {
-  //    OP_TRANS = blas::Op::ConjTrans;
-  //  } else if (TRANS == 'N') {
-  //    OP_TRANS = blas::Op::NoTrans;
-  //  }
-  //  
-  //  // SCR (s, mu nu lambda) = T(sigma, s)^H @ (mu nu | lambda, sigma)^H
-  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
-  //      off_sizes[3].second, SCR_nRows[0], NB,
-  //      dcomplex(1.), T[3]+offs[3], LDT[3], in, SCR_nRows[0],
-  //      dcomplex(0.), SCR, off_sizes[3].second);
-  //  // SCR2(r, s mu nu) = T(lambda, r)^H @ SCR(s mu nu lambda)^H
-  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
-  //      off_sizes[2].second, SCR_nRows[1], NB,
-  //      dcomplex(1.), T[2]+offs[2], LDT[2], SCR, SCR_nRows[1],
-  //      dcomplex(0.), SCR2,off_sizes[2].second);
-  //  // SCR(q, r s mu) = T(nu, q)^H @ SCR2(r s mu, nu)^H
-  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
-  //      off_sizes[1].second, SCR_nRows[2], NB,
-  //      dcomplex(1.), T[1]+offs[1], LDT[1], SCR2,SCR_nRows[2],
-  //      dcomplex(0.), SCR, off_sizes[1].second);
-  //  // (p, q | r s) = T(mu, p)^H @ SCR(q r s, mu)^H
-  //  //              = T(mu, p)^H @ T(lambda, r)^H @
-  //  //               (mu, nu | lambda sigma) @ T(nu, q) @ T(sigma, s)
-  //  dcomplex outFactor = increment ? 1.0 : 0.0;
-  //  blas::gemm(blas::Layout::ColMajor,OP_TRANS, blas::Op::ConjTrans,
-  //      off_sizes[0].second, SCR_nRows[3], NB,
-  //      dcomplex(1.), T[0]+offs[0], LDT[0], SCR, SCR_nRows[3],
-  //      outFactor,    out, off_sizes[0].second);
-  //  mem.free(SCR, SCR2);
-  //};
 
   /**
    *  \brief (p q | r s) = T(mu, p)^H @ T(lambda, r)^H @

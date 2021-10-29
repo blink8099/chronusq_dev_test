@@ -21,7 +21,7 @@
 #   E-Mail: xsli@uw.edu
 #
 add_library(itersolver STATIC impl.cxx)
-target_link_libraries ( itersolver PUBLIC ChronusQ::Libint2 )
+target_link_libraries ( itersolver PUBLIC ChronusQ::DepHeaders )
 
 # Append aointegrals to executable link
 list(APPEND CQEX_LINK itersolver)

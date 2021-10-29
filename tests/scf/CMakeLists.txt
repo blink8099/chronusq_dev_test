@@ -31,12 +31,12 @@ add_executable(scftest ../ut.cxx
 	rhf.cxx uhf.cxx ghf.cxx rohf.cxx x2chf.cxx fourcomphf.cxx rhfnr.cxx
         rhf_giao.cxx uhf_giao.cxx rohf_giao.cxx ghf_giao.cxx
 	rks.cxx uks.cxx x2cks.cxx ks.cxx
-        misc.cxx ri.cxx neo_rhf.cxx neo_rks.cxx
+        misc.cxx ri.cxx
 )
 
 target_include_directories(scftest PUBLIC ${SCF_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
-target_link_libraries(scftest PUBLIC ${CQEX_LINK})
+target_link_libraries(scftest PUBLIC ChronusQ::Dependencies ${CQEX_LINK})
 target_link_libraries(scftest PUBLIC ChronusQ::gtest)
 
 if(CQEX_DEP)
@@ -102,7 +102,6 @@ add_cq_test( RI_RHF_SCF   scftest "RI_RHF.*"   )
 add_cq_test( RI_UHF_SCF   scftest "RI_UHF.*"   )
 add_cq_test( RI_ROHF_SCF  scftest "RI_ROHF.*"  )
 add_cq_test( RI_X2CHF_SCF scftest "RI_X2CHF.*" )
-add_cq_test( NEO_RHF_SCF  scftest "NEO_RHF.*"  )
 
 add_cq_test( RKS_SCF      scftest "RKS.*"        )
 add_cq_test( UKS_SCF      scftest "UKS.*"        )
@@ -112,7 +111,6 @@ add_cq_test( KS_FUNC      scftest "KS_FUNC.*"    )
 add_cq_test( RI_RKS_SCF   scftest "RI_RKS.*"     )
 add_cq_test( RI_UKS_SCF   scftest "RI_UKS.*"     )
 add_cq_test( RI_X2CKS_SCF scftest "RI_X2CKS.*"   )
-add_cq_test( NEO_RKS_SCF  scftest "NEO_RKS.*"  )
 
 add_cq_test( MISC_SCF     scftest "MISC_SCF.*" )
 

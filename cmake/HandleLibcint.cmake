@@ -189,6 +189,8 @@ CQ_BUILD_LIBCINT_TYPE to ALLOW or FORCE."
 endif()
 
 
+target_link_libraries( ChronusQ::Dependencies INTERFACE ChronusQ::Libcint )
+copy_header_properties( ChronusQ::Libcint ChronusQ::DepHeaders )
 list(APPEND CQ_EXT_LINK ChronusQ::Libcint)
 
 message ( " == End Libcint ==\n" )

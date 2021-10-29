@@ -22,7 +22,7 @@
 #
 add_library(fourcomp STATIC fourcomp.cxx impl.cxx)
 
-target_link_libraries( fourcomp PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
+target_link_libraries( fourcomp PUBLIC ChronusQ::DepHeaders )
 
 # Append fourcomp to executable link
 list(APPEND CQEX_LINK fourcomp)

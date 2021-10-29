@@ -20,7 +20,9 @@
 # Contact the Developers:
 #   E-Mail: xsli@uw.edu
 #
+
 add_library(grid STATIC gausscheb.cxx gausslegendre.cxx eulermac.cxx lebedev.cxx)
+target_link_libraries( grid PUBLIC ChronusQ::DepHeaders )
 
 # Append grid to executable link
 list(APPEND CQEX_LINK grid)

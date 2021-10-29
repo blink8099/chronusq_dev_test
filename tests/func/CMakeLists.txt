@@ -32,7 +32,7 @@ add_executable(functest ../ut.cxx contract.cxx ordqz.cxx gplhr.cxx davidson.cxx)
 target_compile_definitions(functest PUBLIC CQ_FUNC_TEST)
 target_include_directories(functest PUBLIC ${FUNC_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
-target_link_libraries(functest PUBLIC ${CQEX_LINK})
+target_link_libraries(functest PUBLIC ChronusQ::Dependencies ${CQEX_LINK})
 target_link_libraries(functest PUBLIC ChronusQ::gtest)
 
 

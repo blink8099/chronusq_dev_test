@@ -22,7 +22,7 @@
 #
 add_library(x2c STATIC impl.cxx x2c.cxx atomic.cxx)
 
-target_link_libraries( x2c PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
+target_link_libraries( x2c PUBLIC ChronusQ::DepHeaders )
 
 # Append x2c to executable link
 list(APPEND CQEX_LINK x2c)

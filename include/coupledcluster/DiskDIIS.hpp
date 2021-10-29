@@ -115,19 +115,19 @@ namespace ChronusQ {
       void DIISCoefficients(int nvec);
   
       /// maximum number of vectors
-      int maxdiis_;
+      unsigned maxdiis_;
   
       /// array containing DiskDIIS expansion coefficients
       T * diisvec_;
   
       /// dimension of the solution/error vector
-      int dimdiis_;
+      unsigned dimdiis_;
   
       /// current number of DiskDIIS vectors
-      int diis_iter_;
+      unsigned diis_iter_;
   
       /// DiskDIIS vector to be replaced
-      int replace_diis_iter_;
+      unsigned replace_diis_iter_;
   };
   
   template <typename T>
