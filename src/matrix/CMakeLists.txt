@@ -28,7 +28,7 @@ arithmetic/squarematrix.cxx
 arithmetic/paulispinormatrices.cxx
 arithmetic/scaledmatrix.cxx
 impl.cxx)
-target_link_libraries ( matrix PUBLIC ChronusQ::Libint2 )
+target_link_libraries ( matrix PUBLIC ChronusQ::DepHeaders )
 
 # Append particleintegrals to executable link
 list(APPEND CQEX_LINK matrix)
@@ -38,7 +38,7 @@ if(CQEX_DEP)
   add_dependencies(matrix ${CQEX_DEP})
 endif()
 
-if( TARGET openblas )
-  add_dependencies( matrix openblas ) 
+if( TARGET tiledarray )
+  add_dependencies( matrix tiledarray ) 
  
 endif()

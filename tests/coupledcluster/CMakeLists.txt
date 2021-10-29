@@ -32,7 +32,7 @@ add_executable(cctest ../ut.cxx x2c_cc.cxx)
 
 target_include_directories(cctest PUBLIC ${CC_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
-target_link_libraries(cctest PUBLIC ${CQEX_LINK})
+target_link_libraries(cctest PUBLIC ChronusQ::Dependencies ${CQEX_LINK})
 target_link_libraries(cctest PUBLIC ChronusQ::gtest)
 
 

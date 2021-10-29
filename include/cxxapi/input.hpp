@@ -167,8 +167,8 @@ namespace ChronusQ {
    *  \param [in/out] s std::string to be trimmed
    */
   static inline std::string& trim_left(std::string &s) {
-      s.erase(s.begin(), std::find_if(s.begin(), s.end(),
-              std::not1(std::ptr_fun<int, int>(std::isspace))));
+      s.erase(s.begin(), std::find_if_not(s.begin(), s.end(),
+              [](auto& x){ return std::isspace(x); }));
       return s;
   }; // trim_left
   
@@ -180,7 +180,7 @@ namespace ChronusQ {
    */
   static inline std::string& trim_right(std::string &s) {
       s.erase(std::find_if(s.rbegin(), s.rend(),
-              std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+              [](auto& x){ return !std::isspace(x); }).base(), s.end());
       return s;
   }; // trim_right
   

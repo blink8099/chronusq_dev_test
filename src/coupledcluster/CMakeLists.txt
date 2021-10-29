@@ -22,7 +22,7 @@
 #
 if(CQ_HAS_TA)
   add_library(coupledcluster STATIC impl.cxx) 
-  target_link_libraries( coupledcluster PUBLIC ChronusQ::HDF5 ChronusQ::Libint2)
+  target_link_libraries( coupledcluster PUBLIC ChronusQ::DepHeaders )
   
   # Append coupledcluster to executable link
   list(APPEND CQEX_LINK coupledcluster)

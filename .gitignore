@@ -1,4 +1,5 @@
 *build*
+!bin/buildblas
 !*corehbuild*
 !*fockbuild*
 external/mxx
@@ -12,6 +13,7 @@ external/libcint/*
 !external/libcint/patch
 external/openblas/include
 external/openblas/lib
+external/openblas/openblas-src
 external/openblas/src
 external/openblas/tmp
 external/openblas/bin
@@ -22,7 +24,10 @@ external/libxc/lib
 external/libxc/share
 external/libxc/src
 external/libxc/tmp
-external/tiledarray/
+external/*-src
+external/*-build
+external/*-subbuild
+external/umpire-*
 doc
 *.*.swp
 *~

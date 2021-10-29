@@ -22,51 +22,51 @@
 
 include(ExternalProject)
 
-message( "" )
+if(CQ_ENABLE_MPI)
 
+  message( "" )
+  
+  # FindMPI
+  find_package(MPI REQUIRED)
+  target_link_libraries( ChronusQ::Dependencies INTERFACE MPI::MPI_CXX )
+  copy_header_properties( MPI::MPI_CXX ChronusQ::DepHeaders )
+  
+  message( "" )
+  
+  # Print out extraneous information
+  message( STATUS "MPIEXEC found to be: ${MPIEXEC}" )
+  message( STATUS "MPIEXEC_NUMPROC_FLAG found to be: ${MPIEXEC_NUMPROC_FLAG}" )
+  message( STATUS "MPI_INCLUDE_PATH found to be: ${MPI_INCLUDE_PATH}" )
+  
+  
+  message( "" )
+  
+  
+  # MXX
+  
+  message( STATUS "Adding CMake Target for MXX" )
+  set( MXX_PREFIX     ${PROJECT_SOURCE_DIR}/external/mxx )
+  set( MXX_INCLUDEDIR ${MXX_PREFIX}/src/mxx/include )
+  
+  ExternalProject_Add(mxx
+    PREFIX ${MXX_PREFIX}
+    GIT_REPOSITORY https://github.com/wavefunction91/mxx.git
+    CONFIGURE_COMMAND echo 'No MXX Configure'
+    UPDATE_COMMAND echo 'No ScaLAPACK MXX Command'
+    BUILD_COMMAND echo 'No MXX Build'
+    BUILD_IN_SOURCE 1
+    INSTALL_COMMAND echo 'No MXX Install'
+  )
+  
+  list(APPEND CQEX_DEP mxx)
+  
+  # MXX Includes
+  file( MAKE_DIRECTORY ${MXX_INCLUDEDIR} )
+  set_property( TARGET ChronusQ::Dependencies APPEND PROPERTY
+    INTERFACE_INCLUDE_DIRECTORIES ${MXX_INCLUDEDIR}
+  )
+  set_property( TARGET ChronusQ::DepHeaders APPEND PROPERTY
+    INTERFACE_INCLUDE_DIRECTORIES ${MXX_INCLUDEDIR}
+  )
 
-# FindMPI
-find_package(MPI REQUIRED)
-
-# Link and Includes
-include_directories(${MPI_INCLUDE_PATH})
-list(APPEND CQ_EXT_LINK ${MPI_LIBRARIES})
-
-# Compile flags if any
-if(MPI_COMPILE_FLAGS)
-  message( STATUS "Adding MPI_COMPILE_FLAGS: ${MPI_COMPILE_FLAGS}" )
-  add_definitions( ${MPI_COMPILE_FLAGS} )
 endif()
-
-message( "" )
-
-# Print out extraneous information
-message( STATUS "MPIEXEC found to be: ${MPIEXEC}" )
-message( STATUS "MPIEXEC_NUMPROC_FLAG found to be: ${MPIEXEC_NUMPROC_FLAG}" )
-message( STATUS "MPI_INCLUDE_PATH found to be: ${MPI_INCLUDE_PATH}" )
-
-
-message( "" )
-
-
-# MXX
-
-message( STATUS "Adding CMake Target for MXX" )
-set( MXX_PREFIX     ${PROJECT_SOURCE_DIR}/external/mxx )
-set( MXX_INCLUDEDIR ${MXX_PREFIX}/src/mxx/include )
-
-ExternalProject_Add(mxx
-  PREFIX ${MXX_PREFIX}
-  GIT_REPOSITORY https://github.com/wavefunction91/mxx.git
-  CONFIGURE_COMMAND echo 'No MXX Configure'
-  UPDATE_COMMAND echo 'No ScaLAPACK MXX Command'
-  BUILD_COMMAND echo 'No MXX Build'
-  BUILD_IN_SOURCE 1
-  INSTALL_COMMAND echo 'No MXX Install'
-)
-
-list(APPEND CQEX_DEP mxx)
-
-# MXX Includes
-include_directories(${MXX_INCLUDEDIR})
-

@@ -30,14 +30,14 @@ set(OPT_SRC input/molopts.cxx input/basisopts.cxx
     procedural.cxx output.cxx)
 
 add_library(cxxcq STATIC ${INPUT_SRC} ${OPT_SRC})
-target_link_libraries( cxxcq PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 ChronusQ::Libcint ChronusQ::blaspp ChronusQ::lapackpp ChronusQ::BLAS )
+target_link_libraries( cxxcq PUBLIC ChronusQ::DepHeaders )
 
 list(INSERT CQEX_LINK 0 cxxcq)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
 
 add_executable(chronusq chronusq.cxx)
-target_link_libraries(chronusq PUBLIC ${CQEX_LINK})
+target_link_libraries(chronusq PUBLIC ${CQEX_LINK} ChronusQ::Dependencies )
 
 if(CQEX_DEP)
   add_dependencies(chronusq ${CQEX_DEP})

@@ -75,48 +75,48 @@ namespace ChronusQ{
       size_t NO = this->ref_.nO;
       size_t NV = this->ref_.nV;  
     if (not this->A_1.is_initialized()){
-    TArray tmp(TA::get_default_world(),{orange,orange});
+    TArray tmp(TA::get_default_world(),TA::TiledRange{orange,orange});
     tmp.fill(0.0);
     this->A_1("p,q") = tmp("p,q");
     }
     if (not this->A_2.is_initialized()){
-    TArray tmp(TA::get_default_world(),{vrange,vrange});
+    TArray tmp(TA::get_default_world(),TA::TiledRange{vrange,vrange});
     tmp.fill(0.0);
     this->A_2("p,q") = tmp("p,q");
     }
     if (not this->A_3.is_initialized()){
-    TArray tmp(TA::get_default_world(),{orange,vrange});
+    TArray tmp(TA::get_default_world(),TA::TiledRange{orange,vrange});
     tmp.fill(0.0);
     this->A_3("p,q") = tmp("p,q");
     }
     if (not this->A_4.is_initialized()){
-    TArray tmp(TA::get_default_world(),{orange,orange,vrange,orange});
+    TArray tmp(TA::get_default_world(),TA::TiledRange{orange,orange,vrange,orange});
     tmp.fill(0.0);
     this->A_4("p,q,r,s") = tmp("p,q,r,s");
     }
   
     if (not this->B_1.is_initialized()){
-    TArray tmp(TA::get_default_world(),{orange,orange});
+    TArray tmp(TA::get_default_world(),TA::TiledRange{orange,orange});
     tmp.fill(0.0);
     this->B_1("p,q") = tmp("p,q");
     }
     if (not this->B_2.is_initialized()){
-    TArray tmp(TA::get_default_world(),{vrange,vrange});
+    TArray tmp(TA::get_default_world(),TA::TiledRange{vrange,vrange});
     tmp.fill(0.0);
     this->B_2("p,q") = tmp("p,q");
     }
     if (not this->B_3.is_initialized()){
-    TArray tmp(TA::get_default_world(),{orange,vrange,orange,orange});
+    TArray tmp(TA::get_default_world(),TA::TiledRange{orange,vrange,orange,orange});
     tmp.fill(0.0);
     this->B_3("p,q,r,s") = tmp("p,q,r,s");
     }
     if (not this->B_5.is_initialized()){
-    TArray tmp(TA::get_default_world(),{orange,orange,orange,orange});
+    TArray tmp(TA::get_default_world(),TA::TiledRange{orange,orange,orange,orange});
     tmp.fill(0.0);
     this->B_5("p,q,r,s") = tmp("p,q,r,s");
     }
     if (not this->B_6.is_initialized()){
-    TArray tmp(TA::get_default_world(),{orange,vrange,vrange,orange});
+    TArray tmp(TA::get_default_world(),TA::TiledRange{orange,vrange,vrange,orange});
     tmp.fill(0.0);
     this->B_6("p,q,r,s") = tmp("p,q,r,s");
     }
@@ -127,12 +127,12 @@ namespace ChronusQ{
       size_t NO = this->ref_.nO;
       size_t NV = this->ref_.nV;  
       if (not this->T1_.is_initialized()){
-        TArray tmp(TA::get_default_world(),{vrange,orange});
+        TArray tmp(TA::get_default_world(),TA::TiledRange{vrange,orange});
         tmp.fill(0.0);
         this->T1_("p,q") = tmp("p,q");
       }
       if (not this->T2_.is_initialized()){
-        TArray tmp(TA::get_default_world(),{vrange,vrange,orange,orange});
+        TArray tmp(TA::get_default_world(),TA::TiledRange{vrange,vrange,orange,orange});
         tmp.fill(0.0);
         this->T2_("p,q,r,s") = tmp("p,q,r,s");
       }    
@@ -145,8 +145,8 @@ namespace ChronusQ{
       std::vector<std::string> fockTypes{"oo","vo","vv","ov"};
       for(const auto& focktype:fockTypes){
   
-        std::vector<unsigned> trange;
-        std::vector<unsigned> offset;
+        std::vector<int> trange;
+        std::vector<int> offset;
   
         for(const auto& ftype:focktype){
           if(ftype == 'o'){
@@ -159,7 +159,7 @@ namespace ChronusQ{
           }
         }
   
-        TArray tmp(TA::get_default_world(),{{0,trange[0]},{0,trange[1]}});
+        TArray tmp(TA::get_default_world(),TA::TiledRange({{0,trange[0]},{0,trange[1]}}));
   
         for(auto it = std::begin(tmp); it != std::end(tmp); ++it) {
           // Construct a tile
@@ -208,7 +208,7 @@ namespace ChronusQ{
         }
       }
 
-      TArray tmp(TA::get_default_world(),{fockRangeTypes[0],fockRangeTypes[1]});
+      TArray tmp(TA::get_default_world(),TA::TiledRange{fockRangeTypes[0],fockRangeTypes[1]});
 
       for(auto it = std::begin(tmp); it != std::end(tmp); ++it) {
         // Construct a tile
@@ -264,7 +264,7 @@ namespace ChronusQ{
       }
 
                
-      TArray tmp(TA::get_default_world(),{MORangeTypes[0],MORangeTypes[1],MORangeTypes[2],MORangeTypes[3]});
+      TArray tmp(TA::get_default_world(),TA::TiledRange{MORangeTypes[0],MORangeTypes[1],MORangeTypes[2],MORangeTypes[3]});
 
       for(auto it = std::begin(tmp); it != std::end(tmp); ++it) {
         // Construct a tile
@@ -439,9 +439,9 @@ namespace ChronusQ{
     initIntermediates();
     initAmplitudes();
 
-    TArray T1_old(TA::get_default_world(),{vrange,orange});
-    TArray T2_old(TA::get_default_world(),{vrange,vrange,orange,orange});
-    TArray T2_old_copy(TA::get_default_world(),{vrange,vrange,orange,orange});
+    TArray T1_old(TA::get_default_world(),TA::TiledRange{vrange,orange});
+    TArray T2_old(TA::get_default_world(),TA::TiledRange{vrange,vrange,orange,orange});
+    TArray T2_old_copy(TA::get_default_world(),TA::TiledRange{vrange,vrange,orange,orange});
     double tnorm = 0.0;
     double tnorm_old = 0.0;
 
@@ -549,7 +549,7 @@ namespace ChronusQ{
     this->T1_("a,i") += A_3("k,c") * T2_old("c,a,k,i");
     this->T1_("a,i") += A_4("k,l,c,i") * T2_old("c,a,k,l");
   
-    TArray oneoverD_ai(TA::get_default_world(),{vrange,orange});
+    TArray oneoverD_ai(TA::get_default_world(),TA::TiledRange{vrange,orange});
     for(auto it = std::begin(oneoverD_ai); it != std::end(oneoverD_ai); ++it) {
       // Construct a tile
     typename TA::Array<MatsT,2>::value_type tile(
@@ -574,7 +574,7 @@ namespace ChronusQ{
     A_1("k,i") =   conj(this->antiSymMoints["aijk"]("c,i,k,l")) * this->T1_("c,l"); 
     A_1("k,i") +=  - 0.5  *   conj(this->antiSymMoints["abij"]("c,d,l,k")) * this->T2_("c,d,l,i"); 
     A_1("k,i") += -fockMatrix_ta["oo"]("i,k");
-    TA::TArray<MatsT> A_11(TA::get_default_world(),{orange,vrange});
+    TA::TArray<MatsT> A_11(TA::get_default_world(),TA::TiledRange{orange,vrange});
     A_11.fill(0.0);
     A_11("k,c") = - conj(this->antiSymMoints["abij"]("c,d,k,l")) * this->T1_("d,l");
     A_11("k,c") += -fockMatrix_ta["ov"]("k,c");
@@ -624,7 +624,7 @@ namespace ChronusQ{
     T2_old("c,d,i,j") += - T1_old("c,j") * T1_old("d,i");
     this->T2_("a,b,i,j") += 0.5 * this->antiSymMoints["abcd"]("a,b,c,d") * T2_old("c,d,i,j");
   
-    TArray oneoverD_abij(TA::get_default_world(),{vrange,vrange,orange,orange});
+    TArray oneoverD_abij(TA::get_default_world(),TA::TiledRange{vrange,vrange,orange,orange});
     for(auto it = std::begin(oneoverD_abij); it != std::end(oneoverD_abij); ++it) {
       // Construct a tile
     typename TA::Array<MatsT,4>::value_type tile(
@@ -650,7 +650,7 @@ namespace ChronusQ{
     B_1("k,i") =    conj(this->antiSymMoints["aijk"]("c,i,k,l")) * this->T1_("c,l");
     B_1("k,i") +=  0.5  *   conj(this->antiSymMoints["abij"]("d,c,k,l")) * this->T2_("d,c,l,i");
     B_1("k,i") += -fockMatrix_ta["oo"]("k,i");
-    TA::TArray<MatsT> B_11(TA::get_default_world(),{orange,vrange});
+    TA::TArray<MatsT> B_11(TA::get_default_world(),TA::TiledRange{orange,vrange});
     B_11.fill(0.0);
     B_11("k,c") = conj(this->antiSymMoints["abij"]("d,c,k,l")) * this->T1_("d,l"); 
     B_11("k,c") += -fockMatrix_ta["ov"]("k,c");
@@ -670,15 +670,15 @@ namespace ChronusQ{
     size_t NV = this->ref_.nV;
     B_3("k,a,i,j") = 0.5  *   conj(this->antiSymMoints["abci"]("c,d,a,k")) * this->T2_("d,c,i,j"); 
     B_3("k,a,i,j") +=    this->antiSymMoints["aijk"]("a,k,j,i");
-    TA::TArray<MatsT> B_31(TA::get_default_world(),{orange,vrange});
+    TA::TArray<MatsT> B_31(TA::get_default_world(),TA::TiledRange{orange,vrange});
     B_31.fill(0.0);
-    TA::TArray<MatsT> B_32(TA::get_default_world(),{orange,orange,orange,orange});
+    TA::TArray<MatsT> B_32(TA::get_default_world(),TA::TiledRange{orange,orange,orange,orange});
     B_32.fill(0.0);
-    TA::TArray<MatsT> B_321(TA::get_default_world(),{orange,orange,vrange,orange});
+    TA::TArray<MatsT> B_321(TA::get_default_world(),TA::TiledRange{orange,orange,vrange,orange});
     B_321.fill(0.0);
-    TA::TArray<MatsT> B_33(TA::get_default_world(),{orange,vrange,vrange,orange});
+    TA::TArray<MatsT> B_33(TA::get_default_world(),TA::TiledRange{orange,vrange,vrange,orange});
     B_33.fill(0.0);
-    TA::TArray<MatsT> B_34(TA::get_default_world(),{orange,orange,vrange,orange});
+    TA::TArray<MatsT> B_34(TA::get_default_world(),TA::TiledRange{orange,orange,vrange,orange});
     B_34.fill(0.0);
     B_321("k,l,c,j") += - 0.25   *  conj(this->antiSymMoints["abij"]("c,d,k,l")) * this->T1_("d,j");
     B_321("k,l,c,j") += - 0.5  *   conj(this->antiSymMoints["aijk"]("c,j,k,l"));
@@ -706,7 +706,7 @@ namespace ChronusQ{
     size_t NV = this->ref_.nV;
     B_5("k,l,i,j") = 0.25   *  conj(this->antiSymMoints["abij"]("c,d,k,l")) * this->T2_("c,d,i,j");
     B_5("k,l,i,j") +=  0.5  *   this->antiSymMoints["ijkl"]("k,l,i,j");
-    TA::TArray<MatsT> B_51(TA::get_default_world(),{orange,orange,vrange,orange});
+    TA::TArray<MatsT> B_51(TA::get_default_world(),TA::TiledRange{orange,orange,vrange,orange});
     B_51.fill(0.0);
     B_51("k,l,c,i") += 0.25   *  conj(this->antiSymMoints["abij"]("d,c,k,l")) * this->T1_("d,i"); 
     B_51("k,l,c,i") += - 0.5  *   conj(this->antiSymMoints["aijk"]("c,i,k,l"));

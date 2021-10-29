@@ -35,7 +35,7 @@ add_executable(resptest ../ut.cxx rres.cxx rfdr.cxx rmor.cxx
 
 target_include_directories(resptest PUBLIC ${RESP_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
-target_link_libraries(resptest PUBLIC ${CQEX_LINK})
+target_link_libraries(resptest PUBLIC ChronusQ::Dependencies ${CQEX_LINK})
 target_link_libraries(resptest PUBLIC ChronusQ::gtest)
 
 if(CQEX_DEP)

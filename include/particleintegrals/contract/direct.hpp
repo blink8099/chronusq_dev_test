@@ -490,7 +490,7 @@ namespace ChronusQ {
         // Scale the buffer by the degeneracy factor and store
         // in infBuffer
         std::transform(buff,buff + n1*n2*n3*n4,intBuffer_loc,
-          std::bind1st(std::multiplies<double>(),0.5*s1234_deg));
+          [&](auto& x){ return x*0.5*s1234_deg; });
 
         size_t b1,b2,b3,b4;
         double *Xp1, *Xp2;
@@ -1113,10 +1113,10 @@ namespace ChronusQ {
         // in infBuffer
 
         std::transform(buff,buff + n1*n2*n3*n4 , intBuffer_loc,
-          std::bind1st(std::multiplies<dcomplex>(),0.5*s1234_deg));
+          [&](auto& x){ return x*0.5*s1234_deg; });
 
         std::transform(buffswitch,buffswitch+n1*n2*n3*n4 ,alterintBuffer_loc,
-          std::bind1st(std::multiplies<dcomplex>(),0.5*s1234_deg));
+          [&](auto& x){ return x*0.5*s1234_deg; });
 
         size_t b1,b2,b3,b4;
 
@@ -1839,7 +1839,7 @@ namespace ChronusQ {
         // Scale the buffer by the degeneracy factor and store
         // in infBuffer
         std::transform(buff,buff + n1*n2*n3*n4,intBuffer_loc,
-          std::bind1st(std::multiplies<double>(),0.5*s1234_deg));
+          [&](auto& x) { return x*0.5*s1234_deg; });
 
         size_t b1,b2,b3,b4;
         double *Xp1, *Xp2;
