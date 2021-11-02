@@ -272,11 +272,11 @@ namespace ChronusQ {
               add_shellset_to_mat(result_idx, 3*atom2 + xyz);
 
             // Gradient of operator
-            auto nAtoms = mol.atoms.size();
             if (op == libint2::Operator::nuclear) {
+              auto nAtoms = mol.atomsC.size();
               for (auto iAt = 0; iAt < nAtoms; iAt++) {
                 for ( auto xyz = 0; xyz < 3; xyz++, result_idx++) {
-                  add_shellset_to_mat(result_idx, 3*iAt + xyz);
+                  add_shellset_to_mat(result_idx, 3*mol.atomsC[iAt]+ xyz);
                 }
               }
             }
