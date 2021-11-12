@@ -47,7 +47,7 @@ namespace ChronusQ {
         "  * PERFORMING RESPONSE OPTION CONFIGURATION FOR SINGLE SLATER "
                 << "WAVE FUNCTION\n";
     }
-
+		SingleSlater<MatsT,IntsT>& ss =dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
     // Set the internal NSingleDim
     this->nSingleDim_ = getNSingleDim(this->genSettings.doTDA);
 
@@ -368,6 +368,7 @@ namespace ChronusQ {
     std::ostream &out, size_t nRoots, double *W_print,
     std::vector<std::pair<std::string,double *>> data, U* VL, U* VR) {
 
+    SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
     this->nSingleDim_ = getNSingleDim(this->genSettings.doTDA);
 
     out << "\n\n\n* RESIDUE EIGENMODES\n\n\n";
@@ -386,7 +387,7 @@ namespace ChronusQ {
 
       out << "\n";
 
-
+/*
       if( this->genSettings.evalProp ) {
         for(auto &d : data) {
         out << "       " << std::setw(7) << " " << " ";
@@ -397,12 +398,12 @@ namespace ChronusQ {
         out << "\n";
         }
       }
-
+*/
       auto xCont = getMOContributions(VR+iRt*this->nSingleDim_,1e-1);
       decltype(xCont) yCont;
       if( not this->genSettings.doTDA ) 
         yCont = getMOContributions(VL+iRt*this->nSingleDim_,1e-1);
-
+			
       // MO contributions
       out << "    MO Contributions:\n";
       for(auto &c : xCont) {
@@ -882,7 +883,7 @@ namespace ChronusQ {
     size_t nStore = (this->doAPB_AMB and not this->genSettings.doTDA) ? N/2 : N;
     size_t nFormP = nForm; // Persistant for matrix distribution
     size_t nStoreP = nStore; // Persistant for matrix distribution
-
+    std::cout << "PH Full Matrix Form" << std::endl;
     // Determine if we want to distribute the matrix at all
     bool isDist = this->genSettings.isDist(); 
 
@@ -1614,7 +1615,7 @@ namespace ChronusQ {
     std::vector<ResponseOperator> ops = this->genSettings.bOps;
 
     size_t N      = this->nSingleDim_;
-
+		
     MatsT* g = nullptr; size_t nProp;
 
     if( this->fdrSettings.nRHS == 0 ) 
@@ -1757,7 +1758,8 @@ namespace ChronusQ {
   template <typename U, typename... Args>
   std::vector<TwoBodyContraction<U>> 
     PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phTransitionVecMO2AO(
-      MPI_Comm c, bool scatter, size_t nVec, size_t N, Args... Vs) {
+      MPI_Comm c, bool scatter, size_t nVec, size_t N,
+			SingleSlater<MatsT,IntsT>& ss,bool doExchange, Args... Vs) {
 
     static_assert(sizeof...(Vs) > 0 and sizeof...(Vs) < 3,
       "Vs must consist of 1 or 2 pointers");
@@ -1770,9 +1772,10 @@ namespace ChronusQ {
     bool isRoot = MPIRank(c) == 0;
     bool trans  = isRoot or not scatter;
 
+  	//SingleSlater<MatsT, IntsT>& sshold = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
 
-    SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
     const size_t NB   = ss.nAlphaOrbital();
+		std::cout << "Number Alpha Orbitals:" << NB << std::endl;
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -1807,7 +1810,6 @@ namespace ChronusQ {
 
       MatsT* CMO = ss.mo[0].pointer();
 
-
       // Perform MO -> AO transformation
       if( trans ) {
 
@@ -1819,12 +1821,15 @@ namespace ChronusQ {
         // Alpha for RHF and UHF, full for GHF
         for(size_t i = 0, ai = 0;  i < NO; i++) 
         for(size_t a = NO; a < NBC; a++, ai++) {
+					std::cout << "VX_c[ai]: "<< VX_c[ai] << std::endl;
+					std::cout << "VY_c[ai]: " << VY_c[ai] << std::endl;	
           MOT[i*NBC + a] = VX_c[ai];
           if( nVs > 1 ) MOT[a*NBC + i] = VY_c[ai];
+					std::cout << "MOT_c[ai]: " << MOT[a*NBC+i] << std::endl; 
         }
-
+				std::cout << "break" << std::endl;
         // Transform Alpha (full) MOT -> AO basis
-        MOTRANS(CMO,MOT);
+        MOTRANS(CMO, MOT);
 
       }
 
@@ -1866,21 +1871,17 @@ namespace ChronusQ {
 
       first += nMatPVec * NB2;
 
-
       cList.push_back( { AOS, JAOS, false, COULOMB  } );
-      cList.push_back( { AOS, KAOS, false, EXCHANGE } );
-      cList.push_back( { AOZ, KAOZ, false, EXCHANGE } );
-        // FIXME: not for SA
-
-      if( ss.nC == 2 ) {
-        cList.push_back( { AOY, KAOY, false, EXCHANGE } );
-        cList.push_back( { AOX, KAOX, false, EXCHANGE } );
-      }
-
-
-
-
-
+			if (doExchange){
+        cList.push_back( { AOS, KAOS, false, EXCHANGE } );
+        cList.push_back( { AOZ, KAOZ, false, EXCHANGE } );
+          // FIXME: not for SA
+  
+        if( ss.nC == 2 ) {
+          cList.push_back( { AOY, KAOY, false, EXCHANGE } );
+          cList.push_back( { AOX, KAOX, false, EXCHANGE } );
+        }
+			}
 
       if( ss.nC == 1 ) { // RHF / UHF case
 
@@ -1902,10 +1903,8 @@ namespace ChronusQ {
           }
 
           CMO = ss.iCS ? ss.mo[0].pointer() : ss.mo[1].pointer();
-          
           // Transform BETA (full) MOT -> AO basis
-          MOTRANS(CMO,MOT);
-
+					MOTRANS(CMO,MOT);					
         }
 
 
@@ -1938,7 +1937,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   template <typename U, typename... Args>
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phTransitionVecAO2MO(
-    size_t nVec, size_t N, std::vector<TwoBodyContraction<U>> &cList, 
+    size_t nVec, size_t N, std::vector<TwoBodyContraction<U>> &cList, SingleSlater<MatsT, IntsT>& ss,bool doExchange,
     Args... HVs) {
 
     constexpr size_t nHVs = sizeof...(HVs);
@@ -1946,7 +1945,7 @@ namespace ChronusQ {
     std::array<U*,nHVs> HV_arr = { HVs... };
 
 
-    SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
+   // SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
     const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
@@ -1977,62 +1976,72 @@ namespace ChronusQ {
       // Get the index of first G[T(iVec)]
 
       size_t indx = iOff * iVec; // FIXME: be careful for SA
+      U* J_S=nullptr, *K_S=nullptr, *K_Z=nullptr, *K_X=nullptr, *K_Y=nullptr;
+
+			if (doExchange){
+        J_S = cList[indx  ].AX;
+        K_S = cList[indx+1].AX;
+        K_Z = cList[indx+2].AX;
+  
+        if( ss.nC == 2 ) {
+          K_Y = cList[indx+3].AX;
+          K_X = cList[indx+4].AX;
+        }  			
+        // Form G(S) in K(S)
+        MatAdd('N','N',NB,NB,U(2.),J_S,NB,U(-1.),K_S,NB,K_S,NB);
+  
+        // Negate Ks for Z,Y and X
+        Scale(NB2,U(-1.),K_Z,1);
       
-      U* J_S = cList[indx  ].AX;
-      U* K_S = cList[indx+1].AX;
-      U* K_Z = cList[indx+2].AX;
-
-      U* K_Y, *K_X;
-      if(ss.nC == 2) {
-        K_Y = cList[indx+3].AX;
-        K_X = cList[indx+4].AX;
-      }
-
-      // Form G(S) in K(S)
-      MatAdd('N','N',NB,NB,U(2.),J_S,NB,U(-1.),K_S,NB,K_S,NB);
-
-      // Negate Ks for Z,Y and X
-      Scale(NB2,U(-1.),K_Z,1);
-    
-      if( ss.nC == 2 ) {
-        Scale(NB2,U(-1.),K_Y,1);
-        Scale(NB2,U(-1.),K_X,1);
-      }
-
-
-
+        if( ss.nC == 2 ) {
+          Scale(NB2,U(-1.),K_Y,1);
+          Scale(NB2,U(-1.),K_X,1);
+        }
+			}
+			else{
+				J_S = cList[iVec].AX;
+			}
       // Transform G[T] into MO basis and extract into HV
             
       // Alpha for RHF/ UHF, full for GHF
-      if( ss.nC == 1 ) 
-        MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(0.5),K_Z,NB,MOT,NB);
-      else          
-        SpinGather(NB,MOT,NBC,K_S,NB,K_Z,NB,K_Y,NB,K_X,NB);
-
-      MatsT* CMO = ss.mo[0].pointer();
+      if (doExchange){
+	  		if( ss.nC == 1 ) 
+          MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(0.5),K_Z,NB,MOT,NB);
+        else          
+          SpinGather(NB,MOT,NBC,K_S,NB,K_Z,NB,K_Y,NB,K_X,NB);
+			}
+			else{
+				SetMat('N',NB,NB,U(1.),J_S,NB,MOT,NB); 	
+			}
+			MatsT* CMO = ss.mo[0].pointer();     
       
-      // Transform -> AO basis
+			// Transform -> AO basis
       MOTRANS(CMO,MOT);
       
       for(size_t i = 0, ai = 0;  i < NO; i++) 
       for(size_t a = NO; a < NBC; a++, ai++) {
         HVX_c[ai] += MOT[i*NBC + a]; 
-        if( nHVs > 1 ) HVY_c[ai] += MOT[a*NBC + i]; 
+        if( nHVs > 1 ) HVY_c[ai] += MOT[a*NBC + i];
+				std::cout << "HVX_c[ai]: " << HVX_c[ai] << std::endl; 
+				std::cout << "MOT[ai]: " << MOT[i*NBC+a] << std::endl; 
       }
 
       // Do Beta for RHF / UHF (FIXME: not for SA)
       if( ss.nC == 1 ) {
-
-        MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(-0.5),K_Z,NB,MOT,NB);
-
+				if (doExchange){
+	        MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(-0.5),K_Z,NB,MOT,NB);
+				}
+				else{
+				 	SetMat('N',NB,NB,U(1.),J_S,NB,MOT,NB);
+				}
         CMO = ss.iCS ? ss.mo[0].pointer() : ss.mo[1].pointer();
-        
         // Transform -> AO basis
         MOTRANS(CMO,MOT);
         
         for(size_t i = 0, ai = nOAVA;  i < ss.nOB; i++) 
         for(size_t a = ss.nOB; a < NB; a++, ai++) {
-          HVX_c[ai] += MOT[i*NB + a]; 
+          HVX_c[ai] += MOT[i*NB + a];
+					 
           if( nHVs > 1 ) HVY_c[ai] += MOT[a*NB + i]; 
         }
 
@@ -2050,9 +2059,10 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   template <typename U>
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phEpsilonScale(bool doInc, 
-    bool doInv, size_t nVec, size_t N, U* V, U* HV) {
+    bool doInv, size_t nVec, size_t N,SingleSlater<MatsT,IntsT>& ss, U* V, U* HV) {
+		std::cout << "IM IN HERE " << std::endl;
+   // SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
 
-    SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
     const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
@@ -2080,9 +2090,14 @@ namespace ChronusQ {
       double *eps = ss.eps1; 
 
       for(size_t i = 0, ai = 0;  i < NO; i++) 
-      for(size_t a = NO; a < NBC; a++, ai++) 
-        HV_c[ai] = increment(HV_c[ai],
+      for(size_t a = NO; a < NBC; a++, ai++){ 
+        std::cout << "HV[ai]: " << HV_c[ai] << std::endl;
+				HV_c[ai] = increment(HV_c[ai],
                              epsilonScale(eps[a] - eps[i]) * V_c[ai]);
+				std::cout << "Eps a: " << eps[a] << std::endl;
+				std::cout << "Eps i: " << eps[i] << std::endl;
+				std::cout << "Eps Scaling: " << eps[a]-eps[i] << std::endl;
+			}
 
       if( ss.nC == 1 ) { // RHF / UHF case
 
@@ -2096,6 +2111,7 @@ namespace ChronusQ {
       }
 
     }
+		
     else {
 
       dcomplex* FCMPLX = nullptr, *FBCMPLX = nullptr;
@@ -2179,13 +2195,12 @@ namespace ChronusQ {
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::resGuess(
       size_t nGuess, MatsT *G, size_t LDG) {
 
+    SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
     size_t N = getNSingleDim(true);
 
     // Initialize an NOV index array
     std::vector<size_t> indx(N,0);
     std::iota(indx.begin(),indx.end(),0);
-
-    auto &ss = *this->ref_;
 
     size_t NO1 = (ss.nC == 1) ? ss.nOA : ss.nO;
     size_t NV1 = (ss.nC == 1) ? ss.nVA : ss.nV;

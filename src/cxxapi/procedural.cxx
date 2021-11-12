@@ -324,11 +324,13 @@ namespace ChronusQ {
 
     if( not jobType.compare("RESP") ) {
 
+			auto resp = CQResponseOptions(output,input,ss);
+
       // FIXME: Need to implement TD-NEO
       if (doNEO)
-        CErr("RESP-NEO NYI!",output);
-
-      auto resp = CQResponseOptions(output,input,ss);
+       // CErr("RESP-NEO NYI!",output);
+        resp = CQResponseOptions(output,input,neoss);
+	
       resp->savFile = rstFile;
       resp->run();
 

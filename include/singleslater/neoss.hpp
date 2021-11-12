@@ -215,6 +215,19 @@ namespace ChronusQ {
       }
 
       // Getters
+			std::vector<std::string> getLabels() {
+				if (order_.size() == subsystems.size()) return order_;
+				std::vector<std::string> labels;
+				for(auto& entry:subsystems){
+					labels.push_back(entry.first);
+				}
+				return labels;
+			}
+			
+			std::pair<bool,std::shared_ptr<TwoPInts<IntsT>>> getCrossTPIs(std::string label1,std::string label2){
+		  	return interIntegrals.at(label1).at(label2);
+			}
+
       template <template <typename, typename> class T>
       std::shared_ptr<T<MatsT,IntsT>> getSubsystem(std::string label) {
         return std::dynamic_pointer_cast<T<MatsT,IntsT>>(subsystems.at(label));

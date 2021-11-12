@@ -32,8 +32,8 @@
 #include <response/results.hpp>
 
 namespace ChronusQ {
-
-  struct ResponseBase {
+  
+		struct ResponseBase {
 
     SafeFile savFile; ///< Data File
 
@@ -53,7 +53,7 @@ namespace ChronusQ {
 
 
 
-    virtual size_t getNSingleDim(const bool doTDA = false) = 0;
+    virtual size_t getNSingleDim( const bool doTDA = false) = 0;
 
 
     // Memory allocation

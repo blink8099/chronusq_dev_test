@@ -26,6 +26,7 @@
 #include <singleslater.hpp>
 #include <singleslater/hartreefock.hpp>
 #include <singleslater/kohnsham.hpp>
+#include <singleslater/neoss.hpp>
 
 #include <response/tbase.hpp>
 
@@ -87,8 +88,6 @@ namespace ChronusQ {
 
 
       }
-
-
       inline virtual size_t getNSingleDim(const bool doTDA = false) {
 
         size_t N = 0;
@@ -99,7 +98,6 @@ namespace ChronusQ {
         size_t nOV   = ss.nO  * ss.nV;
 
         N = (ss.nC == 1) ? nOAVA + nOBVB : nOV;
-
 
         if( not doTDA and not doReduced ) N *= 2;
 
@@ -144,7 +142,6 @@ namespace ChronusQ {
         SingleSlaterPolarBase(
           dynamic_cast<const SingleSlaterPolarBase&>(other)
         ) { }
-
 
       MatsT*                   formFullFromMemory(); 
       MatsT*                   formFullMatrix(); 
@@ -264,18 +261,18 @@ namespace ChronusQ {
       // Transform ph-transition vector MO -> AO
       template <typename U, typename... Args>
       std::vector<TwoBodyContraction<U>> 
-        phTransitionVecMO2AO(MPI_Comm c, bool scatter, size_t nVec, size_t N, 
-          Args... Vs);
+        phTransitionVecMO2AO(MPI_Comm c, bool scatter, size_t nVec, size_t N,
+				SingleSlater<MatsT,IntsT>& ss, bool doExchange, Args... Vs);
 
       // Transform ph-transition vector AO -> MO
       template <typename U, typename... Args>
       void phTransitionVecAO2MO(size_t nVec, size_t N, 
-        std::vector<TwoBodyContraction<U>> &cList, Args... HVs); 
+        std::vector<TwoBodyContraction<U>> &cList,SingleSlater<MatsT, IntsT>& ss,bool doExchange, Args... HVs); 
 
       // Scale transition vector by diagonals of orbital Hessian
       template <typename U>
-      void phEpsilonScale(bool doInc, bool doInv, size_t nVec, size_t N, 
-        U* V, U* HV);
+      void phEpsilonScale(bool doInc, bool doInv, size_t nVec, size_t N,SingleSlater<MatsT, IntsT>& ss, 
+       U* V, U* HV);
   }; 
 
 
@@ -347,8 +344,6 @@ namespace ChronusQ {
         PolarizationPropagator<SingleSlater<MatsT, IntsT>>(
           dynamic_cast<const PolarizationPropagator<SingleSlater<MatsT, IntsT>>&>(other)
         ){ }
-
-
       // Inherit the ResponseTBase exposures from 
       // PolarizationPropagator<SingleSlater>
       using PolarizationPropagator<SingleSlater<MatsT, IntsT>>::formLinearTrans;
@@ -371,16 +366,58 @@ namespace ChronusQ {
 
       };
 
+  };
 
 
+ 
+//Class specialization to deal with NEOSS Objects
+	template <typename MatsT, typename IntsT>
+	class PolarizationPropagator< NEOSS<MatsT, IntsT> > :
+		public PolarizationPropagator< SingleSlater<MatsT, IntsT> >{
+			
+			template<typename U>
+			using RC_coll = std::vector<RESPONSE_CONTRACTION<U>>;
+
+		public:
+
+		PolarizationPropagator( MPI_Comm c, ResponseType job, 
+        std::shared_ptr<NEOSS<MatsT, IntsT>> ref, MatsT* fullMatrix = nullptr ) : 
+        PolarizationPropagator<SingleSlater<MatsT, IntsT>>(c,job,
+          std::dynamic_pointer_cast<SingleSlater<MatsT, IntsT>>(ref),fullMatrix) { }
+
+      PolarizationPropagator( const PolarizationPropagator &other ) : 
+        PolarizationPropagator<SingleSlater<MatsT, IntsT>>(
+          dynamic_cast<const PolarizationPropagator<SingleSlater<MatsT, IntsT>>&>(other)
+        ){ }
+
+      // Inherit the ResponseTBase exposures from 
+      // PolarizationPropagator<SingleSlater>
+      using PolarizationPropagator<SingleSlater<MatsT, IntsT>>::formLinearTrans;
+
+      template <typename U>
+      void formLinearTrans_direct_impl(MPI_Comm, RC_coll<U> x,
+          SINGLESLATER_POLAR_COPT op, bool noTrans);
+		
+			virtual size_t getNSingleDim(const bool);
+
+			size_t getNSingleSSDim(SingleSlater<MatsT,IntsT>& , const bool);
+//			std::pair<size_t,MatsT*> formPropGrad( ResponseOperator );
 
 
+      // Interface to PolarizationPropagator<SingleSlater> double exposure
+      void formLinearTrans_direct(MPI_Comm c, RC_coll<double> x,
+          SINGLESLATER_POLAR_COPT op, bool noTrans = false); 
+      // Interface to PolarizationPropagator<SingleSlater> dcomplex exposure
+      void formLinearTrans_direct(MPI_Comm c, RC_coll<dcomplex> x,
+          SINGLESLATER_POLAR_COPT op, bool noTrans = false){ 
+      
+        formLinearTrans_direct_impl(c,x,op,noTrans);
 
-  }; 
+			};
+	
+	};
 
 
 
 };
-
-
 

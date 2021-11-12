@@ -52,7 +52,7 @@ namespace ChronusQ {
     for(auto &op : ops) {
 
       // Compute property gradient
-      std::tie(nProp,g) = formPropGrad(op);
+//      std::tie(nProp,g) = formPropGrad(op);
 
 
       // Allocate space for the property
