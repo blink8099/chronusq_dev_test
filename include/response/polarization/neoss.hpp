@@ -108,14 +108,11 @@ namespace ChronusQ {
       
       for (auto label2:labels){
         auto ssbase2 =  neoss.getSubSSBase(label2);
-        std::cout << "HVBase: " << HVBase << std::endl;   
-        std::cout << "VBase: " << VBase << std::endl;   
         SingleSlater<MatsT, IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
        
         const size_t N  = this->getNSingleDim(this->genSettings.doTDA) * (this->doReduced ? 2 : 1);  
         const size_t tdOffSet = N / 2;
         const size_t chunk    = 600;
-        std::cout << "N Value: " << N << std::endl; 
         auto TPIcast = retrieveTPI(label1, label2,neoss, ss1int);
         ProgramTimer::tick("Direct Hessian Contract");
 /*
@@ -144,7 +141,6 @@ namespace ChronusQ {
           }
 
           for(size_t k = 0; k < nVec; k += chunk) {
-            std::cout << "k: " <<  k << std::endl;
             MPI_Barrier(c); // Sync MPI Processes at begining of each batch of 
                         // vectors
 
@@ -153,32 +149,20 @@ namespace ChronusQ {
             auto *V_c  = X.X  + k*N;
             auto *HV_c = X.AX + k*N;
 
-            std::cout << "nVec: " << nVec << std::endl;
-            std::cout << "nDo: " << nDo << std::endl;
-            std::cout << "tdOffSet: " << tdOffSet << std::endl;
             bool scatter = not bool(X.X);
 #ifdef CQ_ENABLE_MPI
             scatter = mxx::any_of(scatter,c);
 #endif
 
-            std::cout << label1 << std::endl;
-            std::cout << label2 << std::endl;
-
             // Transform ph vector MO -> AO
-            auto nOV = ss1.nOA * ss1.nVA;
-            prettyPrintSmart(std::cout,"V_c",V_c+VBase,nVec,nOV,N);
-            prettyPrintSmart(std::cout,"V_c+tdOffset",V_c+VBase+tdOffSet,nVec,nOV,N);
             auto cList = 
               this->template phTransitionVecMO2AO<U>(c,scatter,nDo,N,ss1,ss2,
                 label1==label2, V_c+VBase, V_c + tdOffSet+VBase);
-            auto NB1 = ss1.nAlphaOrbital();
-            prettyPrintSmart(std::cout, "transformed AOS", cList[0].X, NB1, NB1, NB1);
             TPI->twoBodyContract(c,cList); // form G[V]
             // Only finish transformation on root process
             if( MPIRank(c) == 0 ) {
               
               // Transform ph vector AO -> MO
-              std::cout << "HV_c + HVBase" << HV_c + HVBase << std::endl;
               this->phTransitionVecAO2MO(nDo,N,cList,ss2,label1==label2,HV_c + HVBase,HV_c + tdOffSet + HVBase);
               // Scale by diagonals
               if(label1 == label2){
@@ -186,7 +170,6 @@ namespace ChronusQ {
                 this->phEpsilonScale(true,false,nDo,N,ss1,V_c+tdOffSet+VBase,
                   HV_c+tdOffSet+HVBase);
               }
-              std::cout << "Finished Epsilon Scaling" << std::endl;
             }
             
             // Free up transformation memory
@@ -199,7 +182,6 @@ namespace ChronusQ {
             SetMat('N', N/2, nVec, U(-1.), X.AX + (N/2), N, X.AX + (N/2), N);
 
         } // loop over groups of vectors
-        prettyPrintSmart(std::cout,"Hessian",x[0].AX,N,N,N);
         zeroed = true;
         ProgramTimer::tock("Direct Hessian Contract");
         HVBase += getNSingleSSDim(ss2,this->genSettings.doTDA)/2;   

@@ -883,7 +883,6 @@ namespace ChronusQ {
     size_t nStore = (this->doAPB_AMB and not this->genSettings.doTDA) ? N/2 : N;
     size_t nFormP = nForm; // Persistant for matrix distribution
     size_t nStoreP = nStore; // Persistant for matrix distribution
-    std::cout << "PH Full Matrix Form" << std::endl;
     // Determine if we want to distribute the matrix at all
     bool isDist = this->genSettings.isDist(); 
 
@@ -1088,6 +1087,7 @@ namespace ChronusQ {
     } else 
 #endif
       this->fullMatrix_ = HV;
+    prettyPrintSmart(std::cout,"Full Hessian",this->fullMatrix_,N,N,N);
     ProgramTimer::tock("Hessian Distribute");
 
     //if( isDist ) CErr();
@@ -1775,7 +1775,6 @@ namespace ChronusQ {
     //SingleSlater<MatsT, IntsT>& sshold = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
 
     const size_t NB   = ss1.nAlphaOrbital();
-    std::cout << "Number Alpha Orbitals:" << NB << std::endl;
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss1.nC * NB;
     const size_t NBC2 = NBC * NBC;
@@ -1915,7 +1914,7 @@ namespace ChronusQ {
 
           CMO = ss1.iCS ? ss1.mo[0].pointer() : ss1.mo[1].pointer();
           // Transform BETA (full) MOT -> AO basis
-          MOTRANS(CMO,MOT);         
+          MOTRANS(CMO,MOT);
         }
 
 
@@ -1997,7 +1996,7 @@ namespace ChronusQ {
         if( ss.nC == 2 ) {
           K_Y = cList[indx+3].AX;
           K_X = cList[indx+4].AX;
-        }       
+        }
         // Form G(S) in K(S)
         MatAdd('N','N',NB,NB,U(2.),J_S,NB,U(-1.),K_S,NB,K_S,NB);
   
@@ -2016,9 +2015,9 @@ namespace ChronusQ {
             
       // Alpha for RHF/ UHF, full for GHF
       if (doExchange){
-        if( ss.nC == 1 ) 
+        if( ss.nC == 1 )
           MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(0.5),K_Z,NB,MOT,NB);
-        else          
+        else
           SpinGather(NB,MOT,NBC,K_S,NB,K_Z,NB,K_Y,NB,K_X,NB);
       }
       else{
@@ -2033,8 +2032,6 @@ namespace ChronusQ {
       for(size_t a = NO; a < NBC; a++, ai++) {
         HVX_c[ai] += MOT[i*NBC + a]; 
         if( nHVs > 1 ) HVY_c[ai] += MOT[a*NBC + i];
-        std::cout << "HVX_c[ai]: " << HVX_c[ai] << std::endl; 
-        std::cout << "MOT[ai]: " << MOT[i*NBC+a] << std::endl; 
       }
 
       // Do Beta for RHF / UHF (FIXME: not for SA)
@@ -2049,7 +2046,7 @@ namespace ChronusQ {
         // Transform -> AO basis
         MOTRANS(CMO,MOT);
         
-        for(size_t i = 0, ai = nOAVA;  i < ss.nOB; i++) 
+        for(size_t i = 0, ai = nOAVA;  i < ss.nOB; i++)
         for(size_t a = ss.nOB; a < NB; a++, ai++) {
           HVX_c[ai] += MOT[i*NB + a];
            
@@ -2071,7 +2068,6 @@ namespace ChronusQ {
   template <typename U>
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phEpsilonScale(bool doInc, 
     bool doInv, size_t nVec, size_t N,SingleSlater<MatsT,IntsT>& ss, U* V, U* HV) {
-    std::cout << "IM IN HERE " << std::endl;
    // SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
 
     const size_t NB   = ss.nAlphaOrbital();
@@ -2102,12 +2098,8 @@ namespace ChronusQ {
 
       for(size_t i = 0, ai = 0;  i < NO; i++) 
       for(size_t a = NO; a < NBC; a++, ai++){ 
-        std::cout << "HV[ai]: " << HV_c[ai] << std::endl;
         HV_c[ai] = increment(HV_c[ai],
                              epsilonScale(eps[a] - eps[i]) * V_c[ai]);
-        std::cout << "Eps a: " << eps[a] << std::endl;
-        std::cout << "Eps i: " << eps[i] << std::endl;
-        std::cout << "Eps Scaling: " << eps[a]-eps[i] << std::endl;
       }
 
       if( ss.nC == 1 ) { // RHF / UHF case

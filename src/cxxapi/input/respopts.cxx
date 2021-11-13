@@ -269,8 +269,6 @@ namespace ChronusQ {
     if( doMOR and doPP )
       CErr("MOR + ParticleParticlePropagator not valid!",out);
 
-		std::cout << "doNEO Value: " << doNEO << std::endl;
-
 
 		if (doNEO and doPP )
 			CErr("NEO + ParticleParticlePropagator NYI!",out);
@@ -364,7 +362,6 @@ namespace ChronusQ {
       CONSTRUCT_PH_RESP( KS_cd );
       CONSTRUCT_PH_RESP( KS_cc );
     if(doNEO){
-		  	std::cout << "Doing NEO" << std::endl;
 				CONSTRUCT_PH_RESP( NEO_dd );
       	CONSTRUCT_PH_RESP( NEO_cd );
       	CONSTRUCT_PH_RESP( NEO_cc );
