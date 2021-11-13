@@ -40,9 +40,8 @@ namespace ChronusQ {
       ssTPI = ss1->TPI;
     }
     else{
-      std::pair<bool,std::shared_ptr<TwoPInts<IntsT>>> ssTPItuple = neoss.getCrossTPIs(l1,l2);
-      //ssTPI->output(std::cout,"crossTPI",true);
-      std::cout << "ssTPI bool: " << ssTPItuple.first << std::endl;
+      // Reversed because l1 corresponds to X and l2 corresponds to AX
+      std::pair<bool,std::shared_ptr<TwoPInts<IntsT>>> ssTPItuple = neoss.getCrossTPIs(l2,l1);
       if (auto tpi_t = std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(ssTPItuple.second) ) {
         ssTPI = std::make_unique<InCore4indexTPIContraction<MatsT,IntsT>>(*tpi_t);
       }
