@@ -52,6 +52,7 @@ namespace ChronusQ {
     }
     return ssTPI;
   };
+
   template <typename MatsT, typename IntsT>
   size_t PolarizationPropagator<NEOSS<MatsT,IntsT>>::getNSingleDim( const bool doTDA){
 
@@ -69,6 +70,7 @@ namespace ChronusQ {
     return N;
 
   }
+
   template<typename MatsT, typename IntsT>
   size_t PolarizationPropagator<NEOSS<MatsT,IntsT>>::getNSingleSSDim(SingleSlater<MatsT,IntsT>& ss, const bool doTDA){
 
@@ -192,7 +194,6 @@ namespace ChronusQ {
     for(auto& X: x)
     if( X.AX and this->incMet and not this->doAPB_AMB )
       SetMat('N', N/2, X.nVec, U(-1.), X.AX + (N/2), N, X.AX + (N/2), N);
-
   };
 
 /*
@@ -345,5 +346,170 @@ namespace ChronusQ {
     CErr("How did I get in here?: complex,complex NEOSS formLinearTrans_direct");
 
   };
+
+  template<typename MatsT, typename IntsT>
+  template<typename U>
+  void PolarizationPropagator<NEOSS<MatsT,IntsT>>::neoPreConditioner(size_t nVec,
+    U shift, U* V, U* AV) {
+
+    auto& neoss = dynamic_cast<NEOSS<MatsT, IntsT>&>(*this->ref_);
+
+    size_t NS = this->nSingleDim_;
+    size_t hNS = NS / 2;
+
+    std::function< U(double,double) > diag = 
+      [&]( double eA, double eI ) {
+        return (eA - eI) - shift;
+      };
+
+    if( this->doReduced ) 
+      diag = [&]( double eA, double eI ) {
+        return (eA - eI)*(eA - eI) - shift*shift;
+      };
+
+    auto labels = neoss.getLabels();
+    std::vector<std::shared_ptr<SingleSlater<MatsT,IntsT>>> subsystems;
+    for(const auto& label: labels) {
+      subsystems.push_back(
+        std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>>(
+          neoss.getSubSSBase(label)
+        )
+      );
+    }
+
+    for(auto iVec = 0ul; iVec < nVec; iVec++) {
+      U* AVk = AV + iVec * NS;
+      U* Vk  = V  + iVec * NS;
+      for(const auto& ss: subsystems) {
+        double* eps = ss->eps1;
+
+        size_t nOAVA = ss->nOA * ss->nVA;
+        size_t nOBVB = ss->nOB * ss->nVB;
+        size_t nOV = ss->nO * ss->nV;
+
+        size_t N  = (ss->nC == 1) ? nOAVA  : nOV;
+        size_t NV = (ss->nC == 1) ? ss->nVA : ss->nV;
+        size_t NO = (ss->nC == 1) ? ss->nOA : ss->nO;
+
+        size_t NNext = (ss->nC == 1) ? nOAVA + nOBVB : nOV;
+
+        const bool doBeta = ss->nC == 1;
+
+        // TODO: Profile; are the if blocks in the hot loop significant?
+        // Alpha / full
+        for(auto k = 0; k < N; k++) {
+          size_t i = k / NV;
+          size_t a = (k % NV) + NO;
+          U scale = diag(eps[a],eps[i]);
+
+          // X update
+          AVk[k] = Vk[k] / scale;
+          // Y update
+          if( not this->doReduced )
+            AVk[k + hNS] = Vk[k + hNS] / scale;
+        }
+
+        // Beta
+        if( doBeta ) {
+
+          eps = ss->iCS ? eps : ss->eps2;
+          N  = nOBVB;
+          NV = ss->nVB;
+          NO = ss->nOB;
+
+          for(auto k = 0; k < N; k++) {
+            size_t i = k / NV;
+            size_t a = (k % NV) + NO;
+            U scale = diag(eps[a],eps[i]);
+
+            AVk[k + nOAVA] = Vk[k + nOAVA] / scale;
+            if( not this->doReduced )
+              AVk[k + hNS + nOAVA] = Vk[k + hNS + nOAVA] / scale;
+          }
+        }
+
+        // Update subblocks
+        AVk += NNext;
+        Vk += NNext;
+
+      } // Subsytem loop
+    } // Vector loop
+  }
+
+  template <typename MatsT, typename IntsT>
+  void PolarizationPropagator<NEOSS<MatsT, IntsT>>::resGuess(
+    size_t nGuess, MatsT *G, size_t LDG) {
+
+    NEOSS<MatsT, IntsT>& neoss = dynamic_cast<NEOSS<MatsT,IntsT>&>(*this->ref_);
+    size_t NS = getNSingleDim(true);
+
+    // Build a vector of the absolute difference between orbital energy 
+    //   differences and the shift that keeps track of compound index
+    size_t offset = 0;
+    auto labels = neoss.getLabels();
+    std::vector<std::pair<double, size_t>> shift_energies;
+    shift_energies.reserve(NS);
+    const double deMin = this->resSettings.deMin;
+
+    for(const auto& label: labels) {
+
+      std::cout << "Label: " << label << std::endl;
+
+      auto ss = std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>>(
+        neoss.getSubSSBase(label)
+      );
+
+      double* eps = ss->eps1;
+
+      size_t nOAVA = ss->nOA * ss->nVA;
+      size_t nOBVB = ss->nOB * ss->nVB;
+      size_t nOV = ss->nO * ss->nV;
+
+      size_t N  = (ss->nC == 1) ? nOAVA  : nOV;
+      size_t NV = (ss->nC == 1) ? ss->nVA : ss->nV;
+      size_t NO = (ss->nC == 1) ? ss->nOA : ss->nO;
+
+      size_t NNext = (ss->nC == 1) ? nOAVA + nOBVB : nOV;
+
+      // Alpha/full
+      for(auto k = 0; k < N; k++) {
+        size_t i = k / NV;
+        size_t a = (k % NV) + NO;
+        size_t idx = k + offset;
+        double ediff = std::abs((eps[a] - eps[i]) - deMin);
+        std::cout << "i: " << i << " a: " << a << " ediff: " << ediff << " idx: " << idx << std::endl;
+        shift_energies.push_back({std::abs((eps[a]-eps[i]) - deMin), idx});
+      }
+
+      // Beta
+      if( ss->nC == 1 ) {
+        eps = ss->iCS ? eps : ss->eps2;
+        N  = nOBVB;
+        NV = ss->nVB;
+        NO = ss->nOB;
+        for(auto k = 0; k < N; k++) {
+          size_t i = k / NV;
+          size_t a = (k % NV) + NO;
+          size_t idx = k + nOAVA + offset;
+          shift_energies.push_back({std::abs((eps[a]-eps[i]) - deMin), idx});
+        }
+      }
+      offset += NNext;
+    } // Subsystem loop
+
+    // Sort in ascending order
+    std::sort(shift_energies.begin(), shift_energies.end());
+
+    // Set guess
+    std::fill_n(G, nGuess*LDG, 0.);
+    for(size_t iG = 0; iG < nGuess; iG++)
+      G[iG * LDG + shift_energies[iG].second] = 1.;
+
+    for( auto& x: shift_energies )
+      std::cout << "abs energy diff: " << x.first << " index: " << x.second << std::endl;
+
+    prettyPrintSmart(std::cout, "Guess", G, LDG, nGuess, LDG);
+
+  }
 
 }  // namespace ChronusQ

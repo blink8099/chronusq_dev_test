@@ -151,7 +151,7 @@ namespace ChronusQ {
       void                 eigVecNorm();
       void                 constructShifts();
       void                 postLinearSolve();
-      void                 resGuess(size_t, MatsT*, size_t);
+      virtual void         resGuess(size_t, MatsT*, size_t);
 
 
       // Internal implementations for direct linear transformation
@@ -371,22 +371,33 @@ namespace ChronusQ {
 
 
  
-//Class specialization to deal with NEOSS Objects
-	template <typename MatsT, typename IntsT>
-	class PolarizationPropagator< NEOSS<MatsT, IntsT> > :
-		public PolarizationPropagator< SingleSlater<MatsT, IntsT> >{
-			
-			template<typename U>
-			using RC_coll = std::vector<RESPONSE_CONTRACTION<U>>;
+  //Class specialization to deal with NEOSS Objects
+  template <typename MatsT, typename IntsT>
+  class PolarizationPropagator< NEOSS<MatsT, IntsT> > :
+    public PolarizationPropagator< SingleSlater<MatsT, IntsT> >{
 
-		public:
+      template<typename U>
+      using RC_coll = std::vector<RESPONSE_CONTRACTION<U>>;
 
-		PolarizationPropagator( MPI_Comm c, ResponseType job, 
-        std::shared_ptr<NEOSS<MatsT, IntsT>> ref, MatsT* fullMatrix = nullptr ) : 
+    public:
+
+      PolarizationPropagator( MPI_Comm c, ResponseType job,
+        std::shared_ptr<NEOSS<MatsT, IntsT>> ref, MatsT* fullMatrix = nullptr ) :
         PolarizationPropagator<SingleSlater<MatsT, IntsT>>(c,job,
-          std::dynamic_pointer_cast<SingleSlater<MatsT, IntsT>>(ref),fullMatrix) { }
+          std::dynamic_pointer_cast<SingleSlater<MatsT, IntsT>>(ref),fullMatrix) {
+        this->PC_ = [&](size_t nVec, MatsT shift, MatsT *V, MatsT *AV) {
+          neoPreConditioner(nVec,shift,V,AV);
+        };
+        this->nSPC_ = [&](size_t nVec, MatsT *V, MatsT *AV) {
+          neoPreConditioner(nVec,MatsT(0.),V,AV);
+        };
+        this->cmplxPC_ = [&](size_t nVec, dcomplex shift, dcomplex *V,
+          dcomplex *AV) {
+          neoPreConditioner(nVec,shift,V,AV);
+        };
+      }
 
-      PolarizationPropagator( const PolarizationPropagator &other ) : 
+      PolarizationPropagator( const PolarizationPropagator &other ) :
         PolarizationPropagator<SingleSlater<MatsT, IntsT>>(
           dynamic_cast<const PolarizationPropagator<SingleSlater<MatsT, IntsT>>&>(other)
         ){ }
@@ -398,12 +409,16 @@ namespace ChronusQ {
       template <typename U>
       void formLinearTrans_direct_impl(MPI_Comm, RC_coll<U> x,
           SINGLESLATER_POLAR_COPT op, bool noTrans);
-		
-			virtual size_t getNSingleDim(const bool);
 
-			size_t getNSingleSSDim(SingleSlater<MatsT,IntsT>& , const bool);
-//			std::pair<size_t,MatsT*> formPropGrad( ResponseOperator );
+      virtual size_t getNSingleDim(const bool);
 
+      size_t getNSingleSSDim(SingleSlater<MatsT,IntsT>& , const bool);
+//      std::pair<size_t,MatsT*> formPropGrad( ResponseOperator );
+
+      template <typename U>
+      void neoPreConditioner(size_t nVec, U shift, U* V, U* AV);
+
+      void resGuess(size_t, MatsT*, size_t);
 
       // Interface to PolarizationPropagator<SingleSlater> double exposure
       void formLinearTrans_direct(MPI_Comm c, RC_coll<double> x,
@@ -414,9 +429,9 @@ namespace ChronusQ {
       
         formLinearTrans_direct_impl(c,x,op,noTrans);
 
-			};
-	
-	};
+      };
+  
+  };
 
 
 
