@@ -78,7 +78,8 @@ namespace ChronusQ {
 
         // Transform ph vector MO -> AO
         auto cList = 
-          this->template phTransitionVecMO2AO<U>(c, scatter, nDo, N, ks,true, V_c, V_c + tdOffSet);
+          this->template phTransitionVecMO2AO<U>(c, scatter, nDo, N, ks, ks,
+            true, V_c, V_c + tdOffSet);
 
         TPI->twoBodyContract(c,cList); // form G[V]
         ks.formFXC(c,cList); // Fxc contraction

@@ -80,8 +80,8 @@ namespace ChronusQ {
 
         // Transform ph vector MO -> AO
         auto cList = 
-          this->template phTransitionVecMO2AO<U>(c, scatter, nDo, N, hf, true, 
-					 V_c, V_c + tdOffSet);
+          this->template phTransitionVecMO2AO<U>(c, scatter, nDo, N, hf, hf,
+            true, V_c, V_c + tdOffSet);
 
         TPI->twoBodyContract(c,cList); // form G[V]
 

@@ -260,9 +260,10 @@ namespace ChronusQ {
 
       // Transform ph-transition vector MO -> AO
       template <typename U, typename... Args>
-      std::vector<TwoBodyContraction<U>> 
-        phTransitionVecMO2AO(MPI_Comm c, bool scatter, size_t nVec, size_t N,
-				SingleSlater<MatsT,IntsT>& ss, bool doExchange, Args... Vs);
+      std::vector<TwoBodyContraction<U>> phTransitionVecMO2AO(
+        MPI_Comm c,bool scatter, size_t nVec, size_t N,
+        SingleSlater<MatsT,IntsT>& ss1, SingleSlater<MatsT,IntsT>& ss2,
+        bool doExchange, Args... Vs);
 
       // Transform ph-transition vector AO -> MO
       template <typename U, typename... Args>
