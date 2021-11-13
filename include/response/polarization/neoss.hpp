@@ -98,6 +98,10 @@ namespace ChronusQ {
     auto labels = neoss.getLabels();
     bool zeroed = false;
 
+    const size_t N = this->getNSingleDim(this->genSettings.doTDA) * (this->doReduced ? 2 : 1);
+    const size_t tdOffSet = N / 2;
+    const size_t chunk = 600;
+
     //Loops over the subsystems in our NEOSS object,
     for(auto label1:labels){
     
@@ -110,9 +114,6 @@ namespace ChronusQ {
         auto ssbase2 =  neoss.getSubSSBase(label2);
         SingleSlater<MatsT, IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
        
-        const size_t N  = this->getNSingleDim(this->genSettings.doTDA) * (this->doReduced ? 2 : 1);  
-        const size_t tdOffSet = N / 2;
-        const size_t chunk    = 600;
         auto TPIcast = retrieveTPI(label1, label2,neoss, ss1int);
         ProgramTimer::tick("Direct Hessian Contract");
 /*
@@ -177,10 +178,6 @@ namespace ChronusQ {
 
          }    
 
-        //TODO: Test incMet to see if this works with NEOSS
-          if( X.AX and this->incMet and not this->doAPB_AMB )
-            SetMat('N', N/2, nVec, U(-1.), X.AX + (N/2), N, X.AX + (N/2), N);
-
         } // loop over groups of vectors
         zeroed = true;
         ProgramTimer::tock("Direct Hessian Contract");
@@ -190,6 +187,12 @@ namespace ChronusQ {
       VBase += getNSingleSSDim(ss1,this->genSettings.doTDA)/2;
 
     }
+
+    // Now that we've done all subsystems, add the metric
+    for(auto& X: x)
+    if( X.AX and this->incMet and not this->doAPB_AMB )
+      SetMat('N', N/2, X.nVec, U(-1.), X.AX + (N/2), N, X.AX + (N/2), N);
+
   };
 
 /*
