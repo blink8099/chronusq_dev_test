@@ -2023,11 +2023,11 @@ namespace ChronusQ {
       else{
         SetMat('N',NB,NB,U(1.),J_S,NB,MOT,NB);  
       }
-      MatsT* CMO = ss.mo[0].pointer();     
-      
+      MatsT* CMO = ss.mo[0].pointer();
+
       // Transform -> AO basis
       MOTRANS(CMO,MOT);
-      
+
       for(size_t i = 0, ai = 0;  i < NO; i++) 
       for(size_t a = NO; a < NBC; a++, ai++) {
         HVX_c[ai] += MOT[i*NBC + a]; 
@@ -2269,7 +2269,95 @@ namespace ChronusQ {
   }
 
 
+  /**
+   * Get the diagonal double bar integral (ai||ai)
+   * - XSCR needs to be 2*nC*NB2
+   * - AXSCR needs to be (2*nC+1)*NB2
+   * - Both scratch must not contain NaNs
+   **/
+  template <typename MatsT, typename IntsT>
+  MatsT PolarizationPropagator< SingleSlater<MatsT, IntsT> >::getGDiag(
+    size_t i, size_t a, bool beta, SingleSlater<MatsT,IntsT>& ss,
+    MatsT* XSCR, MatsT* AXSCR) 
+  {
 
+    MatsT* mo = beta && !ss.iCS ? ss.mo[1].pointer() : ss.mo[0].pointer();
+    size_t NB = ss.nAlphaOrbital();
+    size_t NB2 = NB*NB;
+    size_t NBC = NB*ss.nC;
+    size_t NBC2 = NBC*NBC;
+
+    size_t NO = ss.nC == 2 ?  ss.nO : beta ?  ss.nOB : ss.nOA;
+
+    // D_{m,n} := C_{a,m} \otimes C_{i,n}^T
+    // Form in AXSCR, then scatter to XSCR
+    // TODO: Move this to blas::ger when this branch is updated
+    Gemm('N','C',NBC,NBC,1,MatsT(1.),mo+a*NBC,NBC,mo+i*NBC,NBC,
+         MatsT(0.),AXSCR,NBC);
+
+    // Put D into pauli spinor form
+    MatsT *AOS, *AOZ, *AOY, *AOX;
+    AOS = XSCR;
+    AOZ = XSCR + NB2;
+    if( ss.nC == 2 ) {
+      AOY = XSCR + 2*NB2;
+      AOZ = XSCR + 3*NB2;
+    }
+
+    if( ss.nC == 1 ) {
+      SetMat('N', NB, NB, MatsT(1.), AXSCR, NB, AOS, NB);
+      MatsT factor = beta ? MatsT(-1.) : MatsT(1.);
+      SetMat('N', NB, NB, factor, AXSCR, NB, AOZ, NB);
+    }
+    else {
+      SpinScatter(NB,AXSCR,NBC,AOS,NB,AOZ,NB,AOY,NB,AOX,NB);
+    }
+
+    // G[D] = Contract all ingredients with D
+    MatsT *JS, *KS, *KZ, *KY, *KX;
+
+    JS = AXSCR;
+    KS = AXSCR + NB2;
+    KZ = AXSCR + 2*NB2;
+    if( ss.nC == 2 ) {
+      KY = AXSCR + 3*NB2;
+      KX = AXSCR + 4*NB2;
+    }
+
+    std::vector<TwoBodyContraction<MatsT>> cList;
+    cList.push_back( { AOS, JS, false, COULOMB  } );
+    cList.push_back( { AOS, KS, false, EXCHANGE } );
+    cList.push_back( { AOZ, KZ, false, EXCHANGE } );
+    if( ss.nC == 2 ) {
+      cList.push_back( { AOY, KY, false, EXCHANGE } );
+      cList.push_back( { AOX, KX, false, EXCHANGE } );
+    }
+
+    ss.TPI->twoBodyContract(MPI_COMM_WORLD,cList);
+
+    // Put G into spin blocked form in XSCR
+    MatAdd('N', 'N', NB, NB, MatsT(2.), JS, NB, MatsT(-1.), KS, NB, KS, NB);
+    Scale(NB2,MatsT(-1.),KZ,1);
+    if( ss.nC == 2 ) {
+      Scale(NB2,MatsT(-1.),KY,1);
+      Scale(NB2,MatsT(-1.),KX,1);
+    }
+
+    if( ss.nC == 1 ) {
+      MatsT factor = beta ? -0.5 : 0.5;
+      MatAdd('N','N',NB,NB,MatsT(0.5),KS,NB,factor,KZ,NB,XSCR,NB);
+    }
+    else {
+      SpinGather(NB,XSCR,NBC,KS,NB,KZ,NB,KY,NB,KX,NB);
+    }
+
+    // Do the final AO->MO contraction
+    Gemm('C','N',1,NBC,NBC,MatsT(1.),mo+a*NBC,NBC,XSCR,NBC,MatsT(0.),AXSCR,NBC);
+    Gemm('N','N',1,1,NBC,MatsT(1.),AXSCR,NBC,mo+i*NBC,NBC,MatsT(0.),XSCR,NBC);
+
+    return *XSCR;
+
+  }
 } // namespace ChronusQ
 
 

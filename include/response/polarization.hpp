@@ -153,6 +153,9 @@ namespace ChronusQ {
       void                 postLinearSolve();
       virtual void         resGuess(size_t, MatsT*, size_t);
 
+      MatsT getGDiag(size_t, size_t, bool, SingleSlater<MatsT,IntsT>&, MatsT*,
+        MatsT*);
+
 
       // Internal implementations for direct linear transformation
       virtual void formLinearTrans_direct(MPI_Comm, RC_coll<double>,
@@ -378,6 +381,8 @@ namespace ChronusQ {
 
       template<typename U>
       using RC_coll = std::vector<RESPONSE_CONTRACTION<U>>;
+
+      std::vector<MatsT> diagonals;
 
     public:
 

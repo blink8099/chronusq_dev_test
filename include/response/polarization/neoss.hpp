@@ -357,14 +357,14 @@ namespace ChronusQ {
     size_t NS = this->nSingleDim_;
     size_t hNS = NS / 2;
 
-    std::function< U(double,double) > diag = 
-      [&]( double eA, double eI ) {
-        return (eA - eI) - shift;
+    std::function< U(MatsT) > diag = 
+      [&]( MatsT d ) {
+        return d - shift;
       };
 
     if( this->doReduced ) 
-      diag = [&]( double eA, double eI ) {
-        return (eA - eI)*(eA - eI) - shift*shift;
+      diag = [&]( MatsT d ) {
+        return d*d - shift*shift;
       };
 
     auto labels = neoss.getLabels();
@@ -380,6 +380,7 @@ namespace ChronusQ {
     for(auto iVec = 0ul; iVec < nVec; iVec++) {
       U* AVk = AV + iVec * NS;
       U* Vk  = V  + iVec * NS;
+      size_t off = 0;
       for(const auto& ss: subsystems) {
         double* eps = ss->eps1;
 
@@ -400,7 +401,9 @@ namespace ChronusQ {
         for(auto k = 0; k < N; k++) {
           size_t i = k / NV;
           size_t a = (k % NV) + NO;
-          U scale = diag(eps[a],eps[i]);
+          U scale = diagonals.size() != 0 ? 
+                      diag(diagonals[k+off]) :
+                      diag(eps[a]-eps[i]);
 
           // X update
           AVk[k] = Vk[k] / scale;
@@ -420,7 +423,9 @@ namespace ChronusQ {
           for(auto k = 0; k < N; k++) {
             size_t i = k / NV;
             size_t a = (k % NV) + NO;
-            U scale = diag(eps[a],eps[i]);
+            U scale = diagonals.size() != 0 ? 
+                        diag(diagonals[k+off+nOAVA]) :
+                        diag(eps[a]-eps[i]);
 
             AVk[k + nOAVA] = Vk[k + nOAVA] / scale;
             if( not this->doReduced )
@@ -431,6 +436,7 @@ namespace ChronusQ {
         // Update subblocks
         AVk += NNext;
         Vk += NNext;
+        off += NNext;
 
       } // Subsytem loop
     } // Vector loop
@@ -449,11 +455,10 @@ namespace ChronusQ {
     auto labels = neoss.getLabels();
     std::vector<std::pair<double, size_t>> shift_energies;
     shift_energies.reserve(NS);
+    diagonals.reserve(NS);
     const double deMin = this->resSettings.deMin;
 
     for(const auto& label: labels) {
-
-      std::cout << "Label: " << label << std::endl;
 
       auto ss = std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>>(
         neoss.getSubSSBase(label)
@@ -471,14 +476,27 @@ namespace ChronusQ {
 
       size_t NNext = (ss->nC == 1) ? nOAVA + nOBVB : nOV;
 
+      size_t NB = ss->nAlphaOrbital();
+      size_t XSize = NB*NB*2*ss->nC;
+      size_t AXSize = NB*NB*(2*ss->nC+1);
+
+      // Allocate scratch for exact diagonal contributions
+      MatsT* XSCR = this->memManager_.template malloc<MatsT>(XSize);
+      MatsT* AXSCR = this->memManager_.template malloc<MatsT>(AXSize);
+      std::fill_n(XSCR, XSize, MatsT(0.));
+      std::fill_n(AXSCR, AXSize, MatsT(0.));
+
       // Alpha/full
       for(auto k = 0; k < N; k++) {
         size_t i = k / NV;
         size_t a = (k % NV) + NO;
         size_t idx = k + offset;
-        double ediff = std::abs((eps[a] - eps[i]) - deMin);
-        std::cout << "i: " << i << " a: " << a << " ediff: " << ediff << " idx: " << idx << std::endl;
-        shift_energies.push_back({std::abs((eps[a]-eps[i]) - deMin), idx});
+        MatsT ediff = (eps[a] - eps[i]) + 
+          this->getGDiag(i, a, false, *ss, XSCR, AXSCR);
+        diagonals.push_back(ediff);
+        ediff = std::abs(ediff - deMin);
+
+        shift_energies.push_back({std::real(ediff), idx});
       }
 
       // Beta
@@ -491,10 +509,16 @@ namespace ChronusQ {
           size_t i = k / NV;
           size_t a = (k % NV) + NO;
           size_t idx = k + nOAVA + offset;
-          shift_energies.push_back({std::abs((eps[a]-eps[i]) - deMin), idx});
+          MatsT ediff = (eps[a] - eps[i]) + 
+            this->getGDiag(i, a, true, *ss, XSCR, AXSCR);
+          diagonals.push_back(ediff);
+          ediff = std::abs(ediff - deMin);
+          shift_energies.push_back({std::real(ediff), idx});
         }
       }
+
       offset += NNext;
+      this->memManager_.free(XSCR, AXSCR);
     } // Subsystem loop
 
     // Sort in ascending order
@@ -504,12 +528,6 @@ namespace ChronusQ {
     std::fill_n(G, nGuess*LDG, 0.);
     for(size_t iG = 0; iG < nGuess; iG++)
       G[iG * LDG + shift_energies[iG].second] = 1.;
-
-    for( auto& x: shift_energies )
-      std::cout << "abs energy diff: " << x.first << " index: " << x.second << std::endl;
-
-    prettyPrintSmart(std::cout, "Guess", G, LDG, nGuess, LDG);
-
   }
 
 }  // namespace ChronusQ
