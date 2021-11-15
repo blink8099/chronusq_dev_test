@@ -248,7 +248,8 @@ namespace ChronusQ {
    */
   template <typename T, typename IntsT>
   void analyzeMOPrint(std::ostream &out, size_t NB, size_t NOrb, IntsT* S, T* MO,
-        size_t LDM, Molecule &mol, BasisSet &basis, CQMemManager &mem) {
+        size_t LDM, Molecule &mol, BasisSet &basis, CQMemManager &mem,
+        bool groupAtm = false, T* MO2 = nullptr) {
 
     out << "\nMO components projected to basis functions of different angular momentum"; 
 
@@ -256,6 +257,13 @@ namespace ChronusQ {
     T* SCR  = mem.template malloc<T>(NB*NOrb);
     blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
                NB,NOrb,NB,T(1.),S,NB,MO,LDM,T(0.),SCR,NB);
+    // If alpha and beta parts are summed together
+    T *SCR2;
+    if (MO2) {
+      SCR2 = mem.template malloc<T>(NB*NOrb);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+               NB,NOrb,NB,T(1.),S,NB,MO2,LDM,T(0.),SCR2,NB);
+    }
 
     std::array< std::string, maxLPrint > angLabel =
                 { "S", "P", "D", "F", "G", "H", "I" };
@@ -266,6 +274,20 @@ namespace ChronusQ {
     size_t eValOff = 10;
 
     out << std::endl << bannerTop << std::endl;
+
+    auto getAtmSymb = [&](size_t iAtm) -> std::string {
+
+      std::map<std::string,Atom>::const_iterator it =
+      std::find_if(atomicReference.begin(),atomicReference.end(),
+        [&](const std::pair<std::string,Atom> &st){
+          return (st.second.atomicNumber == mol.atoms[iAtm].atomicNumber) and
+                 (st.second.massNumber == mol.atoms[iAtm].massNumber);}
+         );
+
+      return (it == atomicReference.end() ? "X" : it->first);
+
+    };
+
 
     for(size_t p = 0; p < NOrb; p += list) {
       out << std::left << std::endl;
@@ -278,19 +300,6 @@ namespace ChronusQ {
       for(size_t k = p; k < p + end; k++)
         out << std::setw(printWidth) << k + 1;
       out << std::endl;
-
-      auto getAtmSymb = [&](size_t iAtm) -> std::string {
-
-        std::map<std::string,Atom>::const_iterator it =
-        std::find_if(atomicReference.begin(),atomicReference.end(),
-          [&](const std::pair<std::string,Atom> &st){
-            return (st.second.atomicNumber == mol.atoms[iAtm].atomicNumber) and
-                   (st.second.massNumber == mol.atoms[iAtm].massNumber);}
-           );
-
-        return (it == atomicReference.end() ? "X" : it->first);
-
-      };
 
       size_t iAtm = 0;
       std::string atmSymb = getAtmSymb(iAtm);
@@ -305,11 +314,13 @@ namespace ChronusQ {
         size_t curCen = basis.mapSh2Cen[iShell];
         bool newAtm = false;
         if( curCen != iAtm ) {
-          newAtm = true;
           iAtm++;
-          atmSymb = getAtmSymb(iAtm);
-          for(size_t i = 0; i < end; i++)
-            std::fill(angWeight[i].begin(), angWeight[i].end(), 0.0);
+          if( !groupAtm or (groupAtm and (atmSymb != getAtmSymb(iAtm))) ) {
+            newAtm = true;
+            atmSymb = getAtmSymb(iAtm);
+            for(size_t i = 0; i < end; i++)
+              std::fill(angWeight[i].begin(), angWeight[i].end(), 0.0);
+          }
         }
         bool lastAtm  = iAtm == (mol.atoms.size() - 1);
         bool firstAtm = iShell == 0;
@@ -318,8 +329,12 @@ namespace ChronusQ {
         for(size_t mu = bfst; mu < bfst + sz; mu++) {
           for(auto q = p; q < p + end; q++) {
             angWeight[q-p][L] += SmartConj(MO[mu + q*LDM]) * SCR[mu + q*NB];
+            if (MO2)
+              angWeight[q-p][L] += SmartConj(MO2[mu + q*LDM]) * SCR2[mu + q*NB];
+
           }
           nextAtmNew = lastAtm ? false : (mu+1) >= basis.mapCen2BfSt[iAtm+1];
+          if (groupAtm and (atmSymb == getAtmSymb(iAtm+1))) nextAtmNew = false;
         }
 
         if( (newAtm or firstAtm) ) {
@@ -361,7 +376,12 @@ namespace ChronusQ {
     size_t NB = this->nAlphaOrbital();
     size_t NOrb = NB * this->nC;
 
-    if (printLevel == 1 or printLevel == 3) {
+    bool MOcoeffs = printLevel % 2 == 1;
+    bool analyzeMO = printLevel / 2 > 0;
+
+    if (MOcoeffs) {
+
+    printLevel -= 1;
 
     // Pretty MO print
     std::function<double(MatsT)> printOp1 = [](MatsT x) { return std::real(x); };
@@ -451,28 +471,37 @@ namespace ChronusQ {
 
     }
 
-    if (printLevel == 2 or printLevel == 3) {
+    if ( analyzeMO ) {
 
     // Analysis angular momentum components of MOs
-    if( this->nC >= 2 )
-    out << " *** NOTICE: Alpha and Beta Analysis refer to the SAME "
-      << "Canonical MOs ***\n";
+    bool groupAtm = (printLevel/2) % 2 == 0;
+    bool groupAB = printLevel/2 >= 3;
 
-    out << "\n\nCanonical Molecular Orbital Analysis (Alpha)";
+    MatsT * MO2 = nullptr;
+    if( groupAB ) {
+      out << "\n\nCanonical Molecular Orbital Analysis (Alpha + Beta)";
+      if (this->nC == 1 and not this->iCS) MO2 = this->mo[1].pointer();
+      else MO2 =  this->mo[0].pointer() + (this->nC/2)*NB;
+    }
+    else if( this->nC >= 2 ) {
+      out << "\n *** NOTICE: Alpha and Beta Analysis refer to the SAME "
+        << "Canonical MOs ***";
+      out << "\n\nCanonical Molecular Orbital Analysis (Alpha)";
+    }
     if( this->nC == 4 ) out << " for Large component";
     analyzeMOPrint(out, NB, NOrb, aoints.overlap->pointer(), this->mo[0].pointer(),
-            NOrb, molecule(), basisSet(), this->memManager);
+            NOrb, molecule(), basisSet(), this->memManager, groupAtm, MO2);
 
-    if( this->nC >= 2 or not this->iCS ) {
+    if( not groupAB and (this->nC >= 2 or not this->iCS) ) {
       out << "\n\nCanonical Molecular Orbital Analysis (Beta)";
       if( this->nC == 4 ) out << " for Large component";
       if( this->nC == 1 )
         analyzeMOPrint(out, NB, NOrb, aoints.overlap->pointer(),
-              this->mo[1].pointer(), NOrb, molecule(), basisSet(), this->memManager);
+              this->mo[1].pointer(), NOrb, molecule(), basisSet(), this->memManager, groupAtm);
       else
         analyzeMOPrint(out, NB, NOrb, aoints.overlap->pointer(),
               this->mo[0].pointer() + (this->nC/2)*NB, NOrb, molecule(), basisSet(),
-              this->memManager);
+              this->memManager, groupAtm);
 
     }
 
@@ -482,13 +511,16 @@ namespace ChronusQ {
                 NB,ssOverlap,NB);
       out << "\n\nCanonical Molecular Orbital Analysis (Alpha) for Small component";
       analyzeMOPrint(out, NB, NOrb, ssOverlap, this->mo[0].pointer() + NB,
-            NOrb, molecule(), basisSet(), this->memManager);
-      out << "\n\nCanonical Molecular Orbital Analysis (Beta) for Small component";
-      analyzeMOPrint(out, NB, NOrb, ssOverlap, this->mo[0].pointer() + 3*NB,
-            NOrb, molecule(), basisSet(), this->memManager);
+            NOrb, molecule(), basisSet(), this->memManager, groupAtm, MO2);
+      if( not groupAB ) {
+        out << "\n\nCanonical Molecular Orbital Analysis (Beta) for Small component";
+        analyzeMOPrint(out, NB, NOrb, ssOverlap, this->mo[0].pointer() + 3*NB,
+               NOrb, molecule(), basisSet(), this->memManager, groupAtm);
+      }
       this->memManager.free(ssOverlap);
 
     }
+
 
     out << "\n" << BannerEnd << "\n\n";
 

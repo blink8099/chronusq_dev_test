@@ -298,9 +298,13 @@ namespace ChronusQ {
 
 
     // Printing Options
-    OPTOPT( scfControls.printMOCoeffs =
-      input.getData<size_t>("SCF.PRINTMOS") );
-    if (scfControls.printMOCoeffs > 3 ) CErr("SCF print level is not valid!");
+    if ( input.containsData("SCF.PRINTMOS") ) {
+      try { scfControls.printMOCoeffs = input.getData<size_t>("SCF.PRINTMOS"); }
+      catch(...) {
+        CErr("Invalid PRINTMOS input. Please use number 0 ~ 9.");
+      }
+    }
+    if (scfControls.printMOCoeffs >= 10 ) CErr("SCF print level is not valid!");
 
 
 
