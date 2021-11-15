@@ -16,7 +16,7 @@ job = SCF
 basis = sto-3g 
 
 [SCF]
-printmos=TRUE
+printmos=1
 maxiter=2000
 guess=fchkmo
 
