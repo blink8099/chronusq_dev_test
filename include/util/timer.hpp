@@ -351,7 +351,7 @@ namespace ChronusQ {
   
     Timer()
     {
-      if (omp_get_nested())
+      if (omp_get_max_active_levels() > 1)
         std::cerr << "WARNING: Timer is not safe for nested OMP parallelism";
     };
 
