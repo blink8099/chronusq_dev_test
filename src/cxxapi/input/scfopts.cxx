@@ -277,7 +277,6 @@ namespace ChronusQ {
         ss.scfControls.diisAlg == NONE )
       ss.scfControls.doExtrap = false;
 
-
   }; // CQSCFOptions
 
 }; // namespace ChronusQ

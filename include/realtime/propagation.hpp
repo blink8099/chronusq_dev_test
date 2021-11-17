@@ -91,13 +91,12 @@ namespace ChronusQ {
 
     }
 
-    // size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/2)/intScheme.deltaT);
     size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/4)/intScheme.deltaT);
 
     curState.xTime = intScheme.restoreStep * intScheme.deltaT;
 
     for( curState.iStep = intScheme.restoreStep; 
-         curState.iStep < maxStep;
+         curState.iStep <= maxStep;
          curState.xTime += intScheme.deltaT, curState.iStep++) {
 
       ProgramTimer::tick("Real Time Iter");
@@ -195,7 +194,7 @@ namespace ChronusQ {
 
       // Save data
       // TODO: Fix this when we have a stable definition of MD + electronic steps
-      // saveState(pert_t);
+      saveState(pert_t);
 
       // Save D(k) if doing Magnus 2
       std::vector<std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>>> den_k;
@@ -520,8 +519,7 @@ namespace ChronusQ {
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::saveState(EMPerturbation& pert_t) {
-
-    size_t NB = propagator_.nAlphaOrbital();
+    
 
     data.Time.push_back(curState.xTime);
     data.Energy.push_back(propagator_.totalEnergy);
@@ -533,15 +531,16 @@ namespace ChronusQ {
     if( savFile.exists() ) {
 
       hsize_t nSteps = 0;
+      size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/4)/intScheme.deltaT);
 
       if (curState.iStep % intScheme.iSave == 0 
           and curState.iStep != intScheme.restoreStep)
         nSteps = intScheme.iSave;
-      else if ( curState.iStep >= intScheme.tMax / intScheme.deltaT )
-        nSteps = curState.iStep % intScheme.iSave + 1;
+      else if( curState.iStep == maxStep )
+        nSteps = (curState.iStep - intScheme.restoreStep) % intScheme.iSave + 1;
 
       hsize_t lastPos = curState.iStep - nSteps + 1;
-      hsize_t memLastPos = lastPos - intScheme.restoreStep;
+      hsize_t memLastPos = data.Time.size() - nSteps;
 
       if (nSteps != 0) {
         std::cout << "  *** Saving data to binary file ***" << std::endl;

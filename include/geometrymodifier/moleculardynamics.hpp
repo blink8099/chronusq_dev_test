@@ -116,7 +116,6 @@ namespace ChronusQ {
 	  double e;
           electronicPotentialEnergy = finalMidpointFock(curState.iStep*fock_dt);
           //finalMidpointFock(curState.iStep*fock_dt);
-          std::cout << " Nuclear Repulsion Energy after final midfock: " << molecule.nucRepEnergy << std::endl;
         }
 
         gradientCurrent = gradientGetter();
@@ -298,7 +297,11 @@ namespace ChronusQ {
     }
 
     bool hasNext() {
-      return curState.xTime <= tMax;
+      // Because this is at the beginning of the previous iteration, do i-1
+      double nextStep = curState.stepSize;
+      if( molecularOptions_.nMidpointFockSteps != 0 )
+        nextStep /= molecularOptions_.nMidpointFockSteps;
+      return (curState.xTime + nextStep) < tMax;
     }
 
   };

@@ -38,6 +38,7 @@ namespace ChronusQ {
   // Pure virtual class for only interface functions
   struct NEOBase {
     virtual std::shared_ptr<SingleSlaterBase> getSubSSBase(std::string label) = 0;
+    virtual void setSubSetup() = 0;
   };
 
   template <typename MatsT, typename IntsT>
@@ -289,6 +290,15 @@ namespace ChronusQ {
 
       void formCoreH(EMPerturbation& emPert, bool save) {
         applyToEach([&](SubSSPtr& ss){ ss->formCoreH(emPert, save); });
+      }
+
+      // Propagate options that were set by value in the *Options functions
+      void setSubSetup() {
+        applyToEach([&](SubSSPtr& ss){
+          ss->scfControls = this->scfControls;
+          ss->savFile = this->savFile;
+          ss->fchkFileName = this->fchkFileName;
+        });
       }
 
       

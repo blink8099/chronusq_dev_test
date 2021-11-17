@@ -55,6 +55,44 @@ namespace ChronusQ {
     isFourCRef // Four-component
   };
 
+  // Type of Job
+  enum JobType {
+    SCF,
+    RT,
+    RESP,
+    CC,
+    BOMD,
+    EHRENFEST
+  };
+
+  // Tedious, but there isn't an easier way to do this
+  inline JobType parseJob(std::string jobStr) {
+    JobType job;
+    if( jobStr == "SCF" ) {
+      job = SCF;
+    }
+    else if( jobStr == "RT" ) {
+      job = RT;
+    }
+    else if( jobStr == "RESP" ) {
+      job = RESP;
+    }
+    else if( jobStr == "CC" ) {
+      job = CC;
+    }
+    else if( jobStr == "BOMD" ) {
+      job = BOMD;
+    }
+    else if( jobStr == "EHRENFEST" ) {
+      job = EHRENFEST;
+    }
+    else {
+      jobStr = "Unrecognized job type \"" + jobStr + "\"!";
+      CErr(jobStr);
+    }
+    return job;
+  };
+
   // A struct that stores reference information
   struct RefOptions {
     

@@ -162,20 +162,9 @@ namespace ChronusQ {
     applyToEach([&](SubSSPtr& ss) {
         auto localGrad = ss->getGrad(pert, equil, saveInts);
         for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
-          std::cout << "Local Gradient Atom " << iGrad/3 << " XYZ " << iGrad%3 << ": " << localGrad[iGrad] << std::endl;
-        }
-        for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
           gradient[iGrad] += localGrad[iGrad] - this->molecule().nucRepForce[iGrad/3][iGrad%3];
         }
     });
-
-    // DELETE ME
-    std::cout << std::setprecision(14) << std::endl;
-    for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
-      std::cout << "Gradient Atom " << iGrad/3 << " XYZ " << iGrad%3 << ": " 
-        << std::setw(20) << gradient[iGrad] << std::endl;
-    }
-    CErr("All done");
 
     return gradient;
 

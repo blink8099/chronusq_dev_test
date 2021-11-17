@@ -147,23 +147,23 @@ namespace ChronusQ {
 
 
     // Determine JOB type
-    std::string jobType;
+    JobType jobType;
     
     try {
-      jobType = input.getData<std::string>("QM.JOB");
+      jobType = parseJob(input.getData<std::string>("QM.JOB"));
     } catch (...) {
       CErr("Must Specify QM.JOB",output);
     }
 
     // Break into sequence of individual jobs
-    std::vector<std::string> jobs;
-    if( jobType != "SCF" ) {
-      jobs.push_back("SCF");
+    std::vector<JobType> jobs;
+    if( jobType != SCF ) {
+      jobs.push_back(SCF);
     }
     jobs.push_back(jobType);
 
+    // Check if we're doing NEO
     bool doNEO = false;
-    
     if ( input.containsSection("SCF") ) {
       try {
         doNEO = input.getData<bool>("SCF.NEO");
@@ -193,28 +193,13 @@ namespace ChronusQ {
     std::shared_ptr<SingleSlaterBase> ss  = nullptr;
     std::shared_ptr<SingleSlaterBase> pss = nullptr;
 
-    // TEMPORARY
-    std::shared_ptr<SingleSlaterBase> neoss = nullptr;
 
     // NEO calculation
     if (doNEO) {
-      
-      // construct the neo single slater objects for electron and proton
-      std::vector<std::shared_ptr<SingleSlaterBase>> neo_vec = 
-        CQNEOSingleSlaterOptions(output,input,*memManager,mol,
-                                 *basis,*prot_basis,
-                                 aoints, prot_aoints,
-                                 ep_aoints);
-
-      ss  = neo_vec[0]; // electron
-      pss = neo_vec[1]; // proton
-
-      if( doTemp ) 
-        neoss = CQNEOSSOptions(output,input,*memManager,mol,
-                                         *basis,*prot_basis,
-                                         aoints, prot_aoints,
-                                         ep_aoints);
-
+      ss = CQNEOSSOptions(output,input,*memManager,mol,
+                                       *basis,*prot_basis,
+                                        aoints, prot_aoints,
+                                        ep_aoints);
     }
     else
       ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
@@ -223,42 +208,18 @@ namespace ChronusQ {
     EMPerturbation emPert;
 
     // SCF options for electrons
+
     CQSCFOptions(output,input,*ss,emPert);
-
-    // TEMPORARY
-    std::shared_ptr<NEOBase> neobase;
-    std::shared_ptr<SingleSlaterBase> essbase;
-    std::shared_ptr<SingleSlaterBase> pssbase;
-
-    // SCF options for protons
-    if (doNEO) {
-      CQSCFOptions(output,input,*pss,emPert);
-
-      // TEMPORARY
-      if( doTemp ) {
-        CQSCFOptions(output,input,*neoss,emPert);
-        neobase = std::dynamic_pointer_cast<NEOBase>(neoss);
-        essbase = neobase->getSubSSBase("Electronic");
-        pssbase = neobase->getSubSSBase("Protonic");
-        CQSCFOptions(output,input,*essbase,emPert);
-        CQSCFOptions(output,input,*pssbase,emPert);
-      }
-    }
 
     bool rstExists = false;
     if( ss->scfControls.guess == READMO or 
-        ss->scfControls.guess == READDEN ) 
+        ss->scfControls.guess == READDEN or
+        ss->scfControls.prot_guess == READMO or
+        ss->scfControls.prot_guess == READDEN) 
       rstExists = true;
-    if( ss->scfControls.guess == FCHKMO )
+    if( ss->scfControls.guess == FCHKMO or
+        ss->scfControls.prot_guess == FCHKMO )
       ss->fchkFileName = scrFileName;
-
-    if (doNEO) {
-      if( pss->scfControls.guess == READMO or 
-          pss->scfControls.guess == READDEN ) 
-        rstExists = true;
-      if( pss->scfControls.guess == FCHKMO )
-        pss->fchkFileName = scrFileName;
-    }
 
     // Create the restart and scratch files
     SafeFile rstFile(rstFileName, rstExists);
@@ -271,16 +232,14 @@ namespace ChronusQ {
       ss->savFile     = rstFile;
       aoints->savFile = rstFile;
       if (doNEO) { 
-        pss->savFile         = rstFile;
         prot_aoints->savFile = rstFile;
         ep_aoints->savFile   = rstFile;
-
-        // TEMPORARY
-        if( doTemp ) {
-          essbase->savFile = rstFile;
-          pssbase->savFile = rstFile;
-        }
       }
+    }
+
+    // If doing NEO, propagate setup to subsystems
+    if(auto neoss = std::dynamic_pointer_cast<NEOBase>(ss)) {
+      neoss->setSubSetup();
     }
 
     // Done setting up
@@ -294,13 +253,13 @@ namespace ChronusQ {
       std::shared_ptr<RealTimeBase> rt = nullptr;
 
       // Assign geometry updater
-      MolecularOptions molOpt;
+      MolecularOptions molOpt(0.05, 10);
       // TODO: Make this cleaner/encapsulated - "dynamics" section of input
-      if( job == "BOMD" or job == "EHRENFEST" ) {
+      if( job == BOMD or job == EHRENFEST ) {
 
         // turn firstStep off to use the single point density as the guess
         // TODO: we need to have a separate GUESS section for MD
-        if( job == "BOMD" )
+        if( job == BOMD )
           molOpt.nMidpointFockSteps = 0;
 
         auto md = std::make_shared<MolecularDynamics>(molOpt, mol);
@@ -357,26 +316,20 @@ namespace ChronusQ {
             *memManager, basis->nBasis, mol.atoms.size(), epints_g
           );
 
-          auto neoss_t = std::dynamic_pointer_cast<NEOSS<double,double>>(neoss);
+          auto neoss_t = std::dynamic_pointer_cast<NEOSS<double,double>>(ss);
           neoss_t->addGradientIntegrals("Electronic", "Protonic", epcasted->gradERI, false);
 
         }
 
 
-        if( job == "BOMD" ) {
-          if( doTemp and doNEO )
-            md->gradientGetter = [&](){ return neoss->getGrad(emPert,false,false); };
-          else
-            md->gradientGetter = [&](){ return ss->getGrad(emPert,false,false); };
-          job = "SCF";
+        if( job == BOMD ) {
+          md->gradientGetter = [&](){ return ss->getGrad(emPert,false,false); };
+          job = SCF;
         }
 
-        else if( job == "EHRENFEST" ) {
+        else if( job == EHRENFEST ) {
 
-          if( doTemp and doNEO )
-            rt = CQRealTimeOptions(output,input,neoss,emPert);
-          else
-            rt = CQRealTimeOptions(output,input,ss,emPert);
+          rt = CQRealTimeOptions(output,input,ss,emPert);
           rt->intScheme.deltaT = molOpt.timeStepAU/
                                  (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
 
@@ -390,16 +343,12 @@ namespace ChronusQ {
             return rt->totalEnergy();
           };
 
-          job = "RT";
+          job = RT;
         }
 
-     } else if( job == "RT" ) {
+     } else if( job == RT ) {
 
-          if( doTemp and doNEO )
-            rt = CQRealTimeOptions(output,input,neoss,emPert);
-          else
-            rt = CQRealTimeOptions(output,input,ss,emPert);
- 
+        rt = CQRealTimeOptions(output,input,ss,emPert);
         // Single point job
         mol.geometryModifier = std::make_shared<SinglePoint>(molOpt);
 
@@ -437,67 +386,46 @@ namespace ChronusQ {
         }
 
         // Run SCF job
-        if( job == "SCF" ) {
-          if( doNEO and doTemp ) {
-            neoss->formCoreH(emPert, true);
-            neoss->formGuess();
-            neoss->SCF(emPert);
-          } else {
-            ss->formCoreH(emPert, true);
-            if(firstStep) ss->formGuess();
-            ss->SCF(emPert);
-          }
-
-          // DELETE ME
-          // Numerical gradient
-          size_t acc = 0;
-          if ( acc != 0 ) {
-            auto tempss = ss;
-            if( doNEO and doTemp ) {
-              neobase = std::dynamic_pointer_cast<NEOBase>(neoss);
-              tempss = neobase->getSubSSBase("Protonic");
-            }
-            NumGradient grad(input, tempss, basis);
-            grad.doGrad(acc);
-            //grad.eriGrad<double>(acc);
-          }
-
+        if( job == SCF ) {
+          ss->formCoreH(emPert, true);
+          if(firstStep) ss->formGuess();
+          ss->SCF(emPert);
         }
 
         // Run RT job
-        if( job == "RT" ) {
+        if( job == RT ) {
 
           // Initialize core hamiltonian
           rt->formCoreH(emPert);
 
           // Get correct time length
           // TODO: Encapsulate this logic
-          rt->intScheme.deltaT = molOpt.timeStepAU /
-            (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
-          if( !firstStep )
-            rt->intScheme.restoreStep = rt->curState.iStep;
-
-          rt->intScheme.tMax = rt->curState.xTime + molOpt.nElectronicSteps*rt->intScheme.deltaT;
-
-          std::cout << "Nuclear repulsion energy: " << mol.nucRepEnergy << std::endl;
-
-          // Create RT datasets
           rt->savFile = rstFile;
-          if( firstStep )
-            rt->createRTDataSets(molOpt.nElectronicSteps*molOpt.nMidpointFockSteps*molOpt.nNuclearSteps);
+          if( std::dynamic_pointer_cast<MolecularDynamics>(mol.geometryModifier) ) {
+            rt->intScheme.deltaT = molOpt.timeStepAU /
+              (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
+            if( !firstStep )
+              rt->intScheme.restoreStep = rt->curState.iStep;
 
-          //if (doNEO)
-          //  CErr("RT-NEO NYI!",output);
+            rt->intScheme.tMax = rt->curState.xTime + (molOpt.nElectronicSteps-1)*rt->intScheme.deltaT;
+
+            // Create RT datasets
+            if( firstStep ) {
+              rt->createRTDataSets(molOpt.nElectronicSteps*molOpt.nMidpointFockSteps*molOpt.nNuclearSteps);
+            }
+          }
+          else {
+            rt->createRTDataSets(0);
+          }
 
           if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
 
-          rt->savFile = rstFile;
           rt->doPropagation(false);
 
         }
 
 
-        if( job == "RESP" ) {
+        if( job == RESP ) {
 
           // FIXME: Need to implement TD-NEO
           if (doNEO)
@@ -513,7 +441,7 @@ namespace ChronusQ {
         }
 
         
-        if( job == "CC" ){  
+        if( job == CC ){
 
           // FIXME: Need to implement NEO-CC
           if (doNEO)

@@ -157,19 +157,8 @@ namespace ChronusQ {
 
     size_t nGrad = 3*ss.molecule().nAtoms;
 
-    auto gradPrinter = [&](std::vector<double> grad) { 
-      for(auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
-        std::cout << "Grad Atom " << iGrad/3 << " XYZ " << iGrad%3 << ": " << grad[iGrad] << std::endl;
-      }
-    };
-
     std::vector<double> gradient = upstream->getGDGrad(ss, pert, xHFX);
     std::vector<double> epjGrad = formepJGrad(ss, pert, xHFX);
-
-    std::cout << "Intraparticle gradient" << std::endl;
-    gradPrinter(gradient);
-    std::cout << "Interparticle gradient" << std::endl;
-    gradPrinter(epjGrad);
 
     std::transform(gradient.begin(), gradient.end(), epjGrad.begin(),
                    gradient.begin(), std::plus<double>());
