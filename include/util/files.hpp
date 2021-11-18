@@ -48,6 +48,10 @@ inline H5::CompType H5PredType() {
     return H5::CompType(
       H5::DataType(H5::PredType::NATIVE_INT32).getId()
     );
+  else if( std::is_same<char,T>::value )
+    return H5::CompType(
+      H5::DataType(H5::PredType::NATIVE_CHAR).getId()
+    );
   else if( std::is_same<dcomplex,T>::value ) {
     typedef struct {
       double re;

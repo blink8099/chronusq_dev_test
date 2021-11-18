@@ -191,6 +191,11 @@ namespace ChronusQ {
 #endif
       getNewOrbitals(pert,false);
 
+    // TODO: change with updating unit tests to response
+    // if (scfControls.scfAlg != _SKIP_SCF or 
+    //     scfControls.guess == CORE or 
+    //     scfControls.guess == SAD) getNewOrbitals(pert,false);
+    
     // If RANDOM guess, scale the densites appropriately
     // *** Replicates on all MPI processes ***
     if( scfControls.guess == RANDOM ) {

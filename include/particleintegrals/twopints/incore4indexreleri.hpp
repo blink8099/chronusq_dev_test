@@ -27,6 +27,11 @@
 
 namespace ChronusQ {
 
+  // define a macro to handle ERI and 4C ERI subsetTransfrom Calls
+  #define INCORE4CINDEXERI_SUBSETTRANSFROM(ERI, ERI4C, ...) \
+    if (ERI4C) ERI4C->subsetTransform(__VA_ARGS__); \
+    else ERI->subsetTransform(__VA_ARGS__);
+  
   /**
    *  \brief Templated class to handle the evaluation and storage of
    *  electron repulsion integral matrices V, pVp, and three pVxp in
@@ -102,6 +107,7 @@ namespace ChronusQ {
       return components_;
     }
 
+    
     // Computation interfaces
     virtual void computeAOInts(BasisSet &basisSet, Molecule &mol,
         EMPerturbation &emPert, OPERATOR op, const HamiltonianOptions &hamiltonianOptions) {
@@ -204,6 +210,7 @@ namespace ChronusQ {
         const TransT* TL, int LDTL, const TransT* TS, int LDTS,
         const std::vector<std::pair<size_t,size_t>> &off_size,
         const IntsT * in, OutT* out, bool increment = false) const;
+    
     virtual ~InCore4indexRelERI() {}
 
   }; // class InCore4indexRelERI

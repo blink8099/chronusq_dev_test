@@ -44,6 +44,8 @@
 #include <realtime.hpp>
 #include <itersolver.hpp>
 #include <coupledcluster.hpp>
+#include <mcwavefunction.hpp>
+#include <mcscf.hpp>
 
 #include <cqlinalg/blasext.hpp>
 #include <cqlinalg/eig.hpp>
@@ -254,7 +256,8 @@ namespace ChronusQ {
 
 
     if( not jobType.compare("SCF") or not jobType.compare("RT") or 
-        not jobType.compare("RESP") or not jobType.compare("CC") ) {
+        not jobType.compare("RESP") or not jobType.compare("CC") or 
+        not jobType.compare("MCSCF") ) {
 
       if (ssOptions.hamiltonianOptions.x2cType != X2C_TYPE::OFF) {
 
@@ -319,7 +322,6 @@ namespace ChronusQ {
       MPI_Barrier(MPI_COMM_WORLD);
 
     }
-
     
     if( not jobType.compare("CC")){  
 
@@ -335,6 +337,12 @@ namespace ChronusQ {
       #endif
     }
 
+    if ( not jobType.compare("MCSCF") ) {
+      auto mcscf = CQMCSCFOptions(output,input,ss);
+      mcscf->savFile = rstFile;
+      mcscf->run(emPert);
+    }
+    
     ProgramTimer::tock("Chronus Quantum");
     printTimerSummary(std::cout);
      
