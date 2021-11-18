@@ -33,6 +33,7 @@
 #include <realtime.hpp>
 #include <response.hpp>
 #include <coupledcluster.hpp>
+#include <mcscf.hpp>
 
 
 
@@ -129,7 +130,11 @@ namespace ChronusQ {
 #endif  
   void CQCC_VALID(std::ostream &, CQInputFile &);
 
-
+  // Parse MCSCF options
+  std::shared_ptr<MCWaveFunctionBase> CQMCSCFOptions(std::ostream &, 
+     CQInputFile &, std::shared_ptr<SingleSlaterBase> &);
+  
+  void CQMCSCF_VALID(std::ostream &, CQInputFile &);
 
 
   std::shared_ptr<CQMemManager> CQMiscOptions(std::ostream &,
@@ -152,6 +157,7 @@ namespace ChronusQ {
     CQMOR_VALID(out,input);
     CQMISC_VALID(out,input);
     CQCC_VALID(out,input);
+    CQMCSCF_VALID(out,input);
 
   }
 

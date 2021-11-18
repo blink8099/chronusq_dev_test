@@ -25,6 +25,7 @@
 
 #include <mointstransformer.hpp>
 #include <util/timer.hpp>
+#include <fockbuilder/fourcompfock/batchgd.hpp>
 #include <cqlinalg.hpp>
 #include <matrix.hpp>
 #include <particleintegrals/twopints/incoreritpi.hpp>
@@ -48,7 +49,8 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void MOIntsTransformer<MatsT,IntsT>::subsetTransformTPISSFockN6(EMPerturbation & pert, 
     const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOTPI, 
-    const std::string & moType, bool cacheIntermediates) {
+    const std::string & moType, bool cacheIntermediates,
+    TPI_TRANS_DELTA_TYPE delta) {
 
     size_t poff = off_sizes[0].first;
     size_t qoff = off_sizes[1].first;
@@ -59,61 +61,88 @@ namespace ChronusQ {
     size_t nr = off_sizes[2].second;
     size_t ns = off_sizes[3].second;
     bool pqSymm = (poff == qoff) and (np == nq); 
-    std::string moType_cache = "HalfTMOTPI-" 
-      + getUniqueSymbol(moType[0]) + getUniqueSymbol(moType[1]);
+    std::string moType_cache = "HalfTMOTPI-";
+    moType_cache += getUniqueSymbol(moType[0]);
+    moType_cache += getUniqueSymbol(moType[1]);
+    std::string rs_moType_cache = "HalfTMOTPI-";
+    rs_moType_cache += getUniqueSymbol(moType[2]);
+    rs_moType_cache += getUniqueSymbol(moType[3]);
     
+    if (delta == KRONECKER_DELTA_PQ or delta == KRONECKER_DELTA_PQ_RS) 
+      moType_cache += "-delta";
+    if (delta == KRONECKER_DELTA_RS or delta == KRONECKER_DELTA_PQ_RS) 
+      rs_moType_cache += "-delta";
+
     // check pq and rs can be swapped to accelarate the computation 
     bool rsSymm = (roff == soff) and (nr == ns); 
     bool swap_pq_rs = false;
-    if (rsSymm) {
-      std::string rs_moType_cache = "HalfTMOTPI-" 
-        + getUniqueSymbol(moType[2]) + getUniqueSymbol(moType[3]); 
-      if (not pqSymm) swap_pq_rs = true;
-      else {
-        auto pqCache = ints_cache_.getIntegral<InCore4indexTPI, MatsT>(moType_cache); 
-        auto rsCache = ints_cache_.getIntegral<InCore4indexTPI, MatsT>(rs_moType_cache); 
-        
-        if (not pqCache and rsCache) swap_pq_rs = true;
-      }
+    auto pqCache = ints_cache_.getIntegral<InCoreRITPI, MatsT>(moType_cache); 
+    auto rsCache = ints_cache_.getIntegral<InCoreRITPI, MatsT>(rs_moType_cache); 
     
-      if (swap_pq_rs) {
-        std::swap(poff, roff); 
-        std::swap(qoff, soff); 
-        std::swap(np, nr); 
-        std::swap(nq, ns); 
-        pqSymm = true;
-        moType_cache = rs_moType_cache; 
-      }
+    if (not pqCache and rsCache)     swap_pq_rs = true;
+    if (delta == KRONECKER_DELTA_RS) swap_pq_rs = true;
+    
+    //if (rsSymm and not pqSymm)   swap_pq_rs = true; 
+    
+    // swap pq rs when nrs_batch < npq_batch because first half is N6 and second is N5
+    if (not swap_pq_rs and delta == NO_KRONECKER_DELTA) {
+      size_t npq_batch = pqSymm ? np * (np + 1) / 2: np*nq; 
+      size_t nrs_batch = rsSymm ? nr * (nr + 1) / 2: nr*ns; 
+    
+      if (npq_batch > nrs_batch) swap_pq_rs = true;  
     }
     
-    size_t npq = np * nq;
-    size_t npqr = npq * nr;
+    if (swap_pq_rs) {
+      std::swap(poff, roff); 
+      std::swap(qoff, soff); 
+      std::swap(np, nr); 
+      std::swap(nq, ns); 
+      std::swap(pqSymm, rsSymm);
+      moType_cache = rs_moType_cache; 
+      
+      if      (delta == KRONECKER_DELTA_PQ) delta = KRONECKER_DELTA_RS;
+      else if (delta == KRONECKER_DELTA_RS) delta = KRONECKER_DELTA_PQ;
+      else if (delta == KRONECKER_DELTA_PS) delta = KRONECKER_DELTA_RQ;
+      else if (delta == KRONECKER_DELTA_RQ) delta = KRONECKER_DELTA_PS;
+    }
+    
+#ifdef _DEBUG_MOINTSTRANSFORMER_CACHE
+    std::cout << "moType = " << moType   << ", kronecker_delta = " << delta 
+              << ", swap_pq_rs = " << swap_pq_rs << std::endl;
+    std::cout << "moType_cache = " << std::setw(20) << moType_cache;
+#endif
 
-    size_t nAO = ss_.nAlphaOrbital() * ss_.nC;
-    size_t NB  = ss_.nAlphaOrbital();
+    size_t npr  = np * nr;
+    size_t npq  = np * nq;
+    size_t npqr = npq * nr;
+    size_t npqDim = (delta == KRONECKER_DELTA_PQ or 
+                     delta == KRONECKER_DELTA_PQ_RS) ? np: npq;
+
+    size_t nAO  = ss_.nAlphaOrbital() * ss_.nC;
+    size_t NB   = ss_.nAlphaOrbital();
     size_t nAO2 = nAO * nAO;
     
-    MatsT * halfTMOTPI_ptr = nullptr, *dummy_ptr = nullptr;
-    std::shared_ptr<InCore4indexTPI<MatsT>> halfTMOTPI = nullptr; 
-    if (not pqSymm) cacheIntermediates = false;
+    MatsT * dummy_ptr = nullptr;
+    std::shared_ptr<InCoreRITPI<MatsT>> halfTMOTPI = nullptr; 
     
     if (cacheIntermediates) {
-      halfTMOTPI = ints_cache_.getIntegral<InCore4indexTPI, MatsT>(moType_cache);
-      if (halfTMOTPI) halfTMOTPI_ptr = halfTMOTPI->pointer();
+      halfTMOTPI = ints_cache_.getIntegral<InCoreRITPI, MatsT>(moType_cache);
+#ifdef _DEBUG_MOINTSTRANSFORMER_CACHE
+      if (halfTMOTPI) std::cout << "----Find cache!!!" << std::endl;
+#endif    
     } 
     
     //
-    // 1/2 transformation to obtain halfTMOTPI_ptr(mu, nu, p, q)
+    // 1/2 transformation to obtain halfTMOTPI(mu, nu, p, q)
     //
     if (not halfTMOTPI) {
       
+#ifdef _DEBUG_MOINTSTRANSFORMER_CACHE
+      std::cout << "----Not find cache, do transformation" << std::endl;
+#endif
+
       ALLOCATE_AND_CLEAR_CACHE_IF_NECESSARY(
-        if (pqSymm) {
-          halfTMOTPI = std::make_shared<InCore4indexTPI<MatsT>>(memManager_, nAO, np);
-          halfTMOTPI_ptr = halfTMOTPI->pointer();
-        } else {  
-          halfTMOTPI_ptr  = memManager_.malloc<MatsT>(nAO2 * npq);
-        }
+        halfTMOTPI = std::make_shared<InCoreRITPI<MatsT>>(memManager_, nAO, npqDim);
       )
 
       SquareMatrix<MatsT> SCR(memManager_, nAO);
@@ -142,12 +171,16 @@ namespace ChronusQ {
 
       std::vector<std::pair<size_t,size_t>> pqJobs;
       
-      for (auto q = 0ul; q <  nq; q++) 
-      for (auto p = 0ul; p <  np; p++) {
-        pqJobs.push_back({p,q});
-        if (pqSymm and p == q) break; 
+      if (delta == KRONECKER_DELTA_PQ or delta == KRONECKER_DELTA_PQ_RS) {
+        for (auto p = 0ul; p <  np; p++) pqJobs.push_back({p,p});
+      } else {
+        for (auto q = 0ul; q <  nq; q++) 
+        for (auto p = 0ul; p <  np; p++) {
+          pqJobs.push_back({p,q});
+          if (pqSymm and p == q) break; 
+        }
       }
-      
+
       size_t NJob = pqJobs.size();
       size_t NJobComplete  = 0ul;
       size_t NJobToDo = 0ul;
@@ -157,11 +190,12 @@ namespace ChronusQ {
         size_t p, q;
         NJobToDo = std::min(maxNBatch, NJob-NJobComplete);
 
+#ifdef _DEBUG_MOINTSTRANSFORMER_CACHE
         std::cout << "NJob         = " << NJob << std::endl;
         std::cout << "NJobComplete = " << NJobComplete << std::endl;
         std::cout << "NJobToDo     = " << NJobToDo << std::endl;
         std::cout << "maxNBatch    = " << maxNBatch << std::endl;
-
+#endif
         
         // build fake densities in batch
         for (auto i = 0ul; i < NJobToDo; i++) { 
@@ -191,21 +225,26 @@ namespace ChronusQ {
         
         // do contraction to get half-transformed integrals
         if (is1C) ss_.fockBuilder->formRawGDInBatches(ss_, pert, false, 0., false, pq1PDMs, pqMOTPIs, dummy, dummy);
-        else ss_.fockBuilder->formRawGDInBatches(ss_, pert, false, 0., false, pq1PDMs, dummy, dummy, pqMOTPIs);
+        else      ss_.fockBuilder->formRawGDInBatches(ss_, pert, false, 0., false, pq1PDMs, dummy, dummy, pqMOTPIs);
         
         // copy over to SCR
         for (auto i = 0ul; i < NJobToDo; i++) { 
-          p = pqJobs[i + NJobComplete].first; 
-          q = pqJobs[i + NJobComplete].second; 
            
           if (not is1C) {
             SCR = pqMOTPIs[i]->template spinGather<MatsT>();
             MOTPIpq_ptr = SCR.pointer(); 
           } else MOTPIpq_ptr = pqMOTPIs[i]->S().pointer();
           
-          SetMat('N', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, halfTMOTPI_ptr + (p + q*np)*nAO2, nAO);
-          if (pqSymm and p < q)  
-            SetMat('C', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, halfTMOTPI_ptr + (q + p*np)*nAO2, nAO); 
+          p = pqJobs[i + NJobComplete].first; 
+          
+          if (delta == KRONECKER_DELTA_PQ or delta == KRONECKER_DELTA_PQ_RS) {
+            SetMat('N', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, halfTMOTPI->pointer() + p*nAO2, nAO);
+          } else {  
+            q = pqJobs[i + NJobComplete].second; 
+            SetMat('N', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, halfTMOTPI->pointer() + (p + q*np)*nAO2, nAO);
+            if (pqSymm and p < q)  
+              SetMat('C', nAO, nAO, MatsT(1.), MOTPIpq_ptr, nAO, halfTMOTPI->pointer() + (q + p*np)*nAO2, nAO); 
+          }
         }
 
         // increment and clear SCR after job done
@@ -218,22 +257,134 @@ namespace ChronusQ {
       if (cacheIntermediates) ints_cache_.addIntegral(moType_cache, halfTMOTPI);
      
     } //  if there is no cache
-
+    
+    // allocate intermediate SCR
     MatsT * SCR = nullptr;
+    size_t SCRSize;
+    if      (delta == NO_KRONECKER_DELTA)    SCRSize = nAO*npqr;  
+    else if (delta == KRONECKER_DELTA_PQ)    SCRSize = nAO*np*nr;  
+    else if (delta == KRONECKER_DELTA_RS)    SCRSize = nAO*npq;  
+    else if (delta == KRONECKER_DELTA_PS)    SCRSize = nAO*npqr;  
+    else if (delta == KRONECKER_DELTA_RQ)    SCRSize = nAO*npr;  
+    else if (delta == KRONECKER_DELTA_PQ_RS) SCRSize = nAO*np;  
+    else if (delta == KRONECKER_DELTA_PS_RQ) SCRSize = nAO*npr;  
     
-    ALLOCATE_AND_CLEAR_CACHE_IF_NECESSARY(
-      SCR  = memManager_.malloc<MatsT>(nAO * npqr);
-    )
+    SCR = memManager_.malloc<MatsT>(SCRSize);
     
-    char TransMOTPI = swap_pq_rs ? 'N': 'T';
+    if (delta == NO_KRONECKER_DELTA or delta == KRONECKER_DELTA_PQ) {
+      
+      char TransMOTPI = swap_pq_rs ? 'N': 'T';
+      size_t ndim = delta == NO_KRONECKER_DELTA ? npq: np;     
 
-    PairTransformation('N', ss_.mo[0].pointer(), nAO, roff, soff,
-      'N', halfTMOTPI_ptr, nAO, nAO, npq, 
-      TransMOTPI, MOTPI, nr, ns, dummy_ptr, SCR, false); 
+      PairTransformation('N', ss_.mo[0].pointer(), nAO, roff, soff,
+        'N', halfTMOTPI->pointer(), nAO, nAO, ndim, 
+        TransMOTPI, MOTPI, nr, ns, dummy_ptr, SCR, false); 
+    
+    } else if (delta == KRONECKER_DELTA_RS or delta == KRONECKER_DELTA_PQ_RS) {
 
+      for (auto r = 0ul; r < nr; r++) {
+
+        auto rMO = ss_.mo[0].pointer() + (r + roff) * nAO;      
+        
+        // SCR(nu p q, r) = (mu, nu p q)^H MO(mu, r) 
+        blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, 
+          nAO*npqDim, 1, nAO, MatsT(1.), halfTMOTPI->pointer(), nAO, 
+          rMO, nAO, MatsT(0.), SCR, nAO*npqDim);
+      
+        // MOTPI(p q, r) = SCR(nu, p q)^H MO(nu, r) 
+        blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, 
+          npqDim, 1, nAO, MatsT(1.), SCR, nAO, 
+          rMO, nAO, MatsT(0.), MOTPI + r*npqDim, npqDim);
+      
+      }
+
+      if(swap_pq_rs) IMatCopy('T', npqDim, nr, MatsT(1.), MOTPI, npqDim, nr); 
+
+    } else if (delta == KRONECKER_DELTA_PS) {
+        
+      // SCR(nu p q, r) = (mu, nu p q)^H MO(mu, r) 
+      blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, 
+        nAO*npq, nr, nAO, MatsT(1.), halfTMOTPI->pointer(), nAO, 
+        ss_.mo[0].pointer() + roff*nAO, nAO, MatsT(0.), SCR, nAO*npq);
+    
+      MatsT * SCR2 = nullptr;
+      SCR2 = memManager_.malloc<MatsT>(nAO*nq*nr);
+      
+      size_t nqr = nq*nr;
+
+      for (auto p = 0ul; p < np; p++) {
+        
+        // Gather SCR2(nu, q, r) from SCR(nu p q, r)
+        #pragma omp parallel for
+        for (auto r = 0ul; r < nr; r++) 
+        for (auto q = 0ul; q < nq; q++) {
+          std::copy_n(SCR + p*nAO + q*nAO*np + r*nAO*npq,
+            nAO, SCR2 + q*nAO + r*nAO*nq);
+        }
+
+        // MOTPI(q r, p) = SCR2(nu, q r)^H MO(nu, p) 
+        blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, 
+          nqr, 1, nAO, MatsT(1.), SCR2, nAO,
+          ss_.mo[0].pointer() + (p+poff)*nAO, nAO, 
+          MatsT(0.), MOTPI + p*nqr, nqr);  
+      }
+      
+      // MOTPI(q r, p) -> MOTPI(p,q,r)
+      if (not swap_pq_rs) IMatCopy('T', nqr, np, MatsT(1.), MOTPI, nqr, np);
+      // MOTPI(q r, p) -> MOTPI(r,p,q)
+      else                IMatCopy('T', nq, nr*np, MatsT(1.), MOTPI, nq, nr*np);  
+
+      if (SCR2) memManager_.free(SCR2);
+    
+    } else if (delta == KRONECKER_DELTA_RQ or delta == KRONECKER_DELTA_PS_RQ) {
+      
+      size_t nAOp = nAO * np;
+      for (auto r = 0ul; r < nr; r++) {
+        // SCR(nu p, r) = (mu, nu p)^H MO(mu, r) 
+        blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, 
+          nAOp, 1, nAO, MatsT(1.), halfTMOTPI->pointer() + r*nAO2*np, nAO, 
+          ss_.mo[0].pointer() + (r+roff)*nAO, nAO, MatsT(0.), SCR+r*nAOp, nAOp);
+      }
+      
+      if (delta == KRONECKER_DELTA_RQ) {
+        // MOTPI(p,r,s) = SCR(nu p, r)^H MO(nu, s)
+        blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, 
+          npr, ns, nAO, MatsT(1.), SCR, nAO, 
+          ss_.mo[0].pointer() + soff*nAO, nAO, MatsT(0.), MOTPI, npr);
+        
+        // MOTPI(p,r,s) -> MOTPI(r,s,p)
+        if (swap_pq_rs) IMatCopy('T', np, ns*nr, MatsT(1.), MOTPI, np, ns*nr);
+       
+       } else if (delta == KRONECKER_DELTA_PS_RQ) {
+       
+         MatsT * SCR2 = nullptr;
+         SCR2 = memManager_.malloc<MatsT>(nAO*nr);
+         
+         for (auto p = 0ul; p < np; p++) {
+           
+           // Gather SCR2(nu, r) from SCR(nu, p, r)
+           #pragma omp parallel for
+           for (auto r = 0ul; r < nr; r++) { 
+             std::copy_n(SCR + p*nAO + r*nAO*np, nAO, SCR2 + r*nAO);
+           }
+           
+           // MOTPI(r,p) = SCR2(nu, r)^H MO(nu, p)
+           blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, 
+             nr, 1, nAO, MatsT(1.), SCR2, nAO, 
+             ss_.mo[0].pointer() + (p+poff)*nAO, nAO, MatsT(0.), MOTPI + p*nr, nr);
+           
+         }
+         
+         // MOTPI(r,p) -> MOTPI(p,r)
+         if (not swap_pq_rs) IMatCopy('T', nr, np, MatsT(1.), MOTPI, nr, np);
+         
+         if (SCR2) memManager_.free(SCR2);
+       }
+
+    } // delta 
+    
     // free memories
     halfTMOTPI = nullptr;
-    if (not pqSymm) memManager_.free(halfTMOTPI_ptr);
     if (SCR) memManager_.free(SCR);
  
   }; // MOIntsTransformer::subsetTransformTPISSFockN6

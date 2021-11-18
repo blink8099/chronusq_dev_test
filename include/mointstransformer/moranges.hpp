@@ -50,9 +50,6 @@ namespace ChronusQ {
       size_t nV = ss_.nV/oneCompFactor - nFrozenVirt; 
       size_t nT = nO + nV;
       
-      std::cout << "nO = " << nO << std::endl;
-      std::cout << "nV = " << nV << std::endl;
-
       resetMORanges();
 
       // general indices
@@ -64,34 +61,87 @@ namespace ChronusQ {
       // particle indices
       addMORanges({'a','b','c','d'}, {fourCompOffset + ss_.nO, nV}); 
       
-  }; // MOIntsTransformer::setMORanges
+  }; // MOIntsTransformer::setMORanges for SingleSlater
+  
+  template <typename MatsT, typename IntsT>
+  void MOIntsTransformer<MatsT,IntsT>::setMORanges(const MCWaveFunctionBase & mcwfn) {
+  
+      // set 4C for no-pair approximation
+      size_t offset = (ss_.nC == 4 and mcwfn.FourCompNoPair) ? ss_.nAlphaOrbital() * 2: 0;
+      
+      const auto &  mopart = mcwfn.MOPartition;
+      offset += mopart.nFCore;
+      size_t nInact = mopart.nInact; 
+      size_t nCorrO = mopart.nCorrO;
+      size_t nFVirt = mopart.nFVirt; 
+      size_t nT = mopart.nMO; 
+      size_t corrOffset = offset + nInact;
+
+      resetMORanges();
+      
+      // general indices
+      addMORanges({'p','q','r','s'}, {offset, nT});
+      
+      // inactive core indices
+      addMORanges({'i','j','k','l'}, {offset, nInact});
+      
+      // correlated space
+      addMORanges({'t','u','v','w'}, {corrOffset, nCorrO});
+
+      // virtual indices
+      addMORanges({'a','b','c','d'}, {corrOffset + nCorrO, nFVirt});
+      
+      if (mopart.scheme == DetScheme::RAS) {
+        // '1', '2', '3' for RAS1 RAS2 RAS3 repectively 
+        char nRAS = '1';
+        size_t nRASOff = corrOffset;
+        for (const auto &nActO: mopart.nActOs) {
+          addMORanges({nRAS}, {nRASOff, nActO}); 
+          nRAS++;
+          nRASOff += nActO;
+        }
+      }
+
+  }; // MOIntsTransformer::setMORanges for MCWaveFunction
   
   /**
    *  \brief parsing the mo ints types to offsizes 
    */
   template <typename MatsT, typename IntsT>
   std::vector<std::pair<size_t,size_t>> 
-    MOIntsTransformer<MatsT,IntsT>::parseMOType(const std::string & moType) {
+  MOIntsTransformer<MatsT,IntsT>::parseMOType(const std::string & moType) {
       
+      // std::cout << " * parsing moType " << moType << std::endl;
+
       std::vector<std::pair<size_t,size_t>> off_sizes;
       
-      bool foundMOType;
-      for (const auto& ch: moType) {
-        
-        foundMOType = false;
-        for (auto i = 0ul; i < symbol_sets_.size(); i++) {
-          if (symbol_sets_[i].count(ch)) {
-            off_sizes.push_back(mo_ranges_[i]);
-            foundMOType = true;
-            break;
-          }
-        }
-        if (not foundMOType) CErr("Wrong MO Type in parseMOIntsType");
-      }
+      for (const auto& ch: moType) off_sizes.push_back(parseMOType(ch));        
       
       return off_sizes;
-  }; // MOIntsTransformer::parseMOIntsType
+  }; // MOIntsTransformer::parseMOIntsType(string)
   
+  /**
+   *  \brief parsing the mo ints type to offsize
+   */
+  template <typename MatsT, typename IntsT>
+  std::pair<size_t,size_t> 
+  MOIntsTransformer<MatsT,IntsT>::parseMOType(const char type) {
+
+      std::pair<size_t,size_t> off_size;
+      bool foundMOType = false;
+      for (auto i = 0ul; i < symbol_sets_.size(); i++) {
+        if (symbol_sets_[i].count(type)) {
+          off_size = mo_ranges_[i];
+          foundMOType = true;
+          break;
+        }
+      }
+      
+      if (not foundMOType) CErr("Wrong MO Type in parseMOIntsType");
+      
+      return off_size;
+  }; // MOIntsTransformer::parseMOIntsType(char)
+
   /*
    * \brief get unique symbols
    */ 
@@ -104,6 +154,7 @@ namespace ChronusQ {
         }
       }
       CErr("Wrong MO Type in parseMOIntsType");
+      return ' ';
   }; // MOIntsTransformer::getUniqueSymbol
 
   /**
@@ -122,7 +173,26 @@ namespace ChronusQ {
                 << size.first + size.second << std::endl;
     }
     std::cout << std::endl;
-  }
-
+  } // MOIntsTransformer::printOffSizes
+  
+  /**
+   *  \brief print offsizes 
+   */
+  template <typename MatsT, typename IntsT>
+  void MOIntsTransformer<MatsT,IntsT>::printMORangesSummary() {
+  
+    std::cout << "  * Summary of MO ranges and symbols in MOIntsTransformer: " << std::endl;
+    
+    for (auto i = 0ul; i < mo_ranges_.size(); i++) {
+      std::cout << "    - MO Ranges " << std::setw(5) << mo_ranges_[i].first + 1 << " ~ "  
+                << std::setw(5)  << mo_ranges_[i].first + mo_ranges_[i].second 
+                << ", labeled as: ";
+      
+      for (const auto & c: symbol_sets_[i])
+        std::cout << c << " ";
+      
+      std::cout << std::endl;
+    }
+  } // MOIntsTransformer::printMORangesSummary
 
 }; // namespace ChronusQ

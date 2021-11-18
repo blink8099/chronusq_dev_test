@@ -1,5 +1,6 @@
 *build*
 !bin/buildblas
+!*cibuild*
 !*corehbuild*
 !*fockbuild*
 external/mxx
