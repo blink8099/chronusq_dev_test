@@ -22,6 +22,8 @@
  *  
  */
 #pragma once
+
+#include <cmath>
 #include <physcon.hpp>
 
 namespace ChronusQ {
@@ -29,21 +31,21 @@ namespace ChronusQ {
 
   struct MolecularOptions {
 
-    size_t nNuclearSteps;      // number of steps for molecular dynamics
-    size_t nMidpointFockSteps; // number of elctronic steps for electronic dynamics
-    size_t nElectronicSteps;   // number of elctronic steps for electronic dynamics
+    size_t nNuclearSteps; // Number of steps for molecular dynamics
+    size_t nMidpointFockSteps = 10; // Number of elctronic steps for electronic dynamics
+    size_t nElectronicSteps = 5; // Number of elctronic steps for electronic dynamics
 
-    //Molecular Dynamics Options
-    double timeStepAU;         // timestep for molecular dynamics in a.u.
-    double timeStepFS;         // timestep for molecular dynamics in fs
+    // Molecular Dynamics Options
+    double timeStepAU; // Nuclear timestep for molecular dynamics in a.u.
+    double timeStepFS; // Nucleartimestep for molecular dynamics in fs
 
-    MolecularOptions(const double step = 0.05, const size_t nsteps = 2000) :
-      timeStepFS(0.05), nNuclearSteps(nsteps) {
-      timeStepAU = timeStepFS/FSPerAUTime;
-      nMidpointFockSteps = 10;
-      nElectronicSteps = 5;
+    MolecularOptions(double tmax, double deltat)
+    {
+      timeStepAU = deltat;
+      timeStepFS = deltat*FSPerAUTime;
+
+      nNuclearSteps = size_t(ceil(tmax/deltat));
     }
-    //Geometry Optimization Options
 
   }; // struct MolecularOptions
 

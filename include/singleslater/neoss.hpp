@@ -38,6 +38,7 @@ namespace ChronusQ {
   // Pure virtual class for only interface functions
   struct NEOBase {
     virtual std::shared_ptr<SingleSlaterBase> getSubSSBase(std::string label) = 0;
+    virtual std::vector<std::string> getLabels() = 0;
     virtual void setSubSetup() = 0;
   };
 
@@ -269,6 +270,22 @@ namespace ChronusQ {
 
       const std::unordered_map<std::string, SubSSPtr>& getSubsystemMap() {
         return subsystems;
+      }
+
+      std::vector<std::string> getLabels() {
+
+        if (order_.size() == subsystems.size()) return order_;
+
+        std::vector<std::string> labels;
+        for(auto& entry:subsystems){
+          labels.push_back(entry.first);
+        }
+
+        return labels;
+      }
+
+      std::pair<bool,std::shared_ptr<TwoPInts<IntsT>>> getCrossTPIs(std::string label1,std::string label2){
+        return interIntegrals.at(label1).at(label2);
       }
 
       // Pass-through to each functions

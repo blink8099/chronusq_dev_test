@@ -2165,6 +2165,14 @@ namespace ChronusQ {
     CErr("Complex integral gradients not yet implemented!");
   }
 
+  template<>
+  void GradInts<TwoPInts,dcomplex>::computeAOInts(BasisSet& basisSet,
+    BasisSet& basis2, Molecule& mol, EMPerturbation& pert, OPERATOR op,
+    const HamiltonianOptions &options)
+  {
+    CErr("Complex integral gradients not yet implemented!");
+  }
+
 
 }; // namespace ChronusQ
 

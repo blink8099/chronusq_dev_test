@@ -252,114 +252,11 @@ namespace ChronusQ {
       bool firstStep = true;
       std::shared_ptr<RealTimeBase> rt = nullptr;
 
-      // Assign geometry updater
-      MolecularOptions molOpt(0.05, 10);
-      // TODO: Make this cleaner/encapsulated - "dynamics" section of input
-      if( job == BOMD or job == EHRENFEST ) {
-
-        // turn firstStep off to use the single point density as the guess
-        // TODO: we need to have a separate GUESS section for MD
-        if( job == BOMD )
-          molOpt.nMidpointFockSteps = 0;
-
-        auto md = std::make_shared<MolecularDynamics>(molOpt, mol);
-        mol.geometryModifier = md;
-
-        // Gradient integrals
-        // FIXME: Figure out where to put this allocation
-//#define INCORE_GRAD
-#ifdef INCORE_GRAD
-        std::cout << "in core gradients" << std::endl;
-#define GRADTPI InCore4indexTPI
-#define ETPI_LIST *memManager,basis->nBasis
-#define PTPI_LIST *memManager,prot_basis->nBasis
-#define EPTPI_LIST *memManager,basis->nBasis,prot_basis->nBasis
-#else
-        std::cout << "direct contracted gradients" << std::endl;
-#define GRADTPI DirectTPI
-#define ETPI_LIST *memManager,*basis,*basis,mol,1e-12
-#define PTPI_LIST *memManager,*prot_basis,*prot_basis,mol,1e-12
-#define EPTPI_LIST *memManager,*basis,*prot_basis,mol,1e-12
-#endif
-        std::vector<std::shared_ptr<GRADTPI<double>>> ints;
-        for ( auto i = 0; i < mol.atoms.size() * 3; i++ )
-          ints.push_back(
-            std::make_shared<GRADTPI<double>>(ETPI_LIST)
-          );
-
-        auto casted = std::dynamic_pointer_cast<Integrals<double>>(aoints);
-        casted->gradERI = std::make_shared<GradInts<TwoPInts,double>>(
-          *memManager, basis->nBasis, mol.atoms.size(), ints
-        );
-
-        // NEO gradient integrals
-        if( doNEO ) {
-          std::vector<std::shared_ptr<GRADTPI<double>>> pints_g;
-          std::vector<std::shared_ptr<GRADTPI<double>>> epints_g;
-
-          for ( auto i = 0; i < mol.atoms.size() * 3; i++ ) {
-            pints_g.push_back(
-              std::make_shared<GRADTPI<double>>(PTPI_LIST)
-            );
-            epints_g.push_back(
-              std::make_shared<GRADTPI<double>>(EPTPI_LIST)
-            );
-          }
-
-          auto pcasted = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints);
-          pcasted->gradERI = std::make_shared<GradInts<TwoPInts,double>>(
-            *memManager, prot_basis->nBasis, mol.atoms.size(), pints_g
-          );
-
-          auto epcasted = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints);
-          epcasted->gradERI = std::make_shared<GradInts<TwoPInts,double>>(
-            *memManager, basis->nBasis, mol.atoms.size(), epints_g
-          );
-
-          auto neoss_t = std::dynamic_pointer_cast<NEOSS<double,double>>(ss);
-          neoss_t->addGradientIntegrals("Electronic", "Protonic", epcasted->gradERI, false);
-
-        }
-
-
-        if( job == BOMD ) {
-          md->gradientGetter = [&](){ return ss->getGrad(emPert,false,false); };
-          job = SCF;
-        }
-
-        else if( job == EHRENFEST ) {
-
-          rt = CQRealTimeOptions(output,input,ss,emPert);
-          rt->intScheme.deltaT = molOpt.timeStepAU/
-                                 (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
-
-          md->gradientGetter = [&](){ return rt->getGrad(emPert); };
-
-          md->finalMidpointFock = [&](double t){ 
-            basis->updateNuclearCoordinates(mol);
-            aoints->computeAOTwoE(*basis, mol, emPert);
-            rt->formCoreH(emPert);
-            rt->updateAOProperties(t);
-            return rt->totalEnergy();
-          };
-
-          job = RT;
-        }
-
-     } else if( job == RT ) {
-
-        rt = CQRealTimeOptions(output,input,ss,emPert);
-        // Single point job
-        mol.geometryModifier = std::make_shared<SinglePoint>(molOpt);
-
-     } else {
-        // Single point job
-        mol.geometryModifier = std::make_shared<SinglePoint>(molOpt);
-      }
+      JobType elecJob = CQGeometryOptions(output, input, job, mol, ss, rt,
+        ep_aoints, emPert);
 
       // Loop over various structures
       while( mol.geometryModifier->hasNext() ) {
-
 
         // Update geometry
         mol.geometryModifier->electronicPotentialEnergy=ss->totalEnergy;
@@ -401,22 +298,9 @@ namespace ChronusQ {
           // Get correct time length
           // TODO: Encapsulate this logic
           rt->savFile = rstFile;
-          if( std::dynamic_pointer_cast<MolecularDynamics>(mol.geometryModifier) ) {
-            rt->intScheme.deltaT = molOpt.timeStepAU /
-              (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
-            if( !firstStep )
-              rt->intScheme.restoreStep = rt->curState.iStep;
-
-            rt->intScheme.tMax = rt->curState.xTime + (molOpt.nElectronicSteps-1)*rt->intScheme.deltaT;
-
-            // Create RT datasets
-            if( firstStep ) {
-              rt->createRTDataSets(molOpt.nElectronicSteps*molOpt.nMidpointFockSteps*molOpt.nNuclearSteps);
-            }
-          }
-          else {
-            rt->createRTDataSets(0);
-          }
+          if( !firstStep )
+            rt->intScheme.restoreStep = rt->curState.iStep;
+          rt->intScheme.tMax = rt->intScheme.tMax + rt->intScheme.nSteps*rt->intScheme.deltaT;
 
           if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
 

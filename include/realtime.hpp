@@ -56,6 +56,8 @@ namespace ChronusQ {
     size_t iSave    = 50; ///< Save progress every N steps
     size_t restoreStep = 0;  ///< Restore propagation from this step
 
+    size_t nSteps = 0; ///< Electronic steps to update tMax
+
     bool   includeSCFField = true;  ///< Whether to include the SCF field
 
   }; // struct IntegrationScheme

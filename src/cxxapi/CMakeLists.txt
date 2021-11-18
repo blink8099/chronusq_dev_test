@@ -26,7 +26,7 @@ set(INPUT_SRC input/parse.cxx)
 set(OPT_SRC input/molopts.cxx input/basisopts.cxx 
     input/singleslateropts.cxx input/scfopts.cxx input/rtopts.cxx
     input/intsopts.cxx input/miscopts.cxx input/respopts.cxx 
-    input/coupledclusteropts.cxx
+    input/coupledclusteropts.cxx input/geomopts.cxx
     procedural.cxx output.cxx)
 
 

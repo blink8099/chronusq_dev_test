@@ -465,9 +465,10 @@ namespace ChronusQ {
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::createRTDataSets(size_t maxPoints) {
-    std::cout << "create datasets with size: " << maxPoints << std::endl;
 
-    if( maxPoints == 0 ) 
+    if( restart ) return;
+
+    if( maxPoints == 0 )
       maxPoints = intScheme.tMax / intScheme.deltaT + 1;
     
     savFile.createGroup("RT");
@@ -480,6 +481,7 @@ namespace ChronusQ {
         {maxPoints,3});
     savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE_FIELD",
         {maxPoints,3});
+
   }; // RealTime::createRTDataSets
 
 

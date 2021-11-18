@@ -187,6 +187,7 @@ namespace ChronusQ {
 
 
     // Procedural Functions to be defined in all derived classes
+    virtual BasisSet& basisSet() = 0;
       
     // In essence, all derived classes should be able to:
     //   Form a Fock matrix with the ability to increment
