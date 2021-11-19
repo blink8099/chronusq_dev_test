@@ -259,7 +259,7 @@ namespace ChronusQ {
       while( mol.geometryModifier->hasNext() ) {
 
         // Update geometry
-        mol.geometryModifier->electronicPotentialEnergy=ss->totalEnergy;
+        mol.geometryModifier->electronicPotentialEnergy = ss->totalEnergy;
         mol.geometryModifier->update(true, mol, firstStep);
         // Update basis to the new geometry
         basis->updateNuclearCoordinates(mol);
@@ -283,21 +283,19 @@ namespace ChronusQ {
         }
 
         // Run SCF job
-        if( job == SCF ) {
+        if( elecJob == SCF ) {
           ss->formCoreH(emPert, true);
           if(firstStep) ss->formGuess();
           ss->SCF(emPert);
         }
 
         // Run RT job
-        if( job == RT ) {
+        if( elecJob == RT ) {
 
           // Initialize core hamiltonian
           rt->formCoreH(emPert);
 
           // Get correct time length
-          // TODO: Encapsulate this logic
-          rt->savFile = rstFile;
           if( !firstStep )
             rt->intScheme.restoreStep = rt->curState.iStep;
           rt->intScheme.tMax = rt->intScheme.tMax + rt->intScheme.nSteps*rt->intScheme.deltaT;
@@ -309,7 +307,7 @@ namespace ChronusQ {
         }
 
 
-        if( job == RESP ) {
+        if( elecJob == RESP ) {
 
           // FIXME: Need to implement TD-NEO
           if (doNEO)
@@ -325,7 +323,7 @@ namespace ChronusQ {
         }
 
         
-        if( job == CC ){
+        if( elecJob == CC ){
 
           // FIXME: Need to implement NEO-CC
           if (doNEO)

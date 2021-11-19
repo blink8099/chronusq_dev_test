@@ -88,10 +88,10 @@ namespace ChronusQ {
   for ( auto i = 0; i < mol.atoms.size() * 3; i++ ) {\
     auto newg = ss2 ? \
       std::make_shared<InCore4indexTPI<T>>( \
-        ss1->memManager, ss1->basisSet().nBasis) : \
-      std::make_shared<InCore4indexTPI<T>>( \
         ss1->memManager, ss1->basisSet().nBasis, \
-        ss2->basisSet().nBasis); \
+        ss2->basisSet().nBasis) : \
+      std::make_shared<InCore4indexTPI<T>>( \
+        ss1->memManager, ss1->basisSet().nBasis); \
     gints.push_back(newg); \
   } \
     \
@@ -105,9 +105,9 @@ namespace ChronusQ {
   for ( auto i = 0; i < mol.atoms.size() * 3; i++ ) {\
     auto newg = ss2 ? \
       std::make_shared<DirectTPI<T>>( \
-        ss1->memManager, ss1->basisSet(), ss1->basisSet(), mol, 1e-12) : \
+        ss1->memManager, ss1->basisSet(), ss2->basisSet(), mol, 1e-12) :  \
       std::make_shared<DirectTPI<T>>( \
-        ss1->memManager, ss1->basisSet(), ss2->basisSet(), mol, 1e-12);  \
+        ss1->memManager, ss1->basisSet(), ss1->basisSet(), mol, 1e-12); \
     gints.push_back(newg); \
   } \
     \
@@ -222,6 +222,9 @@ namespace ChronusQ {
       // Create geometry updater
       MolecularOptions molOpt(tMax, deltaT);
 
+      OPTOPT( molOpt.nMidpointFockSteps = input.getData<size_t>("DYNAMICS.NNUCPGRAD"); )
+      OPTOPT( molOpt.nElectronicSteps = input.getData<size_t>("DYNAMICS.NELECPNUC"); )
+
       // TODO: we need to have a separate GUESS section for MD
       if( job == BOMD )
         molOpt.nMidpointFockSteps = 0;
@@ -234,7 +237,7 @@ namespace ChronusQ {
 
       // Set gradient computation methods
       if( job == BOMD ) {
-        md->gradientGetter = [&](){ return ss->getGrad(emPert,false,false); };
+        md->gradientGetter = [&, ss](){ return ss->getGrad(emPert,false,false); };
         elecJob = SCF;
       }
       else if( job == EHRENFEST ) {
@@ -245,8 +248,9 @@ namespace ChronusQ {
                                (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
         rt->createRTDataSets(molOpt.nElectronicSteps*molOpt.nMidpointFockSteps*molOpt.nNuclearSteps);
         rt->intScheme.nSteps = molOpt.nElectronicSteps - 1;
+        rt->intScheme.tMax = rt->intScheme.nSteps * rt->intScheme.deltaT;
 
-        md->gradientGetter = [&](){ return rt->getGrad(emPert); };
+        md->gradientGetter = [&, rt](){ return rt->getGrad(emPert); };
 
         if( auto neoss = std::dynamic_pointer_cast<NEOBase>(ss) ) {
           CErr("I don't want to write this right now");
@@ -254,7 +258,7 @@ namespace ChronusQ {
         else {
           auto aoints = extractIntPtr(ss);
           BasisSet* basis = &ss->basisSet();
-          md->finalMidpointFock = [&](double t){ 
+          md->finalMidpointFock = [&, aoints, basis, rt](double t){
             basis->updateNuclearCoordinates(mol);
             aoints->computeAOTwoE(*basis, mol, emPert);
             rt->formCoreH(emPert);
@@ -282,5 +286,8 @@ namespace ChronusQ {
 
     return elecJob;
   }
+
+#undef ADD_GRAD_INCORE
+#undef ADD_GRAD_DIRECT
 
 }

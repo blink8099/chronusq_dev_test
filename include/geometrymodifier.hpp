@@ -37,7 +37,7 @@ namespace ChronusQ {
   class GeometryModifier {
 
   protected:
-    MolecularOptions& molecularOptions_;
+    MolecularOptions molecularOptions_;
 
   public:
 
@@ -45,7 +45,7 @@ namespace ChronusQ {
 
     // Constructors
     GeometryModifier() = delete;
-    GeometryModifier(MolecularOptions &molecularOptions):
+    GeometryModifier(MolecularOptions molecularOptions):
       molecularOptions_(molecularOptions) {}
 
     // Different type

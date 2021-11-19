@@ -51,7 +51,7 @@ namespace ChronusQ {
 
     // Constructors
     MolecularDynamics() = delete;
-    MolecularDynamics(MolecularOptions& molecularOptions, Molecule& molecule) :
+    MolecularDynamics(MolecularOptions molecularOptions, Molecule& molecule) :
       GeometryModifier(molecularOptions),
       gradientCurrent(3*molecule.nAtoms, 0.),
       velocityHalfTime(3*molecule.nAtoms, 0.),
