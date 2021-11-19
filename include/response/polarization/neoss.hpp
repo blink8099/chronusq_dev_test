@@ -66,7 +66,6 @@ namespace ChronusQ {
       auto ssbase = neoss.getSubSSBase(label);
       SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&> (*ssbase); 
       N += getNSingleSSDim(ss,doTDA);
-			std::cout << "Inside NEOSS getNSingleDim: " << N << std::endl;
     }
     return N;
 
@@ -102,7 +101,6 @@ namespace ChronusQ {
     const size_t N = this->getNSingleDim(this->genSettings.doTDA) * (this->doReduced ? 2 : 1);
     const size_t tdOffSet = N / 2;
     const size_t chunk = 600;
-		std::cout << "getNSingleDim: " << this->getNSingleDim(this->genSettings.doTDA) * (this->doReduced ? 2 : 1);
     //Loops over the subsystems in our NEOSS object,
     for(auto label1:labels){
     
@@ -509,7 +507,6 @@ namespace ChronusQ {
 	
 
 	    for(auto iVec = 0; iVec < nVec; iVec++) {
-				std::cout << "offSet: " << offSet << std::endl;
 	      MatsT* CMO = ss.mo[0].pointer();
 	      MatsT* CMOB = (ss.nC == 1) ? ss.mo[1].pointer() : ss.mo[0].pointer();
 	
@@ -604,10 +601,8 @@ namespace ChronusQ {
 	      blockTransform(this->nSingleDim_/2,nVec,std::sqrt(0.5),
 	        grad,this->nSingleDim_,grad+this->nSingleDim_/2,this->nSingleDim_);
 			*/
-//			std::cout << "ss.iCS: " << ss.iCS << std::endl;
-//			std::cout << "ss.nC: " << ss.nC << std::endl;
-//	    offSet += (ss.nC == 1 and not ss.iCS) ? nOV : nOAVA + nOBVB;
-				offSet += N;
+
+			offSet += N;
 		}
   	
 
@@ -647,7 +642,6 @@ namespace ChronusQ {
           { nVec, this->nSingleDim_ } );
     }
 #endif
-		prettyPrintSmart(std::cout,"grad",grad,this->nSingleDim_,nVec,nVec);	
     return {nVec, grad};
 	}
 

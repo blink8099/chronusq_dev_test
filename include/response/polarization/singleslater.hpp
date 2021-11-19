@@ -1087,8 +1087,8 @@ namespace ChronusQ {
     } else 
 #endif
       this->fullMatrix_ = HV;
-    prettyPrintSmart(std::cout,"Full Hessian",this->fullMatrix_,N,N,N);
-    ProgramTimer::tock("Hessian Distribute");
+    
+		ProgramTimer::tock("Hessian Distribute");
 
     //if( isDist ) CErr();
 
