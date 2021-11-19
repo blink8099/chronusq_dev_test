@@ -418,7 +418,8 @@ namespace ChronusQ {
       virtual size_t getNSingleDim(const bool);
 
       size_t getNSingleSSDim(SingleSlater<MatsT,IntsT>& , const bool);
-//      std::pair<size_t,MatsT*> formPropGrad( ResponseOperator );
+
+      std::pair<size_t,MatsT*> formPropGrad( ResponseOperator );
 
       template <typename U>
       void neoPreConditioner(size_t nVec, U shift, U* V, U* AV);

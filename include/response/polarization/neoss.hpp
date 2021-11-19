@@ -66,6 +66,7 @@ namespace ChronusQ {
       auto ssbase = neoss.getSubSSBase(label);
       SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&> (*ssbase); 
       N += getNSingleSSDim(ss,doTDA);
+			std::cout << "Inside NEOSS getNSingleDim: " << N << std::endl;
     }
     return N;
 
@@ -78,11 +79,9 @@ namespace ChronusQ {
     size_t nOBVB = ss.nOB * ss.nVB;
     size_t nOV   = ss.nO  * ss.nV;
     size_t N_n = (ss.nC == 1) ? nOAVA + nOBVB : nOV;
-
-    if( not doTDA and not this->doReduced ) N_n *= 2;
-
-    assert(N_n != 0);
-
+    
+		if( not doTDA and not this->doReduced ) N_n *= 2;
+	  assert(N_n != 0);
     return N_n; 
 
   }
@@ -103,7 +102,7 @@ namespace ChronusQ {
     const size_t N = this->getNSingleDim(this->genSettings.doTDA) * (this->doReduced ? 2 : 1);
     const size_t tdOffSet = N / 2;
     const size_t chunk = 600;
-
+		std::cout << "getNSingleDim: " << this->getNSingleDim(this->genSettings.doTDA) * (this->doReduced ? 2 : 1);
     //Loops over the subsystems in our NEOSS object,
     for(auto label1:labels){
     
@@ -196,114 +195,6 @@ namespace ChronusQ {
       SetMat('N', N/2, X.nVec, U(-1.), X.AX + (N/2), N, X.AX + (N/2), N);
   };
 
-/*
-  template <typename MatsT, typename IntsT>
-  template <typename U>
-  void printResMO_impl(
-    std::ostream &out, size_t nRoots, double *W_print,
-    std::vector<std::pair<std::string,double *>> data, U* VL, U* VR) {
-
-    NEOSS<MatsT, IntsT>& neoss = dynamic_cast<NEOSS<MatsT, IntsT>&>(*this->ref_);
-    auto labels = neoss.getLabels();
-    //Loops over the subsystems in our NEOSS object,
-    for(auto label1:labels){
-      auto ssbase1 =  neoss.getSubSSBase(label1);
-      SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase1));
-  
-      this->nSingleDim_ = getNSingleSSDim(ss,this->genSettings.doTDA);
-  
-      out << "\n\n\n* RESIDUE EIGENMODES\n\n\n";
-  
-      for(auto iRt = 0; iRt < nRoots; iRt++) {
-  
-        out << "  Root " << std::setw(7) << std::right << iRt+1 << ":";
-  
-        // Energy eigenvalues in various unit systems
-        out << std::setw(15) << std::right << "W(Eh) = " 
-            << std::setprecision(8) << std::fixed << W_print[iRt];
-  
-        out << std::setw(15) << std::right << "W(eV) = " 
-            << std::setprecision(8) << std::fixed 
-            << W_print[iRt]*EVPerHartree;
-  
-        out << "\n";
-  
-  
-        if( this->genSettings.evalProp ) {
-          for(auto &d : data) {
-          out << "       " << std::setw(7) << " " << " ";
-          out << std::setw(15) << std::right << d.first 
-              << std::setprecision(8) << std::fixed 
-              << d.second[iRt];
-  
-          out << "\n";
-          }
-        }
-        auto xCont = getMOContributions(VR+iRt*this->nSingleDim_,1e-1);
-        decltype(xCont) yCont;
-        if( not this->genSettings.doTDA ) 
-          yCont = getMOContributions(VL+iRt*this->nSingleDim_,1e-1);
-  
-        // MO contributions
-        out << "    MO Contributions:\n";
-        for(auto &c : xCont) {
-  
-          char spinLabel = (c.first.first > 0) ? 
-                             ((this->ref_->nC == 1) ? 'A' : ' ') : 'B';
-        
-          out << "      ";
-          out << std::setw(4) << std::right 
-              << std::abs(c.first.second) + 1 << spinLabel << " -> ";
-          out << std::setw(4) << std::right 
-              << std::abs(c.first.first) + 1<< spinLabel;
-  
-          if(std::is_same<U,double>::value)
-            out << "  " << std::fixed << std::setprecision(5) 
-                        << std::setw(10) << std::right << c.second << "\n";
-          else {
-            out << "  " << std::fixed << std::setprecision(5) 
-                        << std::setw(10) << std::right << std::abs(c.second);
-            out << "  " << std::fixed << std::setprecision(5) 
-                        << std::setw(10) << std::right << std::arg(c.second) 
-                        << "\n";
-          }
-  
-  
-  
-        }
-        for(auto &c : yCont) {
-  
-          char spinLabel = (c.first.first > 0) ? 
-                             ((this->ref_->nC == 1) ? 'A' : ' ') : 'B';
-        
-          out << "      ";
-          out << std::setw(4) << std::right 
-              << std::abs(c.first.second) + 1 << spinLabel << " <- ";
-          out << std::setw(4) << std::right 
-              << std::abs(c.first.first) + 1 << spinLabel;
-  
-          if(std::is_same<U,double>::value)
-            out << "  " << std::fixed << std::setprecision(5) 
-                        << std::setw(10) << std::right << c.second << "\n";
-          else {
-            out << "  " << std::fixed << std::setprecision(5) 
-                        << std::setw(10) << std::right << std::abs(c.second);
-            out << "  " << std::fixed << std::setprecision(5) 
-                        << std::setw(10) << std::right << std::arg(c.second) 
-                        << "\n";
-          }
-  
-  
-  
-        }
-  
-  
-        out << "\n\n";
-      }
-
-    }
-  };
-*/
   
 /*
   template<typename MatsT, typename IntsT>
@@ -529,5 +420,235 @@ namespace ChronusQ {
     for(size_t iG = 0; iG < nGuess; iG++)
       G[iG * LDG + shift_energies[iG].second] = 1.;
   }
+
+	
+	//Computing the total property gradient by subsystem
+	//FIXME: allow for subsystems to be printed as well 
+  template<typename MatsT, typename IntsT>
+  std::pair<size_t,MatsT*> PolarizationPropagator<NEOSS<MatsT, IntsT>>::formPropGrad( ResponseOperator op ){
+		size_t nVec = OperatorSize[op];
+		size_t offSet = 0; 
+
+    NEOSS<MatsT, IntsT>& neoss = dynamic_cast<NEOSS<MatsT, IntsT>&>(*this->ref_);
+    auto labels = neoss.getLabels();
+		MatsT* grad = neoss.memManager.template malloc<MatsT>(this->nSingleDim_*nVec);
+
+    for (auto label:labels){  
+      auto ssbase =  neoss.getSubSSBase(label);
+      SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase));
+      Integrals<IntsT>& aoi = ss.aoints;
+   		std::vector<IntsT*> opS;
+    	std::vector<MatsT*> opT;
+	    bool needTrans = true;
+	    switch (op) {
+	
+	      case LenElectricDipole: 
+	        opS = aoi.lenElectric->dipolePointers();
+	        break;
+	
+	      case LenElectricQuadrupole: 
+	        opS = aoi.lenElectric->quadrupolePointers();
+	        break;
+	
+	      case LenElectricOctupole: 
+	        opS = aoi.lenElectric->octupolePointers();
+	        break;
+	
+	      case VelElectricDipole: 
+	        opS = aoi.velElectric->dipolePointers();
+	        break;
+	
+	      case VelElectricQuadrupole: 
+	        opS = aoi.velElectric->quadrupolePointers();
+	        break;
+	
+	      case VelElectricOctupole: 
+	        opS = aoi.velElectric->octupolePointers();
+	        break;
+	
+	      case MagneticDipole: 
+	        opS = aoi.magnetic->dipolePointers();
+	        break;
+	
+	      case MagneticQuadrupole: 
+	        opS = aoi.magnetic->quadrupolePointers();
+	        break;
+	
+	      case Brillouin:
+	        needTrans = false;
+	        opT = ss.fockMO.size() > 1 ?
+	              std::vector<MatsT*>{ss.fockMO[0].pointer(), ss.fockMO[1].pointer()}
+	              : std::vector<MatsT*>{ss.fockMO[0].pointer()};
+	        break;
+	
+	    }
+	
+	    /*
+	    if(needTrans and (this->ref_->nC == 2 or not this->ref_->iCS)) 
+	      CErr("NO 2C or U");
+	      */
+	
+	    size_t NB = ss.nAlphaOrbital();
+	    size_t NBC = ss.nC * NB;
+	
+	    int nOAVA = ss.nOA * ss.nVA;
+	    int nOBVB = ss.nOB * ss.nVB;
+	    int nOV   = ss.nO  * ss.nV;
+	
+	    int N  = (ss.nC == 1) ? nOAVA  : nOV;
+	    int NV = (ss.nC == 1) ? ss.nVA : ss.nV;
+	    int NO = (ss.nC == 1) ? ss.nOA : ss.nO;
+	    MatsT* SCR(nullptr);
+
+	    if( needTrans ) {
+	      SCR   = ss.memManager.template malloc<MatsT>(NBC*NBC);
+	      opT.emplace_back(ss.memManager.template malloc<MatsT>(NBC*NBC));
+	      if( ss.nC == 1 and not ss.iCS)
+	        opT.emplace_back(ss.memManager.template malloc<MatsT>(NBC*NBC));
+	    }
+	
+
+	    for(auto iVec = 0; iVec < nVec; iVec++) {
+				std::cout << "offSet: " << offSet << std::endl;
+	      MatsT* CMO = ss.mo[0].pointer();
+	      MatsT* CMOB = (ss.nC == 1) ? ss.mo[1].pointer() : ss.mo[0].pointer();
+	
+	      MatsT* V = grad + iVec*this->nSingleDim_;
+	
+	      if( needTrans ) {
+	
+	        Gemm('N','N',NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMO,NBC,MatsT(0.),SCR   ,NB);
+	        Gemm('C','N',NBC,NBC,NB,MatsT(1.),CMO     ,NBC,SCR,NB ,MatsT(0.),opT[0],NBC);
+	
+	        if( ss.nC == 1 and not ss.iCS ) {
+	
+	          Gemm('N','N',NB,NB,NB,MatsT(1.),opS[iVec],NB,CMOB,NB,MatsT(0.),SCR ,NB);
+	          Gemm('C','N',NB,NB,NB,MatsT(1.),CMOB     ,NB,SCR,NB,MatsT(0.),opT[1],NB);
+	
+	        } else if( ss.nC == 2 ) {
+	
+	          Gemm('N','N',NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMOB,NBC,MatsT(0.),SCR  ,NB);
+	          Gemm('C','N',NBC,NBC,NB,MatsT(1.),CMOB    ,NBC,SCR,NB ,MatsT(1.),opT[0],NBC);
+	
+	        }
+	
+	      }
+	
+	      MatsT* BOP = (ss.nC == 1 and not ss.iCS) ? opT[1] : opT[0];
+	
+	      SetMat('N',NV,NO,MatsT(1.),opT[0] + NO,NBC,V+offSet,NV);
+				
+	      if( ss.nC == 1 )
+	        SetMat('N',ss.nVB,ss.nOB,MatsT(1.),BOP + ss.nOB,NB,V + nOAVA + offSet,ss.nVB);
+	
+	      //for(auto i = 0 , ai = 0; i < NO; i++)
+	      //for(auto a = NO        ; a < NB; a++, ai++) {
+	
+	      //  V[ai]                               = opT[0][a + i*NB];
+	      //  V[ai+nOAVA]                         = opT[0][a + i*NB];
+	
+	      //}
+
+	      if(this -> doReduced ) 
+	
+	
+	        if( isHerOp(op) )
+	          for(auto i = 0 , ai = 0; i < NO; i++)
+	          for(auto a = NO        ; a < NB; a++, ai++) {
+	
+	            V[ai]         = std::sqrt(0.5)*(V[ai]         + opT[0][i + a*NB]);
+	            V[ai + nOAVA] = std::sqrt(0.5)*(V[ai + nOAVA] + opT[0][i + a*NB]);
+	
+	          }
+	        else
+	          for(auto i = 0 , ai = 0; i < NO; i++)
+	          for(auto a = NO        ; a < NB; a++, ai++) {
+	
+	            V[ai]         = std::sqrt(0.5)*(V[ai]         - opT[0][i + a*NB]);
+	            V[ai + nOAVA] = std::sqrt(0.5)*(V[ai + nOAVA] - opT[0][i + a*NB]);
+	
+	          }
+	
+	      else {
+				
+	        SetMat('N',NO,NV,MatsT(1.),opT[0] + NO*NBC,NBC,V + this->nSingleDim_/2+offSet,NO);
+	        IMatCopy('T',NO,NV,MatsT(1.),V + this->nSingleDim_/2+offSet,NO,NV);
+	        if( ss.nC == 1 ) {
+	          SetMat('N',ss.nOB,ss.nVB,MatsT(1.),BOP + ss.nOB*NB,NB,
+	            V + nOAVA + this->nSingleDim_/2+offSet,ss.nOB);
+	          IMatCopy('T',ss.nOB,ss.nVB,MatsT(1.),
+	            V + this->nSingleDim_/2 + nOAVA+offSet,ss.nOB,ss.nVB);
+	        	}
+					}
+	        //for(auto i = 0 , ai = 0; i < NO; i++)
+	        //for(auto a = NO        ; a < NB; a++, ai++) {
+	
+	        //  V[ai + this->nSingleDim_/2]         = opT[0][i + a*NB];
+	        //  V[ai + nOAVA + this->nSingleDim_/2] = opT[0][i + a*NB];
+	
+	        //}
+	
+	      }
+	
+	
+	    
+	
+	    if(SCR) ss.memManager.free(SCR);
+	    if( needTrans )
+	      for(auto &X : opT ) ss.memManager.free(X);
+	
+			//FIXME: Implementation needed for APB/AMB	
+	    // Transform to proper form form
+	    /*
+	    if( doAPB_AMB and not doReduced ) 
+	      blockTransform(this->nSingleDim_/2,nVec,std::sqrt(0.5),
+	        grad,this->nSingleDim_,grad+this->nSingleDim_/2,this->nSingleDim_);
+			*/
+//			std::cout << "ss.iCS: " << ss.iCS << std::endl;
+//			std::cout << "ss.nC: " << ss.nC << std::endl;
+//	    offSet += (ss.nC == 1 and not ss.iCS) ? nOV : nOAVA + nOBVB;
+				offSet += N;
+		}
+  	
+
+#if 0
+    if( this->savFile.exists() ) {
+
+      if( op == LenElectricDipole )
+        this->savFile.safeWriteData( "/RESP/PROPGRAD/LEN_ELEC_DIPOLE",grad,
+          { nVec, this->nSingleDim_ } );
+
+      if( op == LenElectricQuadrupole )
+        this->savFile.safeWriteData( "/RESP/PROPGRAD/LEN_ELEC_QUADRUPOLE",grad,
+          { nVec, this->nSingleDim_ } );
+
+      if( op == LenElectricOctupole )
+        this->savFile.safeWriteData( "/RESP/PROPGRAD/LEN_ELEC_OCTUPOLE",grad,
+          { nVec, this->nSingleDim_ } );
+
+      if( op == VelElectricDipole )
+        this->savFile.safeWriteData( "/RESP/PROPGRAD/VEL_ELEC_DIPOLE",grad,
+          { nVec, this->nSingleDim_ } );
+
+      if( op == VelElectricQuadrupole )
+        this->savFile.safeWriteData( "/RESP/PROPGRAD/VEL_ELEC_QUADRUPOLE",grad,
+          { nVec, this->nSingleDim_ } );
+
+      if( op == VelElectricOctupole )
+        this->savFile.safeWriteData( "/RESP/PROPGRAD/VEL_ELEC_OCTUPOLE",grad,
+          { nVec, this->nSingleDim_ } );
+
+      if( op == MagneticDipole )
+        this->savFile.safeWriteData( "/RESP/PROPGRAD/MAG_DIPOLE",grad,
+          { nVec, this->nSingleDim_ } );
+
+      if( op == MagneticQuadrupole )
+        this->savFile.safeWriteData( "/RESP/PROPGRAD/MAG_QUADRUPOLE",grad,
+          { nVec, this->nSingleDim_ } );
+    }
+#endif
+		prettyPrintSmart(std::cout,"grad",grad,this->nSingleDim_,nVec,nVec);	
+    return {nVec, grad};
+	}
 
 }  // namespace ChronusQ

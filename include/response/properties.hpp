@@ -52,7 +52,7 @@ namespace ChronusQ {
     for(auto &op : ops) {
 
       // Compute property gradient
-//      std::tie(nProp,g) = formPropGrad(op);
+      std::tie(nProp,g) = formPropGrad(op);
 
 
       // Allocate space for the property
@@ -239,7 +239,6 @@ namespace ChronusQ {
       for(auto iO = 0; iO < nRoots; iO++) {
 
         double omega = W[iO];
-
         T* tDipole = resResults.tLenElecDipole_ge + 3*iO;
 
         double tDipoleX = std::abs(tDipole[0]);

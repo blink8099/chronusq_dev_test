@@ -426,7 +426,6 @@ namespace ChronusQ {
     // subspace greater than or equal to half of the full problem dimension.
     if( input.containsData("RESPONSE.NROOTS") and 
         input.containsData("RESPONSE.DOFULL") ) {
-
       if( ((3 + resp->resSettings.gplhr_m) * resp->resSettings.nRoots) >= resp->getNSingleDim() / 2 ) {
 
         resp->genSettings.doFull = true;

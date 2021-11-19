@@ -387,7 +387,7 @@ namespace ChronusQ {
 
       out << "\n";
 
-/*
+
       if( this->genSettings.evalProp ) {
         for(auto &d : data) {
         out << "       " << std::setw(7) << " " << " ";
@@ -398,7 +398,7 @@ namespace ChronusQ {
         out << "\n";
         }
       }
-*/
+
       auto xCont = getMOContributions(VR+iRt*this->nSingleDim_,1e-1);
       decltype(xCont) yCont;
       if( not this->genSettings.doTDA ) 
@@ -1388,7 +1388,6 @@ namespace ChronusQ {
   std::pair<size_t,MatsT*> 
     PolarizationPropagator<SingleSlater<MatsT, IntsT>>::formPropGrad(
       ResponseOperator op) {
-
     std::vector<IntsT*> opS;
     std::vector<MatsT*>      opT;
 
@@ -1469,7 +1468,6 @@ namespace ChronusQ {
     }
 
     for(auto iVec = 0; iVec < nVec; iVec++) {
-
       MatsT* CMO = this->ref_->mo[0].pointer();
       MatsT* CMOB = (ss.nC == 1) ? this->ref_->mo[1].pointer() : CMO + NB;
 

@@ -291,7 +291,7 @@ namespace ChronusQ {
 
       postDiagonalization();
 
-      //eif( genSettings.evalProp ) residueProperties();
+      if( genSettings.evalProp ) residueProperties();
 
     }
 
