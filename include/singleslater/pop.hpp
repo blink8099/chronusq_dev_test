@@ -41,9 +41,16 @@ namespace ChronusQ {
 
     // Mulliken population analysis
     mullikenCharges.clear();
-
-    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-         this->onePDM->S().pointer(),NB,MatsT(0.),SCR,NB);
+    if (nC != 4) {
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+           this->onePDM->S().pointer(),NB,MatsT(0.),SCR,NB);
+    }
+    else {
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.kinetic->pointer(),NB,
+           this->onePDM->S().pointer()+2*NB*NB+NB,2*NB,MatsT(0.),SCR,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+           this->onePDM->S().pointer(),2*NB,MatsT(1./(2.*SpeedOfLight*SpeedOfLight)),SCR,NB);
+    }
 
     for(auto iAtm = 0; iAtm < inputMol.nAtoms; iAtm++) {
 
@@ -73,8 +80,12 @@ namespace ChronusQ {
     for(auto iAtm = 0; iAtm < inputMol.nAtoms; iAtm++) {
 
       size_t iEnd;
-      if( iAtm == inputMol.nAtoms-1 )
-        iEnd = NB;
+      if( iAtm == inputMol.nAtoms-1 ){
+        if( nC == 4 )
+          iEnd = 2*NB;
+	else
+          iEnd = NB;
+      }
       else
         iEnd = this->basisSet().mapCen2BfSt[iAtm+1];
 
