@@ -156,10 +156,13 @@ namespace ChronusQ {
       auto labels = neoss->getLabels();
       for( auto ilbl = 0; ilbl < labels.size(); ilbl++ ) {
         auto ss1 = neoss->getSubSSBase(labels[ilbl]);
-        IntegralsBase* subints = extractIntPtr(ss);
+        IntegralsBase* subints = extractIntPtr(ss1);
         // TODO: Generalize this
         std::string section = labels[ilbl] == "Protonic" ? "PINTS" : "INTS";
         createGradInt(subints, ss1, nullptr, section);
+
+        auto intcast = dynamic_cast<Integrals<double>*>(subints);
+
 
         for(auto jlbl = ilbl + 1; jlbl < labels.size(); jlbl++) {
           auto ss2 = neoss->getSubSSBase(labels[jlbl]);
@@ -246,14 +249,42 @@ namespace ChronusQ {
         rt->savFile = ss->savFile;
         rt->intScheme.deltaT = molOpt.timeStepAU/
                                (molOpt.nMidpointFockSteps*molOpt.nElectronicSteps);
-        rt->createRTDataSets(molOpt.nElectronicSteps*molOpt.nMidpointFockSteps*molOpt.nNuclearSteps);
-        rt->intScheme.nSteps = molOpt.nElectronicSteps - 1;
+        rt->createRTDataSets(molOpt.nElectronicSteps*molOpt.nMidpointFockSteps*molOpt.nNuclearSteps+1);
+        rt->intScheme.nSteps = molOpt.nElectronicSteps;
         rt->intScheme.tMax = rt->intScheme.nSteps * rt->intScheme.deltaT;
 
-        md->gradientGetter = [&, rt](){ return rt->getGrad(emPert); };
+        md->gradientGetter = [&, rt](){
+          rt->printLevel = 1;
+          return rt->getGrad(emPert);
+        };
 
         if( auto neoss = std::dynamic_pointer_cast<NEOBase>(ss) ) {
-          CErr("I don't want to write this right now");
+          // FIXME: Generalize this to account for more than two subsystems
+          std::vector<IntegralsBase*> ints;
+          std::vector<BasisSet*> bases;
+          BasisSet* ebasis = nullptr;
+          BasisSet* pbasis = nullptr;
+          auto labels = neoss->getLabels();
+          for( auto label: labels ) {
+            auto subss = neoss->getSubSSBase(label);
+            ints.push_back(extractIntPtr(subss));
+            bases.push_back(&subss->basisSet());
+            if( label == "Electronic" )
+              ebasis = bases.back();
+            else if( label == "Protonic" )
+              pbasis = bases.back();
+          }
+
+          md->finalMidpointFock = [=, &mol, &emPert](double t){
+            for( auto isub = 0; isub < ints.size(); isub++ ) {
+              bases[isub]->updateNuclearCoordinates(mol);
+              ints[isub]->computeAOTwoE(*bases[isub], mol, emPert);
+            }
+            epints->computeAOTwoE(*ebasis, *pbasis, mol, emPert);
+            rt->formCoreH(emPert);
+            rt->updateAOProperties(t);
+            return rt->totalEnergy();
+          };
         }
         else {
           auto aoints = extractIntPtr(ss);

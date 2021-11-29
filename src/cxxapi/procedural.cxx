@@ -296,13 +296,14 @@ namespace ChronusQ {
           rt->formCoreH(emPert);
 
           // Get correct time length
-          if( !firstStep )
+          if( !firstStep ) {
             rt->intScheme.restoreStep = rt->curState.iStep;
-          rt->intScheme.tMax = rt->intScheme.tMax + rt->intScheme.nSteps*rt->intScheme.deltaT;
+            rt->intScheme.tMax = rt->intScheme.tMax + rt->intScheme.nSteps*rt->intScheme.deltaT;
+          }
 
           if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
 
-          rt->doPropagation(false);
+          rt->doPropagation();
 
         }
 

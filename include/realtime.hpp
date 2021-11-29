@@ -105,6 +105,7 @@ namespace ChronusQ {
     IntegrationData     data;      ///< Data collection
     
     bool restart   = false; ///< Restarting calc from bin file
+    size_t printLevel = 1; ///< Print Level
 
     RealTimeBase()                     = delete;
     RealTimeBase(const RealTimeBase &) = delete;
@@ -115,7 +116,7 @@ namespace ChronusQ {
 
 
     // RealTimeBase procedural functions
-    virtual void doPropagation(bool)         = 0;
+    virtual void doPropagation()         = 0;
     virtual double totalEnergy()         = 0;
     virtual std::vector<double> getGrad(EMPerturbation&) = 0;
     virtual void formCoreH(EMPerturbation&)              = 0;
@@ -205,7 +206,7 @@ namespace ChronusQ {
 
     // RealTime procedural functions
     // RealTime procedural functions
-    void doPropagation(bool); // From RealTimeBase
+    void doPropagation(); // From RealTimeBase
     void propagateStep();
     void formPropagator(size_t);
     void formFock(bool,double,size_t);

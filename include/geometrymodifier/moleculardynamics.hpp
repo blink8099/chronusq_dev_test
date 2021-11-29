@@ -113,12 +113,11 @@ namespace ChronusQ {
           double fock_dt = molecularOptions_.timeStepAU/(molecularOptions_.nMidpointFockSteps + 1);
           geometryVV(molecule, gradientCurrent, fock_dt);
           molecule.update();
-	  double e;
           electronicPotentialEnergy = finalMidpointFock(curState.iStep*fock_dt);
-          //finalMidpointFock(curState.iStep*fock_dt);
         }
 
         gradientCurrent = gradientGetter();
+
       }
 
       bool moveGeometry = true;
@@ -151,7 +150,9 @@ namespace ChronusQ {
         // compute kinetic energy
         computeKineticEnergy(molecule);
       }
-      if(moveGeometry) geometryVV(molecule, gradientCurrent, molecularOptions_.timeStepAU/(molecularOptions_.nMidpointFockSteps + 1));
+      if(moveGeometry) {
+        geometryVV(molecule, gradientCurrent, molecularOptions_.timeStepAU/(molecularOptions_.nMidpointFockSteps + 1)); 
+      }
 
       // update other quantities
       molecule.update();
@@ -219,6 +220,9 @@ namespace ChronusQ {
 
       previousTotalEnergy = totalEnergy;
 
+      if( print && moveGeometry )
+        std::cout << "  *** Moving Nuclei ***" << std::endl;
+
     }
 
     // Advance the velocity using the Verlet
@@ -242,7 +246,7 @@ namespace ChronusQ {
         }
 
         //prepare the next velocity at half-time
-	      //v(t+1/2) = v(t) + 1/2dT∙a(t)
+        //v(t+1/2) = v(t) + 1/2dT∙a(t)
         velocityHalfTime[i  ] = velocityCurrent[i  ] + 0.5*timeStep*acceleration[i  ];
         velocityHalfTime[i+1] = velocityCurrent[i+1] + 0.5*timeStep*acceleration[i+1];
         velocityHalfTime[i+2] = velocityCurrent[i+2] + 0.5*timeStep*acceleration[i+2];

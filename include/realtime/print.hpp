@@ -169,6 +169,8 @@ namespace ChronusQ {
 
     std::cout << std::endl << bannerTop << std::endl << std::endl;
 
+    this->printLevel = 0;
+
   };
 
   template <template <typename, typename> class _SSTyp, typename IntsT>

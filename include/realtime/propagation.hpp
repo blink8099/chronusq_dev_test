@@ -47,49 +47,26 @@ std::array<T,N> valarray2array(const std::valarray<T> &x) {
 namespace ChronusQ {
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::doPropagation(bool doGradient) {
+  void RealTime<_SSTyp,IntsT>::doPropagation() {
 
     ProgramTimer::tick("Real Time Total");
 
-    printRTHeader();
+    if( printLevel > 0 )
+      printRTHeader();
 
     if ( savFile.exists() )
       if ( restart )
         restoreState();
 
     // Upon entry to RT, assume only the orthonormal density is valid
-    //propagator_.computeOrtho();
-    //propagator_.ortho2aoDen();
-    //propagator_.ortho2aoMOs();
     for(auto idx = 0; idx < systems_.size(); idx++) {
       systems_[idx]->computeOrtho();
       systems_[idx]->ortho2aoDen();
       systems_[idx]->ortho2aoMOs();
     }
 
-
-    // propagator_.onePDMOrtho->output(std::cout, "TD 1PDM Ortho", true);
-    // propagator_.onePDM->output(std::cout, "TD 1PDM", true);
-
     bool Start(false); // Start the MMUT iterations
     bool FinMM(false); // Wrap up the MMUT iterations
-
-    if(doGradient) {
-
-      EMPerturbation pert_t = pert.getPert(curState.xTime);
-
-      // Form the Fock matrix at the current time
-      for(auto idx = 0; idx < systems_.size(); idx++) {
-        this->formFock(false,curState.xTime,idx);
-      }
-
-      // Compute properties for D(k) 
-      propagator_.computeProperties(pert_t);
-
-      // Print progress line in the output file
-      printRTStep();
-
-    }
 
     size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/4)/intScheme.deltaT);
 
@@ -122,6 +99,7 @@ namespace ChronusQ {
           Start = Start or ( curState.iStep % intScheme.iRstrt == 0 );
 
         // "Finish" the MMUT if this is the last step
+        // NOTE: To compare to Gaussian, do NOT do this restart for Ehrenfest
         FinMM = ( curState.iStep == maxStep );
 
         // TODO: "Finish" the MMUT if the field turns on or off
@@ -174,8 +152,8 @@ namespace ChronusQ {
 
         } else {
           // Save a copy of the SingleSlater density in the saved density
-          // storage 
-            
+          // storage
+
           // DOSav(k) = DO(k)
           *DOSav[idx] = *systems_[idx]->onePDMOrtho;
      
@@ -588,7 +566,7 @@ namespace ChronusQ {
     EMPerturbation pert_t = pert.getPert(currentTime);
     propagator_.computeProperties(pert_t);
     // Print progress line in the output file
-    printRTStep();
+    // printRTStep();
 
 
   }; // RealTime::updateAOProperties
