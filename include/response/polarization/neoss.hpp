@@ -640,7 +640,13 @@ namespace ChronusQ {
     NEOSS<MatsT,IntsT>& neoss = dynamic_cast<NEOSS<MatsT, IntsT>&>(*this->ref_);
     auto labels = neoss.getLabels();
     size_t offSet = 0;  
-    for (auto label:labels){
+    for(auto iLabel = 0; iLabel < labels.size(); iLabel++ ){
+
+      // Sentinel for printing
+      moCont.push_back({{0,0},U(iLabel)});
+      bool added = false;
+
+      auto label = labels[iLabel];
       auto ssbase = neoss.getSubSSBase(label);
       SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>((*ssbase));
 
@@ -656,7 +662,10 @@ namespace ChronusQ {
         int i = j / NV;   
         int a = (j % NV) + NO;
 //        std::cout << "V[j], j, a, i: " << V[j+offSet] << ", " << j+offSet << std::endl;
-        if( std::abs(V[j+offSet]) > tol ) moCont.push_back( { {a,i}, V[j+offSet] } );
+        if( std::abs(V[j+offSet]) > tol ) {
+          moCont.push_back( { {a,i}, V[j+offSet] } );
+          added = true;
+        }
 
       }
 
@@ -671,13 +680,20 @@ namespace ChronusQ {
           int i = j / NV;
           int a = (j % NV) + NO;
 
-          if( std::abs(V[j+nOAVA+offSet]) > tol ) 
+          if( std::abs(V[j+nOAVA+offSet]) > tol ) {
             moCont.push_back( { {-a,-i}, V[j+nOAVA+offSet] } );
+            added = true;
+          }
 
         }
 
       }
-      if (label == labels[0]) moCont.push_back({{0,0},0});
+
+      // Remove print sentinel if we don't have contributions from this
+      //   subsystem
+      if( !added )
+        moCont.pop_back();
+
       int Nadd = (ss.nC == 1 ) ? ss.nOA * ss.nVA : ss.nO * ss.nV;
       offSet += Nadd;
     }
@@ -732,13 +748,15 @@ namespace ChronusQ {
       SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase)); 
       size_t nC = ss.nC; 
       // MO contributions
-      out << "    MO Contributions:\n" << labels[0] << ":\n";
-      for(auto &c : xCont) {
+      out << "    MO Contributions:\n";
+      for(auto iCont = 0; iCont < xCont.size(); iCont++) {
 
-        if ( c.first.first == c.first.second and c.first.first == 0){
+        auto& c = xCont[iCont];
 
-          out << labels[1] << ":\n";
-          //Updating ss to get spinblock correct
+        if ( c.first.first == 0 and c.first.second == 0){
+
+          out << "      " << labels[int(std::real(c.second))] << ":\n";
+          //  Updating ss to get spinblock correct
           auto ssbase2 = neoss.getSubSSBase(labels[1]);
           SingleSlater<MatsT, IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
           nC = ss2.nC;
@@ -747,7 +765,7 @@ namespace ChronusQ {
 
         }
 
-      char spinLabel = (c.first.first > 0) ? 
+        char spinLabel = (c.first.first > 0) ? 
                            ((nC == 1) ? 'A' : ' ') : 'B';
       
         out << "      ";
@@ -770,8 +788,9 @@ namespace ChronusQ {
       nC = ss.nC;
       for(auto &c : yCont) {
 
-        if ( c.first.first == c.first.second and c.first.first == 0){
+        if ( c.first.first == 0 and c.first.second == 0) {
 
+          out << "      " << labels[int(std::real(c.second))] << ":\n";
           //Updating ss to get spinblock correct
           auto ssbase2 = neoss.getSubSSBase(labels[1]);
           SingleSlater<MatsT,IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
