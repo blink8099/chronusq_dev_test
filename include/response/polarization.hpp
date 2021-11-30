@@ -424,6 +424,14 @@ namespace ChronusQ {
       template <typename U>
       void neoPreConditioner(size_t nVec, U shift, U* V, U* AV);
 
+			template <typename U>
+			std::vector< std::pair< std::pair<int,int>, U > >
+				getMOContributions(U *V, double tol);
+
+			template <typename U>
+			void printResMO_impl( std::ostream &out, size_t nRoots, double *W_print,
+			std::vector<std::pair<std::string,double *>> data,U* VL, U* VR);
+
       void resGuess(size_t, MatsT*, size_t);
 
       // Interface to PolarizationPropagator<SingleSlater> double exposure
@@ -436,7 +444,16 @@ namespace ChronusQ {
         formLinearTrans_direct_impl(c,x,op,noTrans);
 
       };
-  
+	 			
+			virtual void printResMO(std::ostream &out, size_t nRoots, double *W, 
+				std::vector<std::pair<std::string,double *>> data, double* VL, double* VR) {
+					printResMO_impl(out,nRoots,W,data,VL,VR);
+			};
+			virtual void printResMO(std::ostream &out, size_t nRoots, double *W, 
+				std::vector<std::pair<std::string,double *>> data, dcomplex* VL, dcomplex* VR) {
+					printResMO_impl(out,nRoots,W,data,VL,VR);
+			};
+ 
   };
 
 
