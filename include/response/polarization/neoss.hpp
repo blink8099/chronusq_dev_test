@@ -79,8 +79,8 @@ namespace ChronusQ {
     size_t nOV   = ss.nO  * ss.nV;
     size_t N_n = (ss.nC == 1) ? nOAVA + nOBVB : nOV;
     
-		if( not doTDA and not this->doReduced ) N_n *= 2;
-	  assert(N_n != 0);
+    if( not doTDA and not this->doReduced ) N_n *= 2;
+    assert(N_n != 0);
     return N_n; 
 
   }
@@ -404,192 +404,192 @@ namespace ChronusQ {
       G[iG * LDG + shift_energies[iG].second] = 1.;
   }
 
-	
-	//Computing the total property gradient by subsystem
-	//FIXME: allow for subsystems to be printed as well 
+  
+  //Computing the total property gradient by subsystem
+  //FIXME: allow for subsystems to be printed as well 
   template<typename MatsT, typename IntsT>
   std::pair<size_t,MatsT*> PolarizationPropagator<NEOSS<MatsT, IntsT>>::formPropGrad( ResponseOperator op ){
-		size_t nVec = OperatorSize[op];
-		size_t offSet = 0; 
+    size_t nVec = OperatorSize[op];
+    size_t offSet = 0; 
 
     NEOSS<MatsT, IntsT>& neoss = dynamic_cast<NEOSS<MatsT, IntsT>&>(*this->ref_);
     auto labels = neoss.getLabels();
-		MatsT* grad = neoss.memManager.template malloc<MatsT>(this->nSingleDim_*nVec);
+    MatsT* grad = neoss.memManager.template malloc<MatsT>(this->nSingleDim_*nVec);
 
     for (auto label:labels){  
       auto ssbase =  neoss.getSubSSBase(label);
       SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase));
       Integrals<IntsT>& aoi = ss.aoints;
-   		std::vector<IntsT*> opS;
-    	std::vector<MatsT*> opT;
-	    bool needTrans = true;
-	    switch (op) {
-	
-	      case LenElectricDipole: 
-	        opS = aoi.lenElectric->dipolePointers();
-	        break;
-	
-	      case LenElectricQuadrupole: 
-	        opS = aoi.lenElectric->quadrupolePointers();
-	        break;
-	
-	      case LenElectricOctupole: 
-	        opS = aoi.lenElectric->octupolePointers();
-	        break;
-	
-	      case VelElectricDipole: 
-	        opS = aoi.velElectric->dipolePointers();
-	        break;
-	
-	      case VelElectricQuadrupole: 
-	        opS = aoi.velElectric->quadrupolePointers();
-	        break;
-	
-	      case VelElectricOctupole: 
-	        opS = aoi.velElectric->octupolePointers();
-	        break;
-	
-	      case MagneticDipole: 
-	        opS = aoi.magnetic->dipolePointers();
-	        break;
-	
-	      case MagneticQuadrupole: 
-	        opS = aoi.magnetic->quadrupolePointers();
-	        break;
-	
-	      case Brillouin:
-	        needTrans = false;
-	        opT = ss.fockMO.size() > 1 ?
-	              std::vector<MatsT*>{ss.fockMO[0].pointer(), ss.fockMO[1].pointer()}
-	              : std::vector<MatsT*>{ss.fockMO[0].pointer()};
-	        break;
-	
-	    }
-	
-	    /*
-	    if(needTrans and (this->ref_->nC == 2 or not this->ref_->iCS)) 
-	      CErr("NO 2C or U");
-	      */
-	
-	    size_t NB = ss.nAlphaOrbital();
-	    size_t NBC = ss.nC * NB;
-	
-	    int nOAVA = ss.nOA * ss.nVA;
-	    int nOBVB = ss.nOB * ss.nVB;
-	    int nOV   = ss.nO  * ss.nV;
-	
-	    int N  = (ss.nC == 1) ? nOAVA  : nOV;
-	    int NV = (ss.nC == 1) ? ss.nVA : ss.nV;
-	    int NO = (ss.nC == 1) ? ss.nOA : ss.nO;
-	    MatsT* SCR(nullptr);
+      std::vector<IntsT*> opS;
+      std::vector<MatsT*> opT;
+      bool needTrans = true;
+      switch (op) {
+  
+        case LenElectricDipole: 
+          opS = aoi.lenElectric->dipolePointers();
+          break;
+  
+        case LenElectricQuadrupole: 
+          opS = aoi.lenElectric->quadrupolePointers();
+          break;
+  
+        case LenElectricOctupole: 
+          opS = aoi.lenElectric->octupolePointers();
+          break;
+  
+        case VelElectricDipole: 
+          opS = aoi.velElectric->dipolePointers();
+          break;
+  
+        case VelElectricQuadrupole: 
+          opS = aoi.velElectric->quadrupolePointers();
+          break;
+  
+        case VelElectricOctupole: 
+          opS = aoi.velElectric->octupolePointers();
+          break;
+  
+        case MagneticDipole: 
+          opS = aoi.magnetic->dipolePointers();
+          break;
+  
+        case MagneticQuadrupole: 
+          opS = aoi.magnetic->quadrupolePointers();
+          break;
+  
+        case Brillouin:
+          needTrans = false;
+          opT = ss.fockMO.size() > 1 ?
+                std::vector<MatsT*>{ss.fockMO[0].pointer(), ss.fockMO[1].pointer()}
+                : std::vector<MatsT*>{ss.fockMO[0].pointer()};
+          break;
+  
+      }
+  
+      /*
+      if(needTrans and (this->ref_->nC == 2 or not this->ref_->iCS)) 
+        CErr("NO 2C or U");
+        */
+  
+      size_t NB = ss.nAlphaOrbital();
+      size_t NBC = ss.nC * NB;
+  
+      int nOAVA = ss.nOA * ss.nVA;
+      int nOBVB = ss.nOB * ss.nVB;
+      int nOV   = ss.nO  * ss.nV;
+  
+      int N  = (ss.nC == 1) ? nOAVA  : nOV;
+      int NV = (ss.nC == 1) ? ss.nVA : ss.nV;
+      int NO = (ss.nC == 1) ? ss.nOA : ss.nO;
+      MatsT* SCR(nullptr);
 
-	    if( needTrans ) {
-	      SCR   = ss.memManager.template malloc<MatsT>(NBC*NBC);
-	      opT.emplace_back(ss.memManager.template malloc<MatsT>(NBC*NBC));
-	      if( ss.nC == 1 and not ss.iCS)
-	        opT.emplace_back(ss.memManager.template malloc<MatsT>(NBC*NBC));
-	    }
-	
+      if( needTrans ) {
+        SCR   = ss.memManager.template malloc<MatsT>(NBC*NBC);
+        opT.emplace_back(ss.memManager.template malloc<MatsT>(NBC*NBC));
+        if( ss.nC == 1 and not ss.iCS)
+          opT.emplace_back(ss.memManager.template malloc<MatsT>(NBC*NBC));
+      }
+  
 
-	    for(auto iVec = 0; iVec < nVec; iVec++) {
-	      MatsT* CMO = ss.mo[0].pointer();
-	      MatsT* CMOB = (ss.nC == 1) ? ss.mo[1].pointer() : ss.mo[0].pointer();
-	
-	      MatsT* V = grad + iVec*this->nSingleDim_;
-	
-	      if( needTrans ) {
-	
-	        Gemm('N','N',NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMO,NBC,MatsT(0.),SCR   ,NB);
-	        Gemm('C','N',NBC,NBC,NB,MatsT(1.),CMO     ,NBC,SCR,NB ,MatsT(0.),opT[0],NBC);
-	
-	        if( ss.nC == 1 and not ss.iCS ) {
-	
-	          Gemm('N','N',NB,NB,NB,MatsT(1.),opS[iVec],NB,CMOB,NB,MatsT(0.),SCR ,NB);
-	          Gemm('C','N',NB,NB,NB,MatsT(1.),CMOB     ,NB,SCR,NB,MatsT(0.),opT[1],NB);
-	
-	        } else if( ss.nC == 2 ) {
-	
-	          Gemm('N','N',NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMOB,NBC,MatsT(0.),SCR  ,NB);
-	          Gemm('C','N',NBC,NBC,NB,MatsT(1.),CMOB    ,NBC,SCR,NB ,MatsT(1.),opT[0],NBC);
-	
-	        }
-	
-	      }
-	
-	      MatsT* BOP = (ss.nC == 1 and not ss.iCS) ? opT[1] : opT[0];
-	
-	      SetMat('N',NV,NO,MatsT(1.),opT[0] + NO,NBC,V+offSet,NV);
-				
-	      if( ss.nC == 1 )
-	        SetMat('N',ss.nVB,ss.nOB,MatsT(1.),BOP + ss.nOB,NB,V + nOAVA + offSet,ss.nVB);
-	
-	      //for(auto i = 0 , ai = 0; i < NO; i++)
-	      //for(auto a = NO        ; a < NB; a++, ai++) {
-	
-	      //  V[ai]                               = opT[0][a + i*NB];
-	      //  V[ai+nOAVA]                         = opT[0][a + i*NB];
-	
-	      //}
+      for(auto iVec = 0; iVec < nVec; iVec++) {
+        MatsT* CMO = ss.mo[0].pointer();
+        MatsT* CMOB = (ss.nC == 1) ? ss.mo[1].pointer() : ss.mo[0].pointer();
+  
+        MatsT* V = grad + iVec*this->nSingleDim_;
+  
+        if( needTrans ) {
+  
+          Gemm('N','N',NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMO,NBC,MatsT(0.),SCR   ,NB);
+          Gemm('C','N',NBC,NBC,NB,MatsT(1.),CMO     ,NBC,SCR,NB ,MatsT(0.),opT[0],NBC);
+  
+          if( ss.nC == 1 and not ss.iCS ) {
+  
+            Gemm('N','N',NB,NB,NB,MatsT(1.),opS[iVec],NB,CMOB,NB,MatsT(0.),SCR ,NB);
+            Gemm('C','N',NB,NB,NB,MatsT(1.),CMOB     ,NB,SCR,NB,MatsT(0.),opT[1],NB);
+  
+          } else if( ss.nC == 2 ) {
+  
+            Gemm('N','N',NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMOB,NBC,MatsT(0.),SCR  ,NB);
+            Gemm('C','N',NBC,NBC,NB,MatsT(1.),CMOB    ,NBC,SCR,NB ,MatsT(1.),opT[0],NBC);
+  
+          }
+  
+        }
+  
+        MatsT* BOP = (ss.nC == 1 and not ss.iCS) ? opT[1] : opT[0];
+  
+        SetMat('N',NV,NO,MatsT(1.),opT[0] + NO,NBC,V+offSet,NV);
+        
+        if( ss.nC == 1 )
+          SetMat('N',ss.nVB,ss.nOB,MatsT(1.),BOP + ss.nOB,NB,V + nOAVA + offSet,ss.nVB);
+  
+        //for(auto i = 0 , ai = 0; i < NO; i++)
+        //for(auto a = NO        ; a < NB; a++, ai++) {
+  
+        //  V[ai]                               = opT[0][a + i*NB];
+        //  V[ai+nOAVA]                         = opT[0][a + i*NB];
+  
+        //}
 
-	      if(this -> doReduced ) 
-	
-	
-	        if( isHerOp(op) )
-	          for(auto i = 0 , ai = 0; i < NO; i++)
-	          for(auto a = NO        ; a < NB; a++, ai++) {
-	
-	            V[ai]         = std::sqrt(0.5)*(V[ai]         + opT[0][i + a*NB]);
-	            V[ai + nOAVA] = std::sqrt(0.5)*(V[ai + nOAVA] + opT[0][i + a*NB]);
-	
-	          }
-	        else
-	          for(auto i = 0 , ai = 0; i < NO; i++)
-	          for(auto a = NO        ; a < NB; a++, ai++) {
-	
-	            V[ai]         = std::sqrt(0.5)*(V[ai]         - opT[0][i + a*NB]);
-	            V[ai + nOAVA] = std::sqrt(0.5)*(V[ai + nOAVA] - opT[0][i + a*NB]);
-	
-	          }
-	
-	      else {
-				
-	        SetMat('N',NO,NV,MatsT(1.),opT[0] + NO*NBC,NBC,V + this->nSingleDim_/2+offSet,NO);
-	        IMatCopy('T',NO,NV,MatsT(1.),V + this->nSingleDim_/2+offSet,NO,NV);
-	        if( ss.nC == 1 ) {
-	          SetMat('N',ss.nOB,ss.nVB,MatsT(1.),BOP + ss.nOB*NB,NB,
-	            V + nOAVA + this->nSingleDim_/2+offSet,ss.nOB);
-	          IMatCopy('T',ss.nOB,ss.nVB,MatsT(1.),
-	            V + this->nSingleDim_/2 + nOAVA+offSet,ss.nOB,ss.nVB);
-	        	}
-					}
-	        //for(auto i = 0 , ai = 0; i < NO; i++)
-	        //for(auto a = NO        ; a < NB; a++, ai++) {
-	
-	        //  V[ai + this->nSingleDim_/2]         = opT[0][i + a*NB];
-	        //  V[ai + nOAVA + this->nSingleDim_/2] = opT[0][i + a*NB];
-	
-	        //}
-	
-	      }
-	
-	
-	    
-	
-	    if(SCR) ss.memManager.free(SCR);
-	    if( needTrans )
-	      for(auto &X : opT ) ss.memManager.free(X);
-	
-			//FIXME: Implementation needed for APB/AMB	
-	    // Transform to proper form form
-	    /*
-	    if( doAPB_AMB and not doReduced ) 
-	      blockTransform(this->nSingleDim_/2,nVec,std::sqrt(0.5),
-	        grad,this->nSingleDim_,grad+this->nSingleDim_/2,this->nSingleDim_);
-			*/
+        if(this -> doReduced ) 
+  
+  
+          if( isHerOp(op) )
+            for(auto i = 0 , ai = 0; i < NO; i++)
+            for(auto a = NO        ; a < NB; a++, ai++) {
+  
+              V[ai]         = std::sqrt(0.5)*(V[ai]         + opT[0][i + a*NB]);
+              V[ai + nOAVA] = std::sqrt(0.5)*(V[ai + nOAVA] + opT[0][i + a*NB]);
+  
+            }
+          else
+            for(auto i = 0 , ai = 0; i < NO; i++)
+            for(auto a = NO        ; a < NB; a++, ai++) {
+  
+              V[ai]         = std::sqrt(0.5)*(V[ai]         - opT[0][i + a*NB]);
+              V[ai + nOAVA] = std::sqrt(0.5)*(V[ai + nOAVA] - opT[0][i + a*NB]);
+  
+            }
+  
+        else {
+        
+          SetMat('N',NO,NV,MatsT(1.),opT[0] + NO*NBC,NBC,V + this->nSingleDim_/2+offSet,NO);
+          IMatCopy('T',NO,NV,MatsT(1.),V + this->nSingleDim_/2+offSet,NO,NV);
+          if( ss.nC == 1 ) {
+            SetMat('N',ss.nOB,ss.nVB,MatsT(1.),BOP + ss.nOB*NB,NB,
+              V + nOAVA + this->nSingleDim_/2+offSet,ss.nOB);
+            IMatCopy('T',ss.nOB,ss.nVB,MatsT(1.),
+              V + this->nSingleDim_/2 + nOAVA+offSet,ss.nOB,ss.nVB);
+            }
+          }
+          //for(auto i = 0 , ai = 0; i < NO; i++)
+          //for(auto a = NO        ; a < NB; a++, ai++) {
+  
+          //  V[ai + this->nSingleDim_/2]         = opT[0][i + a*NB];
+          //  V[ai + nOAVA + this->nSingleDim_/2] = opT[0][i + a*NB];
+  
+          //}
+  
+        }
+  
+  
+      
+  
+      if(SCR) ss.memManager.free(SCR);
+      if( needTrans )
+        for(auto &X : opT ) ss.memManager.free(X);
+  
+      //FIXME: Implementation needed for APB/AMB  
+      // Transform to proper form form
+      /*
+      if( doAPB_AMB and not doReduced ) 
+        blockTransform(this->nSingleDim_/2,nVec,std::sqrt(0.5),
+          grad,this->nSingleDim_,grad+this->nSingleDim_/2,this->nSingleDim_);
+      */
 
-			offSet += N;
-		}
-  	
+      offSet += N;
+    }
+    
 
 #if 0
     if( this->savFile.exists() ) {
@@ -628,7 +628,7 @@ namespace ChronusQ {
     }
 #endif
     return {nVec, grad};
-	}
+  }
   template <typename MatsT, typename IntsT>
   template <typename U>
   std::vector< std::pair< std::pair<int,int>, U > >
@@ -636,15 +636,15 @@ namespace ChronusQ {
         double tol) {
 
     std::vector< std::pair< std::pair<int,int>, U > > moCont;
-		
+    
     NEOSS<MatsT,IntsT>& neoss = dynamic_cast<NEOSS<MatsT, IntsT>&>(*this->ref_);
-		auto labels = neoss.getLabels();
-		size_t offSet = 0;	
-		for (auto label:labels){
+    auto labels = neoss.getLabels();
+    size_t offSet = 0;  
+    for (auto label:labels){
       auto ssbase = neoss.getSubSSBase(label);
-			SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>((*ssbase));
+      SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>((*ssbase));
 
-		  int nOAVA = ss.nOA * ss.nVA;
+      int nOAVA = ss.nOA * ss.nVA;
       int nOBVB = ss.nOB * ss.nVB;
       int nOV   = ss.nO  * ss.nV;
 
@@ -653,9 +653,9 @@ namespace ChronusQ {
       int NO = (ss.nC == 1) ? ss.nOA : ss.nO;
       for(auto j = 0; j < N; j++) {
 
-        int i = j / NV;		
+        int i = j / NV;   
         int a = (j % NV) + NO;
-//				std::cout << "V[j], j, a, i: " << V[j+offSet] << ", " << j+offSet << std::endl;
+//        std::cout << "V[j], j, a, i: " << V[j+offSet] << ", " << j+offSet << std::endl;
         if( std::abs(V[j+offSet]) > tol ) moCont.push_back( { {a,i}, V[j+offSet] } );
 
       }
@@ -677,9 +677,9 @@ namespace ChronusQ {
         }
 
       }
-			if (label == labels[0]) moCont.push_back({{0,0},0});
-			int Nadd = (ss.nC == 1 ) ? ss.nOA * ss.nVA : ss.nO * ss.nV;
-			offSet += Nadd;
+      if (label == labels[0]) moCont.push_back({{0,0},0});
+      int Nadd = (ss.nC == 1 ) ? ss.nOA * ss.nVA : ss.nO * ss.nV;
+      offSet += Nadd;
     }
 
     return moCont;
@@ -693,7 +693,7 @@ namespace ChronusQ {
     std::vector<std::pair<std::string,double *>> data, U* VL, U* VR) {
     NEOSS<MatsT,IntsT>& neoss = dynamic_cast<NEOSS<MatsT,IntsT>&>(*this->ref_);
     this->nSingleDim_ = getNSingleDim(this->genSettings.doTDA);
-		auto labels = neoss.getLabels();
+    auto labels = neoss.getLabels();
  
     out << "\n\n\n* RESIDUE EIGENMODES\n\n\n";
 
@@ -728,24 +728,24 @@ namespace ChronusQ {
       if( not this->genSettings.doTDA ) 
         yCont = getMOContributions(VL+iRt*this->nSingleDim_,1e-1);
      
-			auto ssbase = neoss.getSubSSBase(labels[0]);
-			SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase)); 
-			size_t nC = ss.nC; 
+      auto ssbase = neoss.getSubSSBase(labels[0]);
+      SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase)); 
+      size_t nC = ss.nC; 
       // MO contributions
       out << "    MO Contributions:\n" << labels[0] << ":\n";
       for(auto &c : xCont) {
 
-  			if ( c.first.first == c.first.second and c.first.first == 0){
+        if ( c.first.first == c.first.second and c.first.first == 0){
 
-					out << labels[1] << ":\n";
-					//Updating ss to get spinblock correct
-					auto ssbase2 = neoss.getSubSSBase(labels[1]);
-					SingleSlater<MatsT, IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
-					nC = ss2.nC;
+          out << labels[1] << ":\n";
+          //Updating ss to get spinblock correct
+          auto ssbase2 = neoss.getSubSSBase(labels[1]);
+          SingleSlater<MatsT, IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
+          nC = ss2.nC;
  
-					continue;
+          continue;
 
-				}
+        }
 
       char spinLabel = (c.first.first > 0) ? 
                            ((nC == 1) ? 'A' : ' ') : 'B';
@@ -766,21 +766,21 @@ namespace ChronusQ {
                       << std::setw(10) << std::right << std::arg(c.second) 
                       << "\n";
         }
-			}
-			nC = ss.nC;
+      }
+      nC = ss.nC;
       for(auto &c : yCont) {
 
-				if ( c.first.first == c.first.second and c.first.first == 0){
+        if ( c.first.first == c.first.second and c.first.first == 0){
 
-					//Updating ss to get spinblock correct
-					auto ssbase2 = neoss.getSubSSBase(labels[1]);
-					SingleSlater<MatsT,IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
-					nC = ss2.nC;
+          //Updating ss to get spinblock correct
+          auto ssbase2 = neoss.getSubSSBase(labels[1]);
+          SingleSlater<MatsT,IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
+          nC = ss2.nC;
  
-					continue;
-					
-				}
-	
+          continue;
+          
+        }
+  
         char spinLabel = (c.first.first > 0) ? 
                            ((nC == 1) ? 'A' : ' ') : 'B';
       
@@ -802,9 +802,9 @@ namespace ChronusQ {
         }
 
 
-	    }
-	
-			
+      }
+  
+      
       out << "\n\n";
 
     }
