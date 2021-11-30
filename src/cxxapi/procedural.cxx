@@ -233,12 +233,6 @@ namespace ChronusQ {
       if (doNEO) { 
         prot_aoints->savFile = rstFile;
         ep_aoints->savFile   = rstFile;
-
-        // TEMPORARY
-        if( doTemp ) {
-          essbase->savFile = rstFile;
-          pssbase->savFile = rstFile;
-        }
       }
     }
 
