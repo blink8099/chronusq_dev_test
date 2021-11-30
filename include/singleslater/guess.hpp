@@ -385,7 +385,8 @@ namespace ChronusQ {
 //          ss->aoints, memManager, atom, basis, hamiltonianOptions);
       ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>(
           hamiltonianOptions);
-      ss->formCoreH(pert);
+
+      ss->formCoreH(pert, false);
       aointsAtom->TPI->computeAOInts(basis, atom, pert,
           ELECTRON_REPULSION, hamiltonianOptions);
 

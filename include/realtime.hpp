@@ -56,6 +56,8 @@ namespace ChronusQ {
     size_t iSave    = 50; ///< Save progress every N steps
     size_t restoreStep = 0;  ///< Restore propagation from this step
 
+    size_t nSteps = 0; ///< Electronic steps to update tMax
+
     bool   includeSCFField = true;  ///< Whether to include the SCF field
 
   }; // struct IntegrationScheme
@@ -103,6 +105,7 @@ namespace ChronusQ {
     IntegrationData     data;      ///< Data collection
     
     bool restart   = false; ///< Restarting calc from bin file
+    size_t printLevel = 1; ///< Print Level
 
     RealTimeBase()                     = delete;
     RealTimeBase(const RealTimeBase &) = delete;
@@ -114,6 +117,11 @@ namespace ChronusQ {
 
     // RealTimeBase procedural functions
     virtual void doPropagation()         = 0;
+    virtual double totalEnergy()         = 0;
+    virtual std::vector<double> getGrad(EMPerturbation&) = 0;
+    virtual void formCoreH(EMPerturbation&)              = 0;
+    virtual void updateAOProperties(double) = 0;
+    virtual void createRTDataSets(size_t maxPoints) = 0;
 
     // Progress functions
     void printRTHeader();
@@ -183,15 +191,30 @@ namespace ChronusQ {
 
     }; // RealTime constructor
   
+    inline double totalEnergy(){
+      //propagator_.computeEnergy();
+      return propagator_.totalEnergy;
+    }
+
+    inline void formCoreH(EMPerturbation &emPert) {
+      return propagator_.formCoreH(emPert, false);
+    }
+
+    inline std::vector<double> getGrad(EMPerturbation &emPert) {
+      return propagator_.getGrad(emPert,false,false);
+    }
+
+    // RealTime procedural functions
     // RealTime procedural functions
     void doPropagation(); // From RealTimeBase
     void propagateStep();
     void formPropagator(size_t);
     void formFock(bool,double,size_t);
+    void updateAOProperties(double t);
     void propagateWFN(size_t);
     void saveState(EMPerturbation&);
     void restoreState(); 
-    void createRTDataSets();
+    void createRTDataSets(size_t maxPoints);
 
     // Progress functions
     void printRTHeader();

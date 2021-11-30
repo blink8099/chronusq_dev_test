@@ -25,6 +25,8 @@
 #include <particleintegrals/twopints/incore4indexreleri.hpp>
 #include <particleintegrals/twopints/incore4indextpi.hpp>
 #include <particleintegrals/twopints/gtodirectreleri.hpp>
+#include <particleintegrals/twopints/incoreritpi.hpp>
+#include <particleintegrals/gradints.hpp>
 #include <libint2/engine.h>
 #include <cqlinalg.hpp>
 #include <cqlinalg/blasutil.hpp>
@@ -38,18 +40,23 @@
 
 namespace ChronusQ {
 
+  typedef std::vector<libint2::Shell> shell_set; 
+
+
   /**
-   *  \brief Compute and store the full rank-4 ERI tensor using
-   *  Libint2 over the CGTO basis.
-   */ 
-  template <>
-  void InCore4indexTPI<double>::computeERINR(BasisSet &basisSet, BasisSet &basisSet2, 
-      Molecule&, EMPerturbation&, OPERATOR op, const HamiltonianOptions &options) {
+   *  \brief Helper function to do the setup and loops over basis functions
+   *  for evaluating in core ERIs. Generic to gradient level.
+   */
+  template <typename InnerFunc>
+  void doERIInCore(size_t deriv, std::vector<double*> eris, InnerFunc func,
+    BasisSet &basis, BasisSet& basis2, OPERATOR op,
+    const HamiltonianOptions &options) {
+
 
     if (op != ELECTRON_REPULSION and op != EP_ATTRACTION)
-      CErr("Only e-p attraction/e-e/p-p repulsion integrals in InCore4indexTPI<double>",std::cout);
+      CErr("Only e-p attraction/e-e/p-p repulsion integrals in incore TPIs",std::cout);
     if (options.basisType != REAL_GTO)
-      CErr("Only Real GTOs are allowed in InCore4indexERI<double>",std::cout);
+      CErr("Only Real GTOs are allowed in InCoreEIRIs",std::cout);
 
     // Determine the number of OpenMP threads
     int nthreads = GetNumThreads();
@@ -59,24 +66,31 @@ namespace ChronusQ {
 
     // Initialize the first engine for the integral evaluation
     engines[0] = libint2::Engine(libint2::Operator::coulomb,
-      std::max(basisSet.maxPrim, basisSet2.maxPrim), 
-      std::max(basisSet.maxL, basisSet2.maxL),0);
+      std::max(basis.maxPrim, basis2.maxPrim),
+      std::max(basis.maxL, basis2.maxL), deriv);
     engines[0].set_precision(0.);
-
 
     // Copy over the engines to other threads if need be
     for(size_t i = 1; i < nthreads; i++) engines[i] = engines[0];
 
-    this->clear();
-    InCore4indexTPI<double> &tpi4I = *this;
+    // Get useful constants
+    bool sameBasis = (&basis == &basis2);
+    size_t NB = basis.nBasis;
+    size_t MB = basis2.nBasis;
+    size_t NB2 = NB*NB;
+    size_t MB2 = MB*MB;
+    size_t NB2MB2 = NB2*MB2;
 
-#ifndef __IN_HOUSE_INT__
-    std::cout<<"  Using Libint "<<std::endl;
-#else
-    std::cout<<"  Using In-house Integral Engine "<<std::endl;
-#endif
+    // Clear previous ERIs
+    std::for_each(eris.begin(), eris.end(),
+      [&](double* p){std::fill_n(p,NB2MB2,0.);}
+    );
 
-    auto topTPI4 = tick();
+    //
+    //  Start parallel scaffold surrounding InnerFunc
+    //
+
+    auto libint_start = std::chrono::high_resolution_clock::now();
     #pragma omp parallel
     {
       int thread_id = GetThreadID();
@@ -85,37 +99,35 @@ namespace ChronusQ {
       const auto& buf_vec = engines[thread_id].results();
 
       size_t n1,n2,n3,n4,i,j,k,l,ijkl,bf1,bf2,bf3,bf4;
-      size_t s4_max;
-      for(size_t s1(0), bf1_s(0), s1234(0); s1 < basisSet.nShell;
+      size_t s3_max, s4_max;
+      for(size_t s1(0), bf1_s(0), s1234(0); s1 < basis.nShell;
           bf1_s+=n1, s1++) { 
 
-        n1 = basisSet.shells[s1].size(); // Size of Shell 1
+        n1 = basis.shells[s1].size(); // Size of Shell 1
 
       for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++) {
 
-        n2 = basisSet.shells[s2].size(); // Size of Shell 2
+        n2 = basis.shells[s2].size(); // Size of Shell 2
 
 #ifdef __IN_HOUSE_INT__
         libint2::ShellPair pair1_to_use;
-        pair1_to_use.init( basisSet_.shells[s1],basisSet_.shells[s2],-2000);
+        pair1_to_use.init( basis.shells[s1],basis.shells[s2],-2000);
 #endif
 
-      for(size_t s3(0), bf3_s(0); s3 < basisSet2.nShell; bf3_s+=n3, s3++) {
+        s3_max = sameBasis ? s1 : basis2.nShell - 1;
 
-        n3 = basisSet2.shells[s3].size(); // Size of Shell 3
-        if (op == ELECTRON_REPULSION and s1 == s3)
-          s4_max = s2;
-        else
-          s4_max = s3;
-        //s4_max = (s1 == s3) ? s2 : s3; // Determine the unique max of Shell 4
+      for(size_t s3(0), bf3_s(0); s3 <= s3_max ; bf3_s+=n3, s3++) {
+
+        n3 = basis2.shells[s3].size(); // Size of Shell 3
+        s4_max = sameBasis && (s1 == s3) ? s2 : s3; // Determine the unique max of Shell 4
 
       for(size_t s4(0), bf4_s(0); s4 <= s4_max; bf4_s+=n4, s4++, s1234++) {
 
-        n4 = basisSet2.shells[s4].size(); // Size of Shell 4
+        n4 = basis2.shells[s4].size(); // Size of Shell 4
 
 #ifdef __IN_HOUSE_INT__
         libint2::ShellPair pair2_to_use;
-        pair2_to_use.init( basisSet_.shells[s3],basisSet_.shells[s4],-2000);
+        pair2_to_use.init( basis.shells[s3],basis.shells[s4],-2000);
 
 #endif
 
@@ -124,78 +136,120 @@ namespace ChronusQ {
         if( s1234 % nthreads != thread_id ) continue;
         #endif
 
-        // Evaluate TPI for shell quartet
-#ifndef __IN_HOUSE_INT__
-        engines[thread_id].compute2<
-          libint2::Operator::coulomb, libint2::BraKet::xx_xx, 0>(
-          basisSet.shells[s1],
-          basisSet.shells[s2],
-          basisSet2.shells[s3],
-          basisSet2.shells[s4]
-        );
-        const auto *buff =  buf_vec[0] ;
-        if(buff == nullptr) continue;
-#else
-        auto buff  = RealGTOIntEngine::BottomupHGP(pair1_to_use,pair2_to_use,
-          basisSet_.shells[s1],
-          basisSet_.shells[s2],
-          basisSet2_.shells[s3],
-          basisSet2_.shells[s4]
-        );
-#endif
-        // Libint2 internal screening
+        //
+        // Inner function - this is responsible for calling the appropriate
+        //   computation routine and placing the ERI results in the correct
+        //   location in memory
+        //
 
-        // Place shell quartet into persistent storage with
-        // permutational symmetry
-        for(i = 0ul, bf1 = bf1_s, ijkl = 0ul ; i < n1; ++i, bf1++) 
-        for(j = 0ul, bf2 = bf2_s             ; j < n2; ++j, bf2++) 
-        for(k = 0ul, bf3 = bf3_s             ; k < n3; ++k, bf3++) 
-        for(l = 0ul, bf4 = bf4_s             ; l < n4; ++l, bf4++, ++ijkl) {
+        func(s1, s2, s3, s4,
+             bf1_s, bf2_s, bf3_s, bf4_s,
+             n1, n2, n3, n4,
+             engines[thread_id]);
 
-
-            // (12 | 34)
-            tpi4I(bf1, bf2, bf3, bf4) = buff[ijkl];
-            // (12 | 43)
-            tpi4I(bf1, bf2, bf4, bf3) = buff[ijkl];
-            // (21 | 34)
-            tpi4I(bf2, bf1, bf3, bf4) = buff[ijkl];
-            // (21 | 43)
-            tpi4I(bf2, bf1, bf4, bf3) = buff[ijkl];
-
-            // 8-fold symmetry for e-e/p-p repulsion
-            if (op == ELECTRON_REPULSION) {
-              // (34 | 12)
-              tpi4I(bf3, bf4, bf1, bf2) = buff[ijkl];
-              // (43 | 12)
-              tpi4I(bf4, bf3, bf1, bf2) = buff[ijkl];
-              // (34 | 21)
-              tpi4I(bf3, bf4, bf2, bf1) = buff[ijkl];
-              // (43 | 21)
-              tpi4I(bf4, bf3, bf2, bf1) = buff[ijkl];
-            }
-
-
-        }; // ijkl loop
       }; // s4
       }; // s3
       }; // s2
       }; // s1
     }; // omp region
 
-    auto durTPI4 = tock(topTPI4);
-    std::cout << "  Libint-TPI4 duration   = " << durTPI4 << std::endl;
+    auto libint_stop = std::chrono::high_resolution_clock::now();
+    auto libint_duration = std::chrono::duration_cast<std::chrono::milliseconds>(libint_stop - libint_start);
+    if ( false )
+      std::cout << "Libint duration   = " << libint_duration.count() << std::endl;
 
-    // Debug output of the TPIs
+    // Debug output of the ERIs
+
+  };
+
+  /**
+   *  \brief Compute and store the full rank-4 ERI tensor using
+   *  Libint2 over the CGTO basis.
+   */ 
+  template <>
+  void InCore4indexTPI<double>::computeERINR(BasisSet &basisSet, BasisSet &basisSet2, 
+      Molecule&, EMPerturbation&, OPERATOR op, const HamiltonianOptions &options) {
+
+    InCore4indexTPI<double> &eri4I = *this;
+
+    bool sameBasis = (&basisSet == &basisSet2);
+
+    // Lambda that does the computation and placing. This gets called by
+    //   doERIInCore
+    auto computeAndPlace = [&](size_t sh1, size_t sh2, size_t sh3, size_t sh4,
+                               size_t b1s, size_t b2s, size_t b3s, size_t b4s,
+                               size_t  n1, size_t  n2, size_t  n3, size_t  n4,
+                               libint2::Engine& engine) {
+
+#ifndef __IN_HOUSE_INT__
+      engine.compute2<
+        libint2::Operator::coulomb, libint2::BraKet::xx_xx, 0>(
+        basisSet.shells[sh1],
+        basisSet.shells[sh2],
+        basisSet2.shells[sh3],
+        basisSet2.shells[sh4]
+      );
+
+      const double* results =  engine.results()[0] ;
+      // Libint internal screening
+      if(results == nullptr) return;
+#else
+      auto buff  = RealGTOIntEngine::BottomupHGP(pair1_to_use,pair2_to_use,
+        basisSet.shells[sh1],
+        basisSet.shells[sh2],
+        basisSet2.shells[sh3],
+        basisSet2.shells[sh4]
+      );
+#endif
+
+      // Place shell quartet into persistent storage with
+      // permutational symmetry
+      for(size_t i = 0ul, bf1 = b1s, ijkl = 0ul ; i < n1; ++i, bf1++) 
+      for(size_t j = 0ul, bf2 = b2s             ; j < n2; ++j, bf2++) 
+      for(size_t k = 0ul, bf3 = b3s             ; k < n3; ++k, bf3++) 
+      for(size_t l = 0ul, bf4 = b4s             ; l < n4; ++l, bf4++, ++ijkl) {
+
+        // (12 | 34)
+        eri4I(bf1, bf2, bf3, bf4) = results[ijkl];
+        // (12 | 43)
+        eri4I(bf1, bf2, bf4, bf3) = results[ijkl];
+        // (21 | 34)
+        eri4I(bf2, bf1, bf3, bf4) = results[ijkl];
+        // (21 | 43)
+        eri4I(bf2, bf1, bf4, bf3) = results[ijkl];
+
+        // 8-fold symmetry only if left basis is the same as right basis
+        if( sameBasis ) {
+          // (34 | 12)
+          eri4I(bf3, bf4, bf1, bf2) = results[ijkl];
+          // (43 | 12)
+          eri4I(bf4, bf3, bf1, bf2) = results[ijkl];
+          // (34 | 21)
+          eri4I(bf3, bf4, bf2, bf1) = results[ijkl];
+          // (43 | 21)
+          eri4I(bf4, bf3, bf2, bf1) = results[ijkl];
+        }
+
+
+      }; // ijkl loop
+
+    };
+
+    doERIInCore(0, {TPI}, computeAndPlace, basisSet, basisSet2, op, options);
+
 #ifdef __DEBUGERI__
-    std::cout << "Two-Electron Integrals (TPIs)" << std::endl;
+//#if 1
+    std::cout << "Two-Electron Integrals (ERIs)" << std::endl;
     for(auto i = 0ul; i < NB; i++)
     for(auto j = 0ul; j < NB; j++)
-    for(auto k = 0ul; k < sNB; k++)
-    for(auto l = 0ul; l < sNB; l++){
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
       std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
-      std::cout << tpi4I(i, j, k, l) << std::endl;
+      std::cout << TPI[i + j*NB  + k*NB2 + l*NB3] << std::endl;
     };
 #endif
+
+
   }; // InCore4indexTPI<double>::computeTPI
 
   /**
@@ -458,7 +512,7 @@ namespace ChronusQ {
     }
 
 #ifndef __IN_HOUSE_INT__
-    std::cout<<"  Using Libint "<<std::endl;
+    //std::cout<<"  Using Libint "<<std::endl;
 #else
     std::cout<<"  Using In-house Integral Engine "<<std::endl;
 #endif
@@ -623,7 +677,7 @@ namespace ChronusQ {
     }; // omp region
 
     auto durERI4 = tock(topERI4);
-    std::cout << "  Libint-ERI4 duration   = " << durERI4 << std::endl;
+    //std::cout << "  Libint-ERI4 duration   = " << durERI4 << std::endl;
 
     for (double *p : coefBlocks) {
       if (p) memManager_.free(p);
@@ -638,6 +692,7 @@ namespace ChronusQ {
     // Debug output of the ERIs
 #ifdef __DEBUGERI__
     std::cout << "Two-Electron Integrals (ERIs)" << std::endl;
+    std::cout << std::setprecision(12);
     for(auto i = 0ul; i < NB; i++)
     for(auto j = 0ul; j < NB; j++)
     for(auto k = 0ul; k < NB; k++)
@@ -1953,6 +2008,170 @@ namespace ChronusQ {
     //std::cout << "  Libint-ERI4-Dirac-Coulomb-Breit duration   = " << durERIDCB << std::endl;
 
   }  // computeERI3Index
+
+
+  // Gradient integrals
+  template<>
+  void GradInts<TwoPInts,double>::computeAOInts(BasisSet& basisSet,
+    BasisSet& basisSet2, Molecule& mol, EMPerturbation& pert, OPERATOR op,
+    const HamiltonianOptions &options)
+  {
+
+    if (std::dynamic_pointer_cast<DirectTPI<double>>(components_[0]))
+      return;
+
+    if (std::dynamic_pointer_cast<InCoreCholeskyRIERI<double>>(components_[0]) or
+        std::dynamic_pointer_cast<InCoreAuxBasisRIERI<double>>(components_[0]))
+      CErr("Gradients using RI integrals NYI!");
+
+    // Get vector of internal storages
+    std::vector<double*> eris;
+    std::transform(components_.begin(), components_.end(),
+      std::back_inserter(eris),
+      [](std::shared_ptr<TwoPInts<double>>& p) {
+        return std::dynamic_pointer_cast<InCore4indexTPI<double>>(p)->pointer();
+      }
+    );
+
+    size_t NB = basisSet.nBasis;
+    size_t MB = basisSet2.nBasis;
+    size_t NB2 = NB * MB;
+    size_t NB3 = NB2 * MB;
+    bool sameBasis = (&basisSet == &basisSet2);
+
+
+
+    auto computeAndPlace = [&](size_t sh1, size_t sh2, size_t sh3, size_t sh4,
+                               size_t b1s, size_t b2s, size_t b3s, size_t b4s,
+                               size_t  n1, size_t  n2, size_t  n3, size_t  n4,
+                               libint2::Engine& engine) {
+
+      engine.compute2<
+        libint2::Operator::coulomb, libint2::BraKet::xx_xx, 1>(
+        basisSet.shells[sh1],
+        basisSet.shells[sh2],
+        basisSet2.shells[sh3],
+        basisSet2.shells[sh4]
+      );
+
+      const auto& results = engine.results();
+
+      // Get atomic centers for each basis function
+      std::vector<size_t> ac;
+      ac.push_back(basisSet.mapSh2Cen[sh1]);
+      ac.push_back(basisSet.mapSh2Cen[sh2]);
+      ac.push_back(basisSet2.mapSh2Cen[sh3]);
+      ac.push_back(basisSet2.mapSh2Cen[sh4]);
+
+      // Get constants
+      size_t NB = basisSet.nBasis;
+      size_t MB = basisSet2.nBasis;
+      size_t NB2 = NB * NB;
+      size_t NB3 = NB2 * MB;
+
+      // Place shell quartet into persistent storage with
+      // permutational symmetry
+      for ( auto iC = 0, itot = 0; iC < 4; iC++ )
+      for ( auto iXYZ = 0; iXYZ < 3; iXYZ++, itot++) {
+
+        // Libint internal screening
+        if ( results[itot] == nullptr ) continue;
+
+        for(size_t i = 0ul, bf1 = b1s, ijkl = 0ul ; i < n1; ++i, bf1++) 
+        for(size_t j = 0ul, bf2 = b2s             ; j < n2; ++j, bf2++) 
+        for(size_t k = 0ul, bf3 = b3s             ; k < n3; ++k, bf3++) 
+        for(size_t l = 0ul, bf4 = b4s             ; l < n4; ++l, bf4++, ++ijkl) {
+
+
+          // Because this is just placement, not computation, the if statements
+          //   in this hot loop shouldn't significantly increase time, but we
+          //   should measure it eventually. Can refactor into if statements on
+          //   the outside at the cost of ugly, duplicated code.
+          //
+          // This redundancy checking is here because of the required summation
+          //   instead of simple assignment in the non-gradient ERI case
+
+          // (12 | 34)
+          eris[3*ac[iC]+iXYZ][bf1 + bf2*NB + bf3*NB2 + bf4*NB3] += results[itot][ijkl];
+
+          if ( sh3 != sh4 )
+            // (12 | 43)
+            eris[3*ac[iC]+iXYZ][bf1 + bf2*NB + bf4*NB2 + bf3*NB3] += results[itot][ijkl];
+
+          if ( sh1 != sh2 ) {
+            // (21 | 34)
+            eris[3*ac[iC]+iXYZ][bf2 + bf1*NB + bf3*NB2 + bf4*NB3] += results[itot][ijkl];
+            if ( sh3 != sh4 )
+              // (21 | 43)
+              eris[3*ac[iC]+iXYZ][bf2 + bf1*NB + bf4*NB2 + bf3*NB3] += results[itot][ijkl];
+          } // sh1/2
+          
+          if( sameBasis ) {
+            if ( sh1 != sh3 || sh2 != sh4 ) {
+              // (34 | 12)
+              eris[3*ac[iC]+iXYZ][bf3 + bf4*NB + bf1*NB2 + bf2*NB3] += results[itot][ijkl];
+
+              if ( sh3 != sh4 )
+                // (43 | 12)
+                eris[3*ac[iC]+iXYZ][bf4 + bf3*NB + bf1*NB2 + bf2*NB3] += results[itot][ijkl];
+
+              if ( sh1 != sh2 ) {
+                // (34 | 21)
+                eris[3*ac[iC]+iXYZ][bf3 + bf4*NB + bf2*NB2 + bf1*NB3] += results[itot][ijkl];
+
+                if ( sh3 != sh4 )
+                  // (43 | 21)
+                  eris[3*ac[iC]+iXYZ][bf4 + bf3*NB + bf2*NB2 + bf1*NB3] += results[itot][ijkl];
+              } // sh1/2
+            } // sh1/3 or sh2/4
+          }
+
+        } // ijkl loop
+
+      } // ic/xyz loop
+
+    };
+
+    doERIInCore(1, eris, computeAndPlace, basisSet, basisSet2, op, options);
+
+#ifdef __DEBUGERI__
+    std::cout << "Two-Electron Integral Derivatives (ERIs)" << std::endl;
+    for(auto iGrad = 0; iGrad < eris.size(); iGrad++ )
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << eris[iGrad][i + j*NB  + k*NB2 + l*NB3] << std::endl;
+    };
+#endif
+
+
+  };
+
+  template<>
+  void GradInts<TwoPInts,double>::computeAOInts(BasisSet& basisSet,
+    Molecule& mol, EMPerturbation& pert, OPERATOR op,
+    const HamiltonianOptions &options)
+  {
+    computeAOInts(basisSet, basisSet, mol, pert, op, options);
+  }
+
+  template<>
+  void GradInts<TwoPInts,dcomplex>::computeAOInts(BasisSet& basisSet,
+    Molecule& mol, EMPerturbation& pert, OPERATOR op,
+    const HamiltonianOptions &options)
+  {
+    CErr("Complex integral gradients not yet implemented!");
+  }
+
+  template<>
+  void GradInts<TwoPInts,dcomplex>::computeAOInts(BasisSet& basisSet,
+    BasisSet& basis2, Molecule& mol, EMPerturbation& pert, OPERATOR op,
+    const HamiltonianOptions &options)
+  {
+    CErr("Complex integral gradients not yet implemented!");
+  }
 
 
 }; // namespace ChronusQ

@@ -36,11 +36,14 @@ namespace ChronusQ {
     size_t atomicNumber; ///< Atomic Number (# of protons)
     double nucCharge;    ///< Nuclear Charge
     size_t massNumber;   ///< Mass Number
-    double atomicMass;   ///< Atomic Mass (in a.u.)
+    double atomicMass;   ///< Atomic Mass (in a.m.u. NOT a.u.)
     double slaterRadius; ///< Slater radius (in Bohr)
     bool   quantum;      ///< Whether this atom is treated quantum mechanically
 
     std::array<double,3> coord; ///< X,Y,Z coordinates
+
+    std::array<double,3> velocity{{0.,0.,0.}}; ///< X,Y,Z velocity
+    std::array<double,3> force{{0.,0.,0.}};    ///< X,Y,Z force
 
 
     /**

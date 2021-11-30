@@ -113,6 +113,8 @@ namespace ChronusQ {
     ///< ortho[0] : Orthogonalization matrix which S -> I
     ///< ortho[1] : Inverse of ortho[0]
     std::vector<SquareMatrix<MatsT>> ortho;
+    // Just the gradient of ortho[1]
+    std::vector<SquareMatrix<MatsT>> gradOrtho;
 
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH; ///< Core Hamiltonian (scalar and magnetization)
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreHPerturbed; ///< Perturbed Core Hamiltonian (scalar and magnetization)
@@ -201,11 +203,13 @@ namespace ChronusQ {
     void computeEnergy();
     void computeMultipole(EMPerturbation &);
     void computeSpin();
+    virtual std::vector<double> getEnergySummary();
 
     // Compute various core Hamitlonian
-    void formCoreH(EMPerturbation&); // Compute the CH
+    void formCoreH(EMPerturbation&, bool); // Compute the CH
 //  void updateCoreH(EMPerturbation &);
     void computeOrtho();  // Evaluate orthonormalization transformations
+    void computeOrthoGrad(); // Evaluate gradient of orthonormalization
 
     // Method specific properties
     void populationAnalysis();
@@ -219,6 +223,10 @@ namespace ChronusQ {
 
     // Form a fock matrix (see include/singleslater/fock.hpp for docs)
     virtual void formFock(EMPerturbation &, bool increment = false, double xHFX = 1.);
+
+    // Get the total gradient
+    virtual std::vector<double> getGrad(EMPerturbation&, bool equil,
+      bool saveInts);
 
     // Form initial guess orbitals
     // see include/singleslater/guess.hpp for docs)

@@ -38,6 +38,8 @@ namespace ChronusQ {
   // Pure virtual class for only interface functions
   struct NEOBase {
     virtual std::shared_ptr<SingleSlaterBase> getSubSSBase(std::string label) = 0;
+    virtual std::vector<std::string> getLabels() = 0;
+    virtual void setSubSetup() = 0;
   };
 
   template <typename MatsT, typename IntsT>
@@ -82,9 +84,11 @@ namespace ChronusQ {
       //   protonic coulomb potential.
       LabeledMap<LabeledMap<SquareMatrix<MatsT>>> interCoulomb;
 
-      // Two particle intergral objects (same storage scheme as above)
+      // Two particle integral objects (same storage scheme as above)
       // Boolean is contractSecond
       LabeledMap<LabeledMap<std::pair<bool, std::shared_ptr<TwoPInts<IntsT>>>>> interIntegrals;
+      // Two particle gradient integrals
+      LabeledMap<LabeledMap<std::pair<bool, std::shared_ptr<GradInts<TwoPInts,IntsT>>>>> gradInterInts;
 
       // Storage for FockBuilders (determines lifetime)
       LabeledMap<std::vector<std::shared_ptr<FockBuilder<MatsT,IntsT>>>> fockBuilders;
@@ -210,6 +214,32 @@ namespace ChronusQ {
         }
       }
 
+      void addGradientIntegrals(std::string label1, std::string label2,
+        std::shared_ptr<GradInts<TwoPInts,IntsT>> ints, bool contractSecond) {
+
+        gradInterInts.insert({label1, {}});
+        gradInterInts.insert({label2, {}});
+
+        gradInterInts[label1].insert({label2, {contractSecond, ints}});
+        gradInterInts[label2].insert({label1, {not contractSecond, ints}});
+
+        // TODO: Make this work with nested systems. Right now there is no
+        //   guarantee that it will be placed on the right fockBuilder for more
+        //   than two systems. May require labeling of nested fockBuilders.
+        auto setGradInts = [&](std::shared_ptr<FockBuilder<MatsT,IntsT>>& fock) {
+          if(auto neofock = std::dynamic_pointer_cast<NEOFockBuilder<MatsT,IntsT>>(fock)) {
+            neofock->setGradientIntegrals(ints.get());
+          }
+          else {
+            CErr("Can't set gradient integrals on a non-NEOFockBuilder");
+          }
+        };
+
+        setGradInts(fockBuilders[label1].back());
+        setGradInts(fockBuilders[label2].back());
+
+      }
+
       void setOrder(std::vector<std::string> labels) {
         order_ = labels;
       }
@@ -242,6 +272,22 @@ namespace ChronusQ {
         return subsystems;
       }
 
+      std::vector<std::string> getLabels() {
+
+        if (order_.size() == subsystems.size()) return order_;
+
+        std::vector<std::string> labels;
+        for(auto& entry:subsystems){
+          labels.push_back(entry.first);
+        }
+
+        return labels;
+      }
+
+      std::pair<bool,std::shared_ptr<TwoPInts<IntsT>>> getCrossTPIs(std::string label1,std::string label2){
+        return interIntegrals.at(label1).at(label2);
+      }
+
       // Pass-through to each functions
       void SCFInit() {
         applyToEach([](SubSSPtr& ss){ ss->SCFInit(); });
@@ -259,9 +305,21 @@ namespace ChronusQ {
         applyToEach([](SubSSPtr& ss){ ss->formGuess(); });
       }
 
-      void formCoreH(EMPerturbation& emPert) {
-        applyToEach([&](SubSSPtr& ss){ ss->formCoreH(emPert); });
+      void formCoreH(EMPerturbation& emPert, bool save) {
+        applyToEach([&](SubSSPtr& ss){ ss->formCoreH(emPert, save); });
       }
+
+      // Propagate options that were set by value in the *Options functions
+      void setSubSetup() {
+        applyToEach([&](SubSSPtr& ss){
+          ss->scfControls = this->scfControls;
+          ss->savFile = this->savFile;
+          ss->fchkFileName = this->fchkFileName;
+        });
+      }
+
+      
+      std::vector<double> getGrad(EMPerturbation&, bool, bool);
 
       // Properties
       void computeEnergy() {
@@ -352,11 +410,11 @@ namespace ChronusQ {
         }
        
       };
+
       void computeSpin() { 
-
-      applyToEach([](SubSSPtr& ss){ ss->computeSpin(); });      
-
+        applyToEach([](SubSSPtr& ss){ ss->computeSpin(); });      
       }
+
       void methodSpecificProperties() { }
 
       // Overrides specific to a NEO-SCF

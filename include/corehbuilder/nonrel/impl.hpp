@@ -132,14 +132,55 @@ namespace ChronusQ {
       addMagPert(emPert,coreH);
 
 
-  #ifdef _DEBUGGIAOONEE
-      // prettyPrintSmart(std::cout,"Core H",CH[0],NB,NB,NB);
-      for ( auto ii = 0 ; ii < CH.size() ; ii++ ) {
-        std::cout<<"ii= "<<ii<<std::endl;
-        prettyPrintSmart(std::cout,"Core H",CH[ii],NB,NB,NB);
-      }
-  #endif
+#ifdef _DEBUGGIAOONEE
+      this->aoints_.kinetic->matrix().output(std::cout, "Kinetic", true);
+      this->aoints_.potential->matrix().output(std::cout, "Potential", true);
+      this->aoints_.overlap->matrix().output(std::cout, "Overlap", true);
+      coreH->output(std::cout, "Core Ham", true);
+#endif
 
   };  // void NRCoreH::computeCoreH(std::vector<MatsT*> &CH)
+
+  template <typename MatsT, typename IntsT>
+  std::vector<double> NRCoreH<MatsT,IntsT>::getGrad(EMPerturbation& pert,
+    SingleSlater<MatsT,IntsT>& ss) {
+
+    if (not this->aoints_.gradKinetic)
+      CErr("Kinetic energy gradient integrals missing in NRCoreH::getGrad!");
+    if (not this->aoints_.gradPotential)
+      CErr("Potential energy gradient integrals missing in NRCoreH::getGrad!");
+
+    GradInts<OnePInts,IntsT>& gradK = *this->aoints_.gradKinetic;
+    GradInts<OnePInts,IntsT>& gradV = *this->aoints_.gradPotential;
+
+    //gradK.output(std::cout, "gradKinetic", true); 
+    //gradV.output(std::cout, "gradPotential", true);
+
+    size_t NB = ss.basisSet().nBasis;
+    size_t nGrad = 3*ss.molecule().nAtoms;
+
+    std::vector<double> gradient;
+
+    // Allocate scratch (NRCH is SCALAR only)
+    SquareMatrix<MatsT> vdv(ss.memManager, NB);
+    SquareMatrix<MatsT> dvv(ss.memManager, NB);
+    SquareMatrix<MatsT> coreHGrad(ss.memManager,NB);
+    
+    // Loop over gradient components
+    for ( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+    
+      // Assemble core gradient
+      coreHGrad = 2. * (gradK[iGrad]->matrix() + gradV[iGrad]->matrix());
+
+      // Contract
+      double element = ss.template computeOBProperty<double,DENSITY_TYPE::SCALAR>(
+        coreHGrad.pointer());
+      gradient.emplace_back(0.5*element);
+
+    }
+
+    return gradient;
+
+  };  // std::vector<double> NRCoreH::getGrad
 
 }

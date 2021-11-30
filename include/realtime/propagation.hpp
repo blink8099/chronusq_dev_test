@@ -51,21 +51,30 @@ namespace ChronusQ {
 
     ProgramTimer::tick("Real Time Total");
 
-    printRTHeader();
+    if( printLevel > 0 )
+      printRTHeader();
 
     if ( savFile.exists() )
       if ( restart )
         restoreState();
-      else
-        createRTDataSets();
+
+    // Upon entry to RT, assume only the orthonormal density is valid
+    for(auto idx = 0; idx < systems_.size(); idx++) {
+      systems_[idx]->computeOrtho();
+      systems_[idx]->ortho2aoDen();
+      systems_[idx]->ortho2aoMOs();
+    }
 
     bool Start(false); // Start the MMUT iterations
     bool FinMM(false); // Wrap up the MMUT iterations
 
-    for( curState.xTime = intScheme.restoreStep * intScheme.deltaT,
-         curState.iStep = intScheme.restoreStep; 
-         curState.xTime <= (intScheme.tMax + intScheme.deltaT/4); 
-         curState.xTime += intScheme.deltaT, curState.iStep++ ) {
+    size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/4)/intScheme.deltaT);
+
+    curState.xTime = intScheme.restoreStep * intScheme.deltaT;
+
+    for( curState.iStep = intScheme.restoreStep; 
+         curState.iStep <= maxStep;
+         curState.xTime += intScheme.deltaT, curState.iStep++) {
 
       ProgramTimer::tick("Real Time Iter");
 
@@ -90,7 +99,8 @@ namespace ChronusQ {
           Start = Start or ( curState.iStep % intScheme.iRstrt == 0 );
 
         // "Finish" the MMUT if this is the last step
-        FinMM = ( curState.iStep == (intScheme.tMax / intScheme.deltaT) );
+        // NOTE: To compare to Gaussian, do NOT do this restart for Ehrenfest
+        FinMM = ( curState.iStep == maxStep );
 
         // TODO: "Finish" the MMUT if the field turns on or off
         FinMM = FinMM or pert.isFieldDiscontinuous(curState.xTime, intScheme.deltaT);
@@ -142,8 +152,8 @@ namespace ChronusQ {
 
         } else {
           // Save a copy of the SingleSlater density in the saved density
-          // storage 
-            
+          // storage
+
           // DOSav(k) = DO(k)
           *DOSav[idx] = *systems_[idx]->onePDMOrtho;
      
@@ -161,6 +171,7 @@ namespace ChronusQ {
       propagator_.computeProperties(pert_t);
 
       // Save data
+      // TODO: Fix this when we have a stable definition of MD + electronic steps
       saveState(pert_t);
 
       // Save D(k) if doing Magnus 2
@@ -431,9 +442,12 @@ namespace ChronusQ {
 
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::createRTDataSets() {
+  void RealTime<_SSTyp,IntsT>::createRTDataSets(size_t maxPoints) {
 
-    hsize_t maxPoints = intScheme.tMax / intScheme.deltaT + 1;
+    if( restart ) return;
+
+    if( maxPoints == 0 )
+      maxPoints = intScheme.tMax / intScheme.deltaT + 1;
     
     savFile.createGroup("RT");
 
@@ -445,6 +459,7 @@ namespace ChronusQ {
         {maxPoints,3});
     savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE_FIELD",
         {maxPoints,3});
+
   }; // RealTime::createRTDataSets
 
 
@@ -484,8 +499,7 @@ namespace ChronusQ {
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::saveState(EMPerturbation& pert_t) {
-
-    size_t NB = propagator_.nAlphaOrbital();
+    
 
     data.Time.push_back(curState.xTime);
     data.Energy.push_back(propagator_.totalEnergy);
@@ -497,15 +511,16 @@ namespace ChronusQ {
     if( savFile.exists() ) {
 
       hsize_t nSteps = 0;
+      size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/4)/intScheme.deltaT);
 
       if (curState.iStep % intScheme.iSave == 0 
           and curState.iStep != intScheme.restoreStep)
-        nSteps = intScheme.iSave + 1;
-      else if ( curState.iStep == intScheme.tMax / intScheme.deltaT )
-        nSteps = curState.iStep % intScheme.iSave + 1;
+        nSteps = intScheme.iSave;
+      else if( curState.iStep == maxStep )
+        nSteps = (curState.iStep - intScheme.restoreStep) % intScheme.iSave + 1;
 
       hsize_t lastPos = curState.iStep - nSteps + 1;
-      hsize_t memLastPos = lastPos - intScheme.restoreStep;
+      hsize_t memLastPos = data.Time.size() - nSteps;
 
       if (nSteps != 0) {
         std::cout << "  *** Saving data to binary file ***" << std::endl;
@@ -530,6 +545,31 @@ namespace ChronusQ {
     }
   }; // RealTime::saveState
 
+
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::updateAOProperties(double currentTime) {
+    // Form AO density
+    //propagator_.computeOrtho();
+    //propagator_.ortho2aoDen();
+    for(auto idx = 0; idx < systems_.size(); idx++) {
+      systems_[idx]->computeOrtho();
+      systems_[idx]->ortho2aoDen();
+      systems_[idx]->ortho2aoMOs();
+    }
+
+
+    // Form fock matrix
+    for(auto idx = 0; idx < systems_.size(); idx++) {
+      this->formFock(false,currentTime,idx);
+    }
+    // Compute properties
+    EMPerturbation pert_t = pert.getPert(currentTime);
+    propagator_.computeProperties(pert_t);
+    // Print progress line in the output file
+    // printRTStep();
+
+
+  }; // RealTime::updateAOProperties
 
 }; // namespace ChronusQ
 

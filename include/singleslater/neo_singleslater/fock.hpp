@@ -74,13 +74,13 @@ namespace ChronusQ {
    *  \param [in] typ Which Hamiltonian to build
    */ 
   template <typename MatsT, typename IntsT>
-  void NEOSingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert) {
+  void NEOSingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert, bool save) {
 
     // form core Hamiltonian for the main system
-    SingleSlater<MatsT,IntsT>::formCoreH(emPert);
+    SingleSlater<MatsT,IntsT>::formCoreH(emPert, save);
 
     // form core Hamiltonian for the auxiliary system
-    this->aux_neoss->SingleSlater<MatsT,IntsT>::formCoreH(emPert);    
+    this->aux_neoss->SingleSlater<MatsT,IntsT>::formCoreH(emPert, save);    
 
   }; // NEOSingleSlater<MatsT,IntsT>::computeCoreH
 

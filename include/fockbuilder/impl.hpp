@@ -28,7 +28,11 @@
 #include <cqlinalg.hpp>
 #include <matrix.hpp>
 #include <particleintegrals/twopints/incoreritpi.hpp>
+#include <particleintegrals/twopints/gtodirecttpi.hpp>
+#include <particleintegrals/gradints/incore.hpp>
+#include <particleintegrals/gradints/direct.hpp>
 #include <fockbuilder/rofock/impl.hpp>
+#include <quantum/properties.hpp>
 #include <fockbuilder/neofock.hpp>
 
 #include <typeinfo>
@@ -260,5 +264,131 @@ namespace ChronusQ {
     }
 
   } // FockBuilder<MatsT,IntsT>::convert
+
+  
+  template <typename MatsT, typename IntsT>
+  std::vector<double> FockBuilder<MatsT,IntsT>::getGDGrad(
+    SingleSlater<MatsT,IntsT>& ss, EMPerturbation& pert, double xHFX) {
+
+    size_t NB = ss.basisSet().nBasis;
+    size_t nGrad = 3*ss.molecule().nAtoms;
+    CQMemManager& mem = ss.memManager;
+
+    bool hasXY = ss.exchangeMatrix->hasXY();
+    bool hasZ = ss.exchangeMatrix->hasZ();
+
+    if( not ss.aoints.gradERI )
+      CErr("Gradient ERI missing in FockBuilder::getGDGrad!");
+
+    GradInts<TwoPInts,IntsT>& gradERI = *ss.aoints.gradERI;
+
+    // Form contraction
+    // TODO: There's gotta be a better way to do this...
+    std::unique_ptr<GradContractions<MatsT,IntsT>> contract = nullptr;
+    if ( std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(gradERI[0]) ) {
+      contract = std::make_unique<InCore4indexGradContraction<MatsT,IntsT>>(gradERI);
+    }
+    else if ( std::dynamic_pointer_cast<DirectTPI<IntsT>>(gradERI[0]) ) {
+      contract = std::make_unique<DirectGradContraction<MatsT,IntsT>>(gradERI);
+    }
+    else
+      CErr("Gradients of RI NYI!");
+
+    // Create contraction list
+    std::vector<std::vector<TwoBodyContraction<MatsT>>> cList;
+
+    std::vector<SquareMatrix<MatsT>> JList;
+    std::vector<PauliSpinorSquareMatrices<MatsT>> KList;
+
+    JList.reserve(nGrad);
+    KList.reserve(nGrad);
+
+    for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+      std::vector<TwoBodyContraction<MatsT>> tempCont;
+
+      // Coulomb
+      JList.emplace_back(mem, NB);
+      JList.back().clear();
+      tempCont.push_back(
+         {ss.onePDM->S().pointer(), JList.back().pointer(), true, COULOMB}
+      );
+
+      // Exchange
+      if( std::abs(xHFX) > 1e-12 ) {
+
+        KList.emplace_back(mem, NB, hasXY, hasZ);
+        KList.back().clear();
+
+        tempCont.push_back(
+          {ss.onePDM->S().pointer(), KList.back().S().pointer(), true, EXCHANGE}
+        );
+
+        if (hasZ) {
+          tempCont.push_back(
+            {ss.onePDM->Z().pointer(), KList.back().Z().pointer(), true, EXCHANGE}
+          );
+        }
+        if (hasXY) {
+          tempCont.push_back(
+            {ss.onePDM->Y().pointer(), KList.back().Y().pointer(), true, EXCHANGE}
+          );
+          tempCont.push_back(
+            {ss.onePDM->X().pointer(), KList.back().X().pointer(), true, EXCHANGE}
+          );
+        }
+      }
+
+
+      cList.push_back(tempCont);
+    }
+
+    // Contract to J/K
+    contract->gradTwoBodyContract(MPI_COMM_WORLD, true, cList, pert);
+
+    // Contract to gradient
+    std::vector<double> gradient;
+    PauliSpinorSquareMatrices<MatsT> twoEGrad(mem, NB, hasXY, hasZ);
+
+    for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+
+      // Scale K by alpha
+      twoEGrad = -xHFX * KList[iGrad];
+
+      // G[S] = 2 * J[S] + alpha * K[S]
+      twoEGrad.S() += 2. * JList[iGrad];
+
+#if 0
+    double gradVal = 0;
+
+    for(auto i = 0; i < NB; ++i)
+    for(auto j = 0; j < NB; ++j) {
+      gradVal += std::real(twoEGrad.S().pointer()[i+j*NB] 
+               * ss.onePDM->S().pointer()[i+j*NB]);
+    }
+
+#else
+      double gradVal = ss.template computeOBProperty<double,SCALAR>(
+        twoEGrad.S().pointer()
+      );
+      if( hasZ )
+        gradVal += ss.template computeOBProperty<double,MZ>(
+          twoEGrad.Z().pointer()
+        );
+      if( hasXY ) {
+        gradVal += ss.template computeOBProperty<double,MY>(
+          twoEGrad.Y().pointer()
+        );
+        gradVal += ss.template computeOBProperty<double,MX>(
+          twoEGrad.X().pointer()
+        );
+      }
+#endif
+      gradient.push_back(0.25*gradVal);
+
+    }
+
+    return gradient;
+
+  } // FockBuilder::getGDGrad
 
 }; // namespace ChronusQ

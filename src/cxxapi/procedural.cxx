@@ -45,9 +45,19 @@
 #include <itersolver.hpp>
 #include <coupledcluster.hpp>
 
+#include <findiff/geomgrad.hpp>
+#include <particleintegrals/gradints.hpp>
+#include <particleintegrals/twopints/incore4indextpi.hpp>
+#include <particleintegrals/twopints/gtodirecttpi.hpp>
+#include <particleintegrals/gradints/incore.hpp>
+#include <particleintegrals/gradints/direct.hpp>
+
 #include <cqlinalg/blasext.hpp>
 #include <cqlinalg/eig.hpp>
 
+#include <geometrymodifier.hpp>
+#include <geometrymodifier/moleculardynamics.hpp>
+#include <geometrymodifier/singlepoint.hpp>
 #include <physcon.hpp>
 
 // TEMPORARY
@@ -137,16 +147,23 @@ namespace ChronusQ {
 
 
     // Determine JOB type
-    std::string jobType;
+    JobType jobType;
     
     try {
-      jobType = input.getData<std::string>("QM.JOB");
+      jobType = parseJob(input.getData<std::string>("QM.JOB"));
     } catch (...) {
       CErr("Must Specify QM.JOB",output);
     }
 
+    // Break into sequence of individual jobs
+    std::vector<JobType> jobs;
+    if( jobType != SCF ) {
+      jobs.push_back(SCF);
+    }
+    jobs.push_back(jobType);
+
+    // Check if we're doing NEO
     bool doNEO = false;
-    
     if ( input.containsSection("SCF") ) {
       try {
         doNEO = input.getData<bool>("SCF.NEO");
@@ -176,28 +193,13 @@ namespace ChronusQ {
     std::shared_ptr<SingleSlaterBase> ss  = nullptr;
     std::shared_ptr<SingleSlaterBase> pss = nullptr;
 
-    // TEMPORARY
-    std::shared_ptr<SingleSlaterBase> neoss = nullptr;
 
     // NEO calculation
     if (doNEO) {
-      
-      // construct the neo single slater objects for electron and proton
-      std::vector<std::shared_ptr<SingleSlaterBase>> neo_vec = 
-        CQNEOSingleSlaterOptions(output,input,*memManager,mol,
-                                 *basis,*prot_basis,
-                                 aoints, prot_aoints,
-                                 ep_aoints);
-
-      ss  = neo_vec[0]; // electron
-      pss = neo_vec[1]; // proton
-
-      if( doTemp ) 
-        neoss = CQNEOSSOptions(output,input,*memManager,mol,
-                                         *basis,*prot_basis,
-                                         aoints, prot_aoints,
-                                         ep_aoints);
-
+      ss = CQNEOSSOptions(output,input,*memManager,mol,
+                                       *basis,*prot_basis,
+                                        aoints, prot_aoints,
+                                        ep_aoints);
     }
     else
       ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
@@ -208,40 +210,15 @@ namespace ChronusQ {
     // SCF options for electrons
     CQSCFOptions(output,input,*ss,emPert);
 
-    // TEMPORARY
-    std::shared_ptr<NEOBase> neobase;
-    std::shared_ptr<SingleSlaterBase> essbase;
-    std::shared_ptr<SingleSlaterBase> pssbase;
-
-    // SCF options for protons
-    if (doNEO) {
-      CQSCFOptions(output,input,*pss,emPert);
-
-      // TEMPORARY
-      if( doTemp ) {
-        CQSCFOptions(output,input,*neoss,emPert);
-        neobase = std::dynamic_pointer_cast<NEOBase>(neoss);
-        essbase = neobase->getSubSSBase("Electronic");
-        pssbase = neobase->getSubSSBase("Protonic");
-        CQSCFOptions(output,input,*essbase,emPert);
-        CQSCFOptions(output,input,*pssbase,emPert);
-      }
-    }
-
     bool rstExists = false;
     if( ss->scfControls.guess == READMO or 
-        ss->scfControls.guess == READDEN ) 
+        ss->scfControls.guess == READDEN or
+        ss->scfControls.prot_guess == READMO or
+        ss->scfControls.prot_guess == READDEN) 
       rstExists = true;
-    if( ss->scfControls.guess == FCHKMO )
+    if( ss->scfControls.guess == FCHKMO or
+        ss->scfControls.prot_guess == FCHKMO )
       ss->fchkFileName = scrFileName;
-
-    if (doNEO) {
-      if( pss->scfControls.guess == READMO or 
-          pss->scfControls.guess == READDEN ) 
-        rstExists = true;
-      if( pss->scfControls.guess == FCHKMO )
-        pss->fchkFileName = scrFileName;
-    }
 
     // Create the restart and scratch files
     SafeFile rstFile(rstFileName, rstExists);
@@ -254,7 +231,6 @@ namespace ChronusQ {
       ss->savFile     = rstFile;
       aoints->savFile = rstFile;
       if (doNEO) { 
-        pss->savFile         = rstFile;
         prot_aoints->savFile = rstFile;
         ep_aoints->savFile   = rstFile;
 
@@ -266,91 +242,111 @@ namespace ChronusQ {
       }
     }
 
-
-    if( not jobType.compare("SCF") or not jobType.compare("RT") or 
-        not jobType.compare("RESP") or not jobType.compare("CC") ) {
-
-      aoints->computeAOTwoE(*basis, mol, emPert); // If INCORE, compute and store the ERIs
-
-      if (doNEO) {
-
-        if (auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
-          prot_aoints->computeAOTwoE(*prot_basis, mol, emPert);
-        else
-          CErr("NEO with complex integrals NYI!", output);
-
-        if (auto p = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints))
-          ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert);
-
-
-      }
-
-      // TEMPORARY
-      if (doNEO and doTemp) {
-
-        neoss->formCoreH(emPert);
-        neoss->formGuess();
-        neoss->SCF(emPert);
-
-      } else {
-
-        ss->formCoreH(emPert);
-        ss->formGuess();
-        ss->SCF(emPert);
-
-      }
-
+    // If doing NEO, propagate setup to subsystems
+    if(auto neoss = std::dynamic_pointer_cast<NEOBase>(ss)) {
+      neoss->setSubSetup();
     }
 
+    // Done setting up
+    //
+    // START OF REAL PROCEDURAL SECTION
+    //
 
-    if( not jobType.compare("RT") ) {
+    for( auto& job: jobs ) {
 
-      // FIXME: Need to implement RT-NEO
-      // if (doNEO)
-      //   CErr("RT-NEO NYI!",output);
-
-      if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
-
+      bool firstStep = true;
       std::shared_ptr<RealTimeBase> rt = nullptr;
-      if (doTemp and doNEO) 
-        rt = CQRealTimeOptions(output,input,neoss,emPert);
-      else 
-        rt = CQRealTimeOptions(output,input,ss,emPert);
 
-      rt->savFile = rstFile;
-      rt->doPropagation();
+      JobType elecJob = CQGeometryOptions(output, input, job, mol, ss, rt,
+        ep_aoints, emPert);
 
-    }
+      // Loop over various structures
+      while( mol.geometryModifier->hasNext() ) {
 
-    if( not jobType.compare("RESP") ) {
+        // Update geometry
+        mol.geometryModifier->electronicPotentialEnergy = ss->totalEnergy;
+        mol.geometryModifier->update(true, mol, firstStep);
+        // Update basis to the new geometry
+        basis->updateNuclearCoordinates(mol);
+        if( dfbasis != nullptr ) dfbasis->updateNuclearCoordinates(mol);
 
-      // FIXME: Need to implement TD-NEO
-      if (doNEO)
-        CErr("RESP-NEO NYI!",output);
+        if( doNEO ) {
+          prot_basis->updateNuclearCoordinates(mol);
+        }
 
-      auto resp = CQResponseOptions(output,input,ss);
-      resp->savFile = rstFile;
-      resp->run();
+        // Update integrals
+        // TODO: Time dependent field?
+        aoints->computeAOTwoE(*basis, mol, emPert);
 
-      if( MPIRank(MPI_COMM_WORLD) == 0 ) resp->printResults(output);
-      MPI_Barrier(MPI_COMM_WORLD);
+        if (doNEO) { 
+          if(auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
+            prot_aoints->computeAOTwoE(*prot_basis, mol, emPert);
+          else
+            CErr("NEO with complex integrals NYI!",output);
+          if(auto p = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints))
+            ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert); 
+        }
 
-    }
+        // Run SCF job
+        if( elecJob == SCF ) {
+          ss->formCoreH(emPert, true);
+          if(firstStep) ss->formGuess();
+          ss->SCF(emPert);
+        }
 
-    
-    if( not jobType.compare("CC")){  
+        // Run RT job
+        if( elecJob == RT ) {
 
-      // FIXME: Need to implement NEO-CC
-      if (doNEO)
-        CErr("NEO-CC NYI!",output);
+          // Initialize core hamiltonian
+          rt->formCoreH(emPert);
 
-      #ifdef CQ_HAS_TA
-        auto cc = CQCCOptions(output, input, ss);
-        cc->run(); 
-      #else
-        CErr("TiledArray must be compiled to use Coupled-Cluster code!");
-      #endif
-    }
+          // Get correct time length
+          if( !firstStep ) {
+            rt->intScheme.restoreStep = rt->curState.iStep;
+            rt->intScheme.tMax = rt->intScheme.tMax + rt->intScheme.nSteps*rt->intScheme.deltaT;
+          }
+
+          if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
+
+          rt->doPropagation();
+
+        }
+
+
+        if( elecJob == RESP ) {
+
+          // FIXME: Need to implement TD-NEO
+          if (doNEO)
+            CErr("RESP-NEO NYI!",output);
+
+          auto resp = CQResponseOptions(output,input,ss);
+          resp->savFile = rstFile;
+          resp->run();
+
+          if( MPIRank(MPI_COMM_WORLD) == 0 ) resp->printResults(output);
+          MPI_Barrier(MPI_COMM_WORLD);
+
+        }
+
+        
+        if( elecJob == CC ){
+
+          // FIXME: Need to implement NEO-CC
+          if (doNEO)
+            CErr("NEO-CC NYI!",output);
+
+          #ifdef CQ_HAS_TA
+            auto cc = CQCCOptions(output, input, ss);
+            cc->run(); 
+          #else
+            CErr("TiledArray must be compiled to use Coupled-Cluster code!");
+          #endif
+        }
+
+        firstStep = false;
+
+      } // Loop over geometries
+    } // Loop over different jobs
 
     ProgramTimer::tock("Chronus Quantum");
     printTimerSummary(std::cout);

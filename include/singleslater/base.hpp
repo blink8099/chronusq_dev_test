@@ -187,6 +187,7 @@ namespace ChronusQ {
 
 
     // Procedural Functions to be defined in all derived classes
+    virtual BasisSet& basisSet() = 0;
       
     // In essence, all derived classes should be able to:
     //   Form a Fock matrix with the ability to increment
@@ -197,7 +198,7 @@ namespace ChronusQ {
     virtual void formGuess() = 0;
 
     //   Form the core Hamiltonian
-    virtual void formCoreH(EMPerturbation&) = 0;
+    virtual void formCoreH(EMPerturbation&, bool) = 0;
 
     //   Obtain a new set of orbitals / densities from current
     //   set of densities

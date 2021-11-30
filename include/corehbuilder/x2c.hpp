@@ -125,7 +125,7 @@ namespace ChronusQ {
     void BoettgerScale(std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
 
     // Compute the gradient
-    virtual void getGrad() {
+    virtual std::vector<double> getGrad(EMPerturbation&, SingleSlater<MatsT,IntsT>&) {
       CErr("X2C CoreH gradient NYI",std::cout);
     }
 

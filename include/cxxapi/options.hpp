@@ -55,6 +55,44 @@ namespace ChronusQ {
     isFourCRef // Four-component
   };
 
+  // Type of Job
+  enum JobType {
+    SCF,
+    RT,
+    RESP,
+    CC,
+    BOMD,
+    EHRENFEST
+  };
+
+  // Tedious, but there isn't an easier way to do this
+  inline JobType parseJob(std::string jobStr) {
+    JobType job;
+    if( jobStr == "SCF" ) {
+      job = SCF;
+    }
+    else if( jobStr == "RT" ) {
+      job = RT;
+    }
+    else if( jobStr == "RESP" ) {
+      job = RESP;
+    }
+    else if( jobStr == "CC" ) {
+      job = CC;
+    }
+    else if( jobStr == "BOMD" ) {
+      job = BOMD;
+    }
+    else if( jobStr == "EHRENFEST" ) {
+      job = EHRENFEST;
+    }
+    else {
+      jobStr = "Unrecognized job type \"" + jobStr + "\"!";
+      CErr(jobStr);
+    }
+    return job;
+  };
+
   // A struct that stores reference information
   struct RefOptions {
     
@@ -167,6 +205,18 @@ namespace ChronusQ {
   void CQCC_VALID(std::ostream &, CQInputFile &);
 
 
+  // Parse geometry modifier options
+  JobType CQGeometryOptions(std::ostream& out, CQInputFile& input, 
+    JobType job, Molecule& mol, std::shared_ptr<SingleSlaterBase> ss,
+    std::shared_ptr<RealTimeBase>& rt, std::shared_ptr<IntegralsBase> epints,
+    EMPerturbation& emPert);
+
+  JobType CQDynamicsOptions(std::ostream& out, CQInputFile& input, 
+    JobType job, Molecule& mol, std::shared_ptr<SingleSlaterBase> ss,
+    std::shared_ptr<RealTimeBase>& rt, std::shared_ptr<IntegralsBase> epints,
+    EMPerturbation& emPert);
+
+  void CQDYNAMICS_VALID( std::ostream& out, CQInputFile& input );
 
 
   std::shared_ptr<CQMemManager> CQMiscOptions(std::ostream &,
@@ -189,6 +239,7 @@ namespace ChronusQ {
     CQMOR_VALID(out,input);
     CQMISC_VALID(out,input);
     CQCC_VALID(out,input);
+    CQDYNAMICS_VALID(out,input);
 
   }
 

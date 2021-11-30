@@ -83,4 +83,17 @@ namespace ChronusQ {
   template class Integrals<double>;
   template class Integrals<dcomplex>;
 
+  template class GradContractions<double,double>;
+  template class GradContractions<dcomplex,double>;
+  template class GradContractions<dcomplex,dcomplex>;
+
+  template class InCore4indexGradContraction<double, double>;
+  template class InCore4indexGradContraction<dcomplex, double>;
+  template class InCore4indexGradContraction<dcomplex, dcomplex>;
+
+  template class DirectGradContraction<double, double>;
+  template class DirectGradContraction<dcomplex, double>;
+  template class DirectGradContraction<dcomplex, dcomplex>;
+
+
 }; // namespace ChronusQ

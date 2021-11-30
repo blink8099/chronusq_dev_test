@@ -70,24 +70,29 @@ namespace ChronusQ {
    *  \param [in] typ Which Hamiltonian to build
    */ 
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert) {
+  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert, bool save) {
 
     ROOT_ONLY(comm);
 
     ProgramTimer::tick("Form Core H");
 
-    if( coreH != nullptr )
-      CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
-
     size_t NB = basisSet().nBasis;
     if( nC == 4 ) NB = 2 * NB;
 
-    if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
-    else if(nC == 2 or nC == 4)
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
-    else
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
+    if( coreH != nullptr ) {
+      //CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
+      coreH->clear();
+
+    } else {
+
+      if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
+      else if(nC == 2 or nC == 4)
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
+      else
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
+
+    }
 
 
     // Make a copy of HamiltonianOptions
@@ -128,7 +133,7 @@ namespace ChronusQ {
 
 
     // Save the Core Hamiltonian
-    if( savFile.exists() ) {
+    if( savFile.exists() && save) {
 
       const std::array<std::string,4> spinLabel =
         { "SCALAR", "MZ", "MY", "MX" };
@@ -143,6 +148,136 @@ namespace ChronusQ {
     ProgramTimer::tock("Form Core H");
 
   }; // SingleSlater<MatsT,IntsT>::computeCoreH
+
+
+  template <typename MatsT, typename IntsT>
+  std::vector<double> SingleSlater<MatsT,IntsT>::getGrad(EMPerturbation& pert,
+    bool equil, bool saveInts) {
+
+    // Get constants
+    size_t NB = basisSet().nBasis;
+    size_t nSQ  = NB*NB;
+
+    size_t nAtoms = this->molecule().nAtoms;
+    size_t nGrad = 3*nAtoms;
+
+    size_t nSp = fockMatrix->nComponent();
+    bool hasXY = fockMatrix->hasXY();
+    bool hasZ = fockMatrix->hasZ();
+
+
+    // Total gradient
+    std::vector<double> gradient(nGrad, 0.);
+
+    HamiltonianOptions opts = this->aoints.options_;
+
+    auto printGrad = [&](std::string name, std::vector<double>& vecgrad) {
+      std::cout << name << std::endl;
+      std::cout << std::setprecision(12);
+      for( auto iAt = 0; iAt < nAtoms; iAt++ ) {
+        std::cout << " Gradient@I = " << iAt << ":";
+        for( auto iCart = 0; iCart < 3; iCart++ ) {
+          std::cout << "  " << vecgrad[iAt*3 + iCart];
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+    };
+
+
+    // Core H contribution
+    this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
+      {{OVERLAP, 1},
+       {KINETIC, 1},
+       {NUCLEAR_POTENTIAL, 1}
+       },
+       opts
+    );
+
+
+    std::vector<double> coreGrad = coreHBuilder->getGrad(pert, *this);
+    // printGrad("Core H Gradient:", coreGrad);
+
+
+    // 2e contribution
+    this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
+      {{ELECTRON_REPULSION, 1}},
+      opts
+    );
+    std::vector<double> twoEGrad = fockBuilder->getGDGrad(*this, pert);
+    std::vector<double> pulayGrad;
+    std::vector<double> nucGrad;
+
+    // Pulay contribution
+    //
+    // NOTE: We may want to change these methods out to use just the energy
+    //   weighted density matrix - can probably get some speed up.
+    if( equil ) {
+      // TODO
+    }
+    else {
+
+      computeOrthoGrad();
+
+      // Allocate
+      SquareMatrix<MatsT> vdv(memManager, NB);
+      SquareMatrix<MatsT> dvv(memManager, NB);
+      PauliSpinorSquareMatrices<MatsT> SCR(memManager, NB, hasXY, hasZ);
+
+      for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+
+        // Form VdV and dVV
+        Gemm('N','N',NB,NB,NB,MatsT(1.),ortho[0].pointer(),NB,
+          gradOrtho[iGrad].pointer(),NB,MatsT(0.),vdv.pointer(),NB);
+        Gemm('N','N',NB,NB,NB,MatsT(1.),gradOrtho[iGrad].pointer(),NB,
+          ortho[0].pointer(),NB,MatsT(0.),dvv.pointer(),NB);
+
+        // Form FVdV and dVVF
+        for( auto iSp = 0; iSp < nSp; iSp++ ) {
+          auto comp = static_cast<PAULI_SPINOR_COMPS>(iSp);
+          Gemm('N','N',NB,NB,NB,MatsT(1.),(*fockMatrix)[comp].pointer(),NB,
+            vdv.pointer(),NB,MatsT(0.),SCR[comp].pointer(),NB);
+          Gemm('N','N',NB,NB,NB,MatsT(1.),dvv.pointer(),NB,
+            (*fockMatrix)[comp].pointer(),NB,MatsT(1.),SCR[comp].pointer(),NB);
+        }
+
+        // Trace
+        double gradVal = this->template computeOBProperty<double,SCALAR>(
+          SCR.S().pointer()
+        );
+
+        if( hasZ )
+          gradVal += this->template computeOBProperty<double,MZ>(
+            SCR.Z().pointer()
+          );
+        if( hasXY ) {
+          gradVal += this->template computeOBProperty<double,MY>(
+            SCR.Y().pointer()
+          );
+          gradVal += this->template computeOBProperty<double,MX>(
+            SCR.X().pointer()
+          );
+        }
+
+        pulayGrad.push_back(-0.5*gradVal);
+        size_t iAt = iGrad/3;
+        size_t iXYZ = iGrad%3;
+        gradient[iGrad] = coreGrad[iGrad] + twoEGrad[iGrad] - 0.5*gradVal
+                          + this->molecule().nucRepForce[iAt][iXYZ];
+        nucGrad.push_back(this->molecule().nucRepForce[iAt][iXYZ]);
+      }
+
+    }
+
+    // printGrad("Nuclear Gradient:", nucGrad);
+    // printGrad("G Gradient:", twoEGrad);
+    // printGrad("Pulay Gradient:", pulayGrad);
+
+    // this->onePDM->output(std::cout, "OnePDM in Gradient Contractions", true);
+
+    return gradient;
+
+  };
 
 
   /**
@@ -352,6 +487,91 @@ namespace ChronusQ {
     memManager.free(SCR1); // Free SCR1
 
   }; // computeOrtho
+
+
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::computeOrthoGrad() {
+
+    size_t NB = basisSet().nBasis;
+    size_t nSQ  = NB*NB;
+
+    size_t nAtoms = this->molecule().nAtoms;
+    size_t nGrad = 3*nAtoms;
+
+
+    // Allocate if we haven't already
+    if( gradOrtho.empty() )
+      for( auto i = 0; i < nGrad; i++ )
+        gradOrtho.emplace_back(memManager, NB);
+    else if( gradOrtho.size() != nGrad )
+      CErr("Mismatched gradient sizes in computeOrthoGrad!");
+
+    for( auto i = 0; i < nGrad; i++ )
+      gradOrtho[i].clear();
+
+    // Check that the overlap gradient has already been computed
+    // (and is still around)
+    if( not this->aoints.gradOverlap )
+      CErr("Gradient overlap object null in computeOrthoGrad");
+    else if( this->aoints.gradOverlap->size() == 0 )
+      CErr("Gradient overlap missing in computeOrthoGrad");
+
+
+    if(orthoType == LOWDIN) {
+
+      // Allocate scratch
+      MatsT* sVecs   = memManager.malloc<MatsT>(nSQ);
+      MatsT* sE      = memManager.malloc<MatsT>(NB);
+      MatsT* weights = memManager.malloc<MatsT>(nSQ);
+      MatsT* SCR1    = memManager.malloc<MatsT>(nSQ);
+      MatsT* SCR2    = memManager.malloc<MatsT>(nSQ);
+
+      
+      // Copy the overlap over to scratch space
+      std::copy_n(this->aoints.overlap->pointer(),nSQ,sVecs);
+
+      // Diagonalize the overlap in scratch S = V * s * V**T
+      HermetianEigen('V','U',NB,sVecs,NB,sE,memManager);
+
+      if( std::abs( sE[0] ) < 1e-10 )
+        CErr("Contracted Basis Set is Linearly Dependent!");
+
+
+      // Compute weights = (sqrt(si) + sqrt(sj))^-1
+      for( auto i = 0; i < NB; i++ )
+      for( auto j = 0; j < NB; j++ ) {
+          weights[i*NB + j] = MatsT(1.) / (std::sqrt(sE[i]) + std::sqrt(sE[j]));
+      }
+
+      // Loop over gradient components
+      for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+
+        // Copy overlap gradient into scratch space
+        std::copy_n((*this->aoints.gradOverlap)[iGrad]->pointer(), nSQ, SCR1);
+
+        //
+        // dV/dR = V . (weights x V**T . dS/dR . V) . V**T
+        //
+
+        // dS/dR . V
+        Gemm('N','N',NB,NB,NB,MatsT(1.),SCR1,NB,sVecs,NB,MatsT(0.),SCR2,NB);
+        // V**T . dS/dR . V
+        Gemm('C','N',NB,NB,NB,MatsT(1.),sVecs,NB,SCR2,NB,MatsT(0.),SCR1,NB);
+        // weights x V**T . dS/dR . V
+        std::transform(SCR1, SCR1+nSQ, weights, SCR1, std::multiplies<>());
+        // (weights x V**T . dS/dR . V) . V**T
+        Gemm('N','C',NB,NB,NB,MatsT(1.),SCR1,NB,sVecs,NB,MatsT(0.),SCR2,NB);
+        // dV/dR = V . (weights x V**T . dS/dR . V) . V**T
+        Gemm('N','N',NB,NB,NB,MatsT(1.),sVecs,NB,SCR2,NB,MatsT(0.),gradOrtho[iGrad].pointer(),NB);
+
+      } 
+
+      memManager.free(sVecs, sE, weights, SCR1, SCR2);
+
+    } else if(orthoType == CHOLESKY)
+      CErr("Cholesky orthogonalization gradients not yet implemented");
+
+  }; // computeOrthoGrad
 
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::MOFOCK() {

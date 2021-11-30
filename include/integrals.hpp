@@ -26,6 +26,7 @@
 #include <chronusq_sys.hpp>
 #include <util/files.hpp>
 #include <fields.hpp>
+#include <particleintegrals/gradints.hpp>
 #include <particleintegrals/onepints.hpp>
 #include <particleintegrals/twopints.hpp>
 #include <particleintegrals/multipoleints.hpp>
@@ -69,6 +70,10 @@ namespace ChronusQ {
     virtual void computeAOTwoE(BasisSet&, Molecule&, EMPerturbation&) = 0;
     virtual void computeAOTwoE(BasisSet&, BasisSet&, Molecule&, EMPerturbation&) = 0;
 
+    virtual void computeGradInts(CQMemManager&, Molecule&, BasisSet&,
+        EMPerturbation&, const std::vector<std::pair<OPERATOR,size_t>>&, const
+        HamiltonianOptions&) = 0;
+
     // Print (see src/aointegrals/print.cxx for docs)
     template <typename G> 
       friend std::ostream & operator<<(std::ostream &, const IntegralsBase& );
@@ -106,6 +111,13 @@ namespace ChronusQ {
     // 2-particle storage
     std::shared_ptr<TwoPInts<IntsT>> TPI = nullptr;
 
+    // Gradient storage
+    std::shared_ptr<GradInts<OnePInts,IntsT>> gradOverlap = nullptr;
+    std::shared_ptr<GradInts<OnePInts,IntsT>> gradKinetic = nullptr;
+    std::shared_ptr<GradInts<OnePInts,IntsT>> gradPotential = nullptr;
+
+    std::shared_ptr<GradInts<TwoPInts,IntsT>> gradERI = nullptr;
+
     // miscellaneous storage
     std::map<std::string, std::shared_ptr<ParticleIntegrals>> misc;
 
@@ -137,6 +149,10 @@ namespace ChronusQ {
       TPI->computeAOInts(basis, basis2, mol, emPert, EP_ATTRACTION,
                          options_);
     }
+
+    virtual void computeGradInts(CQMemManager&, Molecule&, BasisSet&,
+        EMPerturbation&, const std::vector<std::pair<OPERATOR,size_t>>&, const
+        HamiltonianOptions&);
 
     template <typename MatsT>
     Integrals<typename std::conditional<

@@ -79,6 +79,10 @@ namespace ChronusQ {
 
     virtual void printMOInfo(std::ostream&) = 0;
 
+    // Get geometric gradients
+    virtual std::vector<double> getGrad(EMPerturbation&, bool equil,
+      bool saveInts) = 0;
+
   }; // class WaveFunctionBase
 
 }; // namespace ChronusQ

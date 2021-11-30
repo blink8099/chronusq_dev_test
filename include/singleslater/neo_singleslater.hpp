@@ -100,7 +100,7 @@ namespace ChronusQ {
        std::shared_ptr<TPIContractions<MatsT,IntsT>> EPAI; 
 
        // Compute the CH
-       void formCoreH(EMPerturbation&); 
+       void formCoreH(EMPerturbation&, bool); 
 
        // Form initial guess orbitals
        void formGuess();
