@@ -69,13 +69,13 @@ namespace ChronusQ {
       }
     }
     DirectTPI( DirectTPI &&other ): TwoPInts<IntsT>(std::move(other)),
-        basisSet_(other.basisSet_), basisSet2_(other.basisSet2_), 
-        threshSchwarz_(other.threshSchwarz_),
-        molecule_(other.molecule_),
-        schwarz_(other.schwarz_), schwarz2_(other.schwarz2_) 
-        { other.schwarz_ = nullptr; 
-          other.schwarz2_ = nullptr;
-        }
+      basisSet_(other.basisSet_), basisSet2_(other.basisSet2_), 
+      threshSchwarz_(other.threshSchwarz_),
+      molecule_(other.molecule_),
+      schwarz_(other.schwarz_), schwarz2_(other.schwarz2_) {
+      other.schwarz_ = nullptr; 
+      other.schwarz2_ = nullptr;
+    }
 
     BasisSet& basisSet() { return basisSet_; }
     BasisSet& basisSet2() { return basisSet2_; }
@@ -151,17 +151,25 @@ namespace ChronusQ {
 
     template <typename MatsU>
     GTODirectTPIContraction(
-        const GTODirectTPIContraction<MatsU,IntsT> &other, int dummy = 0 ):
-      GTODirectTPIContraction(other.ints_) {}
+      const GTODirectTPIContraction<MatsU,IntsT> &other, int dummy = 0 ):
+      GTODirectTPIContraction(other.ints_) {
+      this->contractSecond = other.contractSecond;
+    }
     template <typename MatsU>
     GTODirectTPIContraction(
-        GTODirectTPIContraction<MatsU,IntsT> &&other, int dummy = 0 ):
-      GTODirectTPIContraction(other.ints_) {}
+      GTODirectTPIContraction<MatsU,IntsT> &&other, int dummy = 0 ):
+      GTODirectTPIContraction(other.ints_) {
+      this->contractSecond = other.contractSecond;
+    }
 
     GTODirectTPIContraction( const GTODirectTPIContraction &other ):
-      GTODirectTPIContraction(other, 0) {}
+      GTODirectTPIContraction(other, 0) {
+      this->contractSecond = other.contractSecond;
+    }
     GTODirectTPIContraction( GTODirectTPIContraction &&other ):
-      GTODirectTPIContraction(std::move(other), 0) {}
+      GTODirectTPIContraction(std::move(other), 0) {
+      this->contractSecond = other.contractSecond;
+    }
 
     /**
      *  \brief Perform various tensor contractions of the ERI tensor

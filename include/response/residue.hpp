@@ -160,7 +160,7 @@ namespace ChronusQ {
 
     if( hasResGuess_ )
       gplhr.setGuess(resSettings.nRoots,
-          [&](size_t nG, T* G, size_t LDG){ resGuess(nG,G,LDG); });
+          [&](size_t nG, T* G, size_t LDG){ this->resGuess(nG,G,LDG); });
 
 
 

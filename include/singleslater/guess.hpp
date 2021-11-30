@@ -792,12 +792,6 @@ namespace ChronusQ {
     std::cout << "    * Found SCF/MO1 !" << std::endl;
     savFile.readData(prefix + "MO1",this->mo[0].pointer());
 
-    //this->mo[0].output(std::cout, "read in MO", true);
-
-
-
-
-
     // Unrestricted calculations
     if( this->nC == 1 and not this->iCS ) {
       

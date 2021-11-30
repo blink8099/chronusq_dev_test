@@ -47,7 +47,7 @@ namespace ChronusQ {
         "  * PERFORMING RESPONSE OPTION CONFIGURATION FOR SINGLE SLATER "
                 << "WAVE FUNCTION\n";
     }
-
+    SingleSlater<MatsT,IntsT>& ss =dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
     // Set the internal NSingleDim
     this->nSingleDim_ = getNSingleDim(this->genSettings.doTDA);
 
@@ -148,12 +148,12 @@ namespace ChronusQ {
       // Hermetian operators
       bool needsP = 
         std::any_of(this->genSettings.aOps.begin(),
-		    this->genSettings.aOps.end(), isHerOp);
+        this->genSettings.aOps.end(), isHerOp);
 
       // Anti-Hermetian operators
       bool needsQ = 
         std::any_of(this->genSettings.aOps.begin(),
-		    this->genSettings.aOps.end(), isAntiHerOp);
+        this->genSettings.aOps.end(), isAntiHerOp);
 
       this->fdrSettings.needP = needsP;
       this->fdrSettings.needQ = needsQ;
@@ -368,6 +368,7 @@ namespace ChronusQ {
     std::ostream &out, size_t nRoots, double *W_print,
     std::vector<std::pair<std::string,double *>> data, U* VL, U* VR) {
 
+    SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
     this->nSingleDim_ = getNSingleDim(this->genSettings.doTDA);
 
     out << "\n\n\n* RESIDUE EIGENMODES\n\n\n";
@@ -402,7 +403,7 @@ namespace ChronusQ {
       decltype(xCont) yCont;
       if( not this->genSettings.doTDA ) 
         yCont = getMOContributions(VL+iRt*this->nSingleDim_,1e-1);
-
+      
       // MO contributions
       out << "    MO Contributions:\n";
       for(auto &c : xCont) {
@@ -882,7 +883,6 @@ namespace ChronusQ {
     size_t nStore = (this->doAPB_AMB and not this->genSettings.doTDA) ? N/2 : N;
     size_t nFormP = nForm; // Persistant for matrix distribution
     size_t nStoreP = nStore; // Persistant for matrix distribution
-
     // Determine if we want to distribute the matrix at all
     bool isDist = this->genSettings.isDist(); 
 
@@ -1087,7 +1087,8 @@ namespace ChronusQ {
     } else 
 #endif
       this->fullMatrix_ = HV;
-    ProgramTimer::tock("Hessian Distribute");
+    
+		ProgramTimer::tock("Hessian Distribute");
 
     //if( isDist ) CErr();
 
@@ -1387,7 +1388,6 @@ namespace ChronusQ {
   std::pair<size_t,MatsT*> 
     PolarizationPropagator<SingleSlater<MatsT, IntsT>>::formPropGrad(
       ResponseOperator op) {
-
     std::vector<IntsT*> opS;
     std::vector<MatsT*>      opT;
 
@@ -1468,7 +1468,6 @@ namespace ChronusQ {
     }
 
     for(auto iVec = 0; iVec < nVec; iVec++) {
-
       MatsT* CMO = this->ref_->mo[0].pointer();
       MatsT* CMOB = (ss.nC == 1) ? this->ref_->mo[1].pointer() : CMO + NB;
 
@@ -1614,7 +1613,7 @@ namespace ChronusQ {
     std::vector<ResponseOperator> ops = this->genSettings.bOps;
 
     size_t N      = this->nSingleDim_;
-
+    
     MatsT* g = nullptr; size_t nProp;
 
     if( this->fdrSettings.nRHS == 0 ) 
@@ -1757,7 +1756,8 @@ namespace ChronusQ {
   template <typename U, typename... Args>
   std::vector<TwoBodyContraction<U>> 
     PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phTransitionVecMO2AO(
-      MPI_Comm c, bool scatter, size_t nVec, size_t N, Args... Vs) {
+      MPI_Comm c, bool scatter, size_t nVec, size_t N,
+      SingleSlater<MatsT,IntsT>& ss1, SingleSlater<MatsT,IntsT>& ss2, bool doExchange, Args... Vs) {
 
     static_assert(sizeof...(Vs) > 0 and sizeof...(Vs) < 3,
       "Vs must consist of 1 or 2 pointers");
@@ -1770,16 +1770,21 @@ namespace ChronusQ {
     bool isRoot = MPIRank(c) == 0;
     bool trans  = isRoot or not scatter;
 
+    //SingleSlater<MatsT, IntsT>& sshold = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
 
-    SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
-    const size_t NB   = ss.nAlphaOrbital();
+    const size_t NB   = ss1.nAlphaOrbital();
     const size_t NB2  = NB * NB;
-    const size_t NBC  = ss.nC * NB;
+    const size_t NBC  = ss1.nC * NB;
     const size_t NBC2 = NBC * NBC;
 
-    const size_t NO    = (ss.nC == 2) ? ss.nO : ss.nOA;
-    const size_t nOAVA = ss.nOA * ss.nVA;
-    const size_t nOBVB = ss.nOB * ss.nVB;
+    const size_t NO    = (ss1.nC == 2) ? ss1.nO : ss1.nOA;
+    const size_t nOAVA = ss1.nOA * ss1.nVA;
+    const size_t nOBVB = ss1.nOB * ss1.nVB;
+
+    const size_t NB_AX = ss2.nAlphaOrbital();
+    const size_t NB2_AX = NB_AX * NB_AX;
+    const size_t NBC_AX = ss2.nC * NB_AX;
+    const size_t NBC2_AX = NBC_AX * NBC_AX;
 
     U* MOT  = this->memManager_.template malloc<U>(NBC2);
     U* SCR  = trans ? this->memManager_.template malloc<U>(NBC2) : nullptr;
@@ -1793,8 +1798,12 @@ namespace ChronusQ {
       IMatCopy('C',NBC,NBC,U(1.),X,NBC,NBC);
     };
 
-    size_t nMatPVec = 4 * ss.nC + 1;
-    size_t nAlloc = nVec * nMatPVec * NB2;;
+    size_t nAXMatPVec = 1;
+    if( doExchange )
+      nAXMatPVec += 2 * ss2.nC;
+    size_t nXMatPVec = 2 * ss1.nC;
+    size_t nSpacePVec = (nAXMatPVec * NB2_AX + nXMatPVec * NB2);
+    size_t nAlloc = nVec * nSpacePVec;
     //std::cerr << "MO2AO " << nAlloc*sizeof(MatsT) / 1e9 << std::endl;
 
     U * first = this->memManager_.template malloc<U>(nAlloc);
@@ -1805,8 +1814,7 @@ namespace ChronusQ {
       U* VY_c = nullptr; 
       if( nVs > 1 ) VY_c = V_arr[1] + iVec * N;
 
-      MatsT* CMO = ss.mo[0].pointer();
-
+      MatsT* CMO = ss1.mo[0].pointer();
 
       // Perform MO -> AO transformation
       if( trans ) {
@@ -1822,9 +1830,8 @@ namespace ChronusQ {
           MOT[i*NBC + a] = VX_c[ai];
           if( nVs > 1 ) MOT[a*NBC + i] = VY_c[ai];
         }
-
         // Transform Alpha (full) MOT -> AO basis
-        MOTRANS(CMO,MOT);
+        MOTRANS(CMO, MOT);
 
       }
 
@@ -1838,51 +1845,53 @@ namespace ChronusQ {
       // Allocate AO storage
 
       AOS = first;
-      AOZ = first + NB2;
+      AOZ = AOS + NB2;
 
-      if( ss.nC == 2 ) {
-        AOY = first + 5*NB2;
-        AOX = first + 6*NB2;
+      JAOS = AOZ + NB2;
+      std::fill_n(JAOS,NB2_AX,0.);
+
+
+      if( doExchange ) {
+        KAOS = JAOS + NB2_AX;
+        KAOZ = KAOS + NB2_AX;  // FIXME: not for SA
+
+        std::fill_n(KAOS,NB2_AX,0.);
+        std::fill_n(KAOZ,NB2_AX,0.);
+      }
+      
+      if( ss1.nC == 2 ) {
+
+        AOY = KAOZ + NB2_AX;
+        AOX = AOY + NB2;
+
       }
 
-      JAOS = first + 2*NB2;
+      if( ss2.nC == 2 ) {
+        if( doExchange ) {
+          KAOY = AOX + NB2;
+          KAOX = KAOY + NB2_AX;
 
-      KAOS = first + 3*NB2; 
-      KAOZ = first + 4*NB2;  // FIXME: not for SA
-
-
-      std::fill_n(JAOS,NB2,0.);
-      std::fill_n(KAOS,NB2,0.);
-      std::fill_n(KAOZ,NB2,0.);
-      
-      
-      if( ss.nC == 2 ) {
-        KAOY = first + 7*NB2;
-        KAOX = first + 8*NB2;
-
-        std::fill_n(KAOY,NB2,0.);
-        std::fill_n(KAOX,NB2,0.);
+          std::fill_n(KAOY,NB2_AX,0.);
+          std::fill_n(KAOX,NB2_AX,0.);
+        }
       }
 
-      first += nMatPVec * NB2;
-
+      first += nSpacePVec;
 
       cList.push_back( { AOS, JAOS, false, COULOMB  } );
-      cList.push_back( { AOS, KAOS, false, EXCHANGE } );
-      cList.push_back( { AOZ, KAOZ, false, EXCHANGE } );
+      if (doExchange){
+        cList.push_back( { AOS, KAOS, false, EXCHANGE } );
+        cList.push_back( { AOZ, KAOZ, false, EXCHANGE } );
         // FIXME: not for SA
-
-      if( ss.nC == 2 ) {
-        cList.push_back( { AOY, KAOY, false, EXCHANGE } );
-        cList.push_back( { AOX, KAOX, false, EXCHANGE } );
+  
+        if( ss1.nC == 2 && ss2.nC == 2 ) {
+          cList.push_back( { AOY, KAOY, false, EXCHANGE } );
+          cList.push_back( { AOX, KAOX, false, EXCHANGE } );
+        }
       }
 
-
-
-
-
-
-      if( ss.nC == 1 ) { // RHF / UHF case
+      // TODO: what if ss1.nC != ss2.nC?
+      if( ss1.nC == 1 && ss2.nC == 1 ) { // RHF / UHF case
 
         std::copy_n(MOT,NB2,AOS);
         std::copy_n(MOT,NB2,AOZ);
@@ -1892,20 +1901,18 @@ namespace ChronusQ {
 
           std::fill_n(MOT,NB2,0.);
 
-          double *eps = ss.iCS ? ss.eps1 : ss.eps2;
+          double *eps = ss1.iCS ? ss1.eps1 : ss1.eps2;
 
           // Beta for RHF / UHF FIXME: not for spin adapted
-          for(size_t i = 0, ai = nOAVA;  i < ss.nOB; i++) 
-          for(size_t a = ss.nOB; a < NB; a++, ai++) {
+          for(size_t i = 0, ai = nOAVA;  i < ss1.nOB; i++)
+          for(size_t a = ss1.nOB; a < NB; a++, ai++) {
             MOT[i*NB + a] = VX_c[ai];
             if( nVs > 1 ) MOT[a*NB + i] = VY_c[ai];
           }
 
-          CMO = ss.iCS ? ss.mo[0].pointer() : ss.mo[1].pointer();
-          
+          CMO = ss1.iCS ? ss1.mo[0].pointer() : ss1.mo[1].pointer();
           // Transform BETA (full) MOT -> AO basis
           MOTRANS(CMO,MOT);
-
         }
 
 
@@ -1938,7 +1945,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   template <typename U, typename... Args>
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phTransitionVecAO2MO(
-    size_t nVec, size_t N, std::vector<TwoBodyContraction<U>> &cList, 
+    size_t nVec, size_t N, std::vector<TwoBodyContraction<U>> &cList, SingleSlater<MatsT, IntsT>& ss,bool doExchange,
     Args... HVs) {
 
     constexpr size_t nHVs = sizeof...(HVs);
@@ -1946,7 +1953,7 @@ namespace ChronusQ {
     std::array<U*,nHVs> HV_arr = { HVs... };
 
 
-    SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
+   // SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
     const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
@@ -1977,62 +1984,70 @@ namespace ChronusQ {
       // Get the index of first G[T(iVec)]
 
       size_t indx = iOff * iVec; // FIXME: be careful for SA
+      U* J_S=nullptr, *K_S=nullptr, *K_Z=nullptr, *K_X=nullptr, *K_Y=nullptr;
+
+      if (doExchange){
+        J_S = cList[indx  ].AX;
+        K_S = cList[indx+1].AX;
+        K_Z = cList[indx+2].AX;
+  
+        if( ss.nC == 2 ) {
+          K_Y = cList[indx+3].AX;
+          K_X = cList[indx+4].AX;
+        }
+        // Form G(S) in K(S)
+        MatAdd('N','N',NB,NB,U(2.),J_S,NB,U(-1.),K_S,NB,K_S,NB);
+  
+        // Negate Ks for Z,Y and X
+        Scale(NB2,U(-1.),K_Z,1);
       
-      U* J_S = cList[indx  ].AX;
-      U* K_S = cList[indx+1].AX;
-      U* K_Z = cList[indx+2].AX;
-
-      U* K_Y, *K_X;
-      if(ss.nC == 2) {
-        K_Y = cList[indx+3].AX;
-        K_X = cList[indx+4].AX;
+        if( ss.nC == 2 ) {
+          Scale(NB2,U(-1.),K_Y,1);
+          Scale(NB2,U(-1.),K_X,1);
+        }
       }
-
-      // Form G(S) in K(S)
-      MatAdd('N','N',NB,NB,U(2.),J_S,NB,U(-1.),K_S,NB,K_S,NB);
-
-      // Negate Ks for Z,Y and X
-      Scale(NB2,U(-1.),K_Z,1);
-    
-      if( ss.nC == 2 ) {
-        Scale(NB2,U(-1.),K_Y,1);
-        Scale(NB2,U(-1.),K_X,1);
+      else{
+        J_S = cList[iVec].AX;
       }
-
-
-
       // Transform G[T] into MO basis and extract into HV
             
       // Alpha for RHF/ UHF, full for GHF
-      if( ss.nC == 1 ) 
-        MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(0.5),K_Z,NB,MOT,NB);
-      else          
-        SpinGather(NB,MOT,NBC,K_S,NB,K_Z,NB,K_Y,NB,K_X,NB);
-
+      if (doExchange){
+        if( ss.nC == 1 )
+          MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(0.5),K_Z,NB,MOT,NB);
+        else
+          SpinGather(NB,MOT,NBC,K_S,NB,K_Z,NB,K_Y,NB,K_X,NB);
+      }
+      else{
+        SetMat('N',NB,NB,U(1.),J_S,NB,MOT,NB);  
+      }
       MatsT* CMO = ss.mo[0].pointer();
-      
+
       // Transform -> AO basis
       MOTRANS(CMO,MOT);
-      
+
       for(size_t i = 0, ai = 0;  i < NO; i++) 
       for(size_t a = NO; a < NBC; a++, ai++) {
         HVX_c[ai] += MOT[i*NBC + a]; 
-        if( nHVs > 1 ) HVY_c[ai] += MOT[a*NBC + i]; 
+        if( nHVs > 1 ) HVY_c[ai] += MOT[a*NBC + i];
       }
 
       // Do Beta for RHF / UHF (FIXME: not for SA)
       if( ss.nC == 1 ) {
-
-        MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(-0.5),K_Z,NB,MOT,NB);
-
+        if (doExchange){
+          MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(-0.5),K_Z,NB,MOT,NB);
+        }
+        else{
+          SetMat('N',NB,NB,U(1.),J_S,NB,MOT,NB);
+        }
         CMO = ss.iCS ? ss.mo[0].pointer() : ss.mo[1].pointer();
-        
         // Transform -> AO basis
         MOTRANS(CMO,MOT);
         
-        for(size_t i = 0, ai = nOAVA;  i < ss.nOB; i++) 
+        for(size_t i = 0, ai = nOAVA;  i < ss.nOB; i++)
         for(size_t a = ss.nOB; a < NB; a++, ai++) {
-          HVX_c[ai] += MOT[i*NB + a]; 
+          HVX_c[ai] += MOT[i*NB + a];
+           
           if( nHVs > 1 ) HVY_c[ai] += MOT[a*NB + i]; 
         }
 
@@ -2050,9 +2065,9 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   template <typename U>
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phEpsilonScale(bool doInc, 
-    bool doInv, size_t nVec, size_t N, U* V, U* HV) {
+    bool doInv, size_t nVec, size_t N,SingleSlater<MatsT,IntsT>& ss, U* V, U* HV) {
+   // SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
 
-    SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
     const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
@@ -2080,9 +2095,10 @@ namespace ChronusQ {
       double *eps = ss.eps1; 
 
       for(size_t i = 0, ai = 0;  i < NO; i++) 
-      for(size_t a = NO; a < NBC; a++, ai++) 
+      for(size_t a = NO; a < NBC; a++, ai++){ 
         HV_c[ai] = increment(HV_c[ai],
                              epsilonScale(eps[a] - eps[i]) * V_c[ai]);
+      }
 
       if( ss.nC == 1 ) { // RHF / UHF case
 
@@ -2096,6 +2112,7 @@ namespace ChronusQ {
       }
 
     }
+    
     else {
 
       dcomplex* FCMPLX = nullptr, *FBCMPLX = nullptr;
@@ -2179,13 +2196,12 @@ namespace ChronusQ {
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::resGuess(
       size_t nGuess, MatsT *G, size_t LDG) {
 
+    SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
     size_t N = getNSingleDim(true);
 
     // Initialize an NOV index array
     std::vector<size_t> indx(N,0);
     std::iota(indx.begin(),indx.end(),0);
-
-    auto &ss = *this->ref_;
 
     size_t NO1 = (ss.nC == 1) ? ss.nOA : ss.nO;
     size_t NV1 = (ss.nC == 1) ? ss.nVA : ss.nV;
@@ -2251,7 +2267,95 @@ namespace ChronusQ {
   }
 
 
+  /**
+   * Get the diagonal double bar integral (ai||ai)
+   * - XSCR needs to be 2*nC*NB2
+   * - AXSCR needs to be (2*nC+1)*NB2
+   * - Both scratch must not contain NaNs
+   **/
+  template <typename MatsT, typename IntsT>
+  MatsT PolarizationPropagator< SingleSlater<MatsT, IntsT> >::getGDiag(
+    size_t i, size_t a, bool beta, SingleSlater<MatsT,IntsT>& ss,
+    MatsT* XSCR, MatsT* AXSCR) 
+  {
 
+    MatsT* mo = beta && !ss.iCS ? ss.mo[1].pointer() : ss.mo[0].pointer();
+    size_t NB = ss.nAlphaOrbital();
+    size_t NB2 = NB*NB;
+    size_t NBC = NB*ss.nC;
+    size_t NBC2 = NBC*NBC;
+
+    size_t NO = ss.nC == 2 ?  ss.nO : beta ?  ss.nOB : ss.nOA;
+
+    // D_{m,n} := C_{a,m} \otimes C_{i,n}^T
+    // Form in AXSCR, then scatter to XSCR
+    // TODO: Move this to blas::ger when this branch is updated
+    Gemm('N','C',NBC,NBC,1,MatsT(1.),mo+a*NBC,NBC,mo+i*NBC,NBC,
+         MatsT(0.),AXSCR,NBC);
+
+    // Put D into pauli spinor form
+    MatsT *AOS, *AOZ, *AOY, *AOX;
+    AOS = XSCR;
+    AOZ = XSCR + NB2;
+    if( ss.nC == 2 ) {
+      AOY = XSCR + 2*NB2;
+      AOZ = XSCR + 3*NB2;
+    }
+
+    if( ss.nC == 1 ) {
+      SetMat('N', NB, NB, MatsT(1.), AXSCR, NB, AOS, NB);
+      MatsT factor = beta ? MatsT(-1.) : MatsT(1.);
+      SetMat('N', NB, NB, factor, AXSCR, NB, AOZ, NB);
+    }
+    else {
+      SpinScatter(NB,AXSCR,NBC,AOS,NB,AOZ,NB,AOY,NB,AOX,NB);
+    }
+
+    // G[D] = Contract all ingredients with D
+    MatsT *JS, *KS, *KZ, *KY, *KX;
+
+    JS = AXSCR;
+    KS = AXSCR + NB2;
+    KZ = AXSCR + 2*NB2;
+    if( ss.nC == 2 ) {
+      KY = AXSCR + 3*NB2;
+      KX = AXSCR + 4*NB2;
+    }
+
+    std::vector<TwoBodyContraction<MatsT>> cList;
+    cList.push_back( { AOS, JS, false, COULOMB  } );
+    cList.push_back( { AOS, KS, false, EXCHANGE } );
+    cList.push_back( { AOZ, KZ, false, EXCHANGE } );
+    if( ss.nC == 2 ) {
+      cList.push_back( { AOY, KY, false, EXCHANGE } );
+      cList.push_back( { AOX, KX, false, EXCHANGE } );
+    }
+
+    ss.TPI->twoBodyContract(MPI_COMM_WORLD,cList);
+
+    // Put G into spin blocked form in XSCR
+    MatAdd('N', 'N', NB, NB, MatsT(2.), JS, NB, MatsT(-1.), KS, NB, KS, NB);
+    Scale(NB2,MatsT(-1.),KZ,1);
+    if( ss.nC == 2 ) {
+      Scale(NB2,MatsT(-1.),KY,1);
+      Scale(NB2,MatsT(-1.),KX,1);
+    }
+
+    if( ss.nC == 1 ) {
+      MatsT factor = beta ? -0.5 : 0.5;
+      MatAdd('N','N',NB,NB,MatsT(0.5),KS,NB,factor,KZ,NB,XSCR,NB);
+    }
+    else {
+      SpinGather(NB,XSCR,NBC,KS,NB,KZ,NB,KY,NB,KX,NB);
+    }
+
+    // Do the final AO->MO contraction
+    Gemm('C','N',1,NBC,NBC,MatsT(1.),mo+a*NBC,NBC,XSCR,NBC,MatsT(0.),AXSCR,NBC);
+    Gemm('N','N',1,1,NBC,MatsT(1.),AXSCR,NBC,mo+i*NBC,NBC,MatsT(0.),XSCR,NBC);
+
+    return *XSCR;
+
+  }
 } // namespace ChronusQ
 
 

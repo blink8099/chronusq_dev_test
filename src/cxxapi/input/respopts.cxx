@@ -62,7 +62,8 @@ namespace ChronusQ {
       "PPSTAR",
       "AOPS",
       "BOPS",
-      "BFREQ"
+      "BFREQ",
+      "NEO",
     };
 
     // Specified keywords
@@ -228,7 +229,7 @@ namespace ChronusQ {
     ResponseType jobTyp = RESIDUE;
     bool doMOR = false;
     bool doPP  = false;
-
+    bool doNEO = false;
 
     std::string jt = "RESIDUE";
 
@@ -239,6 +240,7 @@ namespace ChronusQ {
     else if( not jt.compare("MOR") )  doMOR = true;
     else CErr(jt + " NOT RECOGNIZED RESPONSE.TYPE");
 
+		if ( input.containsData("Response.NEO") ) doNEO = input.getData<bool>("Response.NEO");
 
     // Determine propagator
     try {
@@ -268,6 +270,11 @@ namespace ChronusQ {
       CErr("MOR + ParticleParticlePropagator not valid!",out);
 
 
+		if (doNEO and doPP )
+			CErr("NEO + ParticleParticlePropagator NYI!",out);
+
+		if (doNEO and doMOR )
+			CErr("NEO + MOR NYI!",out);
 
 
     bool found = false;
@@ -323,7 +330,9 @@ namespace ChronusQ {
     using KS_dd = KohnSham<double  ,double>;
     using KS_cd = KohnSham<dcomplex,double>;
     using KS_cc = KohnSham<dcomplex,dcomplex>;
-
+    using NEO_dd = NEOSS<double  ,double>;
+    using NEO_cd = NEOSS<dcomplex,double>;
+    using NEO_cc = NEOSS<dcomplex,dcomplex>;
 
 
     if( doMOR ) {
@@ -352,7 +361,12 @@ namespace ChronusQ {
       CONSTRUCT_PH_RESP( KS_dd );
       CONSTRUCT_PH_RESP( KS_cd );
       CONSTRUCT_PH_RESP( KS_cc );
-
+    if(doNEO){
+				CONSTRUCT_PH_RESP( NEO_dd );
+      	CONSTRUCT_PH_RESP( NEO_cd );
+      	CONSTRUCT_PH_RESP( NEO_cc );
+			}
+   
     }
 
 
@@ -412,7 +426,6 @@ namespace ChronusQ {
     // subspace greater than or equal to half of the full problem dimension.
     if( input.containsData("RESPONSE.NROOTS") and 
         input.containsData("RESPONSE.DOFULL") ) {
-
       if( ((3 + resp->resSettings.gplhr_m) * resp->resSettings.nRoots) >= resp->getNSingleDim() / 2 ) {
 
         resp->genSettings.doFull = true;
@@ -444,7 +457,7 @@ namespace ChronusQ {
       
         OPTOPT( hf->doAPB_AMB = input.getData<bool>("RESPONSE.DOAPBAMB") );
         OPTOPT( hf->doReduced = input.getData<bool>("RESPONSE.DOREDUCED") );
-
+        
         OPTOPT( hf->doStab = input.getData<bool>("RESPONSE.DOSTAB") );
 
       } catch(...){ }

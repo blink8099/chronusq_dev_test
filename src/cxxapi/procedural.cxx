@@ -309,9 +309,6 @@ namespace ChronusQ {
 
         if( elecJob == RESP ) {
 
-          // FIXME: Need to implement TD-NEO
-          if (doNEO)
-            CErr("RESP-NEO NYI!",output);
 
           auto resp = CQResponseOptions(output,input,ss);
           resp->savFile = rstFile;
