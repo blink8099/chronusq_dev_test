@@ -393,7 +393,7 @@ namespace ChronusQ {
       ss->formGuess();
       ss->getNewOrbitals(pert,false);
       ss->SCF(pert);
-      
+
       size_t NBbasis = basis.nBasis;
 
       // Place the atomic densities into the guess density
@@ -790,7 +790,11 @@ namespace ChronusQ {
     // Read in MO1
     std::cout << "    * Found SCF/MO1 !" << std::endl;
     savFile.readData(prefix + "MO1",this->mo[0].pointer());
-    this->mo[0].output(std::cout, "read in MO", true);
+
+    //this->mo[0].output(std::cout, "read in MO", true);
+
+
+
 
 
     // Unrestricted calculations
@@ -822,7 +826,6 @@ namespace ChronusQ {
       else {
         std::cout << "    * Found SCF/MO2 !" << std::endl;
         savFile.readData(prefix + "MO2",this->mo[1].pointer());
-        this->mo[1].output(std::cout,"read in MO",true);
       }
 
     }
@@ -832,7 +835,7 @@ namespace ChronusQ {
 
     // Form density from MOs
     formDensity();
-    this->onePDM->output(std::cout,"Corresponding density",true);
+
     std::cout << "\n" << std::endl;
     if( printLevel > 0 )
       std::cout << std::endl
@@ -840,8 +843,7 @@ namespace ChronusQ {
 
     std::cout << "\n" << std::endl;
     EMPerturbation pert;
-    //formFock(pert,false);
-  
+
   } // SingleSlater<T>::ReadGuessMO()
 
   /**
