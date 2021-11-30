@@ -194,21 +194,6 @@ namespace ChronusQ {
   };
 
   
-/*
-  template<typename MatsT, typename IntsT>
-  std::pair<size_t,MatsT*> PolarizationPropagator<NEOSS<MatsT, IntsT>>::formPropGrad( ResponseOperator op ){
-    
-    NEOSS<MatsT, IntsT>& neoss = dynamic_cast<NEOSS<MatsT, IntsT>&>(*this->ref_);
-    auto labels = neoss.getLabels();
-  
-    for (auto label:labels){  
-      auto ssbase =  neoss.getSubSSBase(label);
-      SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase));
-      Integrals<IntsT>& aoi = ss.aoints;
-    }
-
-  };
-*/
   template <>
   void PolarizationPropagator<NEOSS<double,double>>::formLinearTrans_direct(
     MPI_Comm c, RC_coll<double> x, SINGLESLATER_POLAR_COPT op,
@@ -644,5 +629,188 @@ namespace ChronusQ {
 #endif
     return {nVec, grad};
 	}
+  template <typename MatsT, typename IntsT>
+  template <typename U>
+  std::vector< std::pair< std::pair<int,int>, U > >
+    PolarizationPropagator<NEOSS<MatsT, IntsT>>::getMOContributions(U *V, 
+        double tol) {
+
+    std::vector< std::pair< std::pair<int,int>, U > > moCont;
+		
+    NEOSS<MatsT,IntsT>& neoss = dynamic_cast<NEOSS<MatsT, IntsT>&>(*this->ref_);
+		auto labels = neoss.getLabels();
+		size_t offSet = 0;	
+		for (auto label:labels){
+      auto ssbase = neoss.getSubSSBase(label);
+			SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>((*ssbase));
+
+		  int nOAVA = ss.nOA * ss.nVA;
+      int nOBVB = ss.nOB * ss.nVB;
+      int nOV   = ss.nO  * ss.nV;
+
+      int N  = (ss.nC == 1) ? nOAVA  : nOV;
+      int NV = (ss.nC == 1) ? ss.nVA : ss.nV;
+      int NO = (ss.nC == 1) ? ss.nOA : ss.nO;
+      for(auto j = 0; j < N; j++) {
+
+        int i = j / NV;		
+        int a = (j % NV) + NO;
+//				std::cout << "V[j], j, a, i: " << V[j+offSet] << ", " << j+offSet << std::endl;
+        if( std::abs(V[j+offSet]) > tol ) moCont.push_back( { {a,i}, V[j+offSet] } );
+
+      }
+
+      if( ss.nC == 1 ) {
+
+        N  = nOBVB; 
+        NV = ss.nVB;
+        NO = ss.nOB; 
+
+        for(auto j = 0; j < N; j++) {
+
+          int i = j / NV;
+          int a = (j % NV) + NO;
+
+          if( std::abs(V[j+nOAVA+offSet]) > tol ) 
+            moCont.push_back( { {-a,-i}, V[j+nOAVA+offSet] } );
+
+        }
+
+      }
+			if (label == labels[0]) moCont.push_back({{0,0},0});
+			int Nadd = (ss.nC == 1 ) ? ss.nOA * ss.nVA : ss.nO * ss.nV;
+			offSet += Nadd;
+    }
+
+    return moCont;
+
+  }
+
+  template <typename MatsT, typename IntsT>
+  template <typename U>
+  void PolarizationPropagator<NEOSS<MatsT, IntsT>>::printResMO_impl(
+    std::ostream &out, size_t nRoots, double *W_print,
+    std::vector<std::pair<std::string,double *>> data, U* VL, U* VR) {
+    NEOSS<MatsT,IntsT>& neoss = dynamic_cast<NEOSS<MatsT,IntsT>&>(*this->ref_);
+    this->nSingleDim_ = getNSingleDim(this->genSettings.doTDA);
+		auto labels = neoss.getLabels();
+ 
+    out << "\n\n\n* RESIDUE EIGENMODES\n\n\n";
+
+    for(auto iRt = 0; iRt < nRoots; iRt++) {
+
+      out << "  Root " << std::setw(7) << std::right << iRt+1 << ":";
+
+      // Energy eigenvalues in various unit systems
+      out << std::setw(15) << std::right << "W(Eh) = " 
+          << std::setprecision(8) << std::fixed << W_print[iRt];
+
+      out << std::setw(15) << std::right << "W(eV) = " 
+          << std::setprecision(8) << std::fixed 
+          << W_print[iRt]*EVPerHartree;
+
+      out << "\n";
+
+
+      if( this->genSettings.evalProp ) {
+        for(auto &d : data) {
+        out << "       " << std::setw(7) << " " << " ";
+        out << std::setw(15) << std::right << d.first 
+            << std::setprecision(8) << std::fixed 
+            << d.second[iRt];
+
+        out << "\n";
+        }
+      }
+
+      auto xCont = getMOContributions(VR+iRt*this->nSingleDim_,1e-1);
+      decltype(xCont) yCont;
+      if( not this->genSettings.doTDA ) 
+        yCont = getMOContributions(VL+iRt*this->nSingleDim_,1e-1);
+     
+			auto ssbase = neoss.getSubSSBase(labels[0]);
+			SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase)); 
+			size_t nC = ss.nC; 
+      // MO contributions
+      out << "    MO Contributions:\n" << labels[0] << ":\n";
+      for(auto &c : xCont) {
+
+  			if ( c.first.first == c.first.second and c.first.first == 0){
+
+					out << labels[1] << ":\n";
+					//Updating ss to get spinblock correct
+					auto ssbase2 = neoss.getSubSSBase(labels[1]);
+					SingleSlater<MatsT, IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
+					nC = ss2.nC;
+ 
+					continue;
+
+				}
+
+      char spinLabel = (c.first.first > 0) ? 
+                           ((nC == 1) ? 'A' : ' ') : 'B';
+      
+        out << "      ";
+        out << std::setw(4) << std::right 
+            << std::abs(c.first.second) + 1 << spinLabel << " -> ";
+        out << std::setw(4) << std::right 
+            << std::abs(c.first.first) + 1<< spinLabel;
+
+        if(std::is_same<U,double>::value)
+          out << "  " << std::fixed << std::setprecision(5) 
+                      << std::setw(10) << std::right << c.second << "\n";
+        else {
+          out << "  " << std::fixed << std::setprecision(5) 
+                      << std::setw(10) << std::right << std::abs(c.second);
+          out << "  " << std::fixed << std::setprecision(5) 
+                      << std::setw(10) << std::right << std::arg(c.second) 
+                      << "\n";
+        }
+			}
+			nC = ss.nC;
+      for(auto &c : yCont) {
+
+				if ( c.first.first == c.first.second and c.first.first == 0){
+
+					//Updating ss to get spinblock correct
+					auto ssbase2 = neoss.getSubSSBase(labels[1]);
+					SingleSlater<MatsT,IntsT>& ss2 = dynamic_cast<SingleSlater<MatsT, IntsT>&>((*ssbase2));
+					nC = ss2.nC;
+ 
+					continue;
+					
+				}
+	
+        char spinLabel = (c.first.first > 0) ? 
+                           ((nC == 1) ? 'A' : ' ') : 'B';
+      
+        out << "      ";
+        out << std::setw(4) << std::right 
+            << std::abs(c.first.second) + 1 << spinLabel << " <- ";
+        out << std::setw(4) << std::right 
+            << std::abs(c.first.first) + 1 << spinLabel;
+
+        if(std::is_same<U,double>::value)
+          out << "  " << std::fixed << std::setprecision(5) 
+                      << std::setw(10) << std::right << c.second << "\n";
+        else {
+          out << "  " << std::fixed << std::setprecision(5) 
+                      << std::setw(10) << std::right << std::abs(c.second);
+          out << "  " << std::fixed << std::setprecision(5) 
+                      << std::setw(10) << std::right << std::arg(c.second) 
+                      << "\n";
+        }
+
+
+	    }
+	
+			
+      out << "\n\n";
+
+    }
+
+  }
+
+
 
 }  // namespace ChronusQ
