@@ -65,7 +65,7 @@ namespace ChronusQ {
     MatsT* MO = ss.mo[0].pointer();
 
     size_t indmo1 = NO;
-    Gemm('N','C',NB,NB,NB,MatsT(1.),MO + NO*NB,NB,MO + NO*NB,NB,MatsT(0.),MMat,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,MatsT(1.),MO + NO*NB,NB,MO + NO*NB,NB,MatsT(0.),MMat,NB);
 
     std::fill_n(JMMat,NB*NB,0.);
     std::fill_n(KMMat,NB*NB,0.);
@@ -80,8 +80,8 @@ namespace ChronusQ {
 
     MatAdd('N','N',NB,NB,MatsT(1.),JMMat, NB, MatsT(-0.5), KMMat, NB, JMMat, NB);
 
-    Gemm('N','N',NB,NB,NB,MatsT(1.),JMMat,NB,MO   ,NB,MatsT(0.),KMMat,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(1.),MO   ,NB,KMMat,NB,MatsT(0.),MMat ,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),JMMat,NB,MO   ,NB,MatsT(0.),KMMat,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),MO   ,NB,KMMat,NB,MatsT(0.),MMat ,NB);
 
 /****************************/
 #endif

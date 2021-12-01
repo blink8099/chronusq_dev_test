@@ -145,14 +145,14 @@ void DAVIDSON_TEST(size_t nRoots, size_t m, size_t kG,
 
       grid->Scatter(N,nVec,V,N,VLOC,MLoc_V,0,0);
 
-      Gemm('N','N',N,nVec,N,EigT(1.),ALOC,1,1,descA,VLOC,1,1,descV,
+      Gemm_MPI('N','N',N,nVec,N,EigT(1.),ALOC,1,1,descA,VLOC,1,1,descV,
           EigT(0.),AVLOC,1,1,descV);
 
       grid->Gather(N,nVec,AV,N,AVLOC,MLoc_V,0,0);
 
     } else 
 #endif
-      Gemm('N','N',N,nVec,N,EigT(1.),A,N,V,N,EigT(0.),AV,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nVec,N,EigT(1.),A,N,V,N,EigT(0.),AV,N);
 
   };
 
@@ -164,7 +164,7 @@ void DAVIDSON_TEST(size_t nRoots, size_t m, size_t kG,
     if( doPre )
     // Scale by inverse diagonals
     for( auto k = 0ul; k < N; k++ ) 
-      Scale(nVec, EigT(1.) / DIAG[k], AV + k, N);
+      blas::scal(nVec, EigT(1.) / DIAG[k], AV + k, N);
   };
 
 #ifndef _CQ_GENERATE_TESTS
@@ -202,7 +202,7 @@ void DAVIDSON_TEST(size_t nRoots, size_t m, size_t kG,
   dcomplex *VR = mem.malloc<dcomplex>(N*N);
   dcomplex *VL = mem.malloc<dcomplex>(N*N);
 
-  GeneralEigen('V','V',N,ACMPLX,N,W,VL,N,VR,N,mem);
+  GeneralEigenSymm('V','V',N,ACMPLX,N,W,VL,N,VR,N);
 
   matFile.safeWriteData("/W",W,{N});
 

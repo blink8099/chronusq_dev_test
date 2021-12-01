@@ -187,6 +187,10 @@ namespace ChronusQ {
 
       // Print progress line in the output file
       printRTStep();
+      if( this->orbitalPopFreq != 0 &&
+          curState.iStep % this->orbitalPopFreq == 0) {
+        orbitalPop();
+      }
 
 
 
@@ -286,7 +290,7 @@ namespace ChronusQ {
       MatExp('D',NB,dcomplex(0.,-curState.stepSize/2.),
         systems_[idx]->fockMatrixOrtho->S().pointer(),NB,UH[idx]->S().pointer(),NB,memManager_);
 
-      Scale(NB*NB,dcomplex(2.),UH[idx]->S().pointer(),1);
+      blas::scal(NB*NB,dcomplex(2.),UH[idx]->S().pointer(),1);
 
     // Unrestricted
     } else if( not UH[idx]->hasXY() ) {
@@ -350,12 +354,14 @@ namespace ChronusQ {
       // Create X(S) = (U**H * DO)(S) in SCR 
 
       // SCR = 0.5 * U(S)**H * DO(S)
-      Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH[idx]->S().pointer(),NB,
-        systems_[idx]->onePDMOrtho->S().pointer(),NB,dcomplex(0.),SCR,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,dcomplex(0.5),UH[idx]->S().pointer(),NB,
+          systems_[idx]->onePDMOrtho->S().pointer(),NB,dcomplex(0.),SCR,NB);
 
       // SCR += 0.5 * U(Z)**H * DO(Z)
       if( UH[idx]->hasZ() )
-        Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH[idx]->Z().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,dcomplex(0.5),UH[idx]->Z().pointer(),NB,
           systems_[idx]->onePDMOrtho->Z().pointer(),NB,dcomplex(1.),SCR,NB);
 
 
@@ -367,12 +373,12 @@ namespace ChronusQ {
       if( systems_[idx]->onePDMOrtho->hasZ() ) {
 
         // SCR1 = 0.5 * U(S)**H * DO(Z)
-        Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH[idx]->S().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,dcomplex(0.5),UH[idx]->S().pointer(),NB,
           systems_[idx]->onePDMOrtho->Z().pointer(),NB,dcomplex(0.),SCR1,NB);
 
         // SCR1 += 0.5 * U(Z)**H * DO(S)
         if( UH[idx]->hasZ() )
-          Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH[idx]->Z().pointer(),NB,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,dcomplex(0.5),UH[idx]->Z().pointer(),NB,
             systems_[idx]->onePDMOrtho->S().pointer(),NB,dcomplex(1.),SCR1,NB);
 
       }
@@ -386,12 +392,12 @@ namespace ChronusQ {
       //       = 0.5 * ( SCR  * U(S) + SCR1 * U(Z) )
 
       // DO(S) = 0.5 * SCR * U(S)
-      Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR,NB,UH[idx]->S().pointer(),NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR,NB,UH[idx]->S().pointer(),NB,
            dcomplex(0.),systems_[idx]->onePDMOrtho->S().pointer(),NB);
  
       // DO(S) += 0.5 * SCR1 * U(Z)
       if( UH[idx]->hasZ() )
-        Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR1,NB,UH[idx]->Z().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR1,NB,UH[idx]->Z().pointer(),NB,
              dcomplex(1.),systems_[idx]->onePDMOrtho->S().pointer(),NB);
 
 
@@ -401,11 +407,11 @@ namespace ChronusQ {
         //       = 0.5 * ( SCR  * U(Z) + SCR1 * U(S) )
           
         // DO(Z) = 0.5 * SCR * U(Z)
-        Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR,NB,UH[idx]->Z().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR,NB,UH[idx]->Z().pointer(),NB,
              dcomplex(0.),systems_[idx]->onePDMOrtho->Z().pointer(),NB);
  
         // DO(Z) += 0.5 * SCR1 * U(S)
-        Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR1,NB,UH[idx]->S().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR1,NB,UH[idx]->S().pointer(),NB,
              dcomplex(1.),systems_[idx]->onePDMOrtho->Z().pointer(),NB);
 
       }
@@ -419,11 +425,11 @@ namespace ChronusQ {
       SquareMatrix<dcomplex> UHblockForm(UH[idx]->template spinGather<dcomplex>());
 
       // SCR1 = U**H * DO
-      Gemm('N','N',2*NB,2*NB,2*NB,dcomplex(1.),UHblockForm.pointer(),2*NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NB,2*NB,2*NB,dcomplex(1.),UHblockForm.pointer(),2*NB,
            DO.pointer(),2*NB,dcomplex(0.),SCR1,2*NB);
 
       // DO = SCR1 * U
-      Gemm('N','C',2*NB,2*NB,2*NB,dcomplex(1.),SCR1,2*NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,2*NB,2*NB,2*NB,dcomplex(1.),SCR1,2*NB,
            UHblockForm.pointer(),2*NB,dcomplex(0.),DO.pointer(),2*NB);
 
       // Scatter DO
@@ -451,15 +457,21 @@ namespace ChronusQ {
     
     savFile.createGroup("RT");
 
-    savFile.createDataSet<double>("RT/TIME",
-        {maxPoints});
-    savFile.createDataSet<double>("RT/ENERGY",
-        {maxPoints});
-    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE",
-        {maxPoints,3});
-    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE_FIELD",
-        {maxPoints,3});
+    savFile.createDataSet<double>("RT/TIME", {maxPoints});
+    savFile.createDataSet<double>("RT/ENERGY", {maxPoints});
+    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE", {maxPoints,3});
+    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE_FIELD", {maxPoints,3});
 
+    if( this->orbitalPopFreq != 0 ) {
+      hsize_t nPop = (maxPoints / this->orbitalPopFreq);
+      if( this->orbitalPopFreq != 1 &&
+          (maxPoints-1) % this->orbitalPopFreq == 0 )
+        nPop += 1;
+      if( maxPoints == 1 )
+        nPop = 1;
+      hsize_t nOrbs = propagator_.nOrbital();
+      savFile.createDataSet<double>("RT/ORBITALPOPULATION", {nPop, nOrbs});
+    }
   }; // RealTime::createRTDataSets
 
 
@@ -544,6 +556,102 @@ namespace ChronusQ {
       }
     }
   }; // RealTime::saveState
+
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::orbitalPop() { 
+
+    bool unrestricted = (propagator_.mo.size() > 1);
+    bool twocomp = (propagator_.nC == 2);
+
+    // Gather the orthonormal density into the full spinor form
+    auto fullDen = propagator_.onePDMOrtho->template spinGather<dcomplex>();
+
+    if( propagator_.nC > 2 ) {
+      CErr("Real time orbital population not implemented for > 2c");
+    }
+
+    //
+    // Form the ortho to MO transform in the full spinor form
+    //
+    
+    // Allocation
+    size_t fullDim = fullDen.dimension();
+    SquareMatrix<dcomplex> orthoTrans(memManager_, fullDim); 
+    orthoTrans.clear();
+    auto& mos = propagator_.mo;
+
+    size_t moDim = mos[0].dimension();
+    auto bbOffset = 2*moDim*moDim + moDim;
+
+    // Transform AO MO to ortho MO
+    dcomplex* ortho = propagator_.ortho[1].pointer();
+    size_t orthoDim = propagator_.ortho[1].dimension();
+    std::vector<dcomplex*> moPointers;
+    std::vector<dcomplex*> outPointers;
+    for(auto i = 0; i < mos.size(); i++) {
+      moPointers.push_back(mos[i].pointer());
+      outPointers.push_back(orthoTrans.pointer() + i*bbOffset);
+    }
+    if(propagator_.iCS) {
+      moPointers.push_back(mos[0].pointer());
+      outPointers.push_back(orthoTrans.pointer() + bbOffset);
+    }
+
+    TransformLeft(orthoDim, moDim, orthoDim, moDim, dcomplex(1.), ortho, orthoDim,
+      moPointers, moDim, (dcomplex*)nullptr, outPointers, fullDim);
+
+    // Transform the orthonormal density into the MO basis
+    SquareMatrix<dcomplex> moDen = fullDen.transform('N', orthoTrans.pointer(),
+      fullDim, fullDim);
+
+    std::vector<double> population;
+    for(auto i = 0; i < fullDim; i++) {
+      population.push_back(std::real(moDen(i,i)));
+    }
+
+    if( savFile.exists() ) {
+      hsize_t location = curState.iStep / this->orbitalPopFreq;
+      savFile.partialWriteData("RT/ORBITALPOPULATION", population.data(),
+        {location, 0}, {1, fullDim}, {0, 0}, {1, fullDim});
+    }
+
+    // Printing 
+    if( this->printLevel > 1 ) {
+
+      size_t orbPerRow = 5;
+      auto printBlock = [&](std::string header, size_t& start, size_t n){
+        std::cout << header << std::endl;
+        std::cout << std::fixed << std::setprecision(11);
+        
+        for(auto idx = 0; idx < n; idx += orbPerRow) {
+
+          size_t end = idx + orbPerRow < n ? orbPerRow : n - idx;
+          for(auto idummy = idx; idummy < idx+end; idummy++) {
+            std::cout << std::setw(15) << population[start+idummy];
+          }
+          std::cout << '\n';
+        }
+        start += n;
+      };
+
+      if( this->printLevel > 3 )
+        moDen.output(std::cout, "MO Density Matrix", true);
+
+      size_t start = 0;
+      if( not twocomp ) {
+        printBlock("Alpha occupied orbitals", start, propagator_.nOA);
+        printBlock("Alpha virtual orbitals", start, propagator_.nVA);
+        printBlock("Beta occupied orbitals", start, propagator_.nOB);
+        printBlock("Beta virtual orbitals", start, propagator_.nVB);
+      }
+      else {
+        printBlock("Occupied orbitals", start, propagator_.nO);
+        printBlock("Virtual orbitals", start, propagator_.nV);
+      }
+      std::cout << std::flush;
+    }
+
+  };
 
 
   template <template <typename, typename> class _SSTyp, typename IntsT>

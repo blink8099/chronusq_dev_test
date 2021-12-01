@@ -171,12 +171,12 @@ namespace ChronusQ {
 
     for(auto i = 0ul, ai = 0ul; i < NO;  i++)
     for(auto a = NO           ; a < NBC; a++, ai++) 
-      AXPY(NBC,-C[ai],this->mo[0].pointer() + a*NBC,1,this->mo[0].pointer() + i*NBC,1);
+      blas::axpy(NBC,-C[ai],this->mo[0].pointer() + a*NBC,1,this->mo[0].pointer() + i*NBC,1);
 
     if( nC == 1 and not iCS )
       for(auto i = 0ul, ai = 0ul; i < this->nOB;  i++)
       for(auto a = this->nOB   ; a < NB; a++, ai++) 
-        AXPY(NB,-C[ai + nOAVA],this->mo[1].pointer() + a*NB,1,this->mo[1].pointer() + i*NB,1);
+        blas::axpy(NB,-C[ai + nOAVA],this->mo[1].pointer() + a*NB,1,this->mo[1].pointer() + i*NB,1);
 
     this->memManager.free(C);
 
@@ -283,7 +283,7 @@ namespace ChronusQ {
     // Taylor
     MatsT s = 1.;
     std::copy_n(ROT,NBC2,EXPROT); // n = 1
-    Scale(NBC2,-s,EXPROT,1);
+    blas::scal(NBC2,-s,EXPROT,1);
     for(auto j = 0; j < NBC; j++) EXPROT[j*(NBC+1)] += 1.; // n = 0
 
     MatsT* SCR  = this->memManager.template malloc<MatsT>(NBC2);
@@ -295,10 +295,10 @@ namespace ChronusQ {
 
       MatsT* M = nullptr;
       if( n % 2 ) {
-        Gemm('N','N',NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR2,NBC,MatsT(0.),SCR,NBC);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR2,NBC,MatsT(0.),SCR,NBC);
         M = SCR;
       } else {
-        Gemm('N','N',NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
         M = SCR2;
       }
 
@@ -309,7 +309,7 @@ namespace ChronusQ {
     }
 
     /*
-    Gemm('C','N',NBC,NBC,NBC,T(1.),EXPROT,NBC,EXPROT,NBC,T(0.),SCR,NBC);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NBC,NBC,NBC,T(1.),EXPROT,NBC,EXPROT,NBC,T(0.),SCR,NBC);
    // prettyPrintSmart(std::cerr,"ROT",ROT,NBC,NBC,NBC);
    // prettyPrintSmart(std::cerr,"EXPROT",EXPROT,NBC,NBC,NBC);
     prettyPrintSmart(std::cout,"SCR",SCR,NBC,NBC,NBC);
@@ -318,7 +318,7 @@ namespace ChronusQ {
 
 
     // MO1 = MO1 * EXPROT
-    Gemm('N','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,EXPROT,NBC,MatsT(0.),
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,EXPROT,NBC,MatsT(0.),
       ROT,NBC);
     std::copy_n(ROT,NBC2,this->mo[0].pointer());
 
@@ -378,13 +378,13 @@ namespace ChronusQ {
 
       // Check density convergence
 
-      size_t NB    = basisSet().nBasis;
+      size_t NB    = this->basisSet().nBasis;
       size_t DSize = NB*NB;
       scfConv.RMSDenScalar = 
-        TwoNorm<double>(DSize,deltaOnePDM->S().pointer(),1) / NB;
+        blas::nrm2(DSize,deltaOnePDM->S().pointer(),1) / NB;
       scfConv.RMSDenMag = 0.;
       for(auto i = 1; i < deltaOnePDM->nComponent(); i++)
-        scfConv.RMSDenMag += std::pow(TwoNorm<double>(DSize,
+        scfConv.RMSDenMag += std::pow(blas::nrm2(DSize,
             (*deltaOnePDM)[static_cast<PAULI_SPINOR_COMPS>(i)].pointer(),1),2.);
  
       scfConv.RMSDenMag = std::sqrt(scfConv.RMSDenMag) / NB;
@@ -457,7 +457,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::formDelta() {
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
     if (nC == 4) NB *= 2;
 
     // Compute difference on root MPI process
@@ -638,51 +638,21 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::ortho2aoMOs() {
 
-    size_t NB = this->nAlphaOrbital();
+    size_t Nmo = this->mo[0].dimension();
+    size_t Northo = ortho[0].dimension();
 
     // Transform MOs on MPI root as slave processes do not have
     // updated MO coefficients
     if( MPIRank(comm) == 0 ) {
-      MatsT* SCR = this->memManager.template malloc<MatsT>(this->nC*NB*NB);
 
-      // Transform the (top half) of MO1
-      Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-          this->mo[0].pointer(),this->nC*NB,MatsT(0.),SCR,NB);
-      SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer(),this->nC*NB);
-      
-      if( this->nC == 2 ) {
-
-        // Transform the bottom half of MO1
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-            this->mo[0].pointer() + NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + NB,this->nC*NB);
-
-      } else if( this->nC == 4 ) {
-
-        //Second part of MO
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-          this->mo[0].pointer() + NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + NB,this->nC*NB);
-
-        //Third part of MO
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-          this->mo[0].pointer() + 2*NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + 2*NB,this->nC*NB);
-
-        //Fourth part of MO
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-          this->mo[0].pointer() + 3*NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + 3*NB,this->nC*NB);
-       
-
-      } else if( not this->iCS ) {
-
-        // Transform MO2
-        Gemm('N','N',NB,NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-            this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,NB,MatsT(1.),SCR,NB,this->mo[1].pointer(),NB);
-
+      MatsT* SCR = this->memManager.template malloc<MatsT>(Nmo * Northo);
+      std::vector<MatsT*> moPointers;
+      for(auto& moObj: this->mo) {
+        moPointers.push_back(moObj.pointer());
       }
+
+      TransformLeft(Northo, Nmo, Northo, Nmo, MatsT(1.), ortho[0].pointer(),
+        Northo, moPointers, Nmo, SCR, moPointers, Nmo);
 
       this->memManager.free(SCR);
 
@@ -695,18 +665,19 @@ namespace ChronusQ {
     if( MPISize(comm) > 1 ) {
 
       std::cerr  << "  *** Scattering the AO-MOs ***\n";
-      MPIBCast(this->mo[0].pointer(),nC*nC*NB*NB,0,comm);
+      MPIBCast(this->mo[0].pointer(),Nmo*Nmo,0,comm);
       if( nC == 1 and not iCS )
-        MPIBCast(this->mo[1].pointer(),nC*nC*NB*NB,0,comm);
+        MPIBCast(this->mo[1].pointer(),Nmo*Nmo,0,comm);
 
       std::cerr  << "  *** Scattering EPS ***\n";
-      MPIBCast(this->eps1,nC*NB,0,comm);
+      MPIBCast(this->eps1,Nmo,0,comm);
       if( nC == 1 and not iCS )
-        MPIBCast(this->eps2,nC*NB,0,comm);
+        MPIBCast(this->eps2,Nmo,0,comm);
 
       std::cerr  << "  *** Scattering FOCK ***\n";
+      size_t fockDim = fockMatrix->dimension();
       for(MatsT *mat : fockMatrix->SZYXPointers())
-        MPIBCast(mat,NB*NB,0,comm);
+        MPIBCast(mat,fockDim*fockDim,0,comm);
 
     }
 
@@ -722,13 +693,13 @@ namespace ChronusQ {
 
 
     // MO1 inner product
-    Gemm('N','N',NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
       this->mo[0].pointer(),this->nC*NB,T(0.),SCR2,this->nC*NB);
     if(this->nC == 2)
-      Gemm('N','N',NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
         this->mo[0].pointer()+NB,this->nC*NB,T(0.),SCR2+NB,this->nC*NB);
    
-    Gemm('C','N',this->nC*NB,this->nC*NB,this->nC*NB,T(1.),this->mo[0].pointer(),
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,this->nC*NB,this->nC*NB,this->nC*NB,T(1.),this->mo[0].pointer(),
       this->nC*NB,SCR2,this->nC*NB,T(0.),SCR3,this->nC*NB);
 
     for(auto i = 0; i < this->nC*NB; i++)
@@ -736,20 +707,20 @@ namespace ChronusQ {
 
 
     std::cerr << "Error in orthonormazation of MO1 = " 
-      << MatNorm<double>('F',this->nC*NB,this->nC*NB,SCR3,this->nC*NB)
+      << lapack::lange(lapack::Norm::Fro,this->nC*NB,this->nC*NB,SCR3,this->nC*NB)
       << std::endl;
              
 
 
     if(this->nC == 1 and not this->iCS) {
-      Gemm('N','N',NB,NB,NB,T(1.),this->aoints.overlap,NB,this->mo[1].pointer(),NB,T(0.),SCR2,NB);
-      Gemm('C','N',NB,NB,NB,T(1.),this->mo[1].pointer(),NB,SCR2,NB,T(0.),SCR3,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,T(1.),this->aoints.overlap,NB,this->mo[1].pointer(),NB,T(0.),SCR2,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,T(1.),this->mo[1].pointer(),NB,SCR2,NB,T(0.),SCR3,NB);
 
       for(auto i = 0; i < this->nC*NB; i++)
         SCR3[i*(this->nC*NB + 1)] -= 1.;
 
       std::cerr << "Error in orthonormazation of MO2 = " 
-        << MatNorm<double>('F',NB,NB,SCR3,NB) << std::endl;
+        << lapack::lange(lapack::Norm::Fro,NB,NB,SCR3,NB) << std::endl;
     }
 
     this->memManager.free(SCR2,SCR3);
@@ -789,8 +760,95 @@ namespace ChronusQ {
 
   }; // SingleSlater<MatsT>::SCFFin
 
+#ifdef TEST_MOINTSTRANSFORMER
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::MOIntsTransformationTest(EMPerturbation &pert) {
+   
+    // test on MO integral transfromations
+    MOIntsTransformer<MatsT, IntsT> N5TF(memManager, *this, INCORE_N5);
+    MOIntsTransformer<MatsT, IntsT> N6TF(memManager, *this, INCORE_N6);  
 
+    std::cout << "\n --------- Test on MO Ints Transformation----- \n" << std::endl;
+    
+    size_t NB  = this->nAlphaOrbital() * nC;
+    size_t nMO = (this->nC == 4) ? NB / 2: NB;
+    InCore4indexTPI<MatsT> N6MOERI(memManager, nMO); 
+    InCore4indexTPI<MatsT> N5MOERI(memManager, nMO); 
+    OnePInts<MatsT> hCore(memManager, nMO); 
 
+#if 0
+    std::cout << "---- Test: Reconstruct SCF Energy" << std::endl; 
+    N6TF.transformHCore(hCore.pointer());
+    auto timeIdN6 = tick();
+    N6TF.transformTPI(pert, N6MOERI.pointer(), "pqrs", false);
+    auto timeDur = tock(timeIdN6);
+    
+    MatsT SCFEnergy = MatsT(0.);
+    if(this->nC > 1) {
+      for (auto i = 0; i < this->nO; i++) {
+        SCFEnergy += hCore(i, i);
+        for (auto j = 0; j < this->nO; j++)
+          SCFEnergy += 0.5 * (N6MOERI(i, i, j, j) - N6MOERI(i, j, j, i)); 
+      }
+    } else {
+      for (auto i = 0; i < this->nO/2; i++) {
+        SCFEnergy += hCore(i, i);
+        for (auto j = 0; j < this->nO/2; j++)
+          SCFEnergy += N6MOERI(i, i, j, j) - 0.5 * N6MOERI(i, j, j, i); 
+      }
+      SCFEnergy *= 2.0;
+    }
+
+    std::cout << "SSFOCK_N6 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
+    N6MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
+
+    std::cout << " - Time (N6) for transforming pqrs " <<  " = " << timeDur << " s\n"; 
+#else     
+    
+    std::vector<std::string> testcases = {"ijkl", "abcd", "pqia", "ipab", "ijab", "pqrs"};
+    for (auto & moType: testcases) {
+      N6MOERI.clear();
+      N5MOERI.clear();
+
+      std::cout << "---- Test: " << moType << std::endl; 
+      auto timeIdN6 = tick();
+      N6TF.transformTPI(pert, N6MOERI.pointer(), moType, true, false);
+      auto timeDur = tock(timeIdN6);
+      
+      std::cout << " - Time (N6) for transforming " << moType  <<  " = " << timeDur << " s\n"; 
+
+      if (this->aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::INCORE_N6) {
+        auto timeIdN5 = tick();
+        N5TF.transformTPI(pert, N5MOERI.pointer(), moType, true, false);
+        auto timeDur = tock(timeIdN5);
+        std::cout << " - Time (N5) for transforming " << moType  <<  " = " << timeDur << " s\n"; 
+#pragma omp parallel for schedule(static) collapse(4) default(shared)       
+        for (auto i = 0; i < nMO; i++) 
+        for (auto j = 0; j < nMO; j++) 
+        for (auto k = 0; k < nMO; k++) 
+        for (auto l = 0; l < nMO; l++) 
+          N6MOERI(i, j, k, l) -= N5MOERI(i, j, k, l);
+        
+        N6TF.printOffSizes(N6TF.parseMOType(moType));
+        N6MOERI.output(std::cout, "INCORE_N6 ERI - INCORE_N5 ERI", true);
+      }
+    }
+
+#endif
+
+    std::cout << "\n --------- End of the Test (on MO Ints Transformation)----- \n" << std::endl;
+  }; // SingleSlater<MatsT>::MOIntsTransformationTest
+  
+#endif    
+  
+  /**
+   *  \brief generate MOIntsTranformer using this singleslater as reference
+   */
+  template <typename MatsT, typename IntsT>
+  std::shared_ptr<MOIntsTransformer<MatsT, IntsT>> 
+    SingleSlater<MatsT, IntsT>::generateMOIntsTransformer() {
+      return std::make_shared<MOIntsTransformer<MatsT, IntsT>>(memManager, *this, this->aoints.TPITransAlg);
+  }
 
   /**
    *  \brief Reorthogonalize the MOs wrt overlap
@@ -802,52 +860,59 @@ namespace ChronusQ {
     const size_t NB2  = NB * NB;
     const size_t NBC  = this->nC * NB;
     const size_t NBC2 = NBC * NBC;
-
-    if( this->nC == 4 ) CErr("orthoAOMO NYI for 4c",std::cout);
+    
 
     // Transform MOs on MPI root as slave processes do not have
     // updated MO coefficients
     if( MPIRank(comm) == 0 ) {
       // Reorthogonalize MOs wrt S
-      MatsT* SCR  = this->memManager.template malloc<MatsT>(NBC*NBC);
-      MatsT* SCR2 = this->memManager.template malloc<MatsT>(NBC*NBC);
+      MatsT* SCR = this->memManager.template malloc<MatsT>(NBC*NBC);
+      MatsT* dummy = nullptr; 
+      size_t S_size = (nC == 4) ? 2*NB: NB;
+      size_t S_size2 = S_size * S_size;
+      std::vector<MatsT*> SCRPointers, moPointers;
+      for(auto& moObj: this->mo) {
+        moPointers.push_back(moObj.pointer());
+        SCRPointers.push_back(this->memManager.template malloc<MatsT>(NBC*NBC));
+      } 
 
-      // SCR2 = C**H S C
-      Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-           this->mo[0].pointer(),NBC,MatsT(0.),SCR,NBC);
-      if( this->nC == 2 )
-        Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-             this->mo[0].pointer()+NB,NBC,MatsT(0.),SCR+NB,NBC);
+      // Copy the overlap over to SCR
+      if ( nC != 4 ) {
+        SetMat('N', S_size, S_size, MatsT(1.), 
+          this->aoints.overlap->pointer(), S_size, SCR, S_size); 
+      } else if( nC == 4 ) {
+        SetMat('N', S_size, S_size, MatsT(0.), SCRPointers[0], S_size, SCR, S_size); 
+        // 4C May need a Ints type check (SetMat) to capture GIAO.
+        SetMatRE('N',NB,NB,1.,
+                 reinterpret_cast<double*>(this->aoints.overlap->pointer()),NB,
+                 SCR,S_size);
+        SetMatRE('N',NB,NB,1./(2*SpeedOfLight*SpeedOfLight),
+                 reinterpret_cast<double*>(this->aoints.kinetic->pointer()),NB,
+                 SCR+S_size*NB+NB,S_size);
+      }
+      
+      // in SCRPointer = S C
+      TransformLeft(S_size, NBC, S_size, NBC, MatsT(1.), SCR, S_size, 
+        moPointers, NBC, dummy, SCRPointers, NBC);
+      
+      for (auto i = 0; i < moPointers.size(); i++ ) {
+        // SCR = C**H S C
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,
+          NBC,NBC,NBC,MatsT(1.),moPointers[i],NBC,SCRPointers[i],NBC,MatsT(0.),SCR,NBC);
+        // SCR = L L**H -> L
+        int INFO = lapack::potrf(lapack::Uplo::Lower,NBC,SCR,NBC);
 
-      Gemm('C','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
-
-      // SCR2 = L L**H -> L
-      int INFO = Cholesky('L',NBC,SCR2,NBC);
-
-      // SCR2 = L^-1
-      INFO = TriInv('L','N',NBC,SCR2,NBC);
-
-      // MO1 = MO1 * L^-H
-      Trmm('R','L','C','N',NBC,NBC,MatsT(1.),SCR2,NBC,this->mo[0].pointer(),NBC);
-
-      // Reorthogonalize MOB
-      if( this->nC == 1 and not this->iCS ) {
-        Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-             this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
-        Gemm('C','N',NB,NB,NB,MatsT(1.),this->mo[1].pointer(),NBC,SCR,NB,MatsT(0.),SCR2,NB);
-
-        // SCR2 = L L**H -> L
-        INFO = Cholesky('L',NB,SCR2,NB);
-
-        // SCR2 = L^-1
-        INFO = TriInv('L','N',NB,SCR2,NB);
-
-        // MO2 = MO2 * L^-H
-        Trmm('R','L','C','N',NB,NB,MatsT(1.),SCR2,NB,this->mo[1].pointer(),NB);
-
+        // SCR = L^-1
+        INFO = lapack::trtri(lapack::Uplo::Lower,lapack::Diag::NonUnit,NBC,SCR,NBC);
+      
+        // MO = MO * L^-H
+        blas::trmm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Lower,
+          blas::Op::ConjTrans,blas::Diag::NonUnit,NBC,NBC,MatsT(1.),SCR,NBC,moPointers[i],NBC);
       }
 
-      this->memManager.free(SCR,SCR2);
+
+      this->memManager.free(SCR);
+      for(auto& SCRptr: SCRPointers) this->memManager.free(SCRptr);
     }
 
 #ifdef CQ_ENABLE_MPI

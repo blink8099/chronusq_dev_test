@@ -344,9 +344,17 @@ namespace ChronusQ {
   bool CQInputFile::getData(std::string query) {
   
     query = getData<std::string>(query);
-    bool b = (not query.compare("TRUE") or not query.compare("ON")); 
-    return b;
+    if (not query.compare("TRUE") or not query.compare("ON")){
+      return true;
+    }
+      
+    if (not query.compare("FALSE") or not query.compare("OFF")){
+      return false;
+    }
   
+    CErr("Invalid Input For Boolean-Type Keyword!");
+
+    return false;
   }; // CQInputFile::getData<bool>
   
   /**

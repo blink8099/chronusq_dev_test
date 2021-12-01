@@ -24,11 +24,6 @@
 #pragma once
 
 #include <corehbuilder.hpp>
-#include <molecule.hpp>
-#include <memmanager.hpp>
-#include <basisset.hpp>
-#include <fields.hpp>
-#include <integrals.hpp>
 
 namespace ChronusQ {
 
@@ -41,26 +36,7 @@ namespace ChronusQ {
     template <typename MatsU, typename IntsU>
     friend class FourComponent;
 
-  protected:
-
-    CQMemManager    &memManager_;        ///< CQMemManager to allocate matricies
-    Molecule         molecule_;          ///< Molecule object for nuclear potential
-    BasisSet         basisSet_;          ///< BasisSet for original basis defintion
-    BasisSet         uncontractedBasis_; ///< BasisSet for uncontracted basis defintion
-    Integrals<IntsT> uncontractedInts_;  ///< AOIntegrals for uncontracted basis
-    size_t           nPrimUse_;          ///< Number of primitives used in p space
-
   public:
-
-    // Operator storage
-    IntsT*  mapPrim2Cont = nullptr;
-    std::shared_ptr<SquareMatrix<MatsT>> W  = nullptr; ///< W = (\sigma p) V (\sigma p)
-    IntsT*  UK = nullptr; ///< K transformation between p- and R-space
-    double* p  = nullptr; ///< p momentum eigens
-    MatsT*  X  = nullptr; ///< X = S * L^-1
-    MatsT*  Y  = nullptr; ///< Y = sqrt(1 + X**H * X)
-    MatsT*  UL = nullptr; ///< Picture change matrix of large component
-    MatsT*  US = nullptr; ///< Picture change matrix of small component
 
     // Constructors
 
@@ -80,11 +56,8 @@ namespace ChronusQ {
      *  \param [in] basis              The GTO basis for integral evaluation
      *  \param [in] hamiltonianOptions Flags for AO integrals evaluation
      */
-    FourComponent(Integrals<IntsT> &aoints, CQMemManager &mem,
-        const Molecule &mol, const BasisSet &basis, HamiltonianOptions hamiltonianOptions) :
-      CoreHBuilder<MatsT,IntsT>(aoints, hamiltonianOptions),
-      memManager_(mem),molecule_(mol), basisSet_(basis),
-      uncontractedBasis_(basisSet_.uncontractBasis()) {}
+    FourComponent(Integrals<IntsT> &aoints, HamiltonianOptions hamiltonianOptions) :
+      CoreHBuilder<MatsT,IntsT>(aoints, hamiltonianOptions) {}
 
     // Different type
     template <typename MatsU>
@@ -97,13 +70,10 @@ namespace ChronusQ {
      *
      *  Destructs a FourComponent object
      */
-    virtual ~FourComponent() { dealloc(); }
+    virtual ~FourComponent() {}
 
 
     // Public Member functions
-
-    // Deallocation (see include/x2c/impl.hpp for docs)
-    virtual void dealloc();
 
     // Compute core Hamitlonian
     virtual void computeCoreH(EMPerturbation&,

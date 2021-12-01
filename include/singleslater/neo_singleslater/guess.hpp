@@ -38,7 +38,7 @@ namespace ChronusQ {
    *  determinant SCF
    */
   template <typename MatsT, typename IntsT>
-  void NEOSingleSlater<MatsT,IntsT>::formGuess() {
+  void NEOSingleSlater<MatsT,IntsT>::formGuess(const SingleSlaterOptions&) {
 
     if( this->printLevel > 0 )
       std::cout << "  *** Forming Initial Guess Density for NEO-SCF Procedure ***"

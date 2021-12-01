@@ -60,8 +60,9 @@
 #include <geometrymodifier/singlepoint.hpp>
 #include <physcon.hpp>
 
-// TEMPORARY
-#include <singleslater/neoss.hpp>
+#include <corehbuilder/x2c.hpp>
+#include <corehbuilder/nonrel.hpp>
+#include <fockbuilder/matrixfock.hpp>
 
 
 //#include <cubegen.hpp>
@@ -145,7 +146,6 @@ namespace ChronusQ {
     // TEMPORARY
     bool doTemp = true;
 
-
     // Determine JOB type
     JobType jobType;
     
@@ -193,22 +193,30 @@ namespace ChronusQ {
     std::shared_ptr<SingleSlaterBase> ss  = nullptr;
     std::shared_ptr<SingleSlaterBase> pss = nullptr;
 
+    SingleSlaterOptions ssOptions;
 
-    // NEO calculation
+    // EM Perturbation for SCF
+    EMPerturbation emPert;
+
+    // SCF options
+    SCFControls scfControls = CQSCFOptions(output,input,emPert);
+
+    // Create the SingleSlater object
     if (doNEO) {
       ss = CQNEOSSOptions(output,input,*memManager,mol,
                                        *basis,*prot_basis,
                                         aoints, prot_aoints,
                                         ep_aoints);
+      ss->scfControls = scfControls;
     }
-    else
-      ss = CQSingleSlaterOptions(output,input,*memManager,mol,*basis,aoints);
+    else {
+      ssOptions = CQSingleSlaterOptions(output,input,mol,*basis,aoints);
+      ssOptions.scfControls = scfControls;
+      ss = ssOptions.buildSingleSlater(output,*memManager,mol,*basis,aoints);
 
-    // EM Perturbation for SCF
-    EMPerturbation emPert;
-
-    // SCF options for electrons
-    CQSCFOptions(output,input,*ss,emPert);
+      // MO swapping
+      HandleOrbitalSwaps(output, input, *ss);
+    }
 
     bool rstExists = false;
     if( ss->scfControls.guess == READMO or 
@@ -216,6 +224,10 @@ namespace ChronusQ {
         ss->scfControls.prot_guess == READMO or
         ss->scfControls.prot_guess == READDEN) 
       rstExists = true;
+    else if( (ss->scfControls.guess == READDEN or
+             ss->scfControls.prot_guess == READDEN)
+        and not scrFileName.empty() )
+      ss->scrBinFileName = scrFileName;
     if( ss->scfControls.guess == FCHKMO or
         ss->scfControls.prot_guess == FCHKMO )
       ss->fchkFileName = scrFileName;
@@ -250,6 +262,9 @@ namespace ChronusQ {
 
       bool firstStep = true;
       std::shared_ptr<RealTimeBase> rt = nullptr;
+      if (ssOptions.hamiltonianOptions.x2cType != X2C_TYPE::OFF) {
+        compute_X2C_CoreH_Fock(*memManager, mol, *basis, aoints, emPert, ss, ssOptions);
+      }
 
       JobType elecJob = CQGeometryOptions(output, input, job, mol, ss, rt,
         ep_aoints, emPert);
@@ -281,10 +296,17 @@ namespace ChronusQ {
             ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert); 
         }
 
+        // Note, these guessSSOptions does not apply to NEO guess
+        SingleSlaterOptions guessSSOptions(ssOptions);
+        guessSSOptions.refOptions.isKSRef = false;
+        guessSSOptions.refOptions.nC = 1;
+        guessSSOptions.hamiltonianOptions.OneEScalarRelativity = false;
+        guessSSOptions.hamiltonianOptions.OneESpinOrbit = false;
+
         // Run SCF job
         if( elecJob == SCF ) {
           ss->formCoreH(emPert, true);
-          if(firstStep) ss->formGuess();
+          if(firstStep) ss->formGuess(guessSSOptions);
           ss->SCF(emPert);
         }
 

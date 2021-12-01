@@ -21,7 +21,7 @@
 #   E-Mail: xsli@uw.edu
 #
 add_library(findiff STATIC geomgrad.cxx)
-target_link_libraries( findiff PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
+target_link_libraries( findiff PUBLIC ChronusQ::DepHeaders )
 
 # Append aointegrals to executable link
 list(APPEND CQEX_LINK findiff)

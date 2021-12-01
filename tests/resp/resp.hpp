@@ -45,12 +45,12 @@ static void CQRESPTEST( std::string in, std::string ref ) {
 #ifdef _CQ_GENERATE_TESTS
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
-    RESP_TEST_REF + ref, TEST_OUT + in + ".scr");
+    RESP_TEST_REF + ref, "");
 
 #else
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
-    TEST_OUT + in + ".bin",TEST_OUT + in + ".scr");
+    TEST_OUT + in + ".bin","");
 
 #endif
 
@@ -66,7 +66,7 @@ static void CQRESPREFTEST( std::string in, std::string ref ) {
 
   // Assumes user added bin to RESP_TEST_REF
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
-    RESP_TEST_REF + ref, TEST_OUT + in + ".scr");
+    RESP_TEST_REF + ref, "");
 
 #else
 
@@ -76,26 +76,26 @@ static void CQRESPREFTEST( std::string in, std::string ref ) {
   dst.flush();
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
-    TEST_OUT + in + ".bin",TEST_OUT + in + ".scr");
+    TEST_OUT + in + ".bin","");
 
 #endif
 
 
 };
 
-static void CQRESPFCHKTEST( std::string in, std::string ref, std::string fchk ) {
+static void CQRESPSCRTEST( std::string in, std::string ref, std::string scr ) {
 
   MPI_Barrier(MPI_COMM_WORLD);
 
 #ifdef _CQ_GENERATE_TESTS
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
-    RESP_TEST_REF + ref, RESP_TEST_REF + fchk);
+    RESP_TEST_REF + ref, RESP_TEST_REF + scr);
 
 #else
 
   RunChronusQ(TEST_ROOT + in + ".inp","STDOUT", 
-    TEST_OUT + in + ".bin", RESP_TEST_REF + fchk);
+    TEST_OUT + in + ".bin", RESP_TEST_REF + scr);
 
 #endif
 
@@ -743,11 +743,11 @@ static void CQMORTEST( bool checkLHerOps, bool checkLAntiHerOps,
 
 
 static void CQCRESTEST( bool checkProp, std::string in, std::string ref, 
-    bool runCQ = true, double tol = 1e-06, bool readBin = false, std::string fchk="no" ) {
+    bool runCQ = true, double tol = 1e-06, bool readBin = false, std::string scr="no" ) {
 
   if( runCQ ){ 
     if( readBin ) CQRESPREFTEST(in,ref);
-    else if(fchk != "no") CQRESPFCHKTEST(in,ref,fchk);
+    else if(scr != "no") CQRESPSCRTEST(in,ref,scr);
     else CQRESPTEST(in,ref);
   }
   if( MPIRank() != 0 ) return;

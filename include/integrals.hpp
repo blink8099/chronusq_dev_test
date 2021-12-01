@@ -38,10 +38,62 @@ namespace ChronusQ {
     CHOLESKY
   }; ///< Orthonormalization Scheme
 
+  enum TPI_TRANSFORMATION_ALG {
+      INCORE_N6 = 0, // hack thru ss.formfock
+      DIRECT_N6 = 1, // hack thru ss.formfock
+      INCORE_N5 = 2,
+      DIRECT_N5 = 3, // NYI
+  };
 
+  /**
+   *  \brief class to store a collection of integrals 
+   *
+   */
+  struct IntegralsCollection {
 
-
-
+    std::map<std::string, std::shared_ptr<ParticleIntegrals>> integrals;
+    
+    // Default copy and move ctors
+    IntegralsCollection( const IntegralsCollection & ) = default;
+    IntegralsCollection( IntegralsCollection && )      = default;
+    IntegralsCollection& operator=(const IntegralsCollection&) = default;
+    IntegralsCollection() = default;
+    
+    template <template <typename> class AddT, typename IntsT>
+    void addIntegral(const std::string & name, std::shared_ptr<AddT<IntsT>> integral) {
+  
+      if (this->integrals.find(name) != integrals.end()) { 
+        this->integrals.erase(name);
+      }
+     
+      try {
+        this->integrals.emplace(name, std::dynamic_pointer_cast<ParticleIntegrals>(integral));
+      } catch (...) {
+        CErr(  name + " is not an ParticleIntegrals"); 
+      }
+     
+    }; // add to ints
+  
+    template <template <typename> class GetT, typename IntsT>
+    std::shared_ptr<GetT<IntsT>> getIntegral(const std::string & name) const {
+      
+      if(this->integrals.find(name) == integrals.end()) return nullptr;
+      
+	  std::shared_ptr<GetT<IntsT>> integral;
+    
+      try {
+        integral = std::dynamic_pointer_cast<GetT<IntsT>>(this->integrals.at(name));
+      } catch (...) {
+        return nullptr;
+      }
+    
+      return integral; 
+    }; // get from ints
+    
+    void clear() { integrals.clear(); } 
+  
+  }; // struct IntegralsCollection
+  
   /**
    *  \brief Abstract Base class for AOIntegrals
    *
@@ -53,12 +105,12 @@ namespace ChronusQ {
     
     SafeFile savFile; ///< Hard storage of integrals
     HamiltonianOptions options_;
+    TPI_TRANSFORMATION_ALG TPITransAlg = TPI_TRANSFORMATION_ALG::DIRECT_N6;
 
     // Default copy and move ctors
     IntegralsBase( const IntegralsBase & ) = default;
     IntegralsBase( IntegralsBase && )      = default;
     IntegralsBase& operator=(const IntegralsBase&) = default;
-    // Remove default ctor
     IntegralsBase() = default;
 
     // Interfaces
@@ -81,7 +133,6 @@ namespace ChronusQ {
     virtual ~IntegralsBase() {}
 
   };
-
 
   /**
    *  \brief Templated class to handle the evaluation and storage of 
@@ -119,7 +170,7 @@ namespace ChronusQ {
     std::shared_ptr<GradInts<TwoPInts,IntsT>> gradERI = nullptr;
 
     // miscellaneous storage
-    std::map<std::string, std::shared_ptr<ParticleIntegrals>> misc;
+    IntegralsCollection misc;
 
     // Constructors
     Integrals() = default;

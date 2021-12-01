@@ -213,6 +213,15 @@ CQ_BUILD_LIBINT to ALLOW or FORCE."
 
 endif()
 
+target_link_libraries( ChronusQ::Dependencies INTERFACE ChronusQ::Libint2 )
+copy_header_properties( ChronusQ::Libint2 ChronusQ::DepHeaders )
 list(APPEND CQ_EXT_LINK ChronusQ::Libint2)
+
+# Workaround to intel compiler bug breaking libint2 ERI evaluation
+if( CMAKE_CXX_COMPILER_ID STREQUAL "Intel" )
+  set_property( TARGET ChronusQ::Dependencies APPEND PROPERTY
+    INTERFACE_COMPILE_DEFINITIONS "LIBINT2_CONSTEXPR_STATICS=0"
+  )
+endif()
 
 message ( " == End Libint ==\n" )

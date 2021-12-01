@@ -36,7 +36,7 @@ aointegrals/giaointegrals_onee_inhouse.cxx
 aointegrals/giaointegrals_twoe_inhouse.cxx
 impl.cxx)
 
-target_link_libraries( particleintegrals PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 ChronusQ::Libcint )
+target_link_libraries( particleintegrals PUBLIC ChronusQ::DepHeaders )
 
 if(TARGET libint)
   add_dependencies(particleintegrals libint)

@@ -64,8 +64,16 @@ namespace ChronusQ {
     }
 
     // Form the Hartree-Fock perturbation tensor (see include/fockbuilder/impl.hpp for docs)
-    virtual void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
-
+    virtual void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1., bool HerDen = true);
+    
+    virtual void formRawGDInBatches(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool, double, bool, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &,
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &);
+    
+    virtual size_t formRawGDSCRSizePerBatch(SingleSlater<MatsT,IntsT> &, bool) const;
+    
     // Form the EPJ contribution to Fock matrix (see include/fockbuilder/impl.hpp for docs)
     virtual void formepJ(NEOSingleSlater<MatsT,IntsT> &, NEOSingleSlater<MatsT,IntsT> &, bool increment = false, double xHFX = 1.);
 

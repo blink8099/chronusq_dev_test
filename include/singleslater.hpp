@@ -42,6 +42,8 @@ namespace ChronusQ {
   class CoreHBuilder;
   template <typename MatsT, typename IntsT>
   class FockBuilder;
+  template <typename MatsT, typename IntsT>
+  class MOIntsTransformer;
 
   /**
    *  \brief The SingleSlater class. The typed abstract interface for all
@@ -65,7 +67,7 @@ namespace ChronusQ {
     typedef std::vector<oper_t>       oper_t_coll;
     typedef std::vector<oper_t_coll>  oper_t_coll2;
 
-    BasisSet &basisSet_; ///< BasisSet for the GTO basis defintion
+    //BasisSet &basisSet_; ///< BasisSet for the GTO basis defintion
 
   private:
   public:
@@ -129,7 +131,6 @@ namespace ChronusQ {
     std::vector<double> lowdinCharges;
 
 
-
     // Constructors
       
     /**
@@ -143,10 +144,11 @@ namespace ChronusQ {
     template <typename... Args>
     SingleSlater(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
                  Integrals<IntsT> &aoi, Args... args) :
-      SingleSlaterBase(c,mem,args...), WaveFunctionBase(c,mem,args...),
+      SingleSlaterBase(c,mem,mol,basis,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...),
-      WaveFunction<MatsT,IntsT>(c,mem,mol,basis.nBasis,aoi,args...),
-      basisSet_(basis)
+      WaveFunction<MatsT,IntsT>(c,mem,mol,basis,aoi,args...)
+      //, basisSet_(basis)
       //, coreType(NON_RELATIVISTIC), orthoType(LOWDIN)
     {
       // Allocate SingleSlater Object
@@ -188,7 +190,7 @@ namespace ChronusQ {
 
     // Public Member functions
 
-    BasisSet& basisSet() { return basisSet_; }
+    //BasisSet& basisSet() { return basisSet_; }
       
       
 
@@ -230,15 +232,21 @@ namespace ChronusQ {
 
     // Form initial guess orbitals
     // see include/singleslater/guess.hpp for docs)
-    void formGuess();
+    void formGuess(const SingleSlaterOptions&);
     void CoreGuess();
-    void SADGuess();
+    void SADGuess(const SingleSlaterOptions&);
     void RandomGuess();
     void ReadGuessMO();
     void ReadGuess1PDM();
     void FchkGuessMO();
 
-    // Fchk-related functions 
+    // ReadGuess1PDM functions
+    void readSameTypeDenBin();
+    void readDiffTypeDenBin(std::string binName);
+    template <typename ScrMatsT>
+    void getScr1PDM(SafeFile &);
+
+    // Fchk-related functions
     std::vector<int> fchkToCQMO();
     std::unordered_map<int,std::vector<int>> returnAngReorder();
     void reorderAngMO(std::vector<int> sl, MatsT* tmo, int sp);
@@ -248,6 +256,7 @@ namespace ChronusQ {
 
     // Transformation functions to and from the orthonormal basis
     void ao2orthoFock();
+    void ao2orthoMOs();
     void ortho2aoDen();
     void ortho2aoMOs();
 
@@ -281,7 +290,8 @@ namespace ChronusQ {
     void printJ(std::ostream&)        ;
     void printK(std::ostream&)        ;
     void printMiscProperties(std::ostream&);
-    void printMOInfo(std::ostream&); 
+    void printEPS(std::ostream&);
+    void printMOInfo(std::ostream&, size_t a = 0); 
     virtual void printFockTimings(std::ostream&);
 
     // SCF extrapolation functions (see include/singleslater/extrap.hpp for docs)
@@ -291,8 +301,11 @@ namespace ChronusQ {
     void fockDamping();
     void scfDIIS(size_t);
 
-
-
+    // Method to produce a test on integral transformation 
+#ifdef TEST_MOINTSTRANSFORMER
+    void MOIntsTransformationTest(EMPerturbation &);
+#endif    
+    std::shared_ptr<MOIntsTransformer<MatsT, IntsT>> generateMOIntsTransformer();
 
     // MO Transformations
     void MOFOCK();
@@ -304,6 +317,7 @@ namespace ChronusQ {
 // Include declaration of CoreHBuilder and FockBuilder
 #include <corehbuilder.hpp>
 #include <fockbuilder.hpp>
+#include <mointstransformer.hpp>
 
 // Include headers for specializations of SingleSlater
 #include <singleslater/hartreefock.hpp> // HF specialization

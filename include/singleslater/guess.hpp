@@ -1,43 +1,43 @@
-/* 
+/*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
- *  
+ *
  *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
- *  
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
- *  
+ *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *  
+ *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *  
+ *
  *  Contact the Developers:
  *    E-Mail: xsli@uw.edu
- *  
+ *
  */
 #pragma once
 
 #include <singleslater.hpp>
 #include <cqlinalg.hpp>
 #include <util/matout.hpp>
-#include <corehbuilder/nonrel.hpp>
-#include <corehbuilder/x2c.hpp>
+#include <fockbuilder/matrixfock.hpp>
 #include <particleintegrals/twopints/incore4indextpi.hpp>
+#include <wavefunction/base.hpp>
 
 namespace ChronusQ {
 
   /**
-   *  \brief List of default atomic multiplicities for 
+   *  \brief List of default atomic multiplicities for
    *  atomic SCF.
    *
-   *  Atomic multiplicities obtained from physics.nist.gov 
-   */ 
+   *  Atomic multiplicities obtained from physics.nist.gov
+   */
   static std::map<size_t,size_t> defaultMult(
     {
       { 1  , 2 }, // H
@@ -78,10 +78,10 @@ namespace ChronusQ {
       { 36 , 1 }, // Kr
       { 37 , 2 }, // Rb
       { 38 , 1 }, // Sr
-      { 39 , 2 }, // Y 
-      { 40 , 3 }, // Zr 
-      { 41 , 6 }, // Nb 
-      { 42 , 7 }, // Mo 
+      { 39 , 2 }, // Y
+      { 40 , 3 }, // Zr
+      { 41 , 6 }, // Nb
+      { 42 , 7 }, // Mo
       { 43 , 6 }, // Tc
       { 44 , 5 }, // Ru
       { 45 , 4 }, // Rh
@@ -92,7 +92,7 @@ namespace ChronusQ {
       { 50 , 3 }, // Sn
       { 51 , 4 }, // Sb
       { 52 , 3 }, // Te
-      { 53 , 2 }, // I 
+      { 53 , 2 }, // I
       { 54 , 1 }, // Xe
       { 55 , 2 }, // Cs
       { 56 , 1 }, // Ba
@@ -113,7 +113,7 @@ namespace ChronusQ {
       { 71 , 2 }, // Lu
       { 72 , 3 }, // Hf
       { 73 , 4 }, // Ta
-      { 74 , 5 }, // W 
+      { 74 , 5 }, // W
       { 75 , 6 }, // Re
       { 76 , 5 }, // Os
       { 77 , 4 }, // Ir
@@ -131,7 +131,7 @@ namespace ChronusQ {
       { 89 , 2 }, // Ac
       { 90 , 3 }, // Th
       { 91 , 4 }, // Pa
-      { 92 , 5 }, // U 
+      { 92 , 5 }, // U
       { 93 , 6 }, // Np
       { 94 , 7 }, // Pu
       { 95 , 8 }, // Am
@@ -146,45 +146,66 @@ namespace ChronusQ {
   /**
    *  \brief Forms a set of guess orbitals for a single slater
    *  determininant SCF in various ways
-   */ 
+   */
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::formGuess() {
+  void SingleSlater<MatsT,IntsT>::formGuess(const SingleSlaterOptions &ssOptions) {
 
     ProgramTimer::tick("Form Guess");
-
+     
+    // populate AO-fock Matrix
     if( printLevel > 0 )
       std::cout << "  *** Forming Initial Guess Density for SCF Procedure ***"
                 << std::endl << std::endl;
 
-    if( this->molecule().nAtoms == 1  and scfControls.guess == SAD ) CoreGuess();
-    else if( scfControls.guess == CORE ) CoreGuess();
-    else if( scfControls.guess == SAD ) SADGuess();
-    else if( scfControls.guess == RANDOM ) RandomGuess();
-    else if( scfControls.guess == READMO ) ReadGuessMO(); 
-    else if( scfControls.guess == READDEN ) ReadGuess1PDM(); 
-    else if( scfControls.guess == FCHKMO ) FchkGuessMO(); 
-    else CErr("Unknown choice for SCF.GUESS",std::cout);
+    if (std::dynamic_pointer_cast<MatrixFock<MatsT,IntsT>>(fockBuilder)) {
+
+      EMPerturbation emPert;
+      fockBuilder->formFock(*this, emPert, false, 0.0);
+
+    } else {
+
+      if( this->molecule().nAtoms == 1  and scfControls.guess == SAD ) {
+        CoreGuess();
+      } else if( scfControls.guess == CORE ) CoreGuess();
+      else if( scfControls.guess == SAD ) SADGuess(ssOptions);
+      else if( scfControls.guess == RANDOM ) RandomGuess();
+      else if( scfControls.guess == READMO ) ReadGuessMO();
+      else if( scfControls.guess == READDEN ) ReadGuess1PDM();
+      else if( scfControls.guess == FCHKMO ) FchkGuessMO();
+      else CErr("Unknown choice for SCF.GUESS",std::cout);
+    }
 
 
     // Common to all guess: form new set of orbitals from
     // initial guess at Fock.
     EMPerturbation pert; // Dummy EM perturbation
     
+    // leave this out for future
+#if 0
+    // populate MO-FOCK
+    if (scfControls.scfAlg == _SKIP_SCF and
+        (scfControls.guess == READMO 
+         or scfControls.guess == FCHKMO))
+      MOFOCK();
+    else
+#endif
+      getNewOrbitals(pert,false);
+
     // If RANDOM guess, scale the densites appropriately
     // *** Replicates on all MPI processes ***
     if( scfControls.guess == RANDOM ) {
 
-      size_t NB = basisSet().nBasis;
+      size_t NB = this->basisSet().nBasis;
 
-      double TS = 
-        this->template computeOBProperty<double,SCALAR>(this->aoints.overlap->pointer());
+      double TS =
+        this->template computeOBProperty<SCALAR>(this->aoints.overlap->pointer());
 
-      double TZ = 
-        this->template computeOBProperty<double,MZ>(this->aoints.overlap->pointer());
-      double TY = 
-        this->template computeOBProperty<double,MY>(this->aoints.overlap->pointer());
-      double TX = 
-        this->template computeOBProperty<double,MX>(this->aoints.overlap->pointer());
+      double TZ =
+        this->template computeOBProperty<MZ>(this->aoints.overlap->pointer());
+      double TY =
+        this->template computeOBProperty<MY>(this->aoints.overlap->pointer());
+      double TX =
+        this->template computeOBProperty<MX>(this->aoints.overlap->pointer());
 
       double magNorm = std::sqrt(TZ*TZ + TY*TY + TX*TX);
 
@@ -238,13 +259,13 @@ namespace ChronusQ {
     }
 #endif
 
-  }; // SingleSlater::CoreGuess 
+  }; // SingleSlater::CoreGuess
 
   /**
-   *  
-   */ 
+   *
+   */
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::SADGuess() {
+  void SingleSlater<MatsT,IntsT>::SADGuess(const SingleSlaterOptions &ssOptions) {
 
 
 
@@ -258,7 +279,7 @@ namespace ChronusQ {
       std::cout << "    * Forming the Superposition of Atomic Densities Guess"
                 << " (SAD)\n\n";
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
     EMPerturbation pert;
 
     // Zero out the densities (For all MPI processes)
@@ -276,7 +297,7 @@ namespace ChronusQ {
 
     // Obtain unique elements on sorted list
     auto it = std::unique(uniqueElements.begin(),uniqueElements.end(),
-                [](Atom &a, Atom &b){ 
+                [](Atom &a, Atom &b){
                   return a.atomicNumber == b.atomicNumber;
                 });
 
@@ -284,7 +305,7 @@ namespace ChronusQ {
     uniqueElements.resize(std::distance(uniqueElements.begin(),it));
 
     if( printLevel > 0 )
-      std::cout << "  *** Found " << uniqueElements.size() 
+      std::cout << "  *** Found " << uniqueElements.size()
                 << " unique Atoms in Molecule Specification ***\n";
 
 
@@ -299,14 +320,14 @@ namespace ChronusQ {
       auto el = std::find_if(uniqueElements.begin(),uniqueElements.end(),
                   [&](Atom &a){return a.atomicNumber == curAtomicNumber;});
 
-      if( el == uniqueElements.end() ) 
+      if( el == uniqueElements.end() )
         CErr("Whoops! Can't find atom in unique list! Contact a developer!");
 
       mapAtom2Uniq[iAtm] = std::distance(uniqueElements.begin(),el);
     }
 
     if( printLevel > 0 )
-      std::cout << "  *** Running " << uniqueElements.size() 
+      std::cout << "  *** Running " << uniqueElements.size()
                 << " Atomic SCF calculations for SAD Guess ***\n\n";
 
 
@@ -315,7 +336,7 @@ namespace ChronusQ {
 
       // Get default multiplicity for the Atom
       size_t defaultMultip;
-      try { 
+      try {
         defaultMultip = defaultMult[uniqueElements[iUn].atomicNumber];
       } catch(...) {
         CErr("AtomZ = " + std::to_string(uniqueElements[iUn].atomicNumber)
@@ -334,64 +355,49 @@ namespace ChronusQ {
         case 6: multipName = "Sextuplet"; break;
         case 7: multipName = "Septuplet"; break;
         case 8: multipName = "Octuplet"; break;
-  
+
         default: multipName = "UNKNOWN"; break;
 
       }
 
 
       if( printLevel > 0 )
-        std::cout << "    * Running AtomZ = " 
-                  << uniqueElements[iUn].atomicNumber << " as a " 
+        std::cout << "    * Running AtomZ = "
+                  << uniqueElements[iUn].atomicNumber << " as a "
                   << multipName << std::endl;
 
-      BASIS_FUNCTION_TYPE basisType = basisSet().basisType;
+      BASIS_FUNCTION_TYPE basisType = this->basisSet().basisType;
 
       Molecule atom(0,defaultMultip,{ uniqueElements[iUn] });
-      BasisSet basis(basisSet().basisName,
-        basisSet().basisDef, basisSet().inputDef,
-        atom, basisType, basisSet().forceCart, false);
-     
+      BasisSet basis(this->basisSet().basisName,
+        this->basisSet().basisDef, this->basisSet().inputDef,
+        atom, basisType, this->basisSet().forceCart, false);
+
       std::shared_ptr<Integrals<IntsT>> aointsAtom =
           std::make_shared<Integrals<IntsT>>();
       aointsAtom->TPI = std::make_shared<InCore4indexTPI<IntsT>>(
           memManager,basis.nBasis);
 
-      Particle p = {-1.0,1.0};
-      std::shared_ptr<SingleSlater<MatsT,IntsT>> ss =
-          std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>> (
-            std::make_shared<HartreeFock<MatsT,IntsT>>(
-              rcomm,memManager,atom,basis,*aointsAtom,1,( defaultMultip == 1 ),p
-            )
-          );
-      ss->TPI = std::make_shared<InCore4indexTPIContraction<MatsT,IntsT>>(
-          *aointsAtom->TPI);
+      SingleSlaterOptions guessSSOptions(ssOptions);
+      guessSSOptions.refOptions.iCS = defaultMultip == 1;
 
+      std::shared_ptr<SingleSlater<MatsT,IntsT>> ss =
+          std::dynamic_pointer_cast<SingleSlater<MatsT,IntsT>>(
+              guessSSOptions.buildSingleSlater(std::cout, memManager,
+                  atom, basis, aointsAtom));
+
+      ss->comm = rcomm;
       ss->printLevel = 0;
-      ss->scfControls.doIncFock = false;        
+      ss->scfControls.doIncFock = false;
       ss->scfControls.dampError = 1e-4;
       ss->scfControls.nKeep     = 8;
 
-      HamiltonianOptions hamiltonianOptions;
-      hamiltonianOptions.basisType = basisType;
-
-      // NR Guess
-      hamiltonianOptions.OneEScalarRelativity = false;
-      hamiltonianOptions.OneESpinOrbit = false;
-
-      ss->coreHBuilder = std::make_shared<NRCoreH<MatsT,IntsT>>(
-          ss->aoints, hamiltonianOptions);
-//      ss->coreHBuilder = std::make_shared<X2C<MatsT,IntsT>>(
-//          ss->aoints, memManager, atom, basis, hamiltonianOptions);
-      ss->fockBuilder = std::make_shared<FockBuilder<MatsT,IntsT>>(
-          hamiltonianOptions);
-
       ss->formCoreH(pert, false);
       aointsAtom->TPI->computeAOInts(basis, atom, pert,
-          ELECTRON_REPULSION, hamiltonianOptions);
+          ELECTRON_REPULSION, guessSSOptions.hamiltonianOptions);
 
 
-      ss->formGuess();
+      ss->formGuess(ssOptions);
       ss->getNewOrbitals(pert,false);
       ss->SCF(pert);
 
@@ -404,7 +410,7 @@ namespace ChronusQ {
         if( mapAtom2Uniq[iAtm] == iUn ) {
           SetMat('N',NBbasis,NBbasis,MatsT(1.),
               ss->onePDM->S().pointer(),NBbasis,
-              this->onePDM->S().pointer() + basisSet().mapCen2BfSt[iAtm]*(1+NB), NB);
+              this->onePDM->S().pointer() + this->basisSet().mapCen2BfSt[iAtm]*(1+NB), NB);
         }
 
     }
@@ -439,7 +445,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::RandomGuess() {
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
 
     // Set up random number generator
     std::random_device rd;
@@ -475,15 +481,53 @@ namespace ChronusQ {
   }
 
   /**
-   *  \brief Reads in 1PDM from bin file. 
+   *  \brief Reads in 1PDM from bin file.
    *
    **/
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::ReadGuess1PDM() {
 
+    //Check if 1PDM comes from save file or scratch file
+    if( MPIRank(comm) == 0 ) {
+
+      if( scrBinFileName.empty() ){
+
+        if( printLevel > 0 )
+          std::cout << "    * Reading in guess density (restart file) from file "
+            << savFile.fName() << "\n";
+
+        readSameTypeDenBin();
+
+      } else {
+
+        if( printLevel > 0 )
+          std::cout << "    * Reading in guess density (scratch file) from file "
+            << scrBinFileName << "\n";
+
+        readDiffTypeDenBin(scrBinFileName);
+
+      }
+
+    }
+
+    std::cout << "\n" << std::endl;
     if( printLevel > 0 )
-      std::cout << "    * Reading in guess density from file "
-        << savFile.fName() << "\n";
+      std::cout << std::endl
+                << "  *** Forming Initial Fock Matrix from Guess Density ***\n\n";
+
+    std::cout << "\n" << std::endl;
+    EMPerturbation pert;
+    formFock(pert,false);
+
+  } // SingleSlater<T>::ReadGuess1PDM()
+
+  /**
+   *  \brief Reads in 1PDM from bin file
+   *  of the same type as calculation.
+   *
+   **/
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::readSameTypeDenBin() {
 
     size_t t_hash = std::is_same<MatsT,double>::value ? 1 : 2;
     size_t d_hash = 1;
@@ -503,10 +547,10 @@ namespace ChronusQ {
 
 
     if( t_hash != savHash ) {
-  
+
       bool t_is_double  = t_hash == d_hash;
       bool t_is_complex = t_hash == c_hash;
-  
+
       bool s_is_double  = savHash == d_hash;
       bool s_is_complex = savHash == c_hash;
 
@@ -520,8 +564,8 @@ namespace ChronusQ {
     }
 
 
- 
-    // dimension of 1PDM 
+
+    // dimension of 1PDM
     auto NB = basisSet().nBasis;
     if( this->nC == 4 ) NB=2*NB;
     auto NB2 = NB*NB;
@@ -554,8 +598,8 @@ namespace ChronusQ {
 
       std::cout << "    * Incompatible " + prefix + "1PDM_SCALAR:";
       std::cout << "  Recieved (" << DSdims[0] << "," << DSdims[1] << ")"
-        << " :"; 
-      std::cout << "  Expected (" << NB << "," << NB << ")"; 
+        << " :";
+      std::cout << "  Expected (" << NB << "," << NB << ")";
       CErr("Wrong dimension of 1PDM SCALAR!",std::cout);
 
     }
@@ -605,8 +649,8 @@ namespace ChronusQ {
 
         std::cout << "    * Incompatible " + prefix + "1PDM_MZ:";
         std::cout << "  Recieved (" << DZdims[0] << "," << DZdims[1] << ")"
-          << " :"; 
-        std::cout << "  Expected (" << NB << "," << NB << ")"; 
+          << " :";
+        std::cout << "  Expected (" << NB << "," << NB << ")";
         CErr("Wrong dimension of 1PDM MZ!",std::cout);
 
       } else {
@@ -652,8 +696,8 @@ namespace ChronusQ {
 
         std::cout << "    * Incompatible " + prefix + "1PDM_MY:";
         std::cout << "  Recieved (" << DYdims[0] << "," << DYdims[1] << ")"
-          << " :"; 
-        std::cout << "  Expected (" << NB << "," << NB << ")"; 
+          << " :";
+        std::cout << "  Expected (" << NB << "," << NB << ")";
         CErr("Wrong dimension of 1PDM MY!",std::cout);
 
       } else {
@@ -680,8 +724,8 @@ namespace ChronusQ {
 
         std::cout << "    * Incompatible " + prefix + "1PDM_MX:";
         std::cout << "  Recieved (" << DXdims[0] << "," << DXdims[1] << ")"
-          << " :"; 
-        std::cout << "  Expected (" << NB << "," << NB << ")"; 
+          << " :";
+        std::cout << "  Expected (" << NB << "," << NB << ")";
         CErr("Wrong dimension of 1PDM MX!",std::cout);
 
       } else {
@@ -691,35 +735,132 @@ namespace ChronusQ {
 
       }
 
-
     }
 
-
-
-
-    std::cout << "\n" << std::endl;
-    if( printLevel > 0 )
-      std::cout << std::endl
-                << "  *** Forming Initial Fock Matrix from Guess Density ***\n\n";
-
-    std::cout << "\n" << std::endl;
-
-  } // SingleSlater<T>::ReadGuess1PDM()
-
-
+  } // SingleSlater<T>::readSameTypeDenBin()
 
   /**
-   *  \brief Reads in MOs from bin file. 
+   *  \brief Reads in 1PDM from bin file
+   *  of different type as calculation
+   *  and uses it as initial guess.
    *
    **/
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::ReadGuessMO() {
+  template <typename ScrMatsT>
+  void SingleSlater<MatsT,IntsT>::getScr1PDM(SafeFile& scrBin) {
 
-    if( printLevel > 0 )
-      std::cout << "    * Reading in guess orbitals from file "
-        << savFile.fName() << "\n";
+    // dimension of 1PDM
+    auto NB = basisSet().nBasis;
+    if( this->nC == 4 ) NB=2*NB;
+    auto NB2 = NB*NB;
 
-    if( this->nC == 4 ) CErr("READMO NYI for 4c",std::cout);
+    auto DSdims = scrBin.getDims( "SCF/1PDM_SCALAR" );
+    auto DZdims = scrBin.getDims( "SCF/1PDM_MZ" );
+    auto DYdims = scrBin.getDims( "SCF/1PDM_MY" );
+    auto DXdims = scrBin.getDims( "SCF/1PDM_MX" );
+
+    bool hasDS = DSdims.size() != 0;
+    bool hasDZ = DZdims.size() != 0;
+    bool hasDY = DYdims.size() != 0;
+    bool hasDX = DXdims.size() != 0;
+
+    bool r2DS = DSdims.size() == 2;
+    bool r2DZ = DZdims.size() == 2;
+    bool r2DY = DYdims.size() == 2;
+    bool r2DX = DXdims.size() == 2;
+
+    // onePDM on scr bin file
+    // assume square and same dimension between S,X,Y,Z
+    std::shared_ptr<PauliSpinorSquareMatrices<ScrMatsT>> onePDMtmp;
+    onePDMtmp = std::make_shared<PauliSpinorSquareMatrices<ScrMatsT>>(memManager,DSdims[0],hasDY,hasDZ);
+
+    // Errors in 1PDM SCALAR
+    if( not hasDS )
+      CErr("SCF/1PDM_SCALAR does not exist in " + scrBin.fName(), std::cout);
+
+    else if( not r2DS )
+      CErr("SCF/1PDM_SCALAR not saved as a rank-2 tensor in " +
+          scrBin.fName(), std::cout);
+
+    // Read in 1PDM SCALAR
+    std::cout << "    * Looking for SCF/1PDM_SCALAR !" << std::endl;
+    scrBin.readData("/SCF/1PDM_SCALAR",onePDMtmp->S().pointer());
+
+    // MZ
+    if( onePDMtmp->hasZ() ){
+
+      std::cout << "    * Looking for SCF/1PDM_MZ !" << std::endl;
+      if( not r2DZ )
+        CErr("SCF/1PDM_MZ not saved as a rank-2 tensor in " +
+          scrBin.fName(), std::cout);
+      scrBin.readData("SCF/1PDM_MZ",onePDMtmp->Z().pointer());
+
+    }
+
+    // MY
+    if( onePDMtmp->hasXY() ){
+
+      std::cout << "    * Looking for SCF/1PDM_MX !" << std::endl;
+      if( not r2DX )
+        CErr("SCF/1PDM_MX not saved as a rank-2 tensor in " +
+          scrBin.fName(), std::cout);
+      scrBin.readData("SCF/1PDM_MX",onePDMtmp->X().pointer());
+
+      std::cout << "    * Looking for SCF/1PDM_MY !" << std::endl;
+      if( not r2DY )
+        CErr("SCF/1PDM_MY not saved as a rank-2 tensor in " +
+          scrBin.fName(), std::cout);
+      scrBin.readData("SCF/1PDM_MY",onePDMtmp->Y().pointer());
+
+    }
+
+    std::cout << "\n" << std::endl;
+    // Initialize onePDM
+    auto scr1PDMSize = onePDMtmp->dimension();
+    // Guess 1PDM same size as calculation 1PDM
+    if( scr1PDMSize == NB ) *this->onePDM = *onePDMtmp;
+    // Guess 1PDM smaller than 1PDM
+    else if( scr1PDMSize < NB ){
+      auto p1Comps = this->onePDM->SZYXPointers();
+      auto p2Comps = onePDMtmp->SZYXPointers();
+      auto nComp = p1Comps.size();
+      for( auto iComp=0; iComp<nComp; iComp++ ){
+        SetMat('N',scr1PDMSize,scr1PDMSize,MatsT(1.),
+             p2Comps[iComp],scr1PDMSize,p1Comps[iComp],NB);
+      }
+    } else CErr("Cannot use a guess of larger size.");
+
+    onePDMtmp = nullptr;
+
+  } // SingleSlater<T>::getScr1PDM()
+
+  template <>
+  template <>
+  void SingleSlater<double,double>::getScr1PDM<dcomplex>(SafeFile& scrBin) {
+
+    CErr("Cannot do complex guess density for real calculation.");
+
+  }
+
+  template <>
+  template <>
+  void SingleSlater<double,dcomplex>::getScr1PDM<dcomplex>(SafeFile& scrBin) {
+
+    CErr("Cannot do complex guess density for real calculation.");
+
+  }
+
+  /**
+   *  \brief Reads in 1PDM from bin file
+   *  of different type as calculation.
+   *
+   **/
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::readDiffTypeDenBin(std::string binName) {
+
+    bool scrBinExists;
+    SafeFile binFile(binName, scrBinExists);
+
     size_t t_hash = std::is_same<MatsT,double>::value ? 1 : 2;
     size_t d_hash = 1;
     size_t c_hash = 2;
@@ -730,103 +871,175 @@ namespace ChronusQ {
       prefix = "/PROT_SCF/";
 
     try{
-      savFile.readData(prefix + "FIELD_TYPE", &savHash);
+      binFile.readData("/SCF/FIELD_TYPE", &savHash);
     } catch (...) {
       CErr("Cannot find /SCF/FIELD_TYPE on rstFile!",std::cout);
     }
 
+    // type of 1PDM
+    bool t_is_double  = t_hash == d_hash;
+    bool t_is_complex = t_hash == c_hash;
 
-    if( t_hash != savHash ) {
-  
-      bool t_is_double  = t_hash == d_hash;
-      bool t_is_complex = t_hash == c_hash;
-  
-      bool s_is_double  = savHash == d_hash;
-      bool s_is_complex = savHash == c_hash;
+    bool s_is_double  = savHash == d_hash;
+    bool s_is_complex = savHash == c_hash;
 
-      std::string t_field = t_is_double ? "REAL" : "COMPLEX";
-      std::string s_field = s_is_double ? "REAL" : "COMPLEX";
+    std::string t_field = t_is_double ? "REAL" : "COMPLEX";
+    std::string s_field = s_is_double ? "REAL" : "COMPLEX";
 
-      std::string message = prefix + "FIELD_TYPE on disk (" + s_field +
-        ") is incompatible with current FIELD_TYPE (" + t_field + ")";
+    std::string message = "Going from /SCF/FIELD_TYPE on disk (" + s_field +
+      ") to current FIELD_TYPE (" + t_field + ")";
 
-      CErr(message,std::cout);
-    }
+    std::cout << message << std::endl;
 
-    // dimension of mo1 and mo2
-    auto NB = this->nC * this->nAlphaOrbital();
+    // dimension of 1PDM
+    auto NB = basisSet().nBasis;
+    if( this->nC == 4 ) NB=2*NB;
     auto NB2 = NB*NB;
 
-    auto MO1dims = savFile.getDims( prefix + "MO1" );
-    auto MO2dims = savFile.getDims( prefix + "MO2" );
+    // Determine storage of 1PDM on scr bin file
+    // Assumes scalar 1PDM is same size as MX, MY, MZ
+    // Assumes square 1PDM
+    if( s_is_double ){
+
+      getScr1PDM<double>(binFile);
+
+    } else if( s_is_complex ){
+
+      getScr1PDM<dcomplex>(binFile);
+
+    } else CErr("Could not determine type of scratch bin file");
 
 
-    // Find errors in MO1
-    if( MO1dims.size() == 0 ) 
-      CErr(prefix + "MO1 does not exist in " + savFile.fName(), std::cout); 
-
-    if( MO1dims.size() != 2 ) 
-      CErr(prefix + "MO1 not saved as a rank-2 tensor in " + savFile.fName(), 
-          std::cout); 
-
-    if( MO1dims[0] != NB or MO1dims[1] != NB ) {
-
-      std::cout << "    * Incompatible SCF/MO1:";
-      std::cout << "  Recieved (" << MO1dims[0] << "," << MO1dims[1] << ")"
-        << " :"; 
-      std::cout << "  Expected (" << NB << "," << NB << ")"; 
-      CErr("Wrong number of MO coefficients!",std::cout);
-
-    }
+  } // SingleSlater<T>::readDiffTypeDenBin()
 
 
+  /**
+   *  \brief Reads in MOs from bin file.
+   *
+   **/
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::ReadGuessMO() {
 
-    // MO2 + RHF is odd, print warning 
-    if( MO2dims.size() != 0 and this->nC == 1 and this->iCS )
-      std::cout << "    * WARNING: Reading in SCF/MO1 as restricted guess "
-                << "but " << savFile.fName() << " contains SCF/MO2"
-                << std::endl;
+    if( printLevel > 0 )
+      std::cout << "    * Reading in guess orbitals from file "
+        << savFile.fName() << "\n";
+
+    if( MPIRank(comm) == 0 ) {
+
+      size_t t_hash = std::is_same<MatsT,double>::value ? 1 : 2;
+      size_t d_hash = 1;
+      size_t c_hash = 2;
+
+      size_t savHash;
+
+      std::string prefix = "/SCF/";
+      if (this->particle.charge == 1.0)
+        prefix = "/PROT_SCF/";
+
+      try{
+        savFile.readData(prefix + "FIELD_TYPE", &savHash);
+      } catch (...) {
+        CErr("Cannot find /SCF/FIELD_TYPE on rstFile!",std::cout);
+      }
 
 
-    // Read in MO1
-    std::cout << "    * Found SCF/MO1 !" << std::endl;
-    savFile.readData(prefix + "MO1",this->mo[0].pointer());
+      if( t_hash != savHash ) {
 
-    // Unrestricted calculations
-    if( this->nC == 1 and not this->iCS ) {
-      
-      if( MO2dims.size() == 0 )
-        std::cout << "    * WARNING: SCF/MO2 does not exist in "
-          << savFile.fName() << " -- Copying SCF/MO1 -> SCF/MO2 " << std::endl;
+        bool t_is_double  = t_hash == d_hash;
+        bool t_is_complex = t_hash == c_hash;
 
-      if( MO2dims.size() > 2  ) 
+        bool s_is_double  = savHash == d_hash;
+        bool s_is_complex = savHash == c_hash;
 
-        CErr("SCF/MO2 not saved as a rank-2 tensor in " + savFile.fName(), 
-            std::cout); 
+        std::string t_field = t_is_double ? "REAL" : "COMPLEX";
+        std::string s_field = s_is_double ? "REAL" : "COMPLEX";
 
-      else if( MO2dims[0] != NB or MO2dims[1] != NB ) {
+        std::string message = prefix + "FIELD_TYPE on disk (" + s_field +
+          ") is incompatible with current FIELD_TYPE (" + t_field + ")";
 
-        std::cout << "    * Incompatible SCF/MO2:";
-        std::cout << "  Recieved (" << MO2dims[0] << "," << MO2dims[1] << ")"
-          << " :"; 
-        std::cout << "  Expected (" << NB << "," << NB << ")"; 
+        CErr(message,std::cout);
+      }
+
+      // dimension of mo1 and mo2
+      auto NB = this->nC * this->nAlphaOrbital();
+      auto NB2 = NB*NB;
+
+      auto MO1dims = savFile.getDims( prefix + "MO1" );
+      auto MO2dims = savFile.getDims( prefix + "MO2" );
+
+
+      // Find errors in MO1
+      if( MO1dims.size() == 0 )
+        CErr(prefix + "MO1 does not exist in " + savFile.fName(), std::cout);
+
+      if( MO1dims.size() != 2 )
+        CErr(prefix + "MO1 not saved as a rank-2 tensor in " + savFile.fName(),
+            std::cout);
+
+      if( MO1dims[0] != NB or MO1dims[1] != NB ) {
+
+        std::cout << "    * Incompatible SCF/MO1:";
+        std::cout << "  Recieved (" << MO1dims[0] << "," << MO1dims[1] << ")"
+          << " :";
+        std::cout << "  Expected (" << NB << "," << NB << ")";
         CErr("Wrong number of MO coefficients!",std::cout);
 
       }
 
 
-      // Read in MO2
-      if( MO2dims.size() == 0 )
-        this->mo[1] = this->mo[0];
-      else {
-        std::cout << "    * Found SCF/MO2 !" << std::endl;
-        savFile.readData(prefix + "MO2",this->mo[1].pointer());
+
+      // MO2 + RHF is odd, print warning
+      if( MO2dims.size() != 0 and this->nC == 1 and this->iCS )
+        std::cout << "    * WARNING: Reading in SCF/MO1 as restricted guess "
+                  << "but " << savFile.fName() << " contains SCF/MO2"
+                  << std::endl;
+
+
+      // Read in MO1
+      std::cout << "    * Found SCF/MO1 !" << std::endl;
+      savFile.readData(prefix + "MO1",this->mo[0].pointer());
+
+      // Unrestricted calculations
+      if( this->nC == 1 and not this->iCS ) {
+
+        if( MO2dims.size() == 0 )
+          std::cout << "    * WARNING: SCF/MO2 does not exist in "
+            << savFile.fName() << " -- Copying SCF/MO1 -> SCF/MO2 " << std::endl;
+
+        if( MO2dims.size() > 2  )
+
+          CErr("SCF/MO2 not saved as a rank-2 tensor in " + savFile.fName(),
+              std::cout);
+
+        else if( MO2dims[0] != NB or MO2dims[1] != NB ) {
+
+          std::cout << "    * Incompatible SCF/MO2:";
+          std::cout << "  Recieved (" << MO2dims[0] << "," << MO2dims[1] << ")"
+            << " :";
+          std::cout << "  Expected (" << NB << "," << NB << ")";
+          CErr("Wrong number of MO coefficients!",std::cout);
+
+        }
+
+
+        // Read in MO2
+        if( MO2dims.size() == 0 )
+          this->mo[1] = this->mo[0];
+        else {
+          std::cout << "    * Found SCF/MO2 !" << std::endl;
+          savFile.readData(prefix + "MO2",this->mo[1].pointer());
+        }
+
       }
 
     }
 
     // MO coefficients from AO to othonormalized basis
     orthoAOMO();
+
+    // MO swapping if requested
+    if( this->moPairs[0].size() != 0 ) this->swapMOs(this->moPairs,SpinType::isAlpha);
+    if( this->moPairs[1].size() != 0 ) this->swapMOs(this->moPairs,SpinType::isBeta);
 
     // Form density from MOs
     formDensity();
@@ -842,7 +1055,7 @@ namespace ChronusQ {
   } // SingleSlater<T>::ReadGuessMO()
 
   /**
-   *  \brief Reads in MOs from fchk file. 
+   *  \brief Reads in MOs from fchk file.
    *
    **/
   template <typename MatsT, typename IntsT>
@@ -862,7 +1075,7 @@ namespace ChronusQ {
     shellList=fchkToCQMO();
 
     // Dimension of mo1 and mo2
-    auto NB = this->nC * basisSet().nBasis;
+    auto NB = this->nC * this->basisSet().nBasis;
     auto NB2 = NB*NB;
 
     // Reorders shells of mo1 to Chronus ordering

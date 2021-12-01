@@ -101,7 +101,7 @@ namespace ChronusQ {
       NEOSS(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
                   Integrals<IntsT> &aoi, Args... args) :
         SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
-        WaveFunctionBase(c,mem,args...),
+        WaveFunctionBase(c,mem,mol,basis,args...),
         QuantumBase(c,mem,args...) { };
 
       // Copy/move constructors
@@ -298,8 +298,8 @@ namespace ChronusQ {
         applyToEach([](SubSSPtr& ss){ ss->saveCurrentState(); });
       }
 
-      void formGuess() {
-        applyToEach([](SubSSPtr& ss){ ss->formGuess(); });
+      void formGuess(const SingleSlaterOptions& ssopt) {
+        applyToEach([&](SubSSPtr& ss){ ss->formGuess(ssopt); });
       }
 
       void formCoreH(EMPerturbation& emPert, bool save) {

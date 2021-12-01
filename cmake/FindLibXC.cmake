@@ -23,13 +23,8 @@
 
 include(ExternalProject)
 set( LIBXC_PREFIX ${PROJECT_SOURCE_DIR}/external/libxc )
-set( LIBXC_INCLUDEDIR ${LIBXC_PREFIX}/include 
-  ${LIBXC_PREFIX}/include/libxc )
+set( LIBXC_INCLUDEDIR ${LIBXC_PREFIX}/include )
 set( LIBXC_LIBDIR ${LIBXC_PREFIX}/lib )
-
-
-include_directories("${LIBXC_INCLUDEDIR}")
-link_directories("${LIBXC_LIBDIR}")
 
 if( NOT EXISTS "${LIBXC_PREFIX}/include/xc.h" )
 
@@ -47,9 +42,19 @@ if( NOT EXISTS "${LIBXC_PREFIX}/include/xc.h" )
   )
 
   list(APPEND CQEX_DEP libxc)
+  file( MAKE_DIRECTORY ${LIBXC_INCLUDEDIR} )
   message( STATUS "Opting to build a copy of LibXC" )
 else()
   message( STATUS "Found LibXC installation!" )
 endif()
 
-list(APPEND CQ_EXT_LINK ${LIBXC_LIBDIR}/libxc.a)
+set_property( TARGET ChronusQ::Dependencies APPEND PROPERTY
+  INTERFACE_INCLUDE_DIRECTORIES ${LIBXC_INCLUDEDIR}
+)
+set_property( TARGET ChronusQ::DepHeaders APPEND PROPERTY
+  INTERFACE_INCLUDE_DIRECTORIES ${LIBXC_INCLUDEDIR}
+)
+
+set_property( TARGET ChronusQ::Dependencies APPEND PROPERTY
+  INTERFACE_LINK_LIBRARIES ${LIBXC_LIBDIR}/libxc.a
+)

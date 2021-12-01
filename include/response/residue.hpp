@@ -76,9 +76,8 @@ namespace ChronusQ {
       dcomplex *W = 
         memManager_.template malloc<dcomplex>(nSingleDim_);
 
-      GeneralEigen(JOBVL,JOBVR,nSingleDim_,fMatUse,nSingleDim_,
-        W, resResults.VL, nSingleDim_, resResults.VR, nSingleDim_,
-        memManager_);
+      GeneralEigenSymm(JOBVL,JOBVR,nSingleDim_,fMatUse,nSingleDim_,
+        W, resResults.VL, nSingleDim_, resResults.VR, nSingleDim_);
       
       for(auto k = 0; k < nSingleDim_; k++)
         resResults.W[k] = std::real(W[k]);

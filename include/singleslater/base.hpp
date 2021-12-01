@@ -29,7 +29,49 @@
 #include <fields.hpp>
 #include <util/files.hpp>
 
+// #define TEST_MOINTSTRANSFORMER
+
 namespace ChronusQ {
+
+  // Type of SingleSlater object
+  enum RefType {
+    isRawRef,  // non-specified
+    isRRef,    // RHF/DFT
+    isURef,    // UHF/DFT
+    isRORef,   // ROHF/DFT
+    isGRef,    // GHF/DFT
+    isTwoCRef, // Two-component
+    isX2CRef,  // X2C
+    isFourCRef // Four-component
+  };
+
+  // A struct that stores reference information
+  struct RefOptions {
+
+    std::string RCflag = "REAL"; // Real or Complex
+
+    RefType refType = isRRef;    // R/U/G/2c/X2C/4c
+
+    bool isKSRef = false;        // HF or DFT
+
+    size_t nC = 1;               // number of component
+    bool iCS = true;             // closed shell or not
+
+    std::string funcName;        // DFT functional name
+  };
+
+
+  /**
+   *  \brief A datastructure to hold the information
+   *  pertaining to the control of the Kohn--Sham
+   *  numerical integration.
+   */
+  struct IntegrationParam {
+    double epsilon      = 1e-12; ///< Screening parameter
+    size_t nAng         = 302;   ///< # Angular points
+    size_t nRad         = 100;   ///< # Radial points
+    size_t nRadPerBatch = 4;     ///< # Radial points / macro batch
+  };
 
   enum DIIS_ALG {
     CDIIS,      ///< Commutator DIIS
@@ -113,9 +155,28 @@ namespace ChronusQ {
 
 
     // Printing
-    bool printMOCoeffs = false;
+    size_t printMOCoeffs = 0;
 
   }; // SCFControls struct
+
+  class SingleSlaterBase;
+
+  struct SingleSlaterOptions {
+
+    HamiltonianOptions hamiltonianOptions;
+
+    RefOptions refOptions;
+
+    IntegrationParam intParam;
+
+    SCFControls scfControls;
+
+    std::shared_ptr<SingleSlaterBase> buildSingleSlater(
+        std::ostream &out, CQMemManager &mem,
+        Molecule &mol, BasisSet &basis,
+        std::shared_ptr<IntegralsBase> aoints) const;
+
+  };
 
   /**
    *  \brief A struct to hold the current status of an SCF procedure
@@ -160,6 +221,9 @@ namespace ChronusQ {
 
     // Fchk File
     std::string fchkFileName;
+
+    // Scratch Bin File
+    std::string scrBinFileName;
        
     // Print Controls
     size_t printLevel; ///< Print Level
@@ -174,20 +238,23 @@ namespace ChronusQ {
     SCFControls    scfControls; ///< Controls for the SCF procedure
     SCFConvergence scfConv;     ///< Current status of SCF convergence
 
+    // Pair function for SingleSlater MO swap
+    std::vector<std::vector<std::pair<size_t, size_t>>> moPairs;
+
     // Constructors (all defaulted)
     SingleSlaterBase(const SingleSlaterBase &) = default;
     SingleSlaterBase(SingleSlaterBase &&)      = default;
 
     SingleSlaterBase() = delete;
 
-    SingleSlaterBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS, Particle p) : 
-      WaveFunctionBase(c, mem,_nC,iCS,p), QuantumBase(c, mem,_nC,iCS,p),
+    SingleSlaterBase(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
+      size_t _nC, bool iCS, Particle p) : 
+      WaveFunctionBase(c, mem,mol,basis,_nC,iCS,p), QuantumBase(c, mem,_nC,iCS,p),
       printLevel((MPIRank(c) == 0) ? 2 : 0) { };
       
 
 
     // Procedural Functions to be defined in all derived classes
-    virtual BasisSet& basisSet() = 0;
       
     // In essence, all derived classes should be able to:
     //   Form a Fock matrix with the ability to increment
@@ -195,7 +262,7 @@ namespace ChronusQ {
 
     //   Form an initial Guess (which populates the Fock, Density 
     //   and energy)
-    virtual void formGuess() = 0;
+    virtual void formGuess(const SingleSlaterOptions&) = 0;
 
     //   Form the core Hamiltonian
     virtual void formCoreH(EMPerturbation&, bool) = 0;
@@ -234,8 +301,10 @@ namespace ChronusQ {
 
     virtual void printFockTimings(std::ostream&) = 0;
 
-    // Procedural Functions to be shared among all derived classes
-      
+#ifdef TEST_MOINTSTRANSFORMER
+    virtual void MOIntsTransformationTest(EMPerturbation &pert) = 0;
+#endif
+
     // Perform an SCF procedure (see include/singleslater/scf.hpp for docs)
     virtual void SCF(EMPerturbation &);
 

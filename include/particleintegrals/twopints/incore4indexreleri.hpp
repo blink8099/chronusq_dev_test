@@ -108,23 +108,32 @@ namespace ChronusQ {
 
       if(hamiltonianOptions.Libcint) {
 
-	// Use Libcint to compute nonrelativistic and DCB integrals
+        // Use Libcint to compute nonrelativistic and DCB integrals
         computeERICINT(basisSet, mol, emPert, op, hamiltonianOptions);
+
+        //if( hamiltonianOptions.Gauge )
+          //computeERIGauge(basisSet, mol, emPert, op, hamiltonianOptions);
 
       } else {
 
-	// Use Libint to compute nonrelativistic
+        // Use Libint to compute nonrelativistic
         InCore4indexTPI<IntsT>::computeAOInts(basisSet, mol, emPert, op, hamiltonianOptions);
 
-  // Use Libint to compute DCB integrals
-        if( hamiltonianOptions.DiracCoulomb or hamiltonianOptions.Gaunt ) 
+        // Use Libint to compute DCB integrals
+        if (hamiltonianOptions.DiracCoulomb or hamiltonianOptions.Gaunt)
           computeERIDCB(basisSet, mol, emPert, op, hamiltonianOptions);
+
+        // use in house code to compute gauge integral
+        if (hamiltonianOptions.Gauge)
+          computeERIGauge(basisSet, mol, emPert, op, hamiltonianOptions);
       }
 
     }
 
     /// Evaluate Spin-Own-Orbit ERIs in the CGTO basis
     void computeERIDCB(BasisSet&, Molecule&, EMPerturbation&,
+        OPERATOR, const HamiltonianOptions&);
+    void computeERIGauge(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const HamiltonianOptions&);
     void computeERICINT(BasisSet&, Molecule&, EMPerturbation&,
         OPERATOR, const HamiltonianOptions&);
@@ -161,6 +170,10 @@ namespace ChronusQ {
       }
     }
 
+    // Pauil Matrice representation to spinor representation
+    template <typename IntsU>
+    InCore4indexRelERI<IntsU> spatialToSpinBlock() const;
+    
     template <typename TransT>
     InCore4indexRelERI<typename std::conditional<
     (std::is_same<IntsT, dcomplex>::value or
@@ -179,6 +192,18 @@ namespace ChronusQ {
       return transInts;
     }
 
+    template <typename TransT, typename OutT>
+    void subsetTransform(
+        char TRANS, const TransT* T, int LDT,
+        const std::vector<std::pair<size_t,size_t>> &off_size,
+        OutT* out, bool increment = false) const;
+    
+    template <typename TransT, typename OutT>
+    void subsetTransformWithLSComps(
+        const std::string & LSComps, char TRANS, 
+        const TransT* TL, int LDTL, const TransT* TS, int LDTS,
+        const std::vector<std::pair<size_t,size_t>> &off_size,
+        const IntsT * in, OutT* out, bool increment = false) const;
     virtual ~InCore4indexRelERI() {}
 
   }; // class InCore4indexRelERI

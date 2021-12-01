@@ -32,11 +32,14 @@
 #include <cqlinalg/blasutil.hpp>
 #include <util/timer.hpp>
 #include <util/matout.hpp>
+#include <particleintegrals/inhouseaointegral.hpp>
 
 #include <util/threads.hpp>
 #include <chrono>
 
+#define __IN_HOUSE_INT_GAUGE__
 //#define __DEBUGERI__
+//#define __DEBUGGAUGE__
 
 namespace ChronusQ {
 
@@ -346,7 +349,7 @@ namespace ChronusQ {
 
           if (qContrSize > 1 or pContrSize > 1) {
             resP = &qVec[QQ * pContrSize * pqrsAMSize];
-            Gemm('N', 'N', pqrsAMSize, pContrSize, pNprim,
+            blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize, pContrSize, pNprim,
                  1.0, inpP, pqrsAMSize,
                  coefBlocks_[P], pNprim,
                  0.0, resP, pqrsAMSize);
@@ -357,7 +360,7 @@ namespace ChronusQ {
 
         if (rContrSize > 1 or qContrSize > 1) {
           resQ = &rVec[RR * pContrSize * qContrSize * pqrsAMSize];
-          Gemm('N', 'N', pqrsAMSize * pContrSize, qContrSize, qNprim,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize * pContrSize, qContrSize, qNprim,
                1.0, inpQ, pqrsAMSize * pContrSize,
                coefBlocks_[Q], qNprim,
                0.0, resQ, pqrsAMSize * pContrSize);
@@ -368,7 +371,7 @@ namespace ChronusQ {
 
       if (sContrSize > 1 or rContrSize > 1) {
         resR = &sVec[SS * pContrSize * qContrSize * rContrSize * pqrsAMSize];
-        Gemm('N', 'N', pqrsAMSize * pContrSize * qContrSize, rContrSize, rNprim,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize * pContrSize * qContrSize, rContrSize, rNprim,
              1.0, inpR, pqrsAMSize * pContrSize * qContrSize,
              coefBlocks_[R], rNprim,
              0.0, resR, pqrsAMSize * pContrSize * qContrSize);
@@ -379,7 +382,7 @@ namespace ChronusQ {
 
     if (sContrSize > 1) {
       resS = &workBlock[0];
-      Gemm('N', 'N', pqrsAMSize * pContrSize * qContrSize * rContrSize, sContrSize, sNprim,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize * pContrSize * qContrSize * rContrSize, sContrSize, sNprim,
            1.0, inpS, pqrsAMSize * pContrSize * qContrSize * rContrSize,
            coefBlocks_[S], sNprim,
            0.0, resS, pqrsAMSize * pContrSize * qContrSize * rContrSize);
@@ -1583,6 +1586,2048 @@ namespace ChronusQ {
 #endif
 
   }  // computeERIDCB
+
+
+  // SS start: compute ERI Gauge integral
+
+
+  template <>
+  void InCore4indexRelERI<dcomplex>::computeERIGauge(BasisSet&, Molecule&,
+                                                     EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+      CErr("Only real GTOs are allowed",std::cout);
+  };
+
+  template <>
+  void InCore4indexRelERI<double>::computeERIGauge(BasisSet &basisSet_, Molecule &,
+                                                   EMPerturbation &, OPERATOR,
+                                                   const HamiltonianOptions &hamiltonianOptions) {
+
+    std::cout << "in house gauge integral" << std::endl;
+
+    auto nERIRef = 4; // Dirac-Coulomb
+    if (hamiltonianOptions.Gaunt) nERIRef += 19; // Gaunt
+    if (hamiltonianOptions.DiracCoulombSSSS) nERIRef += 16; // Dirac-Coulomb-SSSS
+
+    // Determine the number of OpenMP threads
+    int nthreads = GetNumThreads();
+
+    // Allocate and zero out ERIs
+    size_t NB = basisSet_.nBasis;
+    size_t NB2 = NB * NB;
+    size_t NB3 = NB2 * NB;
+    size_t NB4 = NB2 * NB2;
+
+
+//SS start
+//    double *gaugeSLSLACxx = memManager_.malloc<double>(pow(NB,4)*16); // 9 elements, xx, xy ... component of derivatives, xx of gauge
+// this piece is fake, ignore
+
+    double *gaugeLSSLACsymm = memManager_.malloc<double>(
+      pow(NB, 4) * 16); // 9 elements, xx, xy ... component of derivatives, xx of gauge
+    double *gaugeSLSLACxxtrue = memManager_.malloc<double>(
+      pow(NB, 4) * 16); // 9 elements, xx, xy ... component of derivatives, xx of gauge
+    double *gaugeSLLSsymm = memManager_.malloc<double>(
+      pow(NB, 4) * 16); // 9 elements, xx, xy .. component of derivatives, xx of gauge
+    double *gaugeLSLSsymm = memManager_.malloc<double>(
+      pow(NB, 4) * 16); // 9 elements, xx, xy .. component of derivatives, xx of gauge
+
+//SS end
+
+
+    auto topERIGauge = tick();
+
+    #pragma omp parallel
+    {
+      int thread_id = GetThreadID();
+
+      size_t n1, n2, n3, n4, i, j, k, l, ijkl, bf1, bf2, bf3, bf4;
+      size_t s4_max;
+
+      int cart_i_size, cart_j_size, cart_k_size, cart_l_size;
+      int cart_ip, cart_im, cart_kp, cart_km;
+      int cart_ip_size, cart_kp_size;
+      int cart_im_size, cart_km_size;
+
+      for (size_t s1(0), bf1_s(0), s1234(0); s1 < basisSet_.nShell;
+           bf1_s += n1, s1++) {
+
+        n1 = basisSet_.shells[s1].size(); // Size of Shell 1
+
+      for (size_t s2(0), bf2_s(0); s2 <= s1; bf2_s += n2, s2++) {
+
+        n2 = basisSet_.shells[s2].size(); // Size of Shell 2
+
+      for (size_t s3(0), bf3_s(0); s3 <= s1; bf3_s += n3, s3++) {
+
+        n3 = basisSet_.shells[s3].size(); // Size of Shell 3
+        s4_max = (s1 == s3) ? s2 : s3; // Determine the unique max of Shell 4
+
+      for (size_t s4(0), bf4_s(0); s4 <= s4_max; bf4_s += n4, s4++, s1234++) {
+
+        n4 = basisSet_.shells[s4].size(); // Size of Shell 4
+
+        // Round Robbin work distribution
+#ifdef _OPENMP
+        if (s1234 % nthreads != thread_id) continue;
+#endif
+
+
+        libint2::ShellPair pair1_to_use;
+        pair1_to_use.init(basisSet_.shells[s1], basisSet_.shells[s2], -2000);
+
+        libint2::ShellPair pair2_to_use;
+        pair2_to_use.init(basisSet_.shells[s3], basisSet_.shells[s4], -2000);
+
+
+#ifdef __DEBUGGAUGE__
+
+        std::cout<<"LA "<<basisSet_.shells[s1].contr[0].l
+                 <<" LB "<<basisSet_.shells[s2].contr[0].l
+                 <<" LC "<<basisSet_.shells[s3].contr[0].l
+                 <<" LD "<<basisSet_.shells[s4].contr[0].l<<std::endl;
+        std::cout<<"s1 "<<s1<<" s2 "<<s2<<" s3 "<<s3<<" s4 "<<s4<<std::endl;
+
+#endif
+
+
+        auto gaugeERIgradAC_sph = RealGTOIntEngine::ACgaugederiv(pair1_to_use, pair2_to_use,
+                                                                 basisSet_.shells[s1],
+                                                                 basisSet_.shells[s2],
+                                                                 basisSet_.shells[s3],
+                                                                 basisSet_.shells[s4]
+        );
+
+        // swap AB
+        libint2::ShellPair pair1_to_use_BA;
+        pair1_to_use_BA.init(basisSet_.shells[s2], basisSet_.shells[s1], -2000);
+
+        auto gaugeERIgradAC_sphswapAB = RealGTOIntEngine::ACgaugederiv(pair1_to_use_BA, pair2_to_use,
+                                                                       basisSet_.shells[s2],
+                                                                       basisSet_.shells[s1],
+                                                                       basisSet_.shells[s3],
+                                                                       basisSet_.shells[s4]
+        );
+
+        // swap CD
+        libint2::ShellPair pair2_to_use_DC;
+        pair2_to_use_DC.init(basisSet_.shells[s4], basisSet_.shells[s3], -2000);
+
+        auto gaugeERIgradAC_sphswapCD = RealGTOIntEngine::ACgaugederiv(pair1_to_use, pair2_to_use_DC,
+                                                                       basisSet_.shells[s1],
+                                                                       basisSet_.shells[s2],
+                                                                       basisSet_.shells[s4],
+                                                                       basisSet_.shells[s3]
+        );
+
+        // swap AB and CD
+        auto gaugeERIgradAC_sphswapABCD = RealGTOIntEngine::ACgaugederiv(pair1_to_use_BA, pair2_to_use_DC,
+                                                                         basisSet_.shells[s2],
+                                                                         basisSet_.shells[s1],
+                                                                         basisSet_.shells[s4],
+                                                                         basisSet_.shells[s3]
+        );
+
+
+        for (i = 0ul, bf1 = bf1_s, ijkl = 0ul; i < n1; ++i, bf1++)
+        for (j = 0ul, bf2 = bf2_s; j < n2; ++j, bf2++)
+        for (k = 0ul, bf3 = bf3_s; k < n3; ++k, bf3++)
+        for (l = 0ul, bf4 = bf4_s; l < n4; ++l, bf4++, ++ijkl) {
+
+          // AC derivative
+          // First dimension: 0-[∇_x∇_x],1-[∇_x∇_y],2-[∇_x∇_z],3-[∇_y∇_x],4-[∇_y∇_y],
+    //                  5-[∇_y∇_z],6-[∇_z∇_x],7-[∇_z∇_y],8-[∇_z∇_z]
+          // Second dimension: 0-[xx],1-[xy],2-[xz],3-[yy],4-[yz],5-[zz]
+
+
+
+// (nabla ij|nabla kl)
+// sigma1x sigma2x
+          // σ_xσ_x(∇ij|∇kl) = [∇_y∇_y][zz] - [∇_y∇_z][zy] - [∇_z∇_y][yz] + [∇_z∇_z][yy]
+          gaugeSLSLACxxtrue[bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sph[4][5][ijkl] - gaugeERIgradAC_sph[5][4][ijkl]
+            - gaugeERIgradAC_sph[7][4][ijkl] + gaugeERIgradAC_sph[8][3][ijkl];
+
+// sigma1x sigma2y
+          // σ_xσ_y(∇ij|∇kl) = [∇_y∇_z][zx] - [∇_y∇_x][zz] - [∇_z∇_z][yx] + [∇_z∇_x][yz]
+          gaugeSLSLACxxtrue[NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sph[5][2][ijkl] - gaugeERIgradAC_sph[3][5][ijkl]
+            - gaugeERIgradAC_sph[8][1][ijkl] + gaugeERIgradAC_sph[6][4][ijkl];
+
+// sigma1x sigma2z
+          gaugeSLSLACxxtrue[2 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sph[3][4][ijkl] - gaugeERIgradAC_sph[4][2][ijkl]
+            - gaugeERIgradAC_sph[6][3][ijkl] + gaugeERIgradAC_sph[7][1][ijkl];
+
+// sigma1y sigma2x
+          gaugeSLSLACxxtrue[3 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sph[7][2][ijkl] - gaugeERIgradAC_sph[8][1][ijkl]
+            - gaugeERIgradAC_sph[1][5][ijkl] + gaugeERIgradAC_sph[2][4][ijkl];
+
+// sigma1y sigma2y
+          gaugeSLSLACxxtrue[4 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sph[8][0][ijkl] - gaugeERIgradAC_sph[6][2][ijkl]
+            - gaugeERIgradAC_sph[2][2][ijkl] + gaugeERIgradAC_sph[0][5][ijkl];
+
+// sigma1y sigma2z
+          gaugeSLSLACxxtrue[5 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sph[6][1][ijkl] - gaugeERIgradAC_sph[7][0][ijkl]
+            - gaugeERIgradAC_sph[0][4][ijkl] + gaugeERIgradAC_sph[1][2][ijkl];
+
+// sigma1z sigma2x
+          gaugeSLSLACxxtrue[6 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sph[1][4][ijkl] - gaugeERIgradAC_sph[2][3][ijkl]
+            - gaugeERIgradAC_sph[4][2][ijkl] + gaugeERIgradAC_sph[5][1][ijkl];
+
+// sigma1z sigma2y
+          gaugeSLSLACxxtrue[7 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+//gaugeERIgradAC_sph[2][1][ijkl] - gaugeERIgradAC_sph[0][1][ijkl]
+            gaugeERIgradAC_sph[2][1][ijkl] - gaugeERIgradAC_sph[0][4][ijkl]
+            - gaugeERIgradAC_sph[5][0][ijkl] + gaugeERIgradAC_sph[3][2][ijkl];
+
+// sigma1z sigma2z
+          gaugeSLSLACxxtrue[8 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sph[0][3][ijkl] - gaugeERIgradAC_sph[1][1][ijkl]
+            - gaugeERIgradAC_sph[3][1][ijkl] + gaugeERIgradAC_sph[4][0][ijkl];
+
+// I1 I2
+          gaugeSLSLACxxtrue[15 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] = -(
+            gaugeERIgradAC_sph[0][0][ijkl] + gaugeERIgradAC_sph[1][1][ijkl]
+            + gaugeERIgradAC_sph[2][2][ijkl] + gaugeERIgradAC_sph[3][1][ijkl]
+            + gaugeERIgradAC_sph[4][3][ijkl] + gaugeERIgradAC_sph[5][4][ijkl]
+            + gaugeERIgradAC_sph[6][2][ijkl] + gaugeERIgradAC_sph[7][4][ijkl]
+            + gaugeERIgradAC_sph[8][5][ijkl]);
+
+// sigma1 x I2
+          gaugeSLSLACxxtrue[9 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sph[3][2][ijkl] + gaugeERIgradAC_sph[4][4][ijkl]
+              + gaugeERIgradAC_sph[5][5][ijkl] - gaugeERIgradAC_sph[6][1][ijkl]
+              - gaugeERIgradAC_sph[7][3][ijkl] - gaugeERIgradAC_sph[8][4][ijkl]);
+
+// sigma1 y I2
+          gaugeSLSLACxxtrue[10 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sph[6][0][ijkl] + gaugeERIgradAC_sph[7][1][ijkl]
+              + gaugeERIgradAC_sph[8][2][ijkl] - gaugeERIgradAC_sph[0][2][ijkl]
+              - gaugeERIgradAC_sph[1][4][ijkl] - gaugeERIgradAC_sph[2][5][ijkl]);
+
+// sigma1 z I2
+          gaugeSLSLACxxtrue[11 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sph[0][1][ijkl] + gaugeERIgradAC_sph[1][3][ijkl]
+              + gaugeERIgradAC_sph[2][4][ijkl] - gaugeERIgradAC_sph[3][0][ijkl]
+              - gaugeERIgradAC_sph[4][1][ijkl] - gaugeERIgradAC_sph[5][2][ijkl]);
+
+
+// I1 sigma2 x
+          gaugeSLSLACxxtrue[12 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sph[1][2][ijkl] - gaugeERIgradAC_sph[2][1][ijkl]
+              + gaugeERIgradAC_sph[4][4][ijkl] - gaugeERIgradAC_sph[5][3][ijkl]
+              + gaugeERIgradAC_sph[7][5][ijkl] - gaugeERIgradAC_sph[8][4][ijkl]);
+
+// I1 sigma2 y
+          gaugeSLSLACxxtrue[13 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sph[2][0][ijkl] - gaugeERIgradAC_sph[0][2][ijkl]
+              + gaugeERIgradAC_sph[5][1][ijkl] - gaugeERIgradAC_sph[3][4][ijkl]
+              + gaugeERIgradAC_sph[8][2][ijkl] - gaugeERIgradAC_sph[6][5][ijkl]);
+
+// I1 sigma2 z
+          gaugeSLSLACxxtrue[14 * NB4 + bf1 * NB3 + bf2 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sph[0][1][ijkl] - gaugeERIgradAC_sph[1][0][ijkl]
+              + gaugeERIgradAC_sph[3][3][ijkl] - gaugeERIgradAC_sph[4][1][ijkl]
+              + gaugeERIgradAC_sph[6][4][ijkl] - gaugeERIgradAC_sph[7][2][ijkl]);
+
+
+
+
+
+
+// (nabla ji|nabla kl)
+          int jikl = j * n4 * n3 * n1 + i * n4 * n3 + k * n4 + l;
+// sigma1x sigma2x
+          gaugeSLSLACxxtrue[bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sphswapAB[4][5][jikl] - gaugeERIgradAC_sphswapAB[5][4][jikl]
+            - gaugeERIgradAC_sphswapAB[7][4][jikl] + gaugeERIgradAC_sphswapAB[8][3][jikl];
+
+// sigma1x sigma2y
+          gaugeSLSLACxxtrue[NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sphswapAB[5][2][jikl] - gaugeERIgradAC_sphswapAB[3][5][jikl]
+            - gaugeERIgradAC_sphswapAB[8][1][jikl] + gaugeERIgradAC_sphswapAB[6][4][jikl];
+
+// sigma1x sigma2z
+          gaugeSLSLACxxtrue[2 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sphswapAB[3][4][jikl] - gaugeERIgradAC_sphswapAB[4][2][jikl]
+            - gaugeERIgradAC_sphswapAB[6][3][jikl] + gaugeERIgradAC_sphswapAB[7][1][jikl];
+
+// sigma1y sigma2x
+          gaugeSLSLACxxtrue[3 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sphswapAB[7][2][jikl] - gaugeERIgradAC_sphswapAB[8][1][jikl]
+            - gaugeERIgradAC_sphswapAB[1][5][jikl] + gaugeERIgradAC_sphswapAB[2][4][jikl];
+
+// sigma1y sigma2y
+          gaugeSLSLACxxtrue[4 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sphswapAB[8][0][jikl] - gaugeERIgradAC_sphswapAB[6][2][jikl]
+            - gaugeERIgradAC_sphswapAB[2][2][jikl] + gaugeERIgradAC_sphswapAB[0][5][jikl];
+
+// sigma1y sigma2z
+          gaugeSLSLACxxtrue[5 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sphswapAB[6][1][jikl] - gaugeERIgradAC_sphswapAB[7][0][jikl]
+            - gaugeERIgradAC_sphswapAB[0][4][jikl] + gaugeERIgradAC_sphswapAB[1][2][jikl];
+
+// sigma1z sigma2x
+          gaugeSLSLACxxtrue[6 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sphswapAB[1][4][jikl] - gaugeERIgradAC_sphswapAB[2][3][jikl]
+            - gaugeERIgradAC_sphswapAB[4][2][jikl] + gaugeERIgradAC_sphswapAB[5][1][jikl];
+
+// sigma1z sigma2y
+          gaugeSLSLACxxtrue[7 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sphswapAB[2][1][jikl] - gaugeERIgradAC_sphswapAB[0][4][jikl]
+            - gaugeERIgradAC_sphswapAB[5][0][jikl] + gaugeERIgradAC_sphswapAB[3][2][jikl];
+
+// sigma1z sigma2z
+          gaugeSLSLACxxtrue[8 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            gaugeERIgradAC_sphswapAB[0][3][jikl] - gaugeERIgradAC_sphswapAB[1][1][jikl]
+            - gaugeERIgradAC_sphswapAB[3][1][jikl] + gaugeERIgradAC_sphswapAB[4][0][jikl];
+
+
+// I1 I2
+          gaugeSLSLACxxtrue[15 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] = -(
+            gaugeERIgradAC_sphswapAB[0][0][jikl] + gaugeERIgradAC_sphswapAB[1][1][jikl]
+            + gaugeERIgradAC_sphswapAB[2][2][jikl] + gaugeERIgradAC_sphswapAB[3][1][jikl]
+            + gaugeERIgradAC_sphswapAB[4][3][jikl] + gaugeERIgradAC_sphswapAB[5][4][jikl]
+            + gaugeERIgradAC_sphswapAB[6][2][jikl] + gaugeERIgradAC_sphswapAB[7][4][jikl]
+            + gaugeERIgradAC_sphswapAB[8][5][jikl]);
+
+
+// sigma1 x I2
+          gaugeSLSLACxxtrue[9 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sphswapAB[3][2][jikl] + gaugeERIgradAC_sphswapAB[4][4][jikl]
+              + gaugeERIgradAC_sphswapAB[5][5][jikl] - gaugeERIgradAC_sphswapAB[6][1][jikl]
+              - gaugeERIgradAC_sphswapAB[7][3][jikl] - gaugeERIgradAC_sphswapAB[8][4][jikl]);
+
+// sigma1 y I2
+          gaugeSLSLACxxtrue[10 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sphswapAB[6][0][jikl] + gaugeERIgradAC_sphswapAB[7][1][jikl]
+              + gaugeERIgradAC_sphswapAB[8][2][jikl] - gaugeERIgradAC_sphswapAB[0][2][jikl]
+              - gaugeERIgradAC_sphswapAB[1][4][jikl] - gaugeERIgradAC_sphswapAB[2][5][jikl]);
+
+// sigma1 z I2
+          gaugeSLSLACxxtrue[11 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sphswapAB[0][1][jikl] + gaugeERIgradAC_sphswapAB[1][3][jikl]
+              + gaugeERIgradAC_sphswapAB[2][4][jikl] - gaugeERIgradAC_sphswapAB[3][0][jikl]
+              - gaugeERIgradAC_sphswapAB[4][1][jikl] - gaugeERIgradAC_sphswapAB[5][2][jikl]);
+
+
+// I1 sigma2 x
+          gaugeSLSLACxxtrue[12 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sphswapAB[1][2][jikl] - gaugeERIgradAC_sphswapAB[2][1][jikl]
+              + gaugeERIgradAC_sphswapAB[4][4][jikl] - gaugeERIgradAC_sphswapAB[5][3][jikl]
+              + gaugeERIgradAC_sphswapAB[7][5][jikl] - gaugeERIgradAC_sphswapAB[8][4][jikl]);
+
+// I1 sigma2 y
+          gaugeSLSLACxxtrue[13 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sphswapAB[2][0][jikl] - gaugeERIgradAC_sphswapAB[0][2][jikl]
+              + gaugeERIgradAC_sphswapAB[5][1][jikl] - gaugeERIgradAC_sphswapAB[3][4][jikl]
+              + gaugeERIgradAC_sphswapAB[8][2][jikl] - gaugeERIgradAC_sphswapAB[6][5][jikl]);
+
+// I1 sigma2 z
+          gaugeSLSLACxxtrue[14 * NB4 + bf2 * NB3 + bf1 * NB2 + bf3 * NB + bf4] =
+            -(gaugeERIgradAC_sphswapAB[0][1][jikl] - gaugeERIgradAC_sphswapAB[1][0][jikl]
+              + gaugeERIgradAC_sphswapAB[3][3][jikl] - gaugeERIgradAC_sphswapAB[4][1][jikl]
+              + gaugeERIgradAC_sphswapAB[6][4][jikl] - gaugeERIgradAC_sphswapAB[7][2][jikl]);
+
+
+
+
+
+
+
+
+// (nabla ij|nabla lk)
+          //int ijlk = i*n3*n4*n2 + j*n4*n3 +k*n3+l;
+          int ijlk = i * n3 * n4 * n2 + j * n4 * n3 + l * n3 + k;
+// sigma1x sigma2x
+          gaugeSLSLACxxtrue[bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapCD[4][5][ijlk] - gaugeERIgradAC_sphswapCD[5][4][ijlk]
+            - gaugeERIgradAC_sphswapCD[7][4][ijlk] + gaugeERIgradAC_sphswapCD[8][3][ijlk];
+
+// sigma1x sigma2y
+          gaugeSLSLACxxtrue[NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapCD[5][2][ijlk] - gaugeERIgradAC_sphswapCD[3][5][ijlk]
+            - gaugeERIgradAC_sphswapCD[8][1][ijlk] + gaugeERIgradAC_sphswapCD[6][4][ijlk];
+
+// sigma1x sigma2z
+          gaugeSLSLACxxtrue[2 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapCD[3][4][ijlk] - gaugeERIgradAC_sphswapCD[4][2][ijlk]
+            - gaugeERIgradAC_sphswapCD[6][3][ijlk] + gaugeERIgradAC_sphswapCD[7][1][ijlk];
+
+// sigma1y sigma2x
+          gaugeSLSLACxxtrue[3 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapCD[7][2][ijlk] - gaugeERIgradAC_sphswapCD[8][1][ijlk]
+            - gaugeERIgradAC_sphswapCD[1][5][ijlk] + gaugeERIgradAC_sphswapCD[2][4][ijlk];
+
+// sigma1y sigma2y
+          gaugeSLSLACxxtrue[4 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapCD[8][0][ijlk] - gaugeERIgradAC_sphswapCD[6][2][ijlk]
+            - gaugeERIgradAC_sphswapCD[2][2][ijlk] + gaugeERIgradAC_sphswapCD[0][5][ijlk];
+
+// sigma1y sigma2z
+          gaugeSLSLACxxtrue[5 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapCD[6][1][ijlk] - gaugeERIgradAC_sphswapCD[7][0][ijlk]
+            - gaugeERIgradAC_sphswapCD[0][4][ijlk] + gaugeERIgradAC_sphswapCD[1][2][ijlk];
+
+// sigma1z sigma2x
+          gaugeSLSLACxxtrue[6 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapCD[1][4][ijlk] - gaugeERIgradAC_sphswapCD[2][3][ijlk]
+            - gaugeERIgradAC_sphswapCD[4][2][ijlk] + gaugeERIgradAC_sphswapCD[5][1][ijlk];
+
+// sigma1z sigma2y
+          gaugeSLSLACxxtrue[7 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapCD[2][1][ijlk] - gaugeERIgradAC_sphswapCD[0][4][ijlk]
+            - gaugeERIgradAC_sphswapCD[5][0][ijlk] + gaugeERIgradAC_sphswapCD[3][2][ijlk];
+
+// sigma1z sigma2z
+          gaugeSLSLACxxtrue[8 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapCD[0][3][ijlk] - gaugeERIgradAC_sphswapCD[1][1][ijlk]
+            - gaugeERIgradAC_sphswapCD[3][1][ijlk] + gaugeERIgradAC_sphswapCD[4][0][ijlk];
+
+
+// I1 I2
+          gaugeSLSLACxxtrue[15 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] = -(
+            gaugeERIgradAC_sphswapCD[0][0][ijlk] + gaugeERIgradAC_sphswapCD[1][1][ijlk]
+            + gaugeERIgradAC_sphswapCD[2][2][ijlk] + gaugeERIgradAC_sphswapCD[3][1][ijlk]
+            + gaugeERIgradAC_sphswapCD[4][3][ijlk] + gaugeERIgradAC_sphswapCD[5][4][ijlk]
+            + gaugeERIgradAC_sphswapCD[6][2][ijlk] + gaugeERIgradAC_sphswapCD[7][4][ijlk]
+            + gaugeERIgradAC_sphswapCD[8][5][ijlk]);
+
+
+
+// sigma1 x I2
+          gaugeSLSLACxxtrue[9 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapCD[3][2][ijlk] + gaugeERIgradAC_sphswapCD[4][4][ijlk]
+              + gaugeERIgradAC_sphswapCD[5][5][ijlk] - gaugeERIgradAC_sphswapCD[6][1][ijlk]
+              - gaugeERIgradAC_sphswapCD[7][3][ijlk] - gaugeERIgradAC_sphswapCD[8][4][ijlk]);
+
+// sigma1 y I2
+          gaugeSLSLACxxtrue[10 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapCD[6][0][ijlk] + gaugeERIgradAC_sphswapCD[7][1][ijlk]
+              + gaugeERIgradAC_sphswapCD[8][2][ijlk] - gaugeERIgradAC_sphswapCD[0][2][ijlk]
+              - gaugeERIgradAC_sphswapCD[1][4][ijlk] - gaugeERIgradAC_sphswapCD[2][5][ijlk]);
+
+// sigma1 z I2
+          gaugeSLSLACxxtrue[11 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapCD[0][1][ijlk] + gaugeERIgradAC_sphswapCD[1][3][ijlk]
+              + gaugeERIgradAC_sphswapCD[2][4][ijlk] - gaugeERIgradAC_sphswapCD[3][0][ijlk]
+              - gaugeERIgradAC_sphswapCD[4][1][ijlk] - gaugeERIgradAC_sphswapCD[5][2][ijlk]);
+
+
+// I1 sigma2 x
+          gaugeSLSLACxxtrue[12 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapCD[1][2][ijlk] - gaugeERIgradAC_sphswapCD[2][1][ijlk]
+              + gaugeERIgradAC_sphswapCD[4][4][ijlk] - gaugeERIgradAC_sphswapCD[5][3][ijlk]
+              + gaugeERIgradAC_sphswapCD[7][5][ijlk] - gaugeERIgradAC_sphswapCD[8][4][ijlk]);
+
+// I1 sigma2 y
+          gaugeSLSLACxxtrue[13 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapCD[2][0][ijlk] - gaugeERIgradAC_sphswapCD[0][2][ijlk]
+              + gaugeERIgradAC_sphswapCD[5][1][ijlk] - gaugeERIgradAC_sphswapCD[3][4][ijlk]
+              + gaugeERIgradAC_sphswapCD[8][2][ijlk] - gaugeERIgradAC_sphswapCD[6][5][ijlk]);
+
+// I1 sigma2 z
+          gaugeSLSLACxxtrue[14 * NB4 + bf1 * NB3 + bf2 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapCD[0][1][ijlk] - gaugeERIgradAC_sphswapCD[1][0][ijlk]
+              + gaugeERIgradAC_sphswapCD[3][3][ijlk] - gaugeERIgradAC_sphswapCD[4][1][ijlk]
+              + gaugeERIgradAC_sphswapCD[6][4][ijlk] - gaugeERIgradAC_sphswapCD[7][2][ijlk]);
+
+
+
+
+
+
+
+// (nabla ji|nabla lk)
+          int jilk = j * n3 * n4 * n1 + i * n3 * n4 + l * n3 + k;
+// sigma1x sigma2x
+          gaugeSLSLACxxtrue[bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapABCD[4][5][jilk] - gaugeERIgradAC_sphswapABCD[5][4][jilk]
+            - gaugeERIgradAC_sphswapABCD[7][4][jilk] + gaugeERIgradAC_sphswapABCD[8][3][jilk];
+
+// sigma1x sigma2y
+          gaugeSLSLACxxtrue[NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapABCD[5][2][jilk] - gaugeERIgradAC_sphswapABCD[3][5][jilk]
+            - gaugeERIgradAC_sphswapABCD[8][1][jilk] + gaugeERIgradAC_sphswapABCD[6][4][jilk];
+
+// sigma1x sigma2z
+          gaugeSLSLACxxtrue[2 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapABCD[3][4][jilk] - gaugeERIgradAC_sphswapABCD[4][2][jilk]
+            - gaugeERIgradAC_sphswapABCD[6][3][jilk] + gaugeERIgradAC_sphswapABCD[7][1][jilk];
+
+// sigma1y sigma2x
+          gaugeSLSLACxxtrue[3 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapABCD[7][2][jilk] - gaugeERIgradAC_sphswapABCD[8][1][jilk]
+            - gaugeERIgradAC_sphswapABCD[1][5][jilk] + gaugeERIgradAC_sphswapABCD[2][4][jilk];
+
+// sigma1y sigma2y
+          gaugeSLSLACxxtrue[4 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapABCD[8][0][jilk] - gaugeERIgradAC_sphswapABCD[6][2][jilk]
+            - gaugeERIgradAC_sphswapABCD[2][2][jilk] + gaugeERIgradAC_sphswapABCD[0][5][jilk];
+
+// sigma1y sigma2z
+          gaugeSLSLACxxtrue[5 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapABCD[6][1][jilk] - gaugeERIgradAC_sphswapABCD[7][0][jilk]
+            - gaugeERIgradAC_sphswapABCD[0][4][jilk] + gaugeERIgradAC_sphswapABCD[1][2][jilk];
+
+// sigma1z sigma2x
+          gaugeSLSLACxxtrue[6 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapABCD[1][4][jilk] - gaugeERIgradAC_sphswapABCD[2][3][jilk]
+            - gaugeERIgradAC_sphswapABCD[4][2][jilk] + gaugeERIgradAC_sphswapABCD[5][1][jilk];
+
+// sigma1z sigma2y
+          gaugeSLSLACxxtrue[7 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapABCD[2][1][jilk] - gaugeERIgradAC_sphswapABCD[0][4][jilk]
+            - gaugeERIgradAC_sphswapABCD[5][0][jilk] + gaugeERIgradAC_sphswapABCD[3][2][jilk];
+
+// sigma1z sigma2z
+          gaugeSLSLACxxtrue[8 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            gaugeERIgradAC_sphswapABCD[0][3][jilk] - gaugeERIgradAC_sphswapABCD[1][1][jilk]
+            - gaugeERIgradAC_sphswapABCD[3][1][jilk] + gaugeERIgradAC_sphswapABCD[4][0][jilk];
+
+
+// I1 I2
+          gaugeSLSLACxxtrue[15 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] = -(
+            gaugeERIgradAC_sphswapABCD[0][0][jilk] + gaugeERIgradAC_sphswapABCD[1][1][jilk]
+            + gaugeERIgradAC_sphswapABCD[2][2][jilk] + gaugeERIgradAC_sphswapABCD[3][1][jilk]
+            + gaugeERIgradAC_sphswapABCD[4][3][jilk] + gaugeERIgradAC_sphswapABCD[5][4][jilk]
+            + gaugeERIgradAC_sphswapABCD[6][2][jilk] + gaugeERIgradAC_sphswapABCD[7][4][jilk]
+            + gaugeERIgradAC_sphswapABCD[8][5][jilk]);
+
+
+// sigma1 x I2
+          gaugeSLSLACxxtrue[9 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapABCD[3][2][jilk] + gaugeERIgradAC_sphswapABCD[4][4][jilk]
+              + gaugeERIgradAC_sphswapABCD[5][5][jilk] - gaugeERIgradAC_sphswapABCD[6][1][jilk]
+              - gaugeERIgradAC_sphswapABCD[7][3][jilk] - gaugeERIgradAC_sphswapABCD[8][4][jilk]);
+
+// sigma1 y I2
+          gaugeSLSLACxxtrue[10 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapABCD[6][0][jilk] + gaugeERIgradAC_sphswapABCD[7][1][jilk]
+              + gaugeERIgradAC_sphswapABCD[8][2][jilk] - gaugeERIgradAC_sphswapABCD[0][2][jilk]
+              - gaugeERIgradAC_sphswapABCD[1][4][jilk] - gaugeERIgradAC_sphswapABCD[2][5][jilk]);
+
+// sigma1 z I2
+          gaugeSLSLACxxtrue[11 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapABCD[0][1][jilk] + gaugeERIgradAC_sphswapABCD[1][3][jilk]
+              + gaugeERIgradAC_sphswapABCD[2][4][jilk] - gaugeERIgradAC_sphswapABCD[3][0][jilk]
+              - gaugeERIgradAC_sphswapABCD[4][1][jilk] - gaugeERIgradAC_sphswapABCD[5][2][jilk]);
+
+
+// I1 sigma2 x
+          gaugeSLSLACxxtrue[12 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapABCD[1][2][jilk] - gaugeERIgradAC_sphswapABCD[2][1][jilk]
+              + gaugeERIgradAC_sphswapABCD[4][4][jilk] - gaugeERIgradAC_sphswapABCD[5][3][jilk]
+              + gaugeERIgradAC_sphswapABCD[7][5][jilk] - gaugeERIgradAC_sphswapABCD[8][4][jilk]);
+
+// I1 sigma2 y
+          gaugeSLSLACxxtrue[13 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapABCD[2][0][jilk] - gaugeERIgradAC_sphswapABCD[0][2][jilk]
+              + gaugeERIgradAC_sphswapABCD[5][1][jilk] - gaugeERIgradAC_sphswapABCD[3][4][jilk]
+              + gaugeERIgradAC_sphswapABCD[8][2][jilk] - gaugeERIgradAC_sphswapABCD[6][5][jilk]);
+
+// I1 sigma2 z
+          gaugeSLSLACxxtrue[14 * NB4 + bf2 * NB3 + bf1 * NB2 + bf4 * NB + bf3] =
+            -(gaugeERIgradAC_sphswapABCD[0][1][jilk] - gaugeERIgradAC_sphswapABCD[1][0][jilk]
+              + gaugeERIgradAC_sphswapABCD[3][3][jilk] - gaugeERIgradAC_sphswapABCD[4][1][jilk]
+              + gaugeERIgradAC_sphswapABCD[6][4][jilk] - gaugeERIgradAC_sphswapABCD[7][2][jilk]);
+
+
+
+
+
+
+
+
+// swap electron 1 and 2
+//
+// (nabla kl|nabla ij)
+// sigma1x sigma2x
+          gaugeSLSLACxxtrue[bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sph[4][5][ijkl] - gaugeERIgradAC_sph[7][4][ijkl]
+            - gaugeERIgradAC_sph[5][4][ijkl] + gaugeERIgradAC_sph[8][3][ijkl];
+
+// sigma1x sigma2y
+          gaugeSLSLACxxtrue[NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sph[7][2][ijkl] - gaugeERIgradAC_sph[1][5][ijkl]
+            - gaugeERIgradAC_sph[8][1][ijkl] + gaugeERIgradAC_sph[2][4][ijkl];
+
+// sigma1x sigma2z
+          gaugeSLSLACxxtrue[2 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sph[1][4][ijkl] - gaugeERIgradAC_sph[4][2][ijkl]
+            - gaugeERIgradAC_sph[2][3][ijkl] + gaugeERIgradAC_sph[5][1][ijkl];
+
+// sigma1y sigma2x
+          gaugeSLSLACxxtrue[3 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sph[5][2][ijkl] - gaugeERIgradAC_sph[8][1][ijkl]
+            - gaugeERIgradAC_sph[3][5][ijkl] + gaugeERIgradAC_sph[6][4][ijkl];
+
+// sigma1y sigma2y
+          gaugeSLSLACxxtrue[4 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sph[8][0][ijkl] - gaugeERIgradAC_sph[2][2][ijkl]
+            - gaugeERIgradAC_sph[6][2][ijkl] + gaugeERIgradAC_sph[0][5][ijkl];
+
+// sigma1y sigma2z
+          gaugeSLSLACxxtrue[5 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sph[2][1][ijkl] - gaugeERIgradAC_sph[5][0][ijkl]
+            - gaugeERIgradAC_sph[0][4][ijkl] + gaugeERIgradAC_sph[3][2][ijkl];
+
+// sigma1z sigma2x
+          gaugeSLSLACxxtrue[6 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sph[3][4][ijkl] - gaugeERIgradAC_sph[6][3][ijkl]
+            - gaugeERIgradAC_sph[4][2][ijkl] + gaugeERIgradAC_sph[7][1][ijkl];
+
+// sigma1z sigma2y
+          gaugeSLSLACxxtrue[7 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sph[6][1][ijkl] - gaugeERIgradAC_sph[0][4][ijkl]
+            - gaugeERIgradAC_sph[7][0][ijkl] + gaugeERIgradAC_sph[1][2][ijkl];
+
+// sigma1z sigma2z
+          gaugeSLSLACxxtrue[8 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sph[0][3][ijkl] - gaugeERIgradAC_sph[3][1][ijkl]
+            - gaugeERIgradAC_sph[1][1][ijkl] + gaugeERIgradAC_sph[4][0][ijkl];
+
+
+// I1 I2
+          gaugeSLSLACxxtrue[15 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] = -(
+            gaugeERIgradAC_sph[0][0][ijkl] + gaugeERIgradAC_sph[1][1][ijkl]
+            + gaugeERIgradAC_sph[2][2][ijkl] + gaugeERIgradAC_sph[3][1][ijkl]
+            + gaugeERIgradAC_sph[4][3][ijkl] + gaugeERIgradAC_sph[5][4][ijkl]
+            + gaugeERIgradAC_sph[6][2][ijkl] + gaugeERIgradAC_sph[7][4][ijkl]
+            + gaugeERIgradAC_sph[8][5][ijkl]);
+// or
+// gaugeSLSLACxxtrue[15*NB4 + bf3* NB3+ bf4*NB2 + bf1*NB + bf2]
+// =gaugeSLSLACxxtrue[15*NB4 + bf1* NB3+ bf2*NB2 + bf3*NB + bf4] ;
+
+
+
+// sigma1 x I2
+          gaugeSLSLACxxtrue[9 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sph[1][2][ijkl] + gaugeERIgradAC_sph[4][4][ijkl]
+              + gaugeERIgradAC_sph[7][5][ijkl] - gaugeERIgradAC_sph[2][1][ijkl]
+              - gaugeERIgradAC_sph[5][3][ijkl] - gaugeERIgradAC_sph[8][4][ijkl]);
+
+// sigma1 y I2
+          gaugeSLSLACxxtrue[10 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sph[2][0][ijkl] + gaugeERIgradAC_sph[5][1][ijkl]
+              + gaugeERIgradAC_sph[8][2][ijkl] - gaugeERIgradAC_sph[0][2][ijkl]
+              - gaugeERIgradAC_sph[3][4][ijkl] - gaugeERIgradAC_sph[6][5][ijkl]);
+
+// sigma1 z I2
+          gaugeSLSLACxxtrue[11 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sph[0][1][ijkl] + gaugeERIgradAC_sph[3][3][ijkl]
+              + gaugeERIgradAC_sph[6][4][ijkl] - gaugeERIgradAC_sph[1][0][ijkl]
+              - gaugeERIgradAC_sph[4][1][ijkl] - gaugeERIgradAC_sph[7][2][ijkl]);
+
+
+// I1 sigma2 x
+          gaugeSLSLACxxtrue[12 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sph[3][2][ijkl] - gaugeERIgradAC_sph[6][1][ijkl]
+              + gaugeERIgradAC_sph[4][4][ijkl] - gaugeERIgradAC_sph[7][3][ijkl]
+              + gaugeERIgradAC_sph[5][5][ijkl] - gaugeERIgradAC_sph[8][4][ijkl]);
+
+// I1 sigma2 y
+          gaugeSLSLACxxtrue[13 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sph[6][0][ijkl] - gaugeERIgradAC_sph[0][2][ijkl]
+              + gaugeERIgradAC_sph[7][1][ijkl] - gaugeERIgradAC_sph[1][4][ijkl]
+              + gaugeERIgradAC_sph[8][2][ijkl] - gaugeERIgradAC_sph[2][5][ijkl]);
+
+// I1 sigma2 z
+          gaugeSLSLACxxtrue[14 * NB4 + bf3 * NB3 + bf4 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sph[0][1][ijkl] - gaugeERIgradAC_sph[3][0][ijkl]
+              + gaugeERIgradAC_sph[1][3][ijkl] - gaugeERIgradAC_sph[4][1][ijkl]
+              + gaugeERIgradAC_sph[2][4][ijkl] - gaugeERIgradAC_sph[5][2][ijkl]);
+
+
+
+
+
+
+// (nabla kl|nabla ji)
+// sigma1x sigma2x
+          gaugeSLSLACxxtrue[bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapAB[4][5][jikl] - gaugeERIgradAC_sphswapAB[7][4][jikl]
+            - gaugeERIgradAC_sphswapAB[5][4][jikl] + gaugeERIgradAC_sphswapAB[8][3][jikl];
+
+// sigma1x sigma2y
+          gaugeSLSLACxxtrue[NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapAB[7][2][jikl] - gaugeERIgradAC_sphswapAB[1][5][jikl]
+            - gaugeERIgradAC_sphswapAB[8][1][jikl] + gaugeERIgradAC_sphswapAB[2][4][jikl];
+
+// sigma1x sigma2z
+          gaugeSLSLACxxtrue[2 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapAB[1][4][jikl] - gaugeERIgradAC_sphswapAB[4][2][jikl]
+            - gaugeERIgradAC_sphswapAB[2][3][jikl] + gaugeERIgradAC_sphswapAB[5][1][jikl];
+
+// sigma1y sigma2x
+          gaugeSLSLACxxtrue[3 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapAB[5][2][jikl] - gaugeERIgradAC_sphswapAB[8][1][jikl]
+            - gaugeERIgradAC_sphswapAB[3][5][jikl] + gaugeERIgradAC_sphswapAB[6][4][jikl];
+
+// sigma1y sigma2y
+          gaugeSLSLACxxtrue[4 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapAB[8][0][jikl] - gaugeERIgradAC_sphswapAB[2][2][jikl]
+            - gaugeERIgradAC_sphswapAB[6][2][jikl] + gaugeERIgradAC_sphswapAB[0][5][jikl];
+
+// sigma1y sigma2z
+          gaugeSLSLACxxtrue[5 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapAB[2][1][jikl] - gaugeERIgradAC_sphswapAB[5][0][jikl]
+            - gaugeERIgradAC_sphswapAB[0][4][jikl] + gaugeERIgradAC_sphswapAB[3][2][jikl];
+
+// sigma1z sigma2x
+          gaugeSLSLACxxtrue[6 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapAB[3][4][jikl] - gaugeERIgradAC_sphswapAB[6][3][jikl]
+            - gaugeERIgradAC_sphswapAB[4][2][jikl] + gaugeERIgradAC_sphswapAB[7][1][jikl];
+
+// sigma1z sigma2y
+          gaugeSLSLACxxtrue[7 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapAB[6][1][jikl] - gaugeERIgradAC_sphswapAB[0][4][jikl]
+            - gaugeERIgradAC_sphswapAB[7][0][jikl] + gaugeERIgradAC_sphswapAB[1][2][jikl];
+
+// sigma1z sigma2z
+          gaugeSLSLACxxtrue[8 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapAB[0][3][jikl] - gaugeERIgradAC_sphswapAB[3][1][jikl]
+            - gaugeERIgradAC_sphswapAB[1][1][jikl] + gaugeERIgradAC_sphswapAB[4][0][jikl];
+
+
+// I1 I2
+          gaugeSLSLACxxtrue[15 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] = -(
+            gaugeERIgradAC_sphswapAB[0][0][jikl] + gaugeERIgradAC_sphswapAB[1][1][jikl]
+            + gaugeERIgradAC_sphswapAB[2][2][jikl] + gaugeERIgradAC_sphswapAB[3][1][jikl]
+            + gaugeERIgradAC_sphswapAB[4][3][jikl] + gaugeERIgradAC_sphswapAB[5][4][jikl]
+            + gaugeERIgradAC_sphswapAB[6][2][jikl] + gaugeERIgradAC_sphswapAB[7][4][jikl]
+            + gaugeERIgradAC_sphswapAB[8][5][jikl]);
+//or
+//gaugeSLSLACxxtrue[15*NB4 + bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+//gaugeSLSLACxxtrue[15*NB4 + bf2* NB3+ bf1*NB2 + bf3*NB + bf4];
+
+
+
+// sigma1 x I2
+          gaugeSLSLACxxtrue[9 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapAB[1][2][jikl] + gaugeERIgradAC_sphswapAB[4][4][jikl]
+              + gaugeERIgradAC_sphswapAB[7][5][jikl] - gaugeERIgradAC_sphswapAB[2][1][jikl]
+              - gaugeERIgradAC_sphswapAB[5][3][jikl] - gaugeERIgradAC_sphswapAB[8][4][jikl]);
+
+// sigma1 y I2
+          gaugeSLSLACxxtrue[10 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapAB[2][0][jikl] + gaugeERIgradAC_sphswapAB[5][1][jikl]
+              + gaugeERIgradAC_sphswapAB[8][2][jikl] - gaugeERIgradAC_sphswapAB[0][2][jikl]
+              - gaugeERIgradAC_sphswapAB[3][4][jikl] - gaugeERIgradAC_sphswapAB[6][5][jikl]);
+
+// sigma1 z I2
+          gaugeSLSLACxxtrue[11 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapAB[0][1][jikl] + gaugeERIgradAC_sphswapAB[3][3][jikl]
+              + gaugeERIgradAC_sphswapAB[6][4][jikl] - gaugeERIgradAC_sphswapAB[1][0][jikl]
+              - gaugeERIgradAC_sphswapAB[4][1][jikl] - gaugeERIgradAC_sphswapAB[7][2][jikl]);
+
+
+// I1 sigma2 x
+          gaugeSLSLACxxtrue[12 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapAB[3][2][jikl] - gaugeERIgradAC_sphswapAB[6][1][jikl]
+              + gaugeERIgradAC_sphswapAB[4][4][jikl] - gaugeERIgradAC_sphswapAB[7][3][jikl]
+              + gaugeERIgradAC_sphswapAB[5][5][jikl] - gaugeERIgradAC_sphswapAB[8][4][jikl]);
+
+// I1 sigma2 y
+          gaugeSLSLACxxtrue[13 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapAB[6][0][jikl] - gaugeERIgradAC_sphswapAB[0][2][jikl]
+              + gaugeERIgradAC_sphswapAB[7][1][jikl] - gaugeERIgradAC_sphswapAB[1][4][jikl]
+              + gaugeERIgradAC_sphswapAB[8][2][jikl] - gaugeERIgradAC_sphswapAB[2][5][jikl]);
+
+// I1 sigma2 z
+          gaugeSLSLACxxtrue[14 * NB4 + bf3 * NB3 + bf4 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapAB[0][1][jikl] - gaugeERIgradAC_sphswapAB[3][0][jikl]
+              + gaugeERIgradAC_sphswapAB[1][3][jikl] - gaugeERIgradAC_sphswapAB[4][1][jikl]
+              + gaugeERIgradAC_sphswapAB[2][4][jikl] - gaugeERIgradAC_sphswapAB[5][2][jikl]);
+
+
+
+
+
+// (nabla lk|nabla ij)
+// sigma1x sigma2x
+          gaugeSLSLACxxtrue[bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sphswapCD[4][5][ijlk] - gaugeERIgradAC_sphswapCD[7][4][ijlk]
+            - gaugeERIgradAC_sphswapCD[5][4][ijlk] + gaugeERIgradAC_sphswapCD[8][3][ijlk];
+
+// sigma1x sigma2y
+          gaugeSLSLACxxtrue[NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sphswapCD[7][2][ijlk] - gaugeERIgradAC_sphswapCD[1][5][ijlk]
+            - gaugeERIgradAC_sphswapCD[8][1][ijlk] + gaugeERIgradAC_sphswapCD[2][4][ijlk];
+
+// sigma1x sigma2z
+          gaugeSLSLACxxtrue[2 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sphswapCD[1][4][ijlk] - gaugeERIgradAC_sphswapCD[4][2][ijlk]
+            - gaugeERIgradAC_sphswapCD[2][3][ijlk] + gaugeERIgradAC_sphswapCD[5][1][ijlk];
+
+// sigma1y sigma2x
+          gaugeSLSLACxxtrue[3 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sphswapCD[5][2][ijlk] - gaugeERIgradAC_sphswapCD[8][1][ijlk]
+            - gaugeERIgradAC_sphswapCD[3][5][ijlk] + gaugeERIgradAC_sphswapCD[6][4][ijlk];
+
+// sigma1y sigma2y
+          gaugeSLSLACxxtrue[4 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sphswapCD[8][0][ijlk] - gaugeERIgradAC_sphswapCD[2][2][ijlk]
+            - gaugeERIgradAC_sphswapCD[6][2][ijlk] + gaugeERIgradAC_sphswapCD[0][5][ijlk];
+
+// sigma1y sigma2z
+          gaugeSLSLACxxtrue[5 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sphswapCD[2][1][ijlk] - gaugeERIgradAC_sphswapCD[5][0][ijlk]
+            - gaugeERIgradAC_sphswapCD[0][4][ijlk] + gaugeERIgradAC_sphswapCD[3][2][ijlk];
+
+// sigma1z sigma2x
+          gaugeSLSLACxxtrue[6 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sphswapCD[3][4][ijlk] - gaugeERIgradAC_sphswapCD[6][3][ijlk]
+            - gaugeERIgradAC_sphswapCD[4][2][ijlk] + gaugeERIgradAC_sphswapCD[7][1][ijlk];
+
+// sigma1z sigma2y
+          gaugeSLSLACxxtrue[7 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sphswapCD[6][1][ijlk] - gaugeERIgradAC_sphswapCD[0][4][ijlk]
+            - gaugeERIgradAC_sphswapCD[7][0][ijlk] + gaugeERIgradAC_sphswapCD[1][2][ijlk];
+
+// sigma1z sigma2z
+          gaugeSLSLACxxtrue[8 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            gaugeERIgradAC_sphswapCD[0][3][ijlk] - gaugeERIgradAC_sphswapCD[3][1][ijlk]
+            - gaugeERIgradAC_sphswapCD[1][1][ijlk] + gaugeERIgradAC_sphswapCD[4][0][ijlk];
+
+
+// I1 I2
+          gaugeSLSLACxxtrue[15 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] = -(
+            gaugeERIgradAC_sphswapCD[0][0][ijlk] + gaugeERIgradAC_sphswapCD[1][1][ijlk]
+            + gaugeERIgradAC_sphswapCD[2][2][ijlk] + gaugeERIgradAC_sphswapCD[3][1][ijlk]
+            + gaugeERIgradAC_sphswapCD[4][3][ijlk] + gaugeERIgradAC_sphswapCD[5][4][ijlk]
+            + gaugeERIgradAC_sphswapCD[6][2][ijlk] + gaugeERIgradAC_sphswapCD[7][4][ijlk]
+            + gaugeERIgradAC_sphswapCD[8][5][ijlk]);
+// or
+// gaugeSLSLACxxtrue[15*NB4 + bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+// gaugeSLSLACxxtrue[15*NB4 + bf1* NB3+ bf2*NB2 + bf4*NB + bf3];
+
+
+
+// sigma1 x I2
+          gaugeSLSLACxxtrue[9 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sphswapCD[1][2][ijlk] + gaugeERIgradAC_sphswapCD[4][4][ijlk]
+              + gaugeERIgradAC_sphswapCD[7][5][ijlk] - gaugeERIgradAC_sphswapCD[2][1][ijlk]
+              - gaugeERIgradAC_sphswapCD[5][3][ijlk] - gaugeERIgradAC_sphswapCD[8][4][ijlk]);
+
+// sigma1 y I2
+          gaugeSLSLACxxtrue[10 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sphswapCD[2][0][ijlk] + gaugeERIgradAC_sphswapCD[5][1][ijlk]
+              + gaugeERIgradAC_sphswapCD[8][2][ijlk] - gaugeERIgradAC_sphswapCD[0][2][ijlk]
+              - gaugeERIgradAC_sphswapCD[3][4][ijlk] - gaugeERIgradAC_sphswapCD[6][5][ijlk]);
+
+// sigma1 z I2
+          gaugeSLSLACxxtrue[11 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sphswapCD[0][1][ijlk] + gaugeERIgradAC_sphswapCD[3][3][ijlk]
+              + gaugeERIgradAC_sphswapCD[6][4][ijlk] - gaugeERIgradAC_sphswapCD[1][0][ijlk]
+              - gaugeERIgradAC_sphswapCD[4][1][ijlk] - gaugeERIgradAC_sphswapCD[7][2][ijlk]);
+
+
+// I1 sigma2 x
+          gaugeSLSLACxxtrue[12 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sphswapCD[3][2][ijlk] - gaugeERIgradAC_sphswapCD[6][1][ijlk]
+              + gaugeERIgradAC_sphswapCD[4][4][ijlk] - gaugeERIgradAC_sphswapCD[7][3][ijlk]
+              + gaugeERIgradAC_sphswapCD[5][5][ijlk] - gaugeERIgradAC_sphswapCD[8][4][ijlk]);
+
+// I1 sigma2 y
+          gaugeSLSLACxxtrue[13 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sphswapCD[6][0][ijlk] - gaugeERIgradAC_sphswapCD[0][2][ijlk]
+              + gaugeERIgradAC_sphswapCD[7][1][ijlk] - gaugeERIgradAC_sphswapCD[1][4][ijlk]
+              + gaugeERIgradAC_sphswapCD[8][2][ijlk] - gaugeERIgradAC_sphswapCD[2][5][ijlk]);
+
+// I1 sigma2 z
+          gaugeSLSLACxxtrue[14 * NB4 + bf4 * NB3 + bf3 * NB2 + bf1 * NB + bf2] =
+            -(gaugeERIgradAC_sphswapCD[0][1][ijlk] - gaugeERIgradAC_sphswapCD[3][0][ijlk]
+              + gaugeERIgradAC_sphswapCD[1][3][ijlk] - gaugeERIgradAC_sphswapCD[4][1][ijlk]
+              + gaugeERIgradAC_sphswapCD[2][4][ijlk] - gaugeERIgradAC_sphswapCD[5][2][ijlk]);
+
+
+
+
+
+
+
+
+
+
+// (nabla lk|nabla ji)
+// sigma1x sigma2x
+          gaugeSLSLACxxtrue[bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapABCD[4][5][jilk] - gaugeERIgradAC_sphswapABCD[7][4][jilk]
+            - gaugeERIgradAC_sphswapABCD[5][4][jilk] + gaugeERIgradAC_sphswapABCD[8][3][jilk];
+
+// sigma1x sigma2y
+          gaugeSLSLACxxtrue[NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapABCD[7][2][jilk] - gaugeERIgradAC_sphswapABCD[1][5][jilk]
+            - gaugeERIgradAC_sphswapABCD[8][1][jilk] + gaugeERIgradAC_sphswapABCD[2][4][jilk];
+
+// sigma1x sigma2z
+          gaugeSLSLACxxtrue[2 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapABCD[1][4][jilk] - gaugeERIgradAC_sphswapABCD[4][2][jilk]
+            - gaugeERIgradAC_sphswapABCD[2][3][jilk] + gaugeERIgradAC_sphswapABCD[5][1][jilk];
+
+// sigma1y sigma2x
+          gaugeSLSLACxxtrue[3 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapABCD[5][2][jilk] - gaugeERIgradAC_sphswapABCD[8][1][jilk]
+            - gaugeERIgradAC_sphswapABCD[3][5][jilk] + gaugeERIgradAC_sphswapABCD[6][4][jilk];
+
+// sigma1y sigma2y
+          gaugeSLSLACxxtrue[4 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapABCD[8][0][jilk] - gaugeERIgradAC_sphswapABCD[2][2][jilk]
+            - gaugeERIgradAC_sphswapABCD[6][2][jilk] + gaugeERIgradAC_sphswapABCD[0][5][jilk];
+
+// sigma1y sigma2z
+          gaugeSLSLACxxtrue[5 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapABCD[2][1][jilk] - gaugeERIgradAC_sphswapABCD[5][0][jilk]
+            - gaugeERIgradAC_sphswapABCD[0][4][jilk] + gaugeERIgradAC_sphswapABCD[3][2][jilk];
+
+// sigma1z sigma2x
+          gaugeSLSLACxxtrue[6 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapABCD[3][4][jilk] - gaugeERIgradAC_sphswapABCD[6][3][jilk]
+            - gaugeERIgradAC_sphswapABCD[4][2][jilk] + gaugeERIgradAC_sphswapABCD[7][1][jilk];
+
+// sigma1z sigma2y
+          gaugeSLSLACxxtrue[7 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapABCD[6][1][jilk] - gaugeERIgradAC_sphswapABCD[0][4][jilk]
+            - gaugeERIgradAC_sphswapABCD[7][0][jilk] + gaugeERIgradAC_sphswapABCD[1][2][jilk];
+
+// sigma1z sigma2z
+          gaugeSLSLACxxtrue[8 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            gaugeERIgradAC_sphswapABCD[0][3][jilk] - gaugeERIgradAC_sphswapABCD[3][1][jilk]
+            - gaugeERIgradAC_sphswapABCD[1][1][jilk] + gaugeERIgradAC_sphswapABCD[4][0][jilk];
+
+
+// I1 I2
+          gaugeSLSLACxxtrue[15 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] = -(
+            gaugeERIgradAC_sphswapABCD[0][0][jilk] + gaugeERIgradAC_sphswapABCD[1][1][jilk]
+            + gaugeERIgradAC_sphswapABCD[2][2][jilk] + gaugeERIgradAC_sphswapABCD[3][1][jilk]
+            + gaugeERIgradAC_sphswapABCD[4][3][jilk] + gaugeERIgradAC_sphswapABCD[5][4][jilk]
+            + gaugeERIgradAC_sphswapABCD[6][2][jilk] + gaugeERIgradAC_sphswapABCD[7][4][jilk]
+            + gaugeERIgradAC_sphswapABCD[8][5][jilk]);
+// or
+// gaugeSLSLACxxtrue[15*NB4 + bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+// gaugeSLSLACxxtrue[15*NB4 + bf2* NB3+ bf1*NB2 + bf4*NB + bf3];
+
+
+
+// sigma1 x I2
+          gaugeSLSLACxxtrue[9 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapABCD[1][2][jilk] + gaugeERIgradAC_sphswapABCD[4][4][jilk]
+              + gaugeERIgradAC_sphswapABCD[7][5][jilk] - gaugeERIgradAC_sphswapABCD[2][1][jilk]
+              - gaugeERIgradAC_sphswapABCD[5][3][jilk] - gaugeERIgradAC_sphswapABCD[8][4][jilk]);
+
+// sigma1 y I2
+          gaugeSLSLACxxtrue[10 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapABCD[2][0][jilk] + gaugeERIgradAC_sphswapABCD[5][1][jilk]
+              + gaugeERIgradAC_sphswapABCD[8][2][jilk] - gaugeERIgradAC_sphswapABCD[0][2][jilk]
+              - gaugeERIgradAC_sphswapABCD[3][4][jilk] - gaugeERIgradAC_sphswapABCD[6][5][jilk]);
+
+// sigma1 z I2
+          gaugeSLSLACxxtrue[11 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapABCD[0][1][jilk] + gaugeERIgradAC_sphswapABCD[3][3][jilk]
+              + gaugeERIgradAC_sphswapABCD[6][4][jilk] - gaugeERIgradAC_sphswapABCD[1][0][jilk]
+              - gaugeERIgradAC_sphswapABCD[4][1][jilk] - gaugeERIgradAC_sphswapABCD[7][2][jilk]);
+
+
+// I1 sigma2 x
+          gaugeSLSLACxxtrue[12 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapABCD[3][2][jilk] - gaugeERIgradAC_sphswapABCD[6][1][jilk]
+              + gaugeERIgradAC_sphswapABCD[4][4][jilk] - gaugeERIgradAC_sphswapABCD[7][3][jilk]
+              + gaugeERIgradAC_sphswapABCD[5][5][jilk] - gaugeERIgradAC_sphswapABCD[8][4][jilk]);
+
+// I1 sigma2 y
+          gaugeSLSLACxxtrue[13 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapABCD[6][0][jilk] - gaugeERIgradAC_sphswapABCD[0][2][jilk]
+              + gaugeERIgradAC_sphswapABCD[7][1][jilk] - gaugeERIgradAC_sphswapABCD[1][4][jilk]
+              + gaugeERIgradAC_sphswapABCD[8][2][jilk] - gaugeERIgradAC_sphswapABCD[2][5][jilk]);
+
+// I1 sigma2 z
+          gaugeSLSLACxxtrue[14 * NB4 + bf4 * NB3 + bf3 * NB2 + bf2 * NB + bf1] =
+            -(gaugeERIgradAC_sphswapABCD[0][1][jilk] - gaugeERIgradAC_sphswapABCD[3][0][jilk]
+              + gaugeERIgradAC_sphswapABCD[1][3][jilk] - gaugeERIgradAC_sphswapABCD[4][1][jilk]
+              + gaugeERIgradAC_sphswapABCD[2][4][jilk] - gaugeERIgradAC_sphswapABCD[5][2][jilk]);
+
+
+
+
+          //LSSL
+
+          /*
+          //I1I2
+          gaugeSLSLACxx[ 15*NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[0][0][jikl]+gaugeERIgradAC_sphswapAB[3][1][jikl]
+          +gaugeERIgradAC_sphswapAB[6][2][jikl]+ gaugeERIgradAC_sphswapAB[1][1][jikl]
+          +gaugeERIgradAC_sphswapAB[4][3][jikl] + gaugeERIgradAC_sphswapAB[7][4][jikl]
+          +gaugeERIgradAC_sphswapAB[2][2][jikl] +gaugeERIgradAC_sphswapAB[5][4][jikl]
+          +gaugeERIgradAC_sphswapAB[8][5][jikl] ;
+
+
+          //swap AB
+          gaugeSLSLACxx[ 15*NB4+ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[0][0][ijkl]+gaugeERIgradAC_sph[3][1][ijkl]
+          +gaugeERIgradAC_sph[6][2][ijkl]+ gaugeERIgradAC_sph[1][1][ijkl]
+          +gaugeERIgradAC_sph[4][3][ijkl] + gaugeERIgradAC_sph[7][4][ijkl]
+          +gaugeERIgradAC_sph[2][2][ijkl] + gaugeERIgradAC_sph[5][4][ijkl]
+          +gaugeERIgradAC_sph[8][5][ijkl] ;
+
+          //swap CD
+          gaugeSLSLACxx[ 15*NB4+ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[0][0][jilk]+gaugeERIgradAC_sphswapABCD[3][1][jilk]
+          +gaugeERIgradAC_sphswapABCD[6][2][jilk]+ gaugeERIgradAC_sphswapABCD[1][1][jilk]
+          +gaugeERIgradAC_sphswapABCD[4][3][jilk] + gaugeERIgradAC_sphswapABCD[7][4][jilk]
+          +gaugeERIgradAC_sphswapABCD[2][2][jilk] +gaugeERIgradAC_sphswapABCD[5][4][jilk]
+          +gaugeERIgradAC_sphswapABCD[8][5][jilk] ;
+
+          //swap ABCD
+          gaugeSLSLACxx[ 15*NB4+ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[0][0][ijlk]+gaugeERIgradAC_sphswapCD[3][1][ijlk]
+          +gaugeERIgradAC_sphswapCD[6][2][ijlk]+ gaugeERIgradAC_sphswapCD[1][1][ijlk]
+          +gaugeERIgradAC_sphswapCD[4][3][ijlk] + gaugeERIgradAC_sphswapCD[7][4][ijlk]
+          +gaugeERIgradAC_sphswapCD[2][2][ijlk] +gaugeERIgradAC_sphswapCD[5][4][ijlk]
+          +gaugeERIgradAC_sphswapCD[8][5][ijlk] ;
+
+          //swap electron 1 2
+          gaugeSLSLACxx[ 15*NB4+ bf3* NB3+ bf4*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapAB[0][0][jikl]+gaugeERIgradAC_sphswapAB[3][1][jikl]
+          +gaugeERIgradAC_sphswapAB[6][2][jikl]+ gaugeERIgradAC_sphswapAB[1][1][jikl]
+          +gaugeERIgradAC_sphswapAB[4][3][jikl] + gaugeERIgradAC_sphswapAB[7][4][jikl]
+          +gaugeERIgradAC_sphswapAB[2][2][jikl] +gaugeERIgradAC_sphswapAB[5][4][jikl]
+          +gaugeERIgradAC_sphswapAB[8][5][jikl] ;
+
+
+          //swap AB
+          gaugeSLSLACxx[ 15*NB4+ bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sph[0][0][ijkl]+gaugeERIgradAC_sph[3][1][ijkl]
+          +gaugeERIgradAC_sph[6][2][ijkl]+ gaugeERIgradAC_sph[1][1][ijkl]
+          +gaugeERIgradAC_sph[4][3][ijkl] + gaugeERIgradAC_sph[7][4][ijkl]
+          +gaugeERIgradAC_sph[2][2][ijkl] +gaugeERIgradAC_sph[5][4][ijkl]
+          +gaugeERIgradAC_sph[8][5][ijkl] ;
+
+          //swap CD
+          gaugeSLSLACxx[ 15*NB4+ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[0][0][jilk]+gaugeERIgradAC_sphswapABCD[3][1][jilk]
+          +gaugeERIgradAC_sphswapABCD[6][2][jilk]+ gaugeERIgradAC_sphswapABCD[1][1][jilk]
+          +gaugeERIgradAC_sphswapABCD[4][3][jilk] + gaugeERIgradAC_sphswapABCD[7][4][jilk]
+          +gaugeERIgradAC_sphswapABCD[2][2][jilk] +gaugeERIgradAC_sphswapABCD[5][4][jilk]
+          +gaugeERIgradAC_sphswapABCD[8][5][jilk] ;
+
+          //swap ABCD
+          gaugeSLSLACxx[ 15*NB4+ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[0][0][ijlk]+gaugeERIgradAC_sphswapCD[3][1][ijlk]
+          +gaugeERIgradAC_sphswapCD[6][2][ijlk]+ gaugeERIgradAC_sphswapCD[1][1][ijlk]
+          +gaugeERIgradAC_sphswapCD[4][3][ijlk] + gaugeERIgradAC_sphswapCD[7][4][ijlk]
+          +gaugeERIgradAC_sphswapCD[2][2][ijlk] +gaugeERIgradAC_sphswapCD[5][4][ijlk]
+          +gaugeERIgradAC_sphswapCD[8][5][ijlk] ;
+
+
+
+          // sigma1 sigma2
+
+
+          // sigma1x sigma2x
+          gaugeSLSLACxx[ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[7][4][jikl] - gaugeERIgradAC_sphswapAB[8][3][jikl]
+          - gaugeERIgradAC_sphswapAB[1][5][jikl] +gaugeERIgradAC_sphswapAB[2][4][jikl] ;
+
+          // sigma1x sigma2y
+          gaugeSLSLACxx[1* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[1][5][jikl] - gaugeERIgradAC_sphswapAB[2][4][jikl]
+          - gaugeERIgradAC_sphswapAB[7][2][jikl] +gaugeERIgradAC_sphswapAB[8][1][jikl] ;
+
+          // sigma1x sigma2z
+          gaugeSLSLACxx[2* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[4][2][jikl] - gaugeERIgradAC_sphswapAB[1][4][jikl]
+          - gaugeERIgradAC_sphswapAB[5][1][jikl] +gaugeERIgradAC_sphswapAB[2][3][jikl] ;
+
+          // sigma1y sigma2x
+          gaugeSLSLACxx[3* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[8][1][jikl] - gaugeERIgradAC_sphswapAB[5][2][jikl]
+          - gaugeERIgradAC_sphswapAB[6][4][jikl] +gaugeERIgradAC_sphswapAB[3][5][jikl] ;
+
+          // sigma1y sigma2y
+          gaugeSLSLACxx[4* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[2][2][jikl] - gaugeERIgradAC_sphswapAB[8][0][jikl]
+          - gaugeERIgradAC_sphswapAB[0][5][jikl] +gaugeERIgradAC_sphswapAB[6][2][jikl] ;
+
+          // sigma1y sigma2z
+          gaugeSLSLACxx[5* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[5][0][jikl] - gaugeERIgradAC_sphswapAB[2][1][jikl]
+          - gaugeERIgradAC_sphswapAB[3][2][jikl] +gaugeERIgradAC_sphswapAB[0][4][jikl] ;
+
+          // sigma1z sigma2x
+          gaugeSLSLACxx[6* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[6][3][jikl] - gaugeERIgradAC_sphswapAB[3][4][jikl]
+          - gaugeERIgradAC_sphswapAB[7][1][jikl] +gaugeERIgradAC_sphswapAB[4][2][jikl] ;
+
+          // sigma1z sigma2y
+          gaugeSLSLACxx[7* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[0][4][jikl] - gaugeERIgradAC_sphswapAB[6][1][jikl]
+          - gaugeERIgradAC_sphswapAB[1][2][jikl] +gaugeERIgradAC_sphswapAB[7][0][jikl] ;
+
+          // sigma1z sigma2z
+          gaugeSLSLACxx[8* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sphswapAB[3][1][jikl] - gaugeERIgradAC_sphswapAB[0][3][jikl]
+          - gaugeERIgradAC_sphswapAB[4][0][jikl] +gaugeERIgradAC_sphswapAB[1][1][jikl] ;
+
+
+          //swap AB
+
+
+          // sigma1x sigma2x
+          gaugeSLSLACxx[ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[7][4][ijkl] - gaugeERIgradAC_sph[8][3][ijkl]
+          - gaugeERIgradAC_sph[1][5][ijkl] +gaugeERIgradAC_sph[2][4][ijkl] ;
+
+          // sigma1x sigma2y
+          gaugeSLSLACxx[1* NB4+ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[1][5][ijkl] - gaugeERIgradAC_sph[2][4][ijkl]
+          - gaugeERIgradAC_sph[7][2][ijkl] +gaugeERIgradAC_sph[8][1][ijkl] ;
+
+          // sigma1x sigma2z
+          gaugeSLSLACxx[2* NB4+ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[4][2][ijkl] - gaugeERIgradAC_sph[1][4][ijkl]
+          - gaugeERIgradAC_sph[5][1][ijkl] +gaugeERIgradAC_sph[2][3][ijkl] ;
+
+          // sigma1y sigma2x
+          gaugeSLSLACxx[3* NB4+ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[8][1][ijkl] - gaugeERIgradAC_sph[5][2][ijkl]
+          - gaugeERIgradAC_sph[6][4][ijkl] +gaugeERIgradAC_sph[3][5][ijkl] ;
+
+          // sigma1y sigma2y
+          gaugeSLSLACxx[4* NB4+ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[2][2][ijkl] - gaugeERIgradAC_sph[8][0][ijkl]
+          - gaugeERIgradAC_sph[0][5][ijkl] +gaugeERIgradAC_sph[6][2][ijkl] ;
+
+          // sigma1y sigma2z
+          gaugeSLSLACxx[5* NB4+ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[5][0][ijkl] - gaugeERIgradAC_sph[2][1][ijkl]
+          - gaugeERIgradAC_sph[3][2][ijkl] +gaugeERIgradAC_sph[0][4][ijkl] ;
+
+          // sigma1z sigma2x
+          gaugeSLSLACxx[6* NB4+ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[6][3][ijkl] - gaugeERIgradAC_sph[3][4][ijkl]
+          - gaugeERIgradAC_sph[7][1][ijkl] +gaugeERIgradAC_sph[4][2][ijkl] ;
+
+          // sigma1z sigma2y
+          gaugeSLSLACxx[7* NB4+ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[0][4][ijkl] - gaugeERIgradAC_sph[6][1][ijkl]
+          - gaugeERIgradAC_sph[1][2][ijkl] +gaugeERIgradAC_sph[7][0][ijkl] ;
+
+          // sigma1z sigma2z
+          gaugeSLSLACxx[8* NB4+ bf2* NB3+ bf1*NB2 + bf3*NB + bf4] =
+          gaugeERIgradAC_sph[3][1][ijkl] - gaugeERIgradAC_sph[0][3][ijkl]
+          - gaugeERIgradAC_sph[4][0][ijkl] +gaugeERIgradAC_sph[1][1][ijkl] ;
+
+
+          //swap CD
+
+
+          // sigma1x sigma2x
+          gaugeSLSLACxx[ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[7][4][jilk] - gaugeERIgradAC_sphswapABCD[8][3][jilk]
+          - gaugeERIgradAC_sphswapABCD[1][5][jilk] +gaugeERIgradAC_sphswapABCD[2][4][jilk] ;
+
+          // sigma1x sigma2y
+          gaugeSLSLACxx[1* NB4+ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[1][5][jilk] - gaugeERIgradAC_sphswapABCD[2][4][jilk]
+          - gaugeERIgradAC_sphswapABCD[7][2][jilk] +gaugeERIgradAC_sphswapABCD[8][1][jilk] ;
+
+          // sigma1x sigma2z
+          gaugeSLSLACxx[2* NB4+ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[4][2][jilk] - gaugeERIgradAC_sphswapABCD[1][4][jilk]
+          - gaugeERIgradAC_sphswapABCD[5][1][jilk] +gaugeERIgradAC_sphswapABCD[2][3][jilk] ;
+
+          // sigma1y sigma2x
+          gaugeSLSLACxx[3* NB4+ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[8][1][jilk] - gaugeERIgradAC_sphswapABCD[5][2][jilk]
+          - gaugeERIgradAC_sphswapABCD[6][4][jilk] +gaugeERIgradAC_sphswapABCD[3][5][jilk] ;
+
+          // sigma1y sigma2y
+          gaugeSLSLACxx[4* NB4+ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[2][2][jilk] - gaugeERIgradAC_sphswapABCD[8][0][jilk]
+          - gaugeERIgradAC_sphswapABCD[0][5][jilk] +gaugeERIgradAC_sphswapABCD[6][2][jilk] ;
+
+          // sigma1y sigma2z
+          gaugeSLSLACxx[5* NB4+ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[5][0][jilk] - gaugeERIgradAC_sphswapABCD[2][1][jilk]
+          - gaugeERIgradAC_sphswapABCD[3][2][jilk] +gaugeERIgradAC_sphswapABCD[0][4][jilk] ;
+
+          // sigma1z sigma2x
+          gaugeSLSLACxx[6* NB4+ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[6][3][jilk] - gaugeERIgradAC_sphswapABCD[3][4][jilk]
+          - gaugeERIgradAC_sphswapABCD[7][1][jilk] +gaugeERIgradAC_sphswapABCD[4][2][jilk] ;
+
+          // sigma1z sigma2y
+          gaugeSLSLACxx[7* NB4+ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[0][4][jilk] - gaugeERIgradAC_sphswapABCD[6][1][jilk]
+          - gaugeERIgradAC_sphswapABCD[1][2][jilk] +gaugeERIgradAC_sphswapABCD[7][0][jilk] ;
+
+          // sigma1z sigma2z
+          gaugeSLSLACxx[8* NB4+ bf1* NB3+ bf2*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapABCD[3][1][jilk] - gaugeERIgradAC_sphswapABCD[0][3][jilk]
+          - gaugeERIgradAC_sphswapABCD[4][0][jilk] +gaugeERIgradAC_sphswapABCD[1][1][jilk] ;
+
+
+          //swap ABCD
+
+
+          // sigma1x sigma2x
+          gaugeSLSLACxx[ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[7][4][ijlk] - gaugeERIgradAC_sphswapCD[8][3][ijlk]
+          - gaugeERIgradAC_sphswapCD[1][5][ijlk] +gaugeERIgradAC_sphswapCD[2][4][ijlk] ;
+
+          // sigma1x sigma2y
+          gaugeSLSLACxx[1* NB4+ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[1][5][ijlk] - gaugeERIgradAC_sphswapCD[2][4][ijlk]
+          - gaugeERIgradAC_sphswapCD[7][2][ijlk] +gaugeERIgradAC_sphswapCD[8][1][ijlk] ;
+
+          // sigma1x sigma2z
+          gaugeSLSLACxx[2* NB4+ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[4][2][ijlk] - gaugeERIgradAC_sphswapCD[1][4][ijlk]
+          - gaugeERIgradAC_sphswapCD[5][1][ijlk] +gaugeERIgradAC_sphswapCD[2][3][ijlk] ;
+
+          // sigma1y sigma2x
+          gaugeSLSLACxx[3* NB4+ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[8][1][ijlk] - gaugeERIgradAC_sphswapCD[5][2][ijlk]
+          - gaugeERIgradAC_sphswapCD[6][4][ijlk] +gaugeERIgradAC_sphswapCD[3][5][ijlk] ;
+
+          // sigma1y sigma2y
+          gaugeSLSLACxx[4* NB4+ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[2][2][ijlk] - gaugeERIgradAC_sphswapCD[8][0][ijlk]
+          - gaugeERIgradAC_sphswapCD[0][5][ijlk] +gaugeERIgradAC_sphswapCD[6][2][ijlk] ;
+
+          // sigma1y sigma2z
+          gaugeSLSLACxx[5* NB4+ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[5][0][ijlk] - gaugeERIgradAC_sphswapCD[2][1][ijlk]
+          - gaugeERIgradAC_sphswapCD[3][2][ijlk] +gaugeERIgradAC_sphswapCD[0][4][ijlk] ;
+
+          // sigma1z sigma2x
+          gaugeSLSLACxx[6* NB4+ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[6][3][ijlk] - gaugeERIgradAC_sphswapCD[3][4][ijlk]
+          - gaugeERIgradAC_sphswapCD[7][1][ijlk] +gaugeERIgradAC_sphswapCD[4][2][ijlk] ;
+
+          // sigma1z sigma2y
+          gaugeSLSLACxx[7* NB4+ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[0][4][ijlk] - gaugeERIgradAC_sphswapCD[6][1][ijlk]
+          - gaugeERIgradAC_sphswapCD[1][2][ijlk] +gaugeERIgradAC_sphswapCD[7][0][ijlk] ;
+
+          // sigma1z sigma2z
+          gaugeSLSLACxx[8* NB4+ bf2* NB3+ bf1*NB2 + bf4*NB + bf3] =
+          gaugeERIgradAC_sphswapCD[3][1][ijlk] - gaugeERIgradAC_sphswapCD[0][3][ijlk]
+          - gaugeERIgradAC_sphswapCD[4][0][ijlk] +gaugeERIgradAC_sphswapCD[1][1][ijlk] ;
+
+
+          //swap electron 1 2
+
+          // sigma1x sigma2x
+          gaugeSLSLACxx[  bf3*NB3 + bf4*NB2 +bf1* NB + bf2] =
+          gaugeERIgradAC_sphswapAB[5][4][jikl] - gaugeERIgradAC_sphswapAB[8][3][jikl]
+          - gaugeERIgradAC_sphswapAB[3][5][jikl] +gaugeERIgradAC_sphswapAB[6][4][jikl] ;
+
+          // sigma1x sigma2y
+          gaugeSLSLACxx[1* NB4+ bf3*NB3 + bf4*NB2 + bf1* NB+ bf2 ] =
+          gaugeERIgradAC_sphswapAB[3][5][jikl] - gaugeERIgradAC_sphswapAB[6][4][jikl]
+          - gaugeERIgradAC_sphswapAB[5][2][jikl] +gaugeERIgradAC_sphswapAB[8][1][jikl] ;
+
+          // sigma1x sigma2z
+          gaugeSLSLACxx[2* NB4+ bf3*NB3 + bf4*NB2 + bf1* NB+ bf2 ] =
+          gaugeERIgradAC_sphswapAB[4][2][jikl] - gaugeERIgradAC_sphswapAB[3][4][jikl]
+          - gaugeERIgradAC_sphswapAB[7][1][jikl] +gaugeERIgradAC_sphswapAB[6][3][jikl] ;
+
+          // sigma1y sigma2x
+          gaugeSLSLACxx[3* NB4+ bf3*NB3 + bf4*NB2+ bf1* NB+ bf2 ] =
+          gaugeERIgradAC_sphswapAB[8][1][jikl] - gaugeERIgradAC_sphswapAB[7][2][jikl]
+          - gaugeERIgradAC_sphswapAB[2][4][jikl] +gaugeERIgradAC_sphswapAB[1][5][jikl] ;
+
+          // sigma1y sigma2y
+          gaugeSLSLACxx[4* NB4+ bf3*NB3 + bf4*NB2+ bf1* NB+ bf2 ] =
+          gaugeERIgradAC_sphswapAB[6][2][jikl] - gaugeERIgradAC_sphswapAB[8][0][jikl]
+          - gaugeERIgradAC_sphswapAB[0][5][jikl] +gaugeERIgradAC_sphswapAB[2][2][jikl] ;
+
+          // sigma1y sigma2z
+          gaugeSLSLACxx[5* NB4+ bf3*NB3 + bf4*NB2+ bf1* NB+ bf2 ] =
+          gaugeERIgradAC_sphswapAB[7][0][jikl] - gaugeERIgradAC_sphswapAB[6][1][jikl]
+          - gaugeERIgradAC_sphswapAB[1][2][jikl] +gaugeERIgradAC_sphswapAB[0][4][jikl] ;
+
+          // sigma1z sigma2x
+          gaugeSLSLACxx[6* NB4+ bf3*NB3 + bf4*NB2+ bf1* NB+ bf2 ] =
+          gaugeERIgradAC_sphswapAB[2][3][jikl] - gaugeERIgradAC_sphswapAB[1][4][jikl]
+          - gaugeERIgradAC_sphswapAB[5][1][jikl] +gaugeERIgradAC_sphswapAB[4][2][jikl] ;
+
+          // sigma1z sigma2y
+          gaugeSLSLACxx[7* NB4+ bf3*NB3 + bf4*NB2+ bf1* NB+ bf2 ] =
+          gaugeERIgradAC_sphswapAB[0][4][jikl] - gaugeERIgradAC_sphswapAB[2][1][jikl]
+          - gaugeERIgradAC_sphswapAB[3][2][jikl] +gaugeERIgradAC_sphswapAB[5][0][jikl] ;
+
+          // sigma1z sigma2z
+          gaugeSLSLACxx[8* NB4+ bf3*NB3 + bf4*NB2+ bf1* NB+ bf2 ] =
+          gaugeERIgradAC_sphswapAB[1][1][jikl] - gaugeERIgradAC_sphswapAB[0][3][jikl]
+          - gaugeERIgradAC_sphswapAB[4][0][jikl] +gaugeERIgradAC_sphswapAB[3][1][jikl] ;
+
+
+          //swap AB
+
+
+          // sigma1x sigma2x
+          gaugeSLSLACxx[bf3*NB3 + bf4*NB2 + bf2* NB+ bf1 ] =
+          gaugeERIgradAC_sph[5][4][ijkl] - gaugeERIgradAC_sph[8][3][ijkl]
+          - gaugeERIgradAC_sph[3][5][ijkl] +gaugeERIgradAC_sph[6][4][ijkl] ;
+
+          // sigma1x sigma2y
+          gaugeSLSLACxx[1* NB4+ bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sph[3][5][ijkl] - gaugeERIgradAC_sph[6][4][ijkl]
+          - gaugeERIgradAC_sph[5][2][ijkl] +gaugeERIgradAC_sph[8][1][ijkl] ;
+
+          // sigma1x sigma2z
+          gaugeSLSLACxx[2* NB4+ bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sph[4][2][ijkl] - gaugeERIgradAC_sph[3][4][ijkl]
+          - gaugeERIgradAC_sph[7][1][ijkl] +gaugeERIgradAC_sph[6][3][ijkl] ;
+
+          // sigma1y sigma2x
+          gaugeSLSLACxx[3* NB4+ bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sph[8][1][ijkl] - gaugeERIgradAC_sph[7][2][ijkl]
+          - gaugeERIgradAC_sph[2][4][ijkl] +gaugeERIgradAC_sph[1][5][ijkl] ;
+
+          // sigma1y sigma2y
+          gaugeSLSLACxx[4* NB4+ bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sph[6][2][ijkl] - gaugeERIgradAC_sph[8][0][ijkl]
+          - gaugeERIgradAC_sph[0][5][ijkl] +gaugeERIgradAC_sph[2][2][ijkl] ;
+
+          // sigma1y sigma2z
+          gaugeSLSLACxx[5* NB4+ bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sph[7][0][ijkl] - gaugeERIgradAC_sph[6][1][ijkl]
+          - gaugeERIgradAC_sph[1][2][ijkl] +gaugeERIgradAC_sph[0][4][ijkl] ;
+
+          // sigma1z sigma2x
+          gaugeSLSLACxx[6* NB4+ bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sph[2][3][ijkl] - gaugeERIgradAC_sph[1][4][ijkl]
+          - gaugeERIgradAC_sph[5][1][ijkl] +gaugeERIgradAC_sph[4][2][ijkl] ;
+
+          // sigma1z sigma2y
+          gaugeSLSLACxx[7* NB4+ bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sph[0][4][ijkl] - gaugeERIgradAC_sph[2][1][ijkl]
+          - gaugeERIgradAC_sph[3][2][ijkl] +gaugeERIgradAC_sph[5][0][ijkl] ;
+
+          // sigma1z sigma2z
+          gaugeSLSLACxx[8* NB4+ bf3* NB3+ bf4*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sph[1][1][ijkl] - gaugeERIgradAC_sph[0][3][ijkl]
+          - gaugeERIgradAC_sph[4][0][ijkl] +gaugeERIgradAC_sph[3][1][ijkl] ;
+
+
+          //swap CD
+
+
+          // sigma1x sigma2x
+          gaugeSLSLACxx[ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[5][4][jilk] - gaugeERIgradAC_sphswapABCD[8][3][jilk]
+          - gaugeERIgradAC_sphswapABCD[3][5][jilk] +gaugeERIgradAC_sphswapABCD[6][4][jilk] ;
+
+          // sigma1x sigma2y
+          gaugeSLSLACxx[1* NB4+ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[3][5][jilk] - gaugeERIgradAC_sphswapABCD[6][4][jilk]
+          - gaugeERIgradAC_sphswapABCD[5][2][jilk] +gaugeERIgradAC_sphswapABCD[8][1][jilk] ;
+
+          // sigma1x sigma2z
+          gaugeSLSLACxx[2* NB4+ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[4][2][jilk] - gaugeERIgradAC_sphswapABCD[3][4][jilk]
+          - gaugeERIgradAC_sphswapABCD[7][1][jilk] +gaugeERIgradAC_sphswapABCD[6][3][jilk] ;
+
+          // sigma1y sigma2x
+          gaugeSLSLACxx[3* NB4+ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[8][1][jilk] - gaugeERIgradAC_sphswapABCD[7][2][jilk]
+          - gaugeERIgradAC_sphswapABCD[2][4][jilk] +gaugeERIgradAC_sphswapABCD[1][5][jilk] ;
+
+          // sigma1y sigma2y
+          gaugeSLSLACxx[4* NB4+ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[6][2][jilk] - gaugeERIgradAC_sphswapABCD[8][0][jilk]
+          - gaugeERIgradAC_sphswapABCD[0][5][jilk] +gaugeERIgradAC_sphswapABCD[2][2][jilk] ;
+
+          // sigma1y sigma2z
+          gaugeSLSLACxx[5* NB4+ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[7][0][jilk] - gaugeERIgradAC_sphswapABCD[6][1][jilk]
+          - gaugeERIgradAC_sphswapABCD[1][2][jilk] +gaugeERIgradAC_sphswapABCD[0][4][jilk] ;
+
+          // sigma1z sigma2x
+          gaugeSLSLACxx[6* NB4+ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[2][3][jilk] - gaugeERIgradAC_sphswapABCD[1][4][jilk]
+          - gaugeERIgradAC_sphswapABCD[5][1][jilk] +gaugeERIgradAC_sphswapABCD[4][2][jilk] ;
+
+          // sigma1z sigma2y
+          gaugeSLSLACxx[7* NB4+ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[0][4][jilk] - gaugeERIgradAC_sphswapABCD[2][1][jilk]
+          - gaugeERIgradAC_sphswapABCD[3][2][jilk] +gaugeERIgradAC_sphswapABCD[5][0][jilk] ;
+
+          // sigma1z sigma2z
+          gaugeSLSLACxx[8* NB4+ bf4* NB3+ bf3*NB2 + bf1*NB + bf2] =
+          gaugeERIgradAC_sphswapABCD[1][1][jilk] - gaugeERIgradAC_sphswapABCD[0][3][jilk]
+          - gaugeERIgradAC_sphswapABCD[4][0][jilk] +gaugeERIgradAC_sphswapABCD[3][1][jilk] ;
+
+
+          //swap ABCD
+
+
+          // sigma1x sigma2x
+          gaugeSLSLACxx[ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[5][4][ijlk] - gaugeERIgradAC_sphswapCD[8][3][ijlk]
+          - gaugeERIgradAC_sphswapCD[3][5][ijlk] +gaugeERIgradAC_sphswapCD[6][4][ijlk] ;
+
+          // sigma1x sigma2y
+          gaugeSLSLACxx[1* NB4+ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[3][5][ijlk] - gaugeERIgradAC_sphswapCD[6][4][ijlk]
+          - gaugeERIgradAC_sphswapCD[5][2][ijlk] +gaugeERIgradAC_sphswapCD[8][1][ijlk] ;
+
+          // sigma1x sigma2z
+          gaugeSLSLACxx[2* NB4+ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[4][2][ijlk] - gaugeERIgradAC_sphswapCD[3][4][ijlk]
+          - gaugeERIgradAC_sphswapCD[7][1][ijlk] +gaugeERIgradAC_sphswapCD[6][3][ijlk] ;
+
+          // sigma1y sigma2x
+          gaugeSLSLACxx[3* NB4+ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[8][1][ijlk] - gaugeERIgradAC_sphswapCD[7][2][ijlk]
+          - gaugeERIgradAC_sphswapCD[2][4][ijlk] +gaugeERIgradAC_sphswapCD[1][5][ijlk] ;
+
+          // sigma1y sigma2y
+          gaugeSLSLACxx[4* NB4+ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[6][2][ijlk] - gaugeERIgradAC_sphswapCD[8][0][ijlk]
+          - gaugeERIgradAC_sphswapCD[0][5][ijlk] +gaugeERIgradAC_sphswapCD[2][2][ijlk] ;
+
+          // sigma1y sigma2z
+          gaugeSLSLACxx[5* NB4+ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[7][0][ijlk] - gaugeERIgradAC_sphswapCD[6][1][ijlk]
+          - gaugeERIgradAC_sphswapCD[1][2][ijlk] +gaugeERIgradAC_sphswapCD[0][4][ijlk] ;
+
+          // sigma1z sigma2x
+          gaugeSLSLACxx[6* NB4+ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[2][3][ijlk] - gaugeERIgradAC_sphswapCD[1][4][ijlk]
+          - gaugeERIgradAC_sphswapCD[5][1][ijlk] +gaugeERIgradAC_sphswapCD[4][2][ijlk] ;
+
+          // sigma1z sigma2y
+          gaugeSLSLACxx[7* NB4+ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[0][4][ijlk] - gaugeERIgradAC_sphswapCD[2][1][ijlk]
+          - gaugeERIgradAC_sphswapCD[3][2][ijlk] +gaugeERIgradAC_sphswapCD[5][0][ijlk] ;
+
+          // sigma1z sigma2z
+          gaugeSLSLACxx[8* NB4+ bf4* NB3+ bf3*NB2 + bf2*NB + bf1] =
+          gaugeERIgradAC_sphswapCD[1][1][ijlk] - gaugeERIgradAC_sphswapCD[0][3][ijlk]
+          - gaugeERIgradAC_sphswapCD[4][0][ijlk] +gaugeERIgradAC_sphswapCD[3][1][ijlk] ;
+          */
+
+
+
+
+
+
+          /*
+
+
+
+          // I2 sigma1x
+          gaugeSLSLACxx[NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgrad_sph[6][1][ijkl] + gaugeERIgrad_sph[7][3][ijkl] + gaugeERIgrad_sph[8][4][ijkl]
+          -gaugeERIgrad_sph[3][2][ijkl] -gaugeERIgrad_sph[4][4][ijkl] - gaugeERIgrad_sph[5][5][ijkl];
+
+          // I2 sigma1y
+          gaugeSLSLACxx[2 * NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgrad_sph[0][2][ijkl] + gaugeERIgrad_sph[1][4][ijkl] + gaugeERIgrad_sph[2][5][ijkl]
+          -gaugeERIgrad_sph[6][0][ijkl] -gaugeERIgrad_sph[7][1][ijkl] - gaugeERIgrad_sph[8][2][ijkl];
+
+          // I2 sigma1z
+          gaugeSLSLACxx[3* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgrad_sph[3][0][ijkl] + gaugeERIgrad_sph[4][1][ijkl] + gaugeERIgrad_sph[5][2][ijkl]
+          -gaugeERIgrad_sph[0][1][ijkl] -gaugeERIgrad_sph[1][3][ijkl] - gaugeERIgrad_sph[2][4][ijkl];
+
+          // I1 sigma2x
+          gaugeSLSLACxx[4* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgrad_sph[1][2][ijkl] + gaugeERIgrad_sph[4][4][ijkl] + gaugeERIgrad_sph[7][5][ijkl]
+          -gaugeERIgrad_sph[2][1][ijkl] -gaugeERIgrad_sph[5][3][ijkl] - gaugeERIgrad_sph[8][4][ijkl];
+
+          // I1 sigma2y
+          gaugeSLSLACxx[5* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgrad_sph[2][0][ijkl] + gaugeERIgrad_sph[5][1][ijkl] + gaugeERIgrad_sph[8][2][ijkl]
+          -gaugeERIgrad_sph[0][2][ijkl] -gaugeERIgrad_sph[3][4][ijkl] - gaugeERIgrad_sph[6][5][ijkl];
+
+          // I1 sigma2z
+          gaugeSLSLACxx[6* NB4+ bf1* NB3+ bf2*NB2 + bf3*NB + bf4] =
+          gaugeERIgrad_sph[0][1][ijkl] + gaugeERIgrad_sph[3][3][ijkl] + gaugeERIgrad_sph[6][4][ijkl]
+          -gaugeERIgrad_sph[1][0][ijkl] -gaugeERIgrad_sph[4][1][ijkl] - gaugeERIgrad_sph[7][2][ijkl];
+
+
+
+
+          */
+
+
+          /*
+            //std::cout <<"Libint ∇A∙∇C(ij|kl)"<<std::endl
+            if (std::abs(gaugeERIgrad_sph[0][0][ijkl])>1.0E-12 ) {
+            std::cout<<"i="<<i<<",j="<<j<<",k="<<k<<",l="<<l<<",AxCx = "<<gaugeERIgra d_sph[0][0][ijkl]<<std::endl;
+                  }
+
+            if (std::abs(gaugeERIgrad_sph[1][0][ijkl])>1.0E-12 ) {
+            std::cout<<"i="<<i<<",j="<<j<<",k="<<k<<",l="<<l<<",AxCy = "<<gaugeERIgrad_sph[1][0][ijkl]<<std::endl;
+                  }
+            if (std::abs(gaugeERIgrad_sph[2][0][ijkl])>1.0E-12 ) {
+            std::cout<<"i="<<i<<",j="<<j<<",k="<<k<<",l="<<l<<",AxCz = "<<gaugeERIgrad_sph[2][0][ijkl]<<std::endl;
+                  }
+            if (std::abs(gaugeERIgrad_sph[3][0][ijkl])>1.0E-12 ) {
+            std::cout<<"i="<<i<<",j="<<j<<",k="<<k<<",l="<<l<<",AyCx = "<<gaugeERIgrad_sph[3][0][ijkl]<<std::endl;
+                  }
+            if (std::abs(gaugeERIgrad_sph[4][0][ijkl])>1.0E-12 ) {
+            std::cout<<"i="<<i<<",j="<<j<<",k="<<k<<",l="<<l<<",AyCy = "<<gaugeERIgrad_sph[4][0][ijkl]<<std::endl;
+                  }
+            if (std::abs(gaugeERIgrad_sph[5][0][ijkl])>1.0E-12 ) {
+            std::cout<<"i="<<i<<",j="<<j<<",k="<<k<<",l="<<l<<",AyCz = "<<gaugeERIgrad_sph[5][0][ijkl]<<std::endl;
+                  }
+            if (std::abs(gaugeERIgrad_sph[6][0][ijkl])>1.0E-12 ) {
+            std::cout<<"i="<<i<<",j="<<j<<",k="<<k<<",l="<<l<<",AzCx = "<<gaugeERIgrad_sph[6][0][ijkl]<<std::endl;
+                  }
+            if (std::abs(gaugeERIgrad_sph[7][0][ijkl])>1.0E-12 ) {
+            std::cout<<"i="<<i<<",j="<<j<<",k="<<k<<",l="<<l<<",AzCy = "<<gaugeERIgrad_sph[7][0][ijkl]<<std::endl;
+                  }
+            if (std::abs(gaugeERIgrad_sph[8][0][ijkl])>1.0E-12 ) {
+            std::cout<<"i="<<i<<",j="<<j<<",k="<<k<<",l="<<l<<",AzCz = "<<gaugeERIgrad_sph[8][0][ijkl]<<std::endl;
+                  }
+          */
+
+
+
+
+
+
+
+
+        } // for ijkl
+      } // for s4
+      } // for s3
+      } // for s2
+      } // for s1
+
+    }; // omp region parallel tested ook
+
+    #ifdef __DEBUGGAUGE__
+        // print (SL|SL) sigma1 sigma2
+    for (int ii = 0 ; ii < 9 ; ii++ ){
+    std::cout << "SLSL gauge Integrals AC component sigma1 sigma2 "<<ii << std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+     if (std::abs( gaugeSLSLACxxtrue[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << gaugeSLSLACxxtrue[ii*NB4 + i* NB3+ j*NB2 + k*NB + l] << std::endl;
+     }
+    };
+    } // for ii
+
+    std::cout << "SLSL gauge Integrals AC component I1 I2 " << std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+     if (std::abs( gaugeSLSLACxxtrue[15*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << gaugeSLSLACxxtrue[15*NB4 + i* NB3+ j*NB2 + k*NB + l] << std::endl;
+     }
+    };
+
+
+
+    // print sigma1 I2
+    for (int ii = 9 ; ii < 12 ; ii++ ){
+    std::cout << "SLSL gauge Integrals AC component sigma1 I2 "<<ii << std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+     if (std::abs( gaugeSLSLACxxtrue[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << gaugeSLSLACxxtrue[ii*NB4 + i* NB3+ j*NB2 + k*NB + l] << std::endl;
+     }
+    };
+    } // for ii
+
+    // print I1 sigma2
+    for (int ii = 12 ; ii < 15 ; ii++ ){
+    std::cout << "SLSL gauge Integrals AC component I1 sigma2  "<<ii << std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+     if (std::abs( gaugeSLSLACxxtrue[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << gaugeSLSLACxxtrue[ii*NB4 + i* NB3+ j*NB2 + k*NB + l] << std::endl;
+     }
+    };
+    } // for ii
+    #endif // debug gauge
+
+
+
+    // wrong (LS|SL)
+    /*
+    for ( int ii = 0 ; ii < 9 ; ii++ ) {
+      std::cout << "LSSL gauge Integrals BC component" << ii << std::endl;
+      for(auto i = 0ul; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++){
+       if (std::abs( gaugeSLSLACxx[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+        std::cout <<" comp "<<ii<< "(" << i << "," << j << "|" << k << "," << l << ")  ";
+        std::cout << gaugeSLSLACxx[ii*NB4+i* NB3+ j*NB2 + k*NB + l] << std::endl;
+       }
+      };
+    }
+    */
+
+
+// correct (LS|SL)
+
+    // use symmetry
+    for (auto i = 0ul, ijkl = 0ul; i < NB; i++)
+    for (auto j = 0ul; j < NB; j++)
+    for (auto k = 0ul; k < NB; k++)
+    for (auto l = 0ul; l < NB; l++, ++ijkl) {
+
+      size_t jikl = j * NB3 + i * NB2 + k * NB + l;
+
+      // sigma1 sigma2
+      for (size_t icomp = 0; icomp < 9; icomp++) {
+        gaugeLSSLACsymm[icomp * NB4 + jikl] = gaugeSLSLACxxtrue[icomp * NB4 + ijkl];
+        //gaugeLSSLACsymm[ icomp * NB4 + jikl ] = -gaugeSLSLACxxtrue[ icomp*NB4 + ijkl];
+      }
+
+      // sigma1 I2
+      for (size_t icomp = 9; icomp < 12; icomp++) {
+        gaugeLSSLACsymm[icomp * NB4 + jikl] = gaugeSLSLACxxtrue[icomp * NB4 + ijkl];
+        //gaugeLSSLACsymm[ icomp * NB4 + jikl ] = -gaugeSLSLACxxtrue[ icomp*NB4 + ijkl];
+      }
+      // I1 sigma2
+      for (size_t icomp = 12; icomp < 15; icomp++) {
+        gaugeLSSLACsymm[icomp * NB4 + jikl] = -gaugeSLSLACxxtrue[icomp * NB4 + ijkl];
+        //gaugeLSSLACsymm[ icomp * NB4 + jikl ] = gaugeSLSLACxxtrue[ icomp*NB4 + ijkl];
+      }
+
+      // I1 I2
+      gaugeLSSLACsymm[15 * NB4 + jikl] = -gaugeSLSLACxxtrue[15 * NB4 + ijkl];
+
+    };
+
+
+    #ifdef __DEBUGGAUGE__
+
+        // print LSSL sigma sigma
+    for ( int ii = 0 ; ii < 9 ; ii++ ) {
+    std::cout << "LSSL gauge Integrals BC use symmetry component" << ii << std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+     if (std::abs( gaugeLSSLACsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+      std::cout <<" comp "<<ii<< "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << gaugeLSSLACsymm[ii*NB4+i* NB3+ j*NB2 + k*NB + l] << std::endl;
+     }
+    };
+    }
+    // print sigma1 I2
+    for (int ii = 9 ; ii < 12 ; ii++ ){
+    std::cout << "LSSL gauge Integrals BC component sigma1 I2 "<<ii << std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+     if (std::abs( gaugeLSSLACsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << gaugeLSSLACsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l] << std::endl;
+     }
+    };
+    } // for ii
+
+    // print I1 sigma2
+    for (int ii = 12 ; ii < 15 ; ii++ ){
+    std::cout << "LSSL gauge Integrals BC component I1 sigma2  "<<ii << std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+     if (std::abs( gaugeLSSLACsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << gaugeLSSLACsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l] << std::endl;
+     }
+    };
+    } // for ii
+
+    std::cout << "LSSL gauge Integrals BC component I1 I2  "<< std::endl;
+    for(auto i = 0ul; i < NB; i++)
+    for(auto j = 0ul; j < NB; j++)
+    for(auto k = 0ul; k < NB; k++)
+    for(auto l = 0ul; l < NB; l++){
+     if (std::abs( gaugeLSSLACsymm[15*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+      std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+      std::cout << gaugeLSSLACsymm[15*NB4 + i* NB3+ j*NB2 + k*NB + l] << std::endl;
+     }
+    };
+
+
+    #endif
+
+
+
+
+
+    // the following part validate the symmetry between SLLS, LSLS integrals, not used in actual calculation
+    // so comment out
+
+    /*
+    // (SL|LS)
+      // use symmetry
+      for(auto i = 0ul, ijkl = 0ul ; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++, ++ijkl){
+       size_t ijlk = i*NB3 + j*NB2 + l*NB + k;
+
+       for ( size_t icomp = 0 ; icomp < 9 ; icomp++ ) {
+         gaugeSLLSsymm[ icomp * NB4 + ijlk ] = gaugeSLSLACxxtrue[ icomp*NB4 + ijkl];
+       }
+
+       // sigma1 I2
+       for ( size_t icomp = 9 ; icomp < 12 ; icomp++ ) {
+         gaugeSLLSsymm[ icomp * NB4 + ijlk ] = -gaugeSLSLACxxtrue[ icomp*NB4 + ijkl];
+       }
+       // I1 sigma2
+       for ( size_t icomp = 12 ; icomp < 15 ; icomp++ ) {
+         gaugeSLLSsymm[ icomp * NB4 + ijlk ] = gaugeSLSLACxxtrue[ icomp*NB4 + ijkl];
+       }
+
+      };
+
+    for ( int ii = 0 ; ii < 9 ; ii++ ) {
+      std::cout << "SLLS gauge Integrals use symmetry component" << ii << std::endl;
+      for(auto i = 0ul; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++){
+       if (std::abs( gaugeSLLSsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+        std::cout <<" comp "<<ii<< "(" << i << "," << j << "|" << k << "," << l << ")  ";
+        std::cout << gaugeSLLSsymm[ii*NB4+i* NB3+ j*NB2 + k*NB + l] << std::endl;
+       }
+      };
+    }
+    for ( int ii = 9 ; ii < 12 ; ii++ ) {
+      std::cout << "SLLS gauge Integrals use symmetry sigma1 I2 component" << ii << std::endl;
+      for(auto i = 0ul; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++){
+       if (std::abs( gaugeSLLSsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+        std::cout <<" comp "<<ii<< "(" << i << "," << j << "|" << k << "," << l << ")  ";
+        std::cout << gaugeSLLSsymm[ii*NB4+i* NB3+ j*NB2 + k*NB + l] << std::endl;
+       }
+      };
+    }
+    for ( int ii = 12 ; ii < 15 ; ii++ ) {
+      std::cout << "SLLS gauge Integrals use symmetry I1 sigma2 component" << ii << std::endl;
+      for(auto i = 0ul; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++){
+       if (std::abs( gaugeSLLSsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+        std::cout <<" comp "<<ii<< "(" << i << "," << j << "|" << k << "," << l << ")  ";
+        std::cout << gaugeSLLSsymm[ii*NB4+i* NB3+ j*NB2 + k*NB + l] << std::endl;
+       }
+      };
+    }
+
+
+    // (LS|LS)
+      // use symmetry
+      for(auto i = 0ul, ijkl = 0ul ; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++, ++ijkl){
+       size_t jilk = j*NB3 + i*NB2 + l*NB + k;
+
+       for ( size_t icomp = 0 ; icomp < 9 ; icomp++ ) {
+         gaugeLSLSsymm[ icomp * NB4 + jilk ] = gaugeSLSLACxxtrue[ icomp*NB4 + ijkl];
+       }
+
+       // sigma1 I2
+       for ( size_t icomp = 9 ; icomp < 12 ; icomp++ ) {
+         gaugeLSLSsymm[ icomp * NB4 + jilk ] = -gaugeSLSLACxxtrue[ icomp*NB4 + ijkl];
+       }
+       // I1 sigma2
+       for ( size_t icomp = 12 ; icomp < 15 ; icomp++ ) {
+         gaugeLSLSsymm[ icomp * NB4 + jilk ] = -gaugeSLSLACxxtrue[ icomp*NB4 + ijkl];
+       }
+
+      };
+
+    for ( int ii = 0 ; ii < 9 ; ii++ ) {
+      std::cout << "LSLS gauge Integrals use symmetry component" << ii << std::endl;
+      for(auto i = 0ul; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++){
+       if (std::abs( gaugeLSLSsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+        std::cout <<" comp "<<ii<< "(" << i << "," << j << "|" << k << "," << l << ")  ";
+        std::cout << gaugeLSLSsymm[ii*NB4+i* NB3+ j*NB2 + k*NB + l] << std::endl;
+       }
+      };
+    }
+    for ( int ii = 9 ; ii < 12 ; ii++ ) {
+      std::cout << "LSLS gauge Integrals use symmetry sigma1 I2 component" << ii << std::endl;
+      for(auto i = 0ul; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++){
+       if (std::abs( gaugeLSLSsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+        std::cout <<" comp "<<ii<< "(" << i << "," << j << "|" << k << "," << l << ")  ";
+        std::cout << gaugeLSLSsymm[ii*NB4+i* NB3+ j*NB2 + k*NB + l] << std::endl;
+       }
+      };
+    }
+    for ( int ii = 12 ; ii < 15 ; ii++ ) {
+      std::cout << "LSLS gauge Integrals use symmetry I1 sigma2 component" << ii << std::endl;
+      for(auto i = 0ul; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++){
+       if (std::abs( gaugeLSLSsymm[ii*NB4 + i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+        std::cout <<" comp "<<ii<< "(" << i << "," << j << "|" << k << "," << l << ")  ";
+        std::cout << gaugeLSLSsymm[ii*NB4+i* NB3+ j*NB2 + k*NB + l] << std::endl;
+       }
+      };
+    }
+    */
+
+
+
+// copy LSSL integral to (*this). Gauge integral start from 23, since Gaunt is 4 to 22.
+// 23:ss  24:s sigma x 25: s sigma y 26: s sigma z 27: sigma x s 28: sigma y s 29: sigma z s
+// 30: sigma X sigma x 31: sigmaXsigma y 32: sigmaXsigma z 33:
+
+    for (auto bf1 = 0ul; bf1 < NB; bf1++)
+    for (auto bf2 = 0ul; bf2 < NB; bf2++)
+    for (auto bf3 = 0ul; bf3 < NB; bf3++)
+    for (auto bf4 = 0ul; bf4 < NB; bf4++) {
+
+      auto IJKL = bf1 + bf2 * NB + bf3 * NB2 + bf4 * NB3;
+      auto ijkl = bf4 + bf3 * NB + bf2 * NB2 + bf1 * NB3;
+      auto jikl = bf4 + bf3 * NB + bf1 * NB2 + bf2 * NB3;
+      // (ss)
+    // LSSL obtained from SLSL
+    /*
+      (*this)[23].pointer()[IJKL] = -gaugeSLSLACxxtrue[15*NB4 + jikl];
+
+      // (s sigma)x
+      (*this)[24].pointer()[IJKL] = -gaugeSLSLACxxtrue[12*NB4 + jikl];
+
+      // (s sigma)y
+      (*this)[25].pointer()[IJKL] = -gaugeSLSLACxxtrue[13*NB4 + jikl];
+
+      // (s sigma)z
+      (*this)[26].pointer()[IJKL] = -gaugeSLSLACxxtrue[14*NB4 + jikl];
+
+      // (sigma s)x
+      (*this)[27].pointer()[IJKL] = gaugeSLSLACxxtrue[9*NB4 + jikl];
+
+      // (sigma s)y
+      (*this)[28].pointer()[IJKL] = gaugeSLSLACxxtrue[10*NB4 + jikl];
+
+      // (sigma s)z
+      (*this)[29].pointer()[IJKL] = gaugeSLSLACxxtrue[11*NB4 + jikl];
+
+      // (sigma dot sigma)
+      (*this)[30].pointer()[IJKL] = gaugeSLSLACxxtrue[ jikl] + gaugeSLSLACxxtrue[4*NB4 + jikl]+gaugeSLSLACxxtrue[8*NB4 + jikl];
+
+      // (sigma Vcross sigma)_x : sigma_y sigma_z -sigma_z sigma_y
+      (*this)[31].pointer()[IJKL] = gaugeSLSLACxxtrue[5*NB4 + jikl]-gaugeSLSLACxxtrue[7*NB4 + jikl];
+
+      // (sigma cross sigma)_y : sigma_z sigma_x -sigma_x sigma_z
+      (*this)[32].pointer()[IJKL] = gaugeSLSLACxxtrue[6*NB4 + jikl]-gaugeSLSLACxxtrue[2*NB4 + jikl];
+
+      // (sigma cross sigma)_z : sigma_x sigma_y -sigma_y sigma_x
+      (*this)[33].pointer()[IJKL] = gaugeSLSLACxxtrue[NB4 + jikl]-gaugeSLSLACxxtrue[3*NB4 + jikl];
+
+      // (sigma sigma) (xx - yy - zz)
+      (*this)[34].pointer()[IJKL] = gaugeSLSLACxxtrue[ jikl] - gaugeSLSLACxxtrue[4*NB4 + jikl] - gaugeSLSLACxxtrue[8*NB4 + jikl];
+
+      // (sigma sigma) (-xx + yy - zz)
+      (*this)[35].pointer()[IJKL] =-gaugeSLSLACxxtrue[ jikl] + gaugeSLSLACxxtrue[4*NB4 + jikl] - gaugeSLSLACxxtrue[8*NB4 + jikl];
+
+      // (sigma sigma) (-xx - yy + zz)
+      (*this)[36].pointer()[IJKL] =-gaugeSLSLACxxtrue[ jikl] - gaugeSLSLACxxtrue[4*NB4 + jikl] + gaugeSLSLACxxtrue[8*NB4 + jikl];
+
+
+      //  sigma_x sigma_y +sigma_y sigma_x
+      (*this)[37].pointer()[IJKL] = gaugeSLSLACxxtrue[NB4 + jikl]+gaugeSLSLACxxtrue[3*NB4 + jikl];
+
+      //  sigma_z sigma_x +sigma_x sigma_z
+      (*this)[38].pointer()[IJKL] = gaugeSLSLACxxtrue[6*NB4 + jikl]+gaugeSLSLACxxtrue[2*NB4 + jikl];
+
+
+      //  sigma_y sigma_z +sigma_z sigma_y
+      (*this)[39].pointer()[IJKL] = gaugeSLSLACxxtrue[5*NB4 + jikl]+gaugeSLSLACxxtrue[7*NB4 + jikl];
+
+      // sigma_x sigma_x
+      (*this)[40].pointer()[IJKL] =gaugeSLSLACxxtrue[jikl];
+      // sigma x sigma y
+      (*this)[41].pointer()[IJKL] =gaugeSLSLACxxtrue[NB4 + jikl];
+      // sigma x sigma z
+      (*this)[42].pointer()[IJKL] =gaugeSLSLACxxtrue[2*NB4 + jikl];
+      // sigma y sigma x
+      (*this)[43].pointer()[IJKL] =gaugeSLSLACxxtrue[3*NB4 + jikl];
+      // sigma y sigma y
+      (*this)[44].pointer()[IJKL] =gaugeSLSLACxxtrue[4*NB4 + jikl];
+      // sigma y sigma z
+      (*this)[45].pointer()[IJKL] =gaugeSLSLACxxtrue[5*NB4 + jikl];
+      // sigma z sigma x
+      (*this)[46].pointer()[IJKL] =gaugeSLSLACxxtrue[6*NB4 + jikl];
+      // sigma z sigma y
+      (*this)[47].pointer()[IJKL] =gaugeSLSLACxxtrue[7*NB4 + jikl];
+      // sigma z sigma z
+      (*this)[48].pointer()[IJKL] =gaugeSLSLACxxtrue[8*NB4 + jikl];
+    */
+
+      // (ss)
+      (*this)[nERIRef + 0].pointer()[IJKL] = gaugeLSSLACsymm[15 * NB4 + ijkl];
+
+      // (sσ)_x
+      (*this)[nERIRef + 1].pointer()[IJKL] = gaugeLSSLACsymm[12 * NB4 + ijkl];
+
+      // (sσ)_y
+      (*this)[nERIRef + 2].pointer()[IJKL] = gaugeLSSLACsymm[13 * NB4 + ijkl];
+
+      // (sσ)_z
+      (*this)[nERIRef + 3].pointer()[IJKL] = gaugeLSSLACsymm[14 * NB4 + ijkl];
+
+      // (σs)_x
+      (*this)[nERIRef + 4].pointer()[IJKL] = gaugeLSSLACsymm[9 * NB4 + ijkl];
+
+      // (σs)_y
+      (*this)[nERIRef + 5].pointer()[IJKL] = gaugeLSSLACsymm[10 * NB4 + ijkl];
+
+      // (σs)_z
+      (*this)[nERIRef + 6].pointer()[IJKL] = gaugeLSSLACsymm[11 * NB4 + ijkl];
+
+      // (σ∙σ)
+      (*this)[nERIRef + 7].pointer()[IJKL] =
+        gaugeLSSLACsymm[ijkl] + gaugeLSSLACsymm[4 * NB4 + ijkl] + gaugeLSSLACsymm[8 * NB4 + ijkl];
+
+      // (σxσ)_x = σ_y σ_z - σ_z σ_y
+      (*this)[nERIRef + 8].pointer()[IJKL] = gaugeLSSLACsymm[5 * NB4 + ijkl] - gaugeLSSLACsymm[7 * NB4 + ijkl];
+
+      // (σxσ)_y = σ_z σ_x - σ_x σ_z
+      (*this)[nERIRef + 9].pointer()[IJKL] = gaugeLSSLACsymm[6 * NB4 + ijkl] - gaugeLSSLACsymm[2 * NB4 + ijkl];
+
+      // (σxσ)_z = σ_x σ_y - σ_y σ_x
+      (*this)[nERIRef + 10].pointer()[IJKL] = gaugeLSSLACsymm[NB4 + ijkl] - gaugeLSSLACsymm[3 * NB4 + ijkl];
+
+      // (σσ) (xx - yy - zz)
+      (*this)[nERIRef + 11].pointer()[IJKL] =
+        gaugeLSSLACsymm[ijkl] - gaugeLSSLACsymm[4 * NB4 + ijkl] - gaugeLSSLACsymm[8 * NB4 + ijkl];
+
+      // (σσ) (-xx + yy - zz)
+      (*this)[nERIRef + 12].pointer()[IJKL] =
+        -gaugeLSSLACsymm[ijkl] + gaugeLSSLACsymm[4 * NB4 + ijkl] - gaugeLSSLACsymm[8 * NB4 + ijkl];
+
+      // (σσ) (-xx - yy + zz)
+      (*this)[nERIRef + 13].pointer()[IJKL] =
+        -gaugeLSSLACsymm[ijkl] - gaugeLSSLACsymm[4 * NB4 + ijkl] + gaugeLSSLACsymm[8 * NB4 + ijkl];
+
+      //  σ_x σ_y + σ_y σ_x
+      (*this)[nERIRef + 14].pointer()[IJKL] = gaugeLSSLACsymm[NB4 + ijkl] + gaugeLSSLACsymm[3 * NB4 + ijkl];
+
+      //  σ_z σ_x + σ_x σ_z
+      (*this)[nERIRef + 15].pointer()[IJKL] = gaugeLSSLACsymm[6 * NB4 + ijkl] + gaugeLSSLACsymm[2 * NB4 + ijkl];
+
+      //  σ_y σ_z + σ_z σ_y
+      (*this)[nERIRef + 16].pointer()[IJKL] = gaugeLSSLACsymm[5 * NB4 + ijkl] + gaugeLSSLACsymm[7 * NB4 + ijkl];
+
+      // σ_x σ_x
+      (*this)[nERIRef + 17].pointer()[IJKL] = gaugeLSSLACsymm[ijkl];
+
+      // σ_x σ_y
+      (*this)[nERIRef + 18].pointer()[IJKL] = gaugeLSSLACsymm[NB4 + ijkl];
+
+      // σ_x σ_z
+      (*this)[nERIRef + 19].pointer()[IJKL] = gaugeLSSLACsymm[2 * NB4 + ijkl];
+
+      // σ_y σ_x
+      (*this)[nERIRef + 20].pointer()[IJKL] = gaugeLSSLACsymm[3 * NB4 + ijkl];
+
+      // σ_y σ_y
+      (*this)[nERIRef + 21].pointer()[IJKL] = gaugeLSSLACsymm[4 * NB4 + ijkl];
+
+      // σ_y σ_z
+      (*this)[nERIRef + 22].pointer()[IJKL] = gaugeLSSLACsymm[5 * NB4 + ijkl];
+
+      // σ_z σ_x
+      (*this)[nERIRef + 23].pointer()[IJKL] = gaugeLSSLACsymm[6 * NB4 + ijkl];
+
+      // σ_z σ_y
+      (*this)[nERIRef + 24].pointer()[IJKL] = gaugeLSSLACsymm[7 * NB4 + ijkl];
+
+      // σ_z σ_z
+      (*this)[nERIRef + 25].pointer()[IJKL] = gaugeLSSLACsymm[8 * NB4 + ijkl];
+
+
+    }
+
+    /*
+      int icount;
+      for (InCore4indexERI<double>& c : components_)
+        icount += 1;
+
+    std::cout<<"icount= "<<icount<<std::endl;
+
+    for ( int ii = 23 ; ii < 48 ; ii++ ) {
+      std::cout << "LSSL gauge Integrals component" << ii << std::endl;
+      for(auto i = 0ul; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++){
+       if (std::abs( (*this)[ii].pointer()[ i* NB3+ j*NB2 + k*NB + l])>1.0e-12 ) {
+        std::cout <<" comp "<<ii<< "(" << i << "," << j << "|" << k << "," << l << ")  ";
+        std::cout <<(*this)[ii].pointer()[ i* NB3+ j*NB2 + k*NB + l] << std::endl;
+       }
+      };
+    }
+    */
+
+    // SLLS
+    for(auto index=0; index<26; index++){
+      std::cout << "InHouse ("<<index<<")(ij|kl)" << std::endl;
+      for(auto i = 0ul; i < NB; i++)
+      for(auto j = 0ul; j < NB; j++)
+      for(auto k = 0ul; k < NB; k++)
+      for(auto l = 0ul; l < NB; l++){
+        std::cout << "(" << i << "," << j << "|" << k << "," << l << ")  ";
+        std::cout << (*this)[nERIRef+index](i, j, k, l) << std::endl;
+      };
+    };
+
+
+
+    memManager_.free<double>(gaugeLSSLACsymm);
+    memManager_.free<double>(gaugeSLLSsymm);
+    memManager_.free<double>(gaugeLSLSsymm);
+
+// deallocate SLSL after assigning the integrals
+    //memManager_.free<double>(gaugeSLSLACxx);
+
+
+
+    auto durERIGauge = tock(topERIGauge);
+    std::cout << "In-House-ERI-Gauge duration   = " << durERIGauge << std::endl;
+
+
+  } // InCore4indexRelERI<double>::computeERIGauge
+
 
 
 

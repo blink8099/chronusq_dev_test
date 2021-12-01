@@ -54,8 +54,8 @@ namespace ChronusQ {
     // Helper functions for the automatic evaluation of properties
     // see include/quantum/properties.hpp for documentation
 
-    template <typename RetTyp, DENSITY_TYPE DenTyp, typename Op>
-    RetTyp OperatorSpinCombine(const Op&);
+    template <DENSITY_TYPE DenTyp, typename Op>
+    double OperatorSpinCombine(const Op&);
 
   public:
 
@@ -120,9 +120,9 @@ namespace ChronusQ {
      *  \param [in]       op     Square matrix to trace with 1PDM
      *  \returns          Trace of op with the DenTyp 1PDM (cast to type RetTyp)
      */ 
-    template <typename RetTyp, DENSITY_TYPE DenTyp, typename Op>
-    inline RetTyp computeOBProperty(const Op &op) {
-      return OperatorSpinCombine<RetTyp,DenTyp>(op);
+    template <DENSITY_TYPE DenTyp, typename Op>
+    inline double computeOBProperty(const Op &op) {
+      return OperatorSpinCombine<DenTyp>(op);
     }; // Quantum<MatsT>::computeOBProperty (single operator)
 
     /**
@@ -133,11 +133,11 @@ namespace ChronusQ {
      *  \param [in]       opv    List of qquare matrices to trace with 1PDM
      *  \returns          List of traces of opv with the DenTyp 1PDM (cast to type RetTyp)
      */ 
-    template <typename RetTyp, DENSITY_TYPE DenTyp, typename Op>
-    inline std::vector<RetTyp> computeOBProperty(const std::vector<Op> &opv) {
-      std::vector<RetTyp> results;
+    template <DENSITY_TYPE DenTyp, typename Op>
+    inline std::vector<double> computeOBProperty(const std::vector<Op> &opv) {
+      std::vector<double> results;
       for(auto &op : opv) 
-        results.emplace_back(computeOBProperty<RetTyp,DenTyp>(op));
+        results.emplace_back(computeOBProperty<DenTyp>(op));
       return results;
     }; // Quantum<MatsT>::computeOBProperty (many operators)
 

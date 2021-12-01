@@ -103,7 +103,7 @@ namespace ChronusQ {
        void formCoreH(EMPerturbation&, bool); 
 
        // Form initial guess orbitals
-       void formGuess();
+       void formGuess(const SingleSlaterOptions&);
        
        // Form a fock matrix
        virtual void formFock(EMPerturbation &, bool increment = false, double xHFX = 1.);

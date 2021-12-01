@@ -80,7 +80,7 @@ namespace ChronusQ {
     if ( not fchkFile.good() ) CErr("Could not find fchkFile. Use -s flag.");
 
     // dimension of mo1 and mo2
-    auto NB =  basisSet().nBasis;
+    auto NB =  this->basisSet().nBasis;
     auto NBC = this->nC * NB;
     auto NB2 = NB*NB;
     auto NBC2 = NBC*NBC;
@@ -246,7 +246,7 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::reorderAngMO(std::vector<int> sl, MatsT* tmo, int sp) {
 
     // Dimension of mo
-    auto NB = basisSet().nBasis;
+    auto NB = this->basisSet().nBasis;
     auto NBC = this->nC * NB;
     auto NBC2 = NBC*NBC;
 
@@ -302,7 +302,7 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::reorderSpinMO() {
 
     // Dimension of mo1
-    auto NB = basisSet().nBasis;
+    auto NB = this->basisSet().nBasis;
     auto NBC = this->nC * NB;
     auto NBC2 = NBC*NBC;
 

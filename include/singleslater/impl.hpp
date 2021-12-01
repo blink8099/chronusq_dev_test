@@ -27,7 +27,6 @@
 #include <util/preprocessor.hpp>
 #include <quantum/preprocessor.hpp>
 #include <corehbuilder/impl.hpp>
-#include <particleintegrals/squarematrix/impl.hpp>
 #include <particleintegrals/twopints/impl.hpp>
 #include <fockbuilder/rofock.hpp>
 #include <fockbuilder/fourcompfock.hpp>
@@ -50,7 +49,7 @@ namespace ChronusQ {
     WaveFunctionBase(dynamic_cast<const WaveFunctionBase&>(other)),
     SingleSlaterBase(dynamic_cast<const SingleSlaterBase&>(other)),
     WaveFunction<MatsT,IntsT>(dynamic_cast<const WaveFunction<MatsU,IntsT>&>(other)),
-    basisSet_(other.basisSet_),
+    //basisSet_(other.basisSet_),
     fockMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.fockMatrix)),
     fockMatrixOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.fockMatrixOrtho)),
     coulombMatrix(std::make_shared<SquareMatrix<MatsT>>(*other.coulombMatrix)),
@@ -98,7 +97,7 @@ namespace ChronusQ {
     WaveFunctionBase(dynamic_cast<WaveFunctionBase&&>(std::move(other))),
     SingleSlaterBase(dynamic_cast<SingleSlaterBase&&>(std::move(other))),
     WaveFunction<MatsT,IntsT>(dynamic_cast<WaveFunction<MatsU,IntsT>&&>(std::move(other))),
-    basisSet_(other.basisSet_),
+    //basisSet_(other.basisSet_),
     fockMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.fockMatrix))),
     fockMatrixOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.fockMatrixOrtho))),
     coulombMatrix(std::make_shared<SquareMatrix<MatsT>>(std::move(*other.coulombMatrix))),
@@ -145,8 +144,11 @@ namespace ChronusQ {
     std::cout << "SingleSlater::alloc (this = " << this << ")" << std::endl;
 #endif
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
+    moPairs.resize(2, {});
 
+    moPairs.resize(2, {});
+    
     if( nC != 4 ) {
       SPIN_OPERATOR_ALLOC(NB,fockMatrix);
       SPIN_OPERATOR_ALLOC(NB,fockMatrixOrtho);
@@ -214,7 +216,7 @@ namespace ChronusQ {
     deltaOnePDM = nullptr;
 
   }; // SingleSlater<MatsT>::dealloc
-
+ 
 }; // namespace ChronusQ
 
 

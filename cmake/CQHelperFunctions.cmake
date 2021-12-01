@@ -64,3 +64,16 @@ macro ( build_pkg_option PKGNAME DEFAULT )
 
 endmacro()
 
+# Adds the given target properties from the first target to the second 
+macro( copy_property TARGET1 TARGET2 PROP )
+  set_property( TARGET ${TARGET2} APPEND PROPERTY
+    ${PROP}
+    $<TARGET_PROPERTY:${TARGET1},${PROP}>
+  )
+endmacro()
+
+function( copy_header_properties TARGET1 TARGET2 )
+  copy_property( ${TARGET1} ${TARGET2} INTERFACE_INCLUDE_DIRECTORIES )
+  copy_property( ${TARGET1} ${TARGET2} INTERFACE_COMPILE_DEFINITIONS )
+  copy_property( ${TARGET1} ${TARGET2} INTERFACE_COMPILE_OPTIONS )
+endfunction()

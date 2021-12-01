@@ -23,6 +23,8 @@
  */
 #include <cqlinalg/eig.hpp>
 #include <cqlinalg/util.hpp>
+#include <lapack.hh>
+#include <cerr.hpp>
 
 namespace ChronusQ {
 
@@ -429,231 +431,58 @@ namespace ChronusQ {
   template void EigenSort<dcomplex,dcomplex>(int,dcomplex*,dcomplex*,
     dcomplex*, dcomplex);
   
-  
-
-  /** LAPACK Wrappers **/
-
-  /**
-   *  \brief Wrapper around LAPACK's DGEEV.
-   *
-   *  Wraps DGEEV to obtain the optimal workspace dimension and allocation.
-   *  Passes CQMemManager object to handle memory allocation / deallocation.
-   *
-   *  See http://www.netlib.org/lapack/lapack-3.1.1/html/dgeev.f.html for
-   *  parameter documentation.
-   */ 
-  int DGEEV(char JOBVL, char JOBVR, int N, double *A, int LDA, double *WR,
-    double *WI, double *VL, int LDVL, double *VR, int LDVR, 
-    CQMemManager &mem) {
-  
-    int INFO;
-  
-    auto test = 
-      std::bind(dgeev_,&JOBVL,&JOBVR,&N,A,&LDA,WR,WI,VL,&LDVL,VR,&LDVR,
-        std::placeholders::_1,std::placeholders::_2,&INFO);
-  
-    int LWORK = getLWork<double>(test);
-    double *WORK = mem.malloc<double>(LWORK);
-  
-    dgeev_(&JOBVL,&JOBVR,&N,A,&LDA,WR,WI,VL,&LDVL,VR,&LDVR,
-        WORK,&LWORK,&INFO);
-  
-    mem.free(WORK);
-    
-    return INFO;
-  }; // DGEEV
-  
-
-  /**
-   *  \brief Wrapper around LAPACK's DSYEV.
-   *
-   *  Wraps DSYEV to obtain the optimal workspace dimension and allocation.
-   *  Passes CQMemManager object to handle memory allocation / deallocation.
-   *
-   *  See http://www.netlib.org/lapack/lapack-3.1.1/html/dsyev.f.html for
-   *  parameter documentation.
-   */ 
-  int DSYEV(char JOBZ, char UPLO, int N, double *A, int LDA, double *W,
-    CQMemManager &mem) {
-  
-    int INFO;
-  
-    auto test = std::bind(dsyev_,&JOBZ,&UPLO,&N,A,&LDA,W,std::placeholders::_1,
-      std::placeholders::_2,&INFO);
-  
-    int LWORK = getLWork<double>(test);
-    double *WORK = mem.malloc<double>(LWORK);
-  
-    dsyev_(&JOBZ,&UPLO,&N,A,&LDA,W,WORK,&LWORK,&INFO);
-  
-    mem.free(WORK);
-    
-    return INFO;
-  }; // DSYEV
-  
-  
-  /**
-   *  \brief Wrapper around LAPACK's DGGEV.
-   *
-   *  Wraps DGGEV to obtain the optimal workspace dimension and allocation.
-   *  Passes CQMemManager object to handle memory allocation / deallocation.
-   *
-   *  See http://www.netlib.org/lapack/lapack-3.1.1/html/dggev.f.html for
-   *  parameter documentation.
-   */ 
-  int DGGEV(char JOBVL, char JOBVR, int N, double *A, int LDA, double *B,
-    int LDB, double *ALPHAR, double *ALPHAI, double *BETA, double *VL,
-    int LDVL, double *VR, int LDVR, CQMemManager &mem) {
-  
-    int INFO;
-  
-    auto test = std::bind(dggev_,&JOBVL,&JOBVR,&N,A,&LDA,B,&LDB,ALPHAR,
-      ALPHAI,BETA,VL,&LDVL,VR,&LDVR,std::placeholders::_1,
-      std::placeholders::_2,&INFO);
-  
-    int LWORK = getLWork<double>(test);
-    double *WORK = mem.malloc<double>(LWORK);
-  
-    dggev_(&JOBVL,&JOBVR,&N,A,&LDA,B,&LDB,ALPHAR,ALPHAI,BETA,VL,&LDVL,
-      VR,&LDVR,WORK,&LWORK,&INFO);
-  
-    mem.free(WORK);
-    return INFO;
-  }; // DGGEV
-  
-  
-  /**
-   *  \brief Wrapper around LAPACK's ZGEEV.
-   *
-   *  Wraps ZGEEV to obtain the optimal workspace dimension and allocation.
-   *  Passes CQMemManager object to handle memory allocation / deallocation.
-   *
-   *  See http://www.netlib.org/lapack/lapack-3.1.1/html/zgeev.f.html for
-   *  parameter documentation.
-   */ 
-  int ZGEEV(char JOBVL, char JOBVR, int N, dcomplex *A, int LDA, dcomplex *W,
-    dcomplex *VL, int LDVL, dcomplex *VR, int LDVR, CQMemManager &mem) {
-  
-    int INFO;
-  
-    double * RWORK = mem.malloc<double>(2*N);
-  
-    auto test = std::bind(zgeev_,&JOBVL,&JOBVR,&N,A,&LDA,W,VL,&LDVL,VR,&LDVR,
-      std::placeholders::_1,std::placeholders::_2,RWORK,&INFO);
-  
-    int LWORK = getLWork<dcomplex>(test);
-    dcomplex *WORK = mem.malloc<dcomplex>(LWORK);
-  
-    zgeev_(&JOBVL,&JOBVR,&N,A,&LDA,W,VL,&LDVL,VR,&LDVR,WORK,&LWORK,RWORK,&INFO);
-  
-    mem.free(WORK);
-    mem.free(RWORK);
-  
-    return INFO;
-  
-  }; // ZGEEV
-  
-  /**
-   *  \brief Wrapper around LAPACK's ZHEEV.
-   *
-   *  Wraps ZHEEV to obtain the optimal workspace dimension and allocation.
-   *  Passes CQMemManager object to handle memory allocation / deallocation.
-   *
-   *  See http://www.netlib.org/lapack/lapack-3.1.1/html/zheev.f.html for
-   *  parameter documentation.
-   */ 
-  int ZHEEV(char JOBZ, char UPLO, int N, dcomplex *A, int LDA, double *W,
-    CQMemManager &mem){
-  
-    int INFO;
-  
-    double * RWORK = mem.malloc<double>(3*N);
-  
-    auto test = std::bind(zheev_,&JOBZ,&UPLO,&N,A,&LDA,W,
-      std::placeholders::_1,std::placeholders::_2,RWORK,&INFO);
-  
-    int LWORK = getLWork<dcomplex>(test);
-    dcomplex *WORK = mem.malloc<dcomplex>(LWORK);
-  
-    zheev_(&JOBZ,&UPLO,&N,A,&LDA,W,WORK,&LWORK,RWORK,&INFO);
-  
-    mem.free(WORK);
-    mem.free(RWORK);
-  
-    return INFO;
-  }; // ZHEEV
-  
-  /**
-   *  \brief Wrapper around LAPACK's ZGGEV.
-   *
-   *  Wraps ZGGEV to obtain the optimal workspace dimension and allocation.
-   *  Passes CQMemManager object to handle memory allocation / deallocation.
-   *
-   *  See http://www.netlib.org/lapack/lapack-3.1.1/html/zggev.f.html for
-   *  parameter documentation.
-   */ 
-  int ZGGEV(char JOBVL, char JOBVR, int N, dcomplex *A, int LDA, dcomplex *B,
-    int LDB, dcomplex *ALPHA, dcomplex *BETA, dcomplex *VL, int LDVL, 
-    dcomplex *VR, int LDVR, CQMemManager &mem) {
-  
-    int INFO;
-  
-    double * RWORK = mem.malloc<double>(8*N);
-  
-    auto test = std::bind(zggev_,&JOBVL,&JOBVR,&N,A,&LDA,B,&LDB,ALPHA,
-      BETA,VL,&LDVL,VR,&LDVR,std::placeholders::_1,std::placeholders::_2,
-      RWORK,&INFO);
-  
-    int LWORK = getLWork<dcomplex>(test);
-    dcomplex *WORK = mem.malloc<dcomplex>(LWORK);
-  
-    zggev_(&JOBVL,&JOBVR,&N,A,&LDA,B,&LDB,ALPHA,BETA,VL,&LDVL,
-      VR,&LDVR,WORK,&LWORK,RWORK,&INFO);
-  
-    mem.free(WORK);
-    mem.free(RWORK);
-  
-    return INFO;
-  }; // ZGGEV
-  
 
   /** Specializations of smart linear algebra routines **/
   // see include/cqlinalg/eig.hpp for docs
 
-
-
   template<>
-  int GeneralEigen(char JOBVL, char JOBVR, int N, double *A, int LDA, 
-    dcomplex *W, double *VL, int LDVL, double *VR, int LDVR, 
-    CQMemManager &mem){
+  int GeneralEigenSymm(char JOBVL, char JOBVR, int N, double *A, int LDA, 
+    dcomplex *W, double *VL, int LDVL, double *VR, int LDVR) {
   
-    double *WR = mem.malloc<double>(N);
-    double *WI = mem.malloc<double>(N);
+    // Convert char to lapackpp friendly input
+    lapack::Job JVL;
+    lapack::Job JVR;
+
+    if(JOBVL == 'V')       JVL = lapack::Job::Vec;
+    else if(JOBVL == 'N')  JVL = lapack::Job::NoVec;
+    else                   CErr("Invalid option for JOBVL ( lapack::geev )");
+
+    if(JOBVR == 'V')       JVR = lapack::Job::Vec;
+    else if(JOBVR == 'N')  JVR = lapack::Job::NoVec;
+    else                   CErr("Invalid option for JOBVR ( lapack::geev )");
   
-    int INFO = DGEEV(JOBVL,JOBVR,N,A,LDA,WR,WI,VL,LDVL,VR,LDVR,mem);
+    // GEEV call
+    int INFO = lapack::geev(JVL,JVR,N,A,LDA,W,VL,LDVL,VR,LDVR);
   
-    for(auto i = 0ul; i < N; i++) {
-      W[i] = dcomplex(WR[i],WI[i]);
-    }
-  
-    mem.free(WR);
-    mem.free(WI);
-  
+    // Sort eigenvalues
     if(JOBVL == 'V' and JOBVR == 'V') EigenSort(N,W,VR,VL);
     else if(JOBVR == 'V')             EigenSort(N,W,VR);
     else if(JOBVL == 'V')             EigenSort(N,W,VL);
     else                              EigenSort(N,W);
   
     return INFO;
-  }; // GeneralEigen (real)
+  }; // GeneralEigenSymm (real)
   
   template<>
-  int GeneralEigen(char JOBVL, char JOBVR, int N, dcomplex *A, int LDA, 
-    dcomplex *W, dcomplex *VL, int LDVL, dcomplex *VR, int LDVR, 
-    CQMemManager &mem){
+  int GeneralEigenSymm(char JOBVL, char JOBVR, int N, dcomplex *A, int LDA, 
+    dcomplex *W, dcomplex *VL, int LDVL, dcomplex *VR, int LDVR) {
+
+    // Convert char to lapackpp friendly input
+    lapack::Job JVL;
+    lapack::Job JVR;
+
+    if(JOBVL == 'V')       JVL = lapack::Job::Vec;
+    else if(JOBVL == 'N')  JVL = lapack::Job::NoVec;
+    else                   CErr("Invalid option for JOBVL ( lapack::geev )");
+
+    if(JOBVR == 'V')       JVR = lapack::Job::Vec;
+    else if(JOBVR == 'N')  JVR = lapack::Job::NoVec;
+    else                   CErr("Invalid option for JOBVR ( lapack::geev )");
   
-    int INFO = ZGEEV(JOBVL,JOBVR,N,A,LDA,W,VL,LDVL,VR,LDVR,mem);
+    // GEEV call
+    int INFO = lapack::geev(JVL,JVR,N,A,LDA,W,VL,LDVL,VR,LDVR);
   
+    // Sort eigenvalues
     if(JOBVL == 'V' and JOBVR == 'V') EigenSort(N,W,VR,VL);
     else if(JOBVR == 'V')             EigenSort(N,W,VR);
     else if(JOBVL == 'V')             EigenSort(N,W,VL);
@@ -661,41 +490,46 @@ namespace ChronusQ {
   
     return INFO;
   
-  }; // GeneralEigen (complex)
+  }; // GeneralEigenSymm (complex)
   
   template<>
   int HermetianEigen(char JOBZ, char UPLO, int N, double *A, int LDA, double *W,
     CQMemManager &mem){
+
+    lapack::Job JZ;
+    lapack::Uplo UL;
+
+    if(JOBZ == 'V')       JZ = lapack::Job::Vec;
+    else if(JOBZ == 'N')  JZ = lapack::Job::NoVec;
+    else                  CErr("Invalid option for JOBZ ( lapack::syev )");
+
+    if(UPLO == 'U')       UL = lapack::Uplo::Upper;
+    else if(UPLO == 'L')  UL = lapack::Uplo::Lower;
+    else                  CErr("Invalid option for UPLO ( lapack::syev )");
     
-    return DSYEV(JOBZ,UPLO,N,A,LDA,W,mem);
+    return lapack::syev(JZ,UL,N,A,LDA,W);
   
   }; // HermetianEigen (real / real eigenvalues)
   
   template<>
   int HermetianEigen(char JOBZ, char UPLO, int N, dcomplex *A, int LDA, 
     double *W, CQMemManager &mem){
+
+    lapack::Job JZ;
+    lapack::Uplo UL;
+
+    if(JOBZ == 'V')       JZ = lapack::Job::Vec;
+    else if(JOBZ == 'N')  JZ = lapack::Job::NoVec;
+    else                  CErr("Invalid option for JOBZ ( lapack::syev )");
+
+    if(UPLO == 'U')       UL = lapack::Uplo::Upper;
+    else if(UPLO == 'L')  UL = lapack::Uplo::Lower;
+    else                  CErr("Invalid option for UPLO ( lapack::syev )");
     
-    return ZHEEV(JOBZ,UPLO,N,A,LDA,W,mem);
+    return lapack::heev(JZ,UL,N,A,LDA,W);
   
   }; // HermetianEigen (complex / real eigenvalues)
-  
-  template<>
-  int HermetianEigen(char JOBZ, char UPLO, int N, double *A, int LDA, 
-    dcomplex *W, CQMemManager &mem){
-  
-    int INFO;
-    double *WReal = mem.malloc<double>(N);
-  
-    INFO = HermetianEigen(JOBZ,UPLO,N,A,LDA,WReal,mem);
-    
-    for(auto i = 0; i < N; i++) W[i] = WReal[i];
 
-    mem.free(WReal);
-  
-    return INFO;
-  
-  }; // HermetianEigen ( real / complex eigenvalues)
-  
   template<>
   int HermetianEigen(char JOBZ, char UPLO, int N, dcomplex *A, int LDA, 
     dcomplex *W, CQMemManager &mem){
@@ -713,91 +547,6 @@ namespace ChronusQ {
   
   }; // HermetianEigen (complex / complex eigenvalues )
   
-  template <>
-  int GeneralizedEigen(char JOBVL, char JOBVR, int N, double *A, int LDA, 
-    double *B, int LDB, dcomplex *ALPHA, double *BETA, double *VL, int LDVL, 
-    double *VR, int LDVR, CQMemManager &mem){
   
-    double *ALPHAR = mem.malloc<double>(N);
-    double *ALPHAI = mem.malloc<double>(N);
-  
-    int INFO = DGGEV(JOBVL,JOBVR,N,A,LDA,B,LDB,ALPHAR,ALPHAI,BETA,VL,LDVL,
-      VR,LDVR,mem);
-  
-    for(auto i = 0ul; i < N; i++) {
-      ALPHA[i] = dcomplex(ALPHAR[i],ALPHAI[i]);
-    }
-  
-    mem.free(ALPHAR);
-    mem.free(ALPHAI);
-  
-    return INFO;
-  
-  }; // GeneralizedEigen (real / generalized eigenvalues)
-  
-  template <>
-  int GeneralizedEigen(char JOBVL, char JOBVR, int N, double *A, int LDA, 
-    double *B, int LDB, dcomplex *W, double *VL, int LDVL, double *VR, 
-    int LDVR, CQMemManager &mem){
-  
-    double *ALPHAR = mem.malloc<double>(N);
-    double *ALPHAI = mem.malloc<double>(N);
-    double *BETA   = mem.malloc<double>(N);
-  
-    int INFO = DGGEV(JOBVL,JOBVR,N,A,LDA,B,LDB,ALPHAR,ALPHAI,BETA,VL,LDVL,
-      VR,LDVR,mem);
-  
-    for(auto i = 0ul; i < N; i++) {
-      W[i] = dcomplex(ALPHAR[i],ALPHAI[i])/BETA[i];
-    }
-  
-    mem.free(ALPHAR);
-    mem.free(ALPHAI);
-    mem.free(BETA);
-  
-    if(JOBVL == 'V' and JOBVR == 'V') EigenSort(N,W,VR,VL);
-    else if(JOBVR == 'V')             EigenSort(N,W,VR);
-    else if(JOBVL == 'V')             EigenSort(N,W,VL);
-    else                              EigenSort(N,W);
-  
-    return INFO;
-  
-  }; // GeneralizedEigen (real / actual eigenvalues)
-  
-  template <>
-  int GeneralizedEigen(char JOBVL, char JOBVR, int N, dcomplex *A, int LDA, 
-    dcomplex *B, int LDB, dcomplex *ALPHA, dcomplex *BETA, dcomplex *VL, 
-    int LDVL, dcomplex *VR, int LDVR, CQMemManager &mem){
-  
-  
-    return ZGGEV(JOBVL,JOBVR,N,A,LDA,B,LDB,ALPHA,BETA,VL,LDVL,VR,LDVR,mem);
-  
-  }; // GeneralizedEigen (complex / generalized eigenvalues)
-  
-  template <>
-  int GeneralizedEigen(char JOBVL, char JOBVR, int N, dcomplex *A, int LDA, 
-    dcomplex *B, int LDB, dcomplex *W, dcomplex *VL, int LDVL, dcomplex *VR, 
-    int LDVR, CQMemManager &mem){
-  
-    dcomplex *ALPHA = mem.malloc<dcomplex>(N);
-    dcomplex *BETA  = mem.malloc<dcomplex>(N);
-  
-    int INFO = ZGGEV(JOBVL,JOBVR,N,A,LDA,B,LDB,ALPHA,BETA,VL,LDVL,VR,LDVR,mem);
-  
-    for(auto i = 0ul; i < N; i++) {
-      W[i] = ALPHA[i]/BETA[i];
-    }
-  
-    mem.free(ALPHA);
-    mem.free(BETA);
-  
-    if(JOBVL == 'V' and JOBVR == 'V') EigenSort(N,W,VR,VL);
-    else if(JOBVR == 'V')             EigenSort(N,W,VR);
-    else if(JOBVL == 'V')             EigenSort(N,W,VL);
-    else                              EigenSort(N,W);
-  
-    return INFO;
-  
-  }; // GeneralizedEigen (complex / actual eigenvalues)
 
 };

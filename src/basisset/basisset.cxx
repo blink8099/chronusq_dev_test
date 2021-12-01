@@ -519,7 +519,7 @@ namespace ChronusQ {
  
     // Compute SUn * MAP
     double *SCR = mem.malloc<double>(nBasis*nPrimitive);
-    Gemm('N','T',nPrimitive,nBasis,nPrimitive,static_cast<double>(1.),SUn,nPrimitive,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,nPrimitive,nBasis,nPrimitive,static_cast<double>(1.),SUn,nPrimitive,
       MAP,nBasis,static_cast<double>(0.),SCR,nPrimitive);
 
 
@@ -546,13 +546,13 @@ namespace ChronusQ {
       for(size_t i = 0; i < n1; i++) {
       // i loop over the function in the current shell             
 
-        double fact = InnerProd<double>(nPrimitive,MAP + (i+Itot) ,nBasis,
+        double fact = blas::dot(nPrimitive,MAP + (i+Itot) ,nBasis,
                                                    SCR + (i+Itot)*nPrimitive,1);
         // i+I is the basis function index 
         double alpha = buff[i + i*n1];
         // alpha is the diagonal element of overlap of basis function i+Itot
          
-        Scale(nPrimitive,std::sqrt(alpha)/std::sqrt(fact),
+        blas::scal(nPrimitive,std::sqrt(alpha)/std::sqrt(fact),
           MAP + (i+Itot),nBasis);
 
       } // for size_t i = 0
@@ -593,7 +593,7 @@ namespace ChronusQ {
 
           size_t n2 = shs[s2].size();
           engine.compute(shs[s1],shs[s2]);
-          double norm = TwoNorm<double>(n1*n2,const_cast<double*>(buf[0]),1);
+          double norm = blas::nrm2(n1*n2,const_cast<double*>(buf[0]),1);
           significant = (norm >= shell_thresh);
 
         }
@@ -685,9 +685,15 @@ double doubleFact(int t){
 //---------------------------------------------------------//
 // polynomial coeff:   (x+a)^l= sum(coeff * x^i * a^(l-i)) //
 //---------------------------------------------------------//
-double polyCoeff(int l, int i){
-  if (l>= i) return factorial(l)/( factorial(i)*factorial(l-i) );
-  else std::cout<<"polyCoeff error"<<std::endl;
+double polyCoeff(int l, int i) {
+
+  double dummy;
+  if (l >= i) {
+    return factorial(l)/( factorial(i)*factorial(l-i) );
+  } else { 
+    CErr("polyCoeff error");
+    return dummy;
+  }
 }
 
 
@@ -754,6 +760,8 @@ std::complex <double> cart2sphCoeff(int L, int m, int lx, int ly, int lz){
   coeff = pref * sumval;
   return coeff;
   }
+
+  return coeff;
 } // cart2sphCoeff   
 
 std::vector<std::vector<double>> car2sph_matrix;

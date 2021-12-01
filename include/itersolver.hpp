@@ -64,7 +64,7 @@ namespace ChronusQ {
 
     inline void defaultShiftVec_(size_t nVec, _F shift, _F *V, _F *AV) {
 
-      AXPY(nVec*N_,shift,V,1,AV,1);
+      blas::axpy(nVec*N_,shift,V,1,AV,1);
 
     };
 

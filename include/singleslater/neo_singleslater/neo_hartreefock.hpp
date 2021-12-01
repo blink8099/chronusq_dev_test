@@ -52,7 +52,7 @@ namespace ChronusQ {
     template <typename... Args>
     NEOHartreeFock(MPI_Comm c, CQMemManager &mem, Molecule &mol, 
                    BasisSet &basis, Integrals<IntsT> &aoi, Args... args) :
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...),
       NEOSingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
       HartreeFock<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
@@ -63,7 +63,7 @@ namespace ChronusQ {
     NEOHartreeFock(std::string rL, std::string rS, MPI_Comm c,
                    CQMemManager &mem, Molecule &mol, BasisSet &basis,
                    Integrals<IntsT> &aoi, Args... args) :
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...),
       NEOSingleSlater<MatsT,IntsT>(c,mem,basis,aoi,args...),
       HartreeFock<MatsT,IntsT>(rL,rS,c,mem,mol,basis,aoi,args...), 

@@ -58,8 +58,6 @@ namespace ChronusQ {
     typedef MatsT*               oper_t;
     typedef std::vector<oper_t>  oper_t_coll;
 
-    Molecule &molecule_; ///< A reference of the Molecule
-
   public:
 
     Integrals<IntsT> &aoints; ///< AOIntegrals for the storage of integrals
@@ -68,6 +66,9 @@ namespace ChronusQ {
 
     ///< mo[0] : Full (nC > 1) / ALPHA (nC == 1) MO coefficient matrix
     ///< mo[1] : BETA (nC == 1) MO coefficient matrix
+    /// The order of AO Basis in mo[0]:
+    ///    * 2C: [Alpha, Beta]
+    ///    * 4C: [Alpha Large, Alpha Small, Beta Large, Beta Small]
     std::vector<SquareMatrix<MatsT>> mo;
     double* eps1; ///< Full (nC > 1) / ALPHA (nC == 1) Fock eigenvalues
     double* eps2; ///< BETA (nC == 1) Fock eigenvalues
@@ -84,14 +85,16 @@ namespace ChronusQ {
      *  \param [in] _nC  Number of spin components (1 and 2 are supported)
      *  \param [in] iCS  Whether or not to treat as closed shell
      */ 
-    WaveFunction(MPI_Comm c, CQMemManager &mem, Molecule &mol, size_t nBasis,
+    WaveFunction(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
                  Integrals<IntsT> &aoi, size_t _nC, bool iCS, Particle p = {-1.0,1.0}) :
       QuantumBase(c, mem,_nC,iCS,p),
-      WaveFunctionBase(c, mem,_nC,iCS,p),
-      Quantum<MatsT>(c, mem,_nC,iCS,p,nBasis),
-      molecule_(mol), eps1(nullptr), eps2(nullptr), aoints(aoi) {
+      WaveFunctionBase(c, mem, mol, basis,_nC,iCS,p),
+      Quantum<MatsT>(c, mem,_nC,iCS,p,basis.nBasis),
+      //molecule_(mol), basisSet_(basis), 
+      eps1(nullptr), eps2(nullptr), aoints(aoi) {
 
       // Compute meta data
+      size_t nBasis = basis.nBasis;
 
       if (p.charge < 0.) {
         this->nO = molecule_.nTotalE;
@@ -149,16 +152,17 @@ namespace ChronusQ {
     ~WaveFunction(){ dealloc(); }
 
 
-    // Member functions
-    Molecule& molecule() { return molecule_; }
-
     // Deallocation (see include/wavefunction/impl.hpp for docs)
     void alloc();
     void dealloc();
 
     // Print Functions
     void printMO(std::ostream&) ;
-    void printEPS(std::ostream&);
+    virtual void printEPS(std::ostream&);
+    virtual void printMOInfo(std::ostream&, size_t a = 0);
+
+    // Swap Function
+    void swapMOs(std::vector<std::vector<std::pair<size_t, size_t>>>&, SpinType sp);
 
   }; // class WaveFunction
 

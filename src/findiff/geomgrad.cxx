@@ -46,9 +46,12 @@ namespace ChronusQ {
     prot_basis = CQBasisSetOptions(std::cout,input_,mol,"PBASIS");
 
     aoints = CQIntsOptions(std::cout,input_,ref_t->memManager,mol,basis,nullptr,prot_basis,"EPINTS");
-    curr_ = CQSingleSlaterOptions(std::cout,input_,ref_t->memManager,mol,*basis,aoints);
+    auto ssOptions = CQSingleSlaterOptions(std::cout,input_,mol,*basis,aoints);
 
-    CQSCFOptions(std::cout,input_,*curr_,emPert);
+    SCFControls scfControls = CQSCFOptions(std::cout,input_,emPert);
+    ssOptions.scfControls = scfControls;
+
+    curr_ = ssOptions.buildSingleSlater(std::cout,ref_t->memManager,mol,*basis,aoints);
 
     curr_->scfControls.guess = READMO;
 
@@ -73,8 +76,14 @@ namespace ChronusQ {
       p->TPI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION, opt);
     else if(auto p = std::dynamic_pointer_cast<Integrals<dcomplex>>(aoints))
       p->TPI->computeAOInts(*basis, mol, emPert, ELECTRON_REPULSION, opt);
+
+    SingleSlaterOptions guessSSOptions;
+    guessSSOptions.refOptions.isKSRef = false;
+    guessSSOptions.refOptions.nC = 1;
+    guessSSOptions.hamiltonianOptions.OneEScalarRelativity = false;
+    guessSSOptions.hamiltonianOptions.OneESpinOrbit = false;
  
-    curr_->formGuess();
+    curr_->formGuess(guessSSOptions);
     curr_->SCF(emPert);
  
     return curr_->getEnergySummary();

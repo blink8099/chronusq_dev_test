@@ -121,7 +121,7 @@ namespace ChronusQ {
       //   electron/proton charges.
       twoEGrad.S() = -2. * JList[iGrad];
 
-      double gradVal = ss.template computeOBProperty<double,SCALAR>(
+      double gradVal = ss.template computeOBProperty<SCALAR>(
         twoEGrad.S().pointer()
       );
       gradient.push_back(0.25*gradVal);

@@ -26,6 +26,7 @@
 
 #include <cqlinalg/cqlinalg_config.hpp>
 #include <cqlinalg/util.hpp>
+#include <lapack.hh>
 
 // BLAS
 #include <cqlinalg/blas1.hpp>

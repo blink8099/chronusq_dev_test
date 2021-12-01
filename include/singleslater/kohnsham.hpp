@@ -39,19 +39,6 @@ namespace ChronusQ {
 
 
   /**
-   *  \brief A datastructure to hold the information
-   *  pertaining to the control of the Kohn--Sham
-   *  numerical integration.
-   */ 
-  struct IntegrationParam {
-    double epsilon      = 1e-12; ///< Screening parameter
-    size_t nAng         = 302;   ///< # Angular points
-    size_t nRad         = 100;   ///< # Radial points
-    size_t nRadPerBatch = 4;     ///< # Radial points / macro batch
-  };
-
-
-  /**
    *  \breif The Kohn--Sham class.
    *
    *  Specializes the SingleSlater class for a Kohn--Sham description of the
@@ -94,7 +81,7 @@ namespace ChronusQ {
       CQMemManager &mem, Molecule &mol, BasisSet &basis,
       Integrals<IntsT> &aoi, Args... args) : 
       SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...), isGGA_(false),
       functionals(std::move(funclist)),intParam(ip){ 
 
@@ -131,7 +118,7 @@ namespace ChronusQ {
       CQMemManager &mem, Molecule &mol, BasisSet &basis,
       Integrals<IntsT> &aoi, Args... args) : 
       SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...), isGGA_(false),
       functionals(std::move(funclist)),intParam(ip) { 
 

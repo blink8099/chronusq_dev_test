@@ -173,7 +173,7 @@ namespace ChronusQ {
       coreHGrad = 2. * (gradK[iGrad]->matrix() + gradV[iGrad]->matrix());
 
       // Contract
-      double element = ss.template computeOBProperty<double,DENSITY_TYPE::SCALAR>(
+      double element = ss.template computeOBProperty<DENSITY_TYPE::SCALAR>(
         coreHGrad.pointer());
       gradient.emplace_back(0.5*element);
 

@@ -25,7 +25,6 @@
 
 #include <singleslater.hpp>
 #include <corehbuilder.hpp>
-#include <corehbuilder/x2c.hpp>
 #include <fockbuilder.hpp>
 #include <physcon.hpp>
 
@@ -80,7 +79,6 @@ namespace ChronusQ {
     if( nC == 4 ) NB = 2 * NB;
 
     if( coreH != nullptr ) {
-      //CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
       coreH->clear();
 
     } else {
@@ -116,13 +114,13 @@ namespace ChronusQ {
     // non-relativistic one electron integrals for contracted basis functions.
     // Relativistic integrals will be computed for uncontracted basis functions
     // in X2C CoreHBuilder.
-    if (std::dynamic_pointer_cast<X2C<MatsT,IntsT>>(coreHBuilder)) {
+    if (hamiltonianOptions.x2cType != X2C_TYPE::OFF) {
       hamiltonianOptions.OneEScalarRelativity = false;
       hamiltonianOptions.OneESpinOrbit = false;
     }
 
     this->aoints.computeAOOneP(memManager,this->molecule(),
-        basisSet(),emPert, ops, hamiltonianOptions); // compute the necessary 1e ints
+        this->basisSet(),emPert, ops, hamiltonianOptions); // compute the necessary 1e ints
 
     // Compute core Hamiltonian
     coreHBuilder->computeCoreH(emPert,coreH);
@@ -227,34 +225,38 @@ namespace ChronusQ {
       for( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
 
         // Form VdV and dVV
-        Gemm('N','N',NB,NB,NB,MatsT(1.),ortho[0].pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,MatsT(1.),ortho[0].pointer(),NB,
           gradOrtho[iGrad].pointer(),NB,MatsT(0.),vdv.pointer(),NB);
-        Gemm('N','N',NB,NB,NB,MatsT(1.),gradOrtho[iGrad].pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,MatsT(1.),gradOrtho[iGrad].pointer(),NB,
           ortho[0].pointer(),NB,MatsT(0.),dvv.pointer(),NB);
 
         // Form FVdV and dVVF
         for( auto iSp = 0; iSp < nSp; iSp++ ) {
           auto comp = static_cast<PAULI_SPINOR_COMPS>(iSp);
-          Gemm('N','N',NB,NB,NB,MatsT(1.),(*fockMatrix)[comp].pointer(),NB,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+            NB,NB,NB,MatsT(1.),(*fockMatrix)[comp].pointer(),NB,
             vdv.pointer(),NB,MatsT(0.),SCR[comp].pointer(),NB);
-          Gemm('N','N',NB,NB,NB,MatsT(1.),dvv.pointer(),NB,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+            NB,NB,NB,MatsT(1.),dvv.pointer(),NB,
             (*fockMatrix)[comp].pointer(),NB,MatsT(1.),SCR[comp].pointer(),NB);
         }
 
         // Trace
-        double gradVal = this->template computeOBProperty<double,SCALAR>(
+        double gradVal = this->template computeOBProperty<SCALAR>(
           SCR.S().pointer()
         );
 
         if( hasZ )
-          gradVal += this->template computeOBProperty<double,MZ>(
+          gradVal += this->template computeOBProperty<MZ>(
             SCR.Z().pointer()
           );
         if( hasXY ) {
-          gradVal += this->template computeOBProperty<double,MY>(
+          gradVal += this->template computeOBProperty<MY>(
             SCR.Y().pointer()
           );
-          gradVal += this->template computeOBProperty<double,MX>(
+          gradVal += this->template computeOBProperty<MX>(
             SCR.X().pointer()
           );
         }
@@ -290,7 +292,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT> 
   void SingleSlater<MatsT,IntsT>::computeOrtho() {
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
     if( nC == 4 ) NB = 2 * NB;
     size_t nSQ  = NB*NB;
 
@@ -337,9 +339,8 @@ namespace ChronusQ {
           SCR1[i + j*NB] / std::sqrt(sE[j]);
 
       // Compute O1 = X * V**T
-      Gemm('N','C',NB,NB,NB,
-        static_cast<MatsT>(1.),SCR2,NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho[0].pointer(),NB);
+      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
+                 NB, NB, NB, static_cast<MatsT>(1.0), SCR2, NB, SCR1, NB, static_cast<MatsT>(0.0), ortho[0].pointer(), NB);
 
 
       // Compute X = V * s^{1/2} in place (by multiplying by s)
@@ -349,7 +350,7 @@ namespace ChronusQ {
           SCR2[i + j*NB] * sE[j];
 
       // Compute O2 = X * V**T
-      Gemm('N','C',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,
         static_cast<MatsT>(1.),SCR2,NB,SCR1,NB,
         static_cast<MatsT>(0.),ortho[1].pointer(),NB);
 
@@ -360,7 +361,7 @@ namespace ChronusQ {
       double maxDiff(-10000000);
 
       // Check that ortho1 and ortho2 are inverses of eachother
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[1].pointer(),NB,
         static_cast<MatsT>(0.),SCR1,NB);
       
@@ -377,7 +378,7 @@ namespace ChronusQ {
       std::cerr << "  Ortho1 * Ortho2 = I: " << maxDiff << std::endl;
 
       // Check that ortho2 * ortho2 is the overlap
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho[1].pointer(),NB,ortho[1].pointer(),NB,
         static_cast<MatsT>(0.),SCR1,NB);
       
@@ -395,10 +396,10 @@ namespace ChronusQ {
       std::cerr << "  Ortho2 * Ortho2 = S: " << maxDiff << std::endl;
 
       // Check that ortho1 * ortho1 is the inverse of the overlap
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[0].pointer(),NB,
         static_cast<MatsT>(0.),SCR1,NB);
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),SCR1,NB,reinterpret_cast<MatsT*>(this->aoints.overlap),NB,
         static_cast<MatsT>(0.),SCR2,
         NB);
@@ -428,7 +429,7 @@ namespace ChronusQ {
       << std::endl;
 
       // Compute the Cholesky factorization of the overlap S = L * L**T
-      Cholesky('L',NB,SCR1,NB);
+      lapack::potrf(lapack::Uplo::Lower,NB,SCR1,NB);
 
       // Copy the lower triangle to ortho2 (O2 = L)
       for(auto j = 0; j < NB; j++)
@@ -436,10 +437,10 @@ namespace ChronusQ {
         ortho[1](i,j) = SCR1[i + j*NB];
 
       // Compute the inverse of the overlap using the Cholesky factors
-      CholeskyInv('L',NB,SCR1,NB);
+      lapack::potri(lapack::Uplo::Lower,NB,SCR1,NB);
 
       // O1 = O2**T * S^{-1}
-      Gemm('T','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho[1].pointer(),NB,SCR1,NB,
         static_cast<MatsT>(0.),ortho[0].pointer(),NB);
 
@@ -457,11 +458,11 @@ namespace ChronusQ {
       MatsT* SCR2 = memManager.malloc<MatsT>(nSQ);
         
       double maxDiff = -1000;
-      Gemm('T','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),ortho1,NB,reinterpret_cast<MatsT*>(this->aoints.overlap),NB,
         static_cast<MatsT>(0.),SCR1,
         NB);
-      Gemm('N','N',NB,NB,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
         static_cast<MatsT>(1.),SCR1,NB,ortho1,NB,
         static_cast<MatsT>(0.),SCR2,
         NB);
@@ -554,15 +555,15 @@ namespace ChronusQ {
         //
 
         // dS/dR . V
-        Gemm('N','N',NB,NB,NB,MatsT(1.),SCR1,NB,sVecs,NB,MatsT(0.),SCR2,NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),SCR1,NB,sVecs,NB,MatsT(0.),SCR2,NB);
         // V**T . dS/dR . V
-        Gemm('C','N',NB,NB,NB,MatsT(1.),sVecs,NB,SCR2,NB,MatsT(0.),SCR1,NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),sVecs,NB,SCR2,NB,MatsT(0.),SCR1,NB);
         // weights x V**T . dS/dR . V
         std::transform(SCR1, SCR1+nSQ, weights, SCR1, std::multiplies<>());
         // (weights x V**T . dS/dR . V) . V**T
-        Gemm('N','C',NB,NB,NB,MatsT(1.),SCR1,NB,sVecs,NB,MatsT(0.),SCR2,NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,MatsT(1.),SCR1,NB,sVecs,NB,MatsT(0.),SCR2,NB);
         // dV/dR = V . (weights x V**T . dS/dR . V) . V**T
-        Gemm('N','N',NB,NB,NB,MatsT(1.),sVecs,NB,SCR2,NB,MatsT(0.),gradOrtho[iGrad].pointer(),NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),sVecs,NB,SCR2,NB,MatsT(0.),gradOrtho[iGrad].pointer(),NB);
 
       } 
 

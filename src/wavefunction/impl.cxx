@@ -22,6 +22,7 @@
  *  
  */
 #include <wavefunction/impl.hpp>
+#include <wavefunction/swap.hpp>
 
 namespace ChronusQ {
 

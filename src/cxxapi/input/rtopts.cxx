@@ -45,7 +45,9 @@ namespace ChronusQ {
       "RESTARTSTEP",
       "SAVESTEP",
       "RESTART",
-      "SCFFIELD"
+      "SCFFIELD",
+      "PRINTLEVEL",
+      "ORBITALPOPULATION"
     };
 
     // Specified keywords
@@ -286,6 +288,16 @@ namespace ChronusQ {
     // Whether we are restarting an RT calculation
     OPTOPT(
       rt->restart = input.getData<bool>("RT.RESTART");
+    )
+
+    // Amount of printing in the RT calc
+    OPTOPT(
+      rt->printLevel = input.getData<size_t>("RT.PRINTLEVEL");
+    )
+
+    // Amount of printing in the RT calc
+    OPTOPT(
+      rt->orbitalPopFreq = input.getData<size_t>("RT.ORBITALPOPULATION");
     )
 
     return rt;

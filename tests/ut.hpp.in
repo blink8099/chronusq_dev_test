@@ -46,7 +46,6 @@
 #include <chronusq_sys.hpp>
 #include <util/threads.hpp>
 
-
 /**
  *  Test fixture for serial ChronusQ UTs. Sets the number of
  *  SMP threads to 1.

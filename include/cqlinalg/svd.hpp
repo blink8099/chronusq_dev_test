@@ -28,12 +28,8 @@
 namespace ChronusQ {
 
   template <typename _F>
-  int SVD(char JOBU, char JOBVT, int M, int N, _F *A, int LDA, double *S,
-    _F *U, int LDU, _F *VT, int LDVT, CQMemManager &mem);
-
-  template <typename _F>
   size_t ORTH(int M, int N, _F *A, int LDA, double *S,
-    _F *U, int LDU, CQMemManager &mem);
+    _F *U, int LDU);
 
 }; // namespace ChronusQ
 

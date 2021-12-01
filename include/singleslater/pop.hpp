@@ -30,7 +30,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::populationAnalysis() {
 
-    const size_t NB = basisSet().nBasis;
+    const size_t NB = this->basisSet().nBasis;
     MatsT* SCR  = this->memManager.template malloc<MatsT>(NB*NB);
     MatsT* SCR2 = this->memManager.template malloc<MatsT>(NB*NB);
 
@@ -42,7 +42,7 @@ namespace ChronusQ {
     // Mulliken population analysis
     mullikenCharges.clear();
 
-    Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
          this->onePDM->S().pointer(),NB,MatsT(0.),SCR,NB);
 
     for(auto iAtm = 0; iAtm < inputMol.nAtoms; iAtm++) {
@@ -51,9 +51,9 @@ namespace ChronusQ {
       if( iAtm == inputMol.nAtoms-1 )
         iEnd = NB;
       else
-        iEnd = basisSet().mapCen2BfSt[iAtm+1];
+        iEnd = this->basisSet().mapCen2BfSt[iAtm+1];
 
-      size_t iSt = basisSet().mapCen2BfSt[iAtm];
+      size_t iSt = this->basisSet().mapCen2BfSt[iAtm];
 
       mullikenCharges.emplace_back(inputMol.atoms[iAtm].nucCharge);
       for(auto i = iSt; i < iEnd; i++)
@@ -65,9 +65,9 @@ namespace ChronusQ {
     lowdinCharges.clear();
 
 /*
-    Gemm('N','N',NB,NB,NB,T(1.),this->aoints.ortho1,NB,this->onePDM[SCALAR],NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,T(1.),this->aoints.ortho1,NB,this->onePDM[SCALAR],NB,
       T(0.),SCR2,NB);
-    Gemm('N','C',NB,NB,NB,T(1.),this->aoints.ortho1,NB,SCR2,NB,T(0.),SCR,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,T(1.),this->aoints.ortho1,NB,SCR2,NB,T(0.),SCR,NB);
 */
 
     for(auto iAtm = 0; iAtm < inputMol.nAtoms; iAtm++) {
@@ -76,9 +76,9 @@ namespace ChronusQ {
       if( iAtm == inputMol.nAtoms-1 )
         iEnd = NB;
       else
-        iEnd = basisSet().mapCen2BfSt[iAtm+1];
+        iEnd = this->basisSet().mapCen2BfSt[iAtm+1];
 
-      size_t iSt = basisSet().mapCen2BfSt[iAtm];
+      size_t iSt = this->basisSet().mapCen2BfSt[iAtm];
 
       lowdinCharges.emplace_back(inputMol.atoms[iAtm].nucCharge);
       for(auto i = iSt; i < iEnd; i++)

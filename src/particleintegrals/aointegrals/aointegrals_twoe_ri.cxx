@@ -99,7 +99,7 @@ namespace ChronusQ {
 #endif
 
     // S = L L^H -> L^H
-    int INFO = Cholesky('U',NBRI,S,NBRI);
+    int INFO = lapack::potrf(lapack::Uplo::Upper,NBRI,S,NBRI);
 
     if (INFO)
       CErr("Error in Cholesky decomposition of auxiliary basis potential matrix. "
@@ -116,7 +116,7 @@ namespace ChronusQ {
     auto topTriInv = tick();
 
     // S = L^H^-1
-    INFO = TriInv('U','N',NBRI,S,NBRI);
+    INFO = lapack::trtri(lapack::Uplo::Upper,lapack::Diag::NonUnit,NBRI,S,NBRI);
 
     if (INFO)
       CErr("Error in inverse of Cholesky decomposed auxiliary basis potential matrix.");
@@ -130,7 +130,7 @@ namespace ChronusQ {
     size_t NB3   = NB2*NBRI;
     // S^{-1/2}(Q|ij)
     auto ijK = memManager().malloc<double>(NB3);
-    Gemm('T','N',NBRI,NB2,NBRI,double(1.),S,NBRI,pointer(),NBRI,double(0.),ijK,NBRI);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NBRI,NB2,NBRI,double(1.),S,NBRI,pointer(),NBRI,double(0.),ijK,NBRI);
 
     auto durGemm = tock(topGemm);
     std::cout << "  RI-ERI3-Transformation-Gemm duration     = " << durGemm << " s " << std::endl;
@@ -138,7 +138,7 @@ namespace ChronusQ {
 #ifdef __DEBUGERI__
     // Debug output of the ERIs
     auto TempERI4 = memManager_.malloc<double>(NB2*NB2);
-    Gemm('N','T',NB2,NB2,NBRI,double(1.),ijK,NB2,ijK,NB2,double(0.),TempERI4,NB2);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,NB2,NB2,NBRI,double(1.),ijK,NB2,ijK,NB2,double(0.),TempERI4,NB2);
     std::cout << "Two-Electron Integrals (ERIs)" << std::endl;
     for(auto i = 0ul; i < NB; i++)
     for(auto j = 0ul; j < NB; j++)
@@ -487,7 +487,7 @@ namespace ChronusQ {
 
           if (qContrSize > 1 or pContrSize > 1) {
             resP = &qVec[QQ * pContrSize * pqrsAMSize];
-            Gemm('N', 'N', pqrsAMSize, pContrSize, pNprim,
+            blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize, pContrSize, pNprim,
                  1.0, inpP, pqrsAMSize,
                  coefBlocks_[P], pNprim,
                  0.0, resP, pqrsAMSize);
@@ -498,7 +498,7 @@ namespace ChronusQ {
 
         if (rContrSize > 1 or qContrSize > 1) {
           resQ = &rVec[RR * pContrSize * qContrSize * pqrsAMSize];
-          Gemm('N', 'N', pqrsAMSize * pContrSize, qContrSize, qNprim,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize * pContrSize, qContrSize, qNprim,
                1.0, inpQ, pqrsAMSize * pContrSize,
                coefBlocks_[Q], qNprim,
                0.0, resQ, pqrsAMSize * pContrSize);
@@ -509,7 +509,7 @@ namespace ChronusQ {
 
       if (sContrSize > 1 or rContrSize > 1) {
         resR = &sVec[SS * pContrSize * qContrSize * rContrSize * pqrsAMSize];
-        Gemm('N', 'N', pqrsAMSize * pContrSize * qContrSize, rContrSize, rNprim,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize * pContrSize * qContrSize, rContrSize, rNprim,
              1.0, inpR, pqrsAMSize * pContrSize * qContrSize,
              coefBlocks_[R], rNprim,
              0.0, resR, pqrsAMSize * pContrSize * qContrSize);
@@ -520,7 +520,7 @@ namespace ChronusQ {
 
     if (sContrSize > 1) {
       resS = &workBlock[0];
-      Gemm('N', 'N', pqrsAMSize * pContrSize * qContrSize * rContrSize, sContrSize, sNprim,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, pqrsAMSize * pContrSize * qContrSize * rContrSize, sContrSize, sNprim,
            1.0, inpS, pqrsAMSize * pContrSize * qContrSize * rContrSize,
            coefBlocks_[S], sNprim,
            0.0, resS, pqrsAMSize * pContrSize * qContrSize * rContrSize);
@@ -561,7 +561,10 @@ namespace ChronusQ {
   std::map<std::pair<size_t, size_t>, dcomplex*>
   InCoreCholeskyRIERI<dcomplex>::computeDiagonalLibcint(
       BasisSet&, dcomplex*, bool) {
+
+    std::map<std::pair<size_t, size_t>, dcomplex*> dummy;
     CErr("Only real GTOs are allowed",std::cout);
+    return dummy;
   };
   template <>
   std::map<std::pair<size_t, size_t>, double*>
@@ -671,7 +674,9 @@ namespace ChronusQ {
   std::map<std::pair<size_t, size_t>, dcomplex*>
   InCoreCholeskyRIERI<dcomplex>::computeDiagonalLibint(
       BasisSet&, dcomplex*, bool) {
+    std::map<std::pair<size_t, size_t>, dcomplex*> dummy;
     CErr("Only real GTOs are allowed",std::cout);
+    return dummy;
   };
   template <>
   std::map<std::pair<size_t, size_t>, double*>
@@ -1240,14 +1245,14 @@ namespace ChronusQ {
       beginCDalg = tick();
       // [(m|Q) - L_m^P L_Q^P]
       for (size_t nBatch(NBRI / NB + 1), i(0); i < nBatch; i++)
-        Gemm('N', 'T', NB2, 1,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, NB2, 1,
              NBRI - i * NB > NB ? NB : NBRI - i * NB,
              -1.0, allocs[i], NB2,
              allocs[i] + pivots_[NBRI], NB2,
              1.0, L[NBRI], NB2);
 
       // 1/L_QQ [(m|Q) - L_m^P L_Q^P]
-      Scale(NB2, 1.0 / L_QQ, L[NBRI], 1);
+      blas::scal(NB2, 1.0 / L_QQ, L[NBRI], 1);
 
       // Zero the upper triangle
       #pragma omp parallel for
@@ -1974,7 +1979,7 @@ namespace ChronusQ {
 
       beginCDalgMM = tick();
 
-      Gemm('N', 'T', D.size(), lenQ, pivots_.size(),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, D.size(), lenQ, pivots_.size(),
            -1.0, L, D.size(),
            L, D.size(),
            1.0, M, D.size());
@@ -2037,12 +2042,12 @@ namespace ChronusQ {
         beginCDalgMV = tick();
         std::copy_n(M + Qmax * D.size(), D.size(), Lq);
 
-        Gemm('N', 'T', D.size(), 1, C.size(),
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, D.size(), 1, C.size(),
              -1.0, L + pivots_.size() * D.size(), D.size(),
              L + Qmax + pivots_.size() * D.size(), D.size(),
              1.0, Lq, D.size());
 
-        Scale(D.size(), 1.0 / sqrt(diag[D[Qmax]]), Lq, 1);
+        blas::scal(D.size(), 1.0 / sqrt(diag[D[Qmax]]), Lq, 1);
 
         innerCDalgMV += tock(beginCDalgMV);
 
@@ -2426,7 +2431,7 @@ namespace ChronusQ {
 
       beginCDalgMM = tick();
 
-      Gemm('N', 'T', lenD, lenQ, pivots_.size(),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, lenD, lenQ, pivots_.size(),
            -1.0, L, lenD,
            L, lenD,
            1.0, M, lenD);
@@ -2489,12 +2494,12 @@ namespace ChronusQ {
         beginCDalgMV = tick();
         std::copy_n(M + Qmax * lenD, lenD, Lq);
 
-        Gemm('N', 'T', lenD, 1, C.size(),
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, lenD, 1, C.size(),
              -1.0, L + pivots_.size() * lenD, lenD,
              L + Qmax + pivots_.size() * lenD, lenD,
              1.0, Lq, lenD);
 
-        Scale(lenD, 1.0 / sqrt(diag[D[Qmax]]), Lq, 1);
+        blas::scal(lenD, 1.0 / sqrt(diag[D[Qmax]]), Lq, 1);
 
         innerCDalgMV += tock(beginCDalgMV);
 
@@ -2985,27 +2990,27 @@ namespace ChronusQ {
       // Bring new ERI to preLenB level: 6 block GEMMs
       beginCDalgMM = tick();
 
-      Gemm('N', 'T', lenQ - LevalEnd, lenQ - LevalEnd, preLenB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, lenQ - LevalEnd, lenQ - LevalEnd, preLenB,
            -1.0, L + LevalEnd, lenD,
            L + LevalEnd, lenD,
            1.0, ERIvecAlloc + LevalEnd + LevalEnd * lenD, lenD);
-      Gemm('N', 'T', lenQ - LevalEnd, SevalBegin - RevalEnd, preLenB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, lenQ - LevalEnd, SevalBegin - RevalEnd, preLenB,
            -1.0, L + LevalEnd, lenD,
            L + RevalEnd, lenD,
            1.0, ERIvecAlloc + LevalEnd + RevalEnd * lenD, lenD);
-      Gemm('N', 'T', SevalBegin - RevalEnd, lenQ - LevalEnd, preLenB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, SevalBegin - RevalEnd, lenQ - LevalEnd, preLenB,
            -1.0, L + RevalEnd, lenD,
            L + LevalEnd, lenD,
            1.0, ERIvecAlloc + RevalEnd + LevalEnd * lenD, lenD);
-      Gemm('N', 'T', SevalBegin - RevalEnd, SevalBegin - RevalEnd, preLenB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, SevalBegin - RevalEnd, SevalBegin - RevalEnd, preLenB,
            -1.0, L + RevalEnd, lenD,
            L + RevalEnd, lenD,
            1.0, ERIvecAlloc + RevalEnd + RevalEnd * lenD, lenD);
-      Gemm('N', 'T', lenD - nERIvec, lenQ - LevalEnd, preLenB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, lenD - nERIvec, lenQ - LevalEnd, preLenB,
            -1.0, L + nERIvec, lenD,
            L + LevalEnd, lenD,
            1.0, ERIvecAlloc + nERIvec + LevalEnd * lenD, lenD);
-      Gemm('N', 'T', lenD - nERIvec, SevalBegin - RevalEnd, preLenB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, lenD - nERIvec, SevalBegin - RevalEnd, preLenB,
            -1.0, L + nERIvec, lenD,
            L + RevalEnd, lenD,
            1.0, ERIvecAlloc + nERIvec + RevalEnd * lenD, lenD);
@@ -3016,7 +3021,7 @@ namespace ChronusQ {
       prettyPrintSmart(std::cout, "Mpq ERI", ERIvecAlloc, lenD, nERIvec, lenD);
 #endif
 
-      Gemm('N', 'T', lenD, nERIvec, pivots_.size() - preLenB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, lenD, nERIvec, pivots_.size() - preLenB,
            -1.0, L + preLenB * lenD, lenD,
            L + preLenB * lenD, lenD,
            1.0, ERIvecAlloc, lenD);
@@ -3081,12 +3086,12 @@ namespace ChronusQ {
         beginCDalgMV = tick();
         std::copy_n(ERIvecAlloc + Qmax * lenD, lenD, Lq);
 
-        Gemm('N', 'T', lenD, 1, C.size(),
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, lenD, 1, C.size(),
              -1.0, L + pivots_.size() * lenD, lenD,
              L + Qmax + pivots_.size() * lenD, lenD,
              1.0, Lq, lenD);
 
-        Scale(lenD, 1.0 / sqrt(diag[D[Qmax]]), Lq, 1);
+        blas::scal(lenD, 1.0 / sqrt(diag[D[Qmax]]), Lq, 1);
 
         innerCDalgMV += tock(beginCDalgMV);
 
@@ -4149,11 +4154,11 @@ namespace ChronusQ {
 
       beginCDalg = tick();
       std::copy_n(rsIter->vec, candidateSize, Lq);
-      Gemm('N', 'T', candidateSize, 1, pivots_.size(),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::Trans, candidateSize, 1, pivots_.size(),
            -1.0, L, candidateSize,
            L + rsIndex, candidateSize,
            1.0, Lq, candidateSize);
-      Scale(candidateSize, 1.0 / sqrt(rsIter->diag), Lq, 1);
+      blas::scal(candidateSize, 1.0 / sqrt(rsIter->diag), Lq, 1);
       cumeCDalg += tock(beginCDalg);
 
       rsIter->diag = 0.0;

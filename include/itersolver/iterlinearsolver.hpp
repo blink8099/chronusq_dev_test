@@ -56,7 +56,7 @@ namespace ChronusQ {
     // Compute norms of RHS
     for(auto iRHS = 0; iRHS < nRHS; iRHS++)
       rhsNorm_.emplace_back(
-        TwoNorm<double>(this->N_, RHS_ + iRHS*this->N_, 1)
+        blas::nrm2(this->N_, RHS_ + iRHS*this->N_, 1)
       );
 
     std::cout << "\n  * IterLinearSolver has recieved " << nRHS 
@@ -237,7 +237,7 @@ namespace ChronusQ {
     resNorm_.emplace_back(nShift * nRHS,0.);
     for(auto iDo = 0; iDo < nShift * nRHS; iDo++)
       resNorm_.back()[iDo] = 
-        TwoNorm<double>(this->N_, RES_ + iDo*this->N_, 1);
+        blas::nrm2(this->N_, RES_ + iDo*this->N_, 1);
 
     //prettyPrintSmart(std::cout,"R0",RES_,this->N_,1,this->N_);
 

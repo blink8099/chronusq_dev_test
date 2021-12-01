@@ -35,7 +35,7 @@ namespace ChronusQ {
     // Allocate space for eigenvalues and scratch
     double *W = mem.malloc<double>(N);
     _F1* SCR  = mem.malloc<_F1>(N*N);
-    _F2* SCR2  = mem.malloc<_F1>(N*N);
+    _F2* SCR2  = mem.malloc<_F2>(N*N);
 
     std::copy_n(A,N*N,SCR); // Copy A to SCR
 
@@ -48,7 +48,7 @@ namespace ChronusQ {
       SCR2[i + j*N] = SCR[i + j*N] * func(W[j]);
     
     // Compute B**H = V * X**H
-    Gemm('N','C',N,N,N,_F2(1.),SCR,N,SCR2,N,_F2(0.),B,LDB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,N,N,N,_F2(1.),SCR,N,SCR2,N,_F2(0.),B,LDB);
 
     // FIXME: Use MKL for this transpose when direct is merged in
     Eigen::Map<Eigen::Matrix<_F2,Eigen::Dynamic,Eigen::Dynamic,
@@ -60,6 +60,10 @@ namespace ChronusQ {
 
   };
 
+  template void MatDiagFunc(const std::function<double(double)> &func, size_t N, dcomplex *A, size_t LDA,
+                            dcomplex *B, size_t LDB, CQMemManager &mem);
+  template void MatDiagFunc(const std::function<double(double)> &func, size_t N, double *A, size_t LDA,
+                            double *B, size_t LDB, CQMemManager &mem);
 
 
   template <typename _FExp, typename _F1, typename _F2>

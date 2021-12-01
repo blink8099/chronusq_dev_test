@@ -25,12 +25,20 @@
 #include <singleslater/impl.hpp>
 #include <corehbuilder/impl.hpp>
 #include <fockbuilder/impl.hpp>
+#include <mointstransformer/impl.hpp>
 
 namespace ChronusQ {
 
   template class SingleSlater<double,double>;
   template class SingleSlater<dcomplex,double>;
   template class SingleSlater<dcomplex,dcomplex>;
+
+  // Handle MatsT on scr file
+  // TODO: implement IntsT=dcomplex
+  template void SingleSlater<double,double>::getScr1PDM<double>(SafeFile &);
+  template void SingleSlater<dcomplex,double>::getScr1PDM<double>(SafeFile &);
+  template void SingleSlater<dcomplex,double>::getScr1PDM<dcomplex>(SafeFile &);
+
 
   // Instantiate copy constructors
   template SingleSlater<dcomplex,double>::SingleSlater(const SingleSlater<double,double> &, int);

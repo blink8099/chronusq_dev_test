@@ -50,6 +50,7 @@ namespace ChronusQ {
     std::vector<std::string> allowedKeywords = {
       "ALG",          // Direct or Incore?
       "GRADALG",      // Direct or Incore for gradients?
+      "TPITRANSALG",   // N5 or N6
       "SCHWARZ",     // double
       "RI",           // AUXBASIS or CHOLESKY or False
       "RITHRESHOLD",  // double
@@ -59,7 +60,7 @@ namespace ChronusQ {
       "RIGENCONTR",   // True or False
       "RIBUILD4INDEX",// True or False
       "FINITENUCLEI", // True or False
-      "NONRELCOULOMB",// True or False
+      "BARECOULOMB",  // True or False
       "DC",           // True or False
       "DIRACCOULOMB", // True or False
       "BREIT",        // True or False
@@ -114,6 +115,10 @@ namespace ChronusQ {
     std::string ALG = "DIRECT";
     OPTOPT( ALG = input.getData<std::string>(int_sec+".ALG"); )
     trim(ALG);
+    
+    std::string TPITRANSALG = "N6"; 
+    OPTOPT( TPITRANSALG = input.getData<std::string>(int_sec+".TPITRANSALG"); )
+    trim(TPITRANSALG);
 
     // Control Variables
     CONTRACTION_ALGORITHM contrAlg = CONTRACTION_ALGORITHM::DIRECT; ///< Alg for 2-body contraction
@@ -132,7 +137,7 @@ namespace ChronusQ {
     else if( not ALG.compare("INCORE") )
       contrAlg = CONTRACTION_ALGORITHM::INCORE;
     else
-      CErr(ALG + "not a valid INTS.ALG",out);
+      CErr(ALG + " not a valid INTS.ALG",out);
 
     // Parse Schwarz threshold
     OPTOPT( threshSchwarz = input.getData<double>(int_sec+".SCHWARZ"); )
@@ -226,10 +231,26 @@ namespace ChronusQ {
 
       aoi = std::dynamic_pointer_cast<IntegralsBase>(giaoint);
     }
+    
+    if (not TPITRANSALG.compare("N5")) {
+      if (contrAlg == CONTRACTION_ALGORITHM::DIRECT) {
+        aoi->TPITransAlg = TPI_TRANSFORMATION_ALG::DIRECT_N5;
+        CErr("DIRECT_N5 TPI Transformation is NYI");
+      } else
+        aoi->TPITransAlg = TPI_TRANSFORMATION_ALG::INCORE_N5;
+    } else if (not TPITRANSALG.compare("N6")){
+      if (contrAlg == CONTRACTION_ALGORITHM::DIRECT)
+        aoi->TPITransAlg = TPI_TRANSFORMATION_ALG::DIRECT_N6;
+      else
+        aoi->TPITransAlg = TPI_TRANSFORMATION_ALG::INCORE_N6;
+    } else {
+      CErr(TPITRANSALG + " not a valid INTS.TPITRANSALG",out);
+    }
 
     // Print
     out <<  *aoi << std::endl;
 
+    
     return aoi;
 
   }; // CQIntsOptions

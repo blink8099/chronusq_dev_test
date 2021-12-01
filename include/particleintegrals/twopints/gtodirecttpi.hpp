@@ -111,7 +111,7 @@ namespace ChronusQ {
         out << "  Two particle integral:" << std::endl;
       else
         out << "  TPI[" << s << "]:" << std::endl;
-      out << "  " << std::setw(28) << "  Contraction Algorithm:";
+      out << "    * Contraction Algorithm: ";
       out << "DIRECT";
       out << std::endl;
 
@@ -199,6 +199,8 @@ namespace ChronusQ {
         MPI_Comm,
         const bool,
         std::vector<TwoBodyContraction<MatsT>>&) const;
+    
+    size_t directScaffoldNewSCRSize() const;
 
     void direct4CScaffold(
         MPI_Comm,

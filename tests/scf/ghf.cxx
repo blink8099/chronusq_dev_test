@@ -27,7 +27,18 @@
 // KCaKrK sto-3g test for fchk parsing
 TEST( GHF, KCaKr_sto3G ) {
 
-  CQSCFFCHKTEST( "scf/serial/ghf/KCaKr_sto-3G", "KCaKr_sto-3G.bin.ref", "KCaKr_sto-3G.fchk" );
+  CQSCFTEST( "scf/serial/ghf/KCaKr_sto-3G", "KCaKr_sto-3G.bin.ref", 1e-8,
+      true, true, true, true, true, true,
+      false, "KCaKr_sto-3G.fchk" );
+
+};
+
+// B sto-3g test for MO swapping
+TEST( GHF, B_swap_GHF_sto3G ) {
+
+  CQSCFTEST( "scf/serial/ghf/B_swap_GHF_sto-3g", "B_swap_GHF_sto-3g.bin.ref",
+    1e-8, true, true, true, true, true, true,
+    true );
 
 };
 

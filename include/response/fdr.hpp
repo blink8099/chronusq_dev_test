@@ -30,6 +30,8 @@
 #include <cqlinalg/blas1.hpp>
 #include <itersolver.hpp>
 
+#include <lapack.hh>
+
 namespace ChronusQ {
 
   template <typename T>
@@ -154,7 +156,12 @@ namespace ChronusQ {
         LinSolve(N,nRHS,shiftedMat,1,1,DescA,distSOL,1,1,DescB);
       else
 #endif
-        LinSolve(N,nRHS,shiftedMat,N,SOL,N,memManager_);
+      { 
+        int64_t* IPIV = memManager_.malloc<int64_t>(N);
+        lapack::gesv(N,nRHS,shiftedMat,N,IPIV,SOL,N);
+        memManager_.free(IPIV);
+      }
+      
       ProgramTimer::tock("Solve Linear System");
 
 

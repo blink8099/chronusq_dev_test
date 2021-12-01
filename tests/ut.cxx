@@ -24,6 +24,11 @@
 
 
 #include <cxxapi/boilerplate.hpp>
+// Workaround to intel compiler bug that breaks libint ERIs
+#if !LIBINT2_CONSTEXPR_STATICS
+  #include <libint2/statics_definition.h>
+#endif
+
 
 // GTest header
 #include <gtest/gtest.h>

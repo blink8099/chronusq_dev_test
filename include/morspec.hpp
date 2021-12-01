@@ -424,8 +424,9 @@ namespace ChronusQ {
 
             double *SVal = this->memManager_.template malloc<double>(nUse);
             dcomplex *DUMMY = nullptr;
-            SVD('O','N',N,nVec,modelBasis1_,N,SVal,DUMMY,1,DUMMY,1,
-              this->memManager_);
+
+            lapack::gesvd(lapack::Job::OverwriteVec,lapack::Job::NoVec,
+              N,nVec,modelBasis1_,N,SVal,DUMMY,1,DUMMY,1);
 
             double orthoTol = 1e-12 * SVal[0] * std::max(N,nVec);
             for(auto k = 0; k < nUse; k++) if(SVal[k] > orthoTol) nOrtho++;
@@ -691,17 +692,17 @@ namespace ChronusQ {
 
 
       // Compute the residual
-      Gemm('N','N',N,nModel,nModel,dcomplex(1.),modelBasis1_,N,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nModel,nModel,dcomplex(1.),modelBasis1_,N,
           this->resResults.VR,nModel,dcomplex(0.),RES,N);
       for(auto k = 0; k < nModel; k++)
-        Scale(N,-dcomplex(this->resResults.W[k]),RES + k*N,1);
+        blas::scal(N,-dcomplex(this->resResults.W[k]),RES + k*N,1);
 
-      Gemm('N','N',N,nModel,nModel,dcomplex(1.),AV,N,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nModel,nModel,dcomplex(1.),AV,N,
           this->resResults.VR,nModel,dcomplex(1.),RES,N);
 
       double * rNorms = this->memManager_.template malloc<double>(nModel);
       for(auto k = 0; k < nModel; k++)
-        rNorms[k] = TwoNorm<double>(N,RES+k*N,1);
+        rNorms[k] = blas::nrm2(N,RES+k*N,1);
 
 
       // Sort the vectors on residual
@@ -722,7 +723,7 @@ namespace ChronusQ {
 
         std::swap(rNorms[k],rNorms[ind]);
         std::swap(this->resResults.W[k],this->resResults.W[ind]);
-        Swap(nModel,this->resResults.VR + k*nModel  , 1, 
+        blas::swap(nModel,this->resResults.VR + k*nModel  , 1, 
                     this->resResults.VR + ind*nModel, 1);
 
       }
@@ -770,7 +771,7 @@ namespace ChronusQ {
         while( ind < k ) ind = indx[ind];
 
         std::swap(this->resResults.W[k],this->resResults.W[ind]);
-        Swap(nModel,this->resResults.VR + k*nModel  , 1, 
+        blas::swap(nModel,this->resResults.VR + k*nModel  , 1, 
                     this->resResults.VR + ind*nModel, 1);
 
       }
@@ -801,17 +802,17 @@ namespace ChronusQ {
 
 
 
-      Gemm('N','N',N,nRoots,nModel,dcomplex(1.),modelBasis1_,N,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nRoots,nModel,dcomplex(1.),modelBasis1_,N,
           this->resResults.VR,nModel,dcomplex(0.),RES,N);
       for(auto k = 0; k < nRoots; k++)
-        Scale(N,-dcomplex(this->resResults.W[k]),RES + k*N,1);
+        blas::scal(N,-dcomplex(this->resResults.W[k]),RES + k*N,1);
 
-      Gemm('N','N',N,nRoots,nModel,dcomplex(1.),AV,N,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nRoots,nModel,dcomplex(1.),AV,N,
           this->resResults.VR,nModel,dcomplex(1.),RES,N);
 
 
       for(auto k = 0; k < nRoots; k++) {
-        rNorms[k] = TwoNorm<double>(N,RES+k*N,1);
+        rNorms[k] = blas::nrm2(N,RES+k*N,1);
       }
 
       
@@ -825,21 +826,21 @@ namespace ChronusQ {
           nModel*nModel);
 
       // SCR = V* S V
-      Gemm('C','N',nModel,nModel,N/2,dcomplex(1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nModel,nModel,N/2,dcomplex(1.),
         modelBasis1_,N,modelBasis1_,N,dcomplex(0.),SCR,nModel);
-      Gemm('C','N',nModel,nModel,N/2,dcomplex(-1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nModel,nModel,N/2,dcomplex(-1.),
         modelBasis1_+N/2,N,modelBasis1_+N/2,N,dcomplex(1.),SCR,nModel);
 
       // SCR = c* SCR c
-      Gemm('N','N',nModel,nRoots,nModel,dcomplex(1.),SCR,nModel,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,nModel,nRoots,nModel,dcomplex(1.),SCR,nModel,
           this->resResults.VR,nModel,dcomplex(0.),SCR2,nModel);
-      Gemm('C','N',nRoots,nRoots,nModel,dcomplex(1.),this->resResults.VR,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nRoots,nRoots,nModel,dcomplex(1.),this->resResults.VR,
           nModel,SCR2,nModel,dcomplex(0.),SCR,nRoots);
 
     //prettyPrintSmart(std::cout,"SCR",SCR,nRoots,nRoots,nRoots);
 
       for(auto k = 0; k < nRoots; k++)
-        Scale(nModel,dcomplex(1./std::sqrt(SCR[k*(nRoots+1)])),
+        blas::scal(nModel,dcomplex(1./std::sqrt(SCR[k*(nRoots+1)])),
             this->resResults.VR + k*nModel,1);
 
 
@@ -852,15 +853,15 @@ namespace ChronusQ {
 
       /*
       // SCR = V* S V
-      Gemm('C','N',nModel,nModel,N/2,dcomplex(1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nModel,nModel,N/2,dcomplex(1.),
         modelBasis1_,N,modelBasis1_,N,dcomplex(0.),SCR,nModel);
-      Gemm('C','N',nModel,nModel,N/2,dcomplex(-1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nModel,nModel,N/2,dcomplex(-1.),
         modelBasis1_+N/2,N,modelBasis1_+N/2,N,dcomplex(1.),SCR,nModel);
 
       // SCR = c* SCR c
-      Gemm('N','N',nModel,nRoots,nModel,dcomplex(1.),SCR,nModel,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,nModel,nRoots,nModel,dcomplex(1.),SCR,nModel,
           this->resResults.VR,nModel,dcomplex(0.),SCR2,nModel);
-      Gemm('C','N',nRoots,nRoots,nModel,dcomplex(1.),this->resResults.VR,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nRoots,nRoots,nModel,dcomplex(1.),this->resResults.VR,
           nModel,SCR2,nModel,dcomplex(0.),SCR,nRoots);
 
       prettyPrintSmart(std::cout,"SCR After",SCR,nRoots,nRoots,nRoots);
@@ -874,7 +875,7 @@ namespace ChronusQ {
       prettyPrintSmart(std::cout,"O",O,nRoots,1,nRoots);
 
       // c w O^-1/2
-      Gemm('N','N',nModel,nRoots,nRoots,dcomplex(1.),this->resResults.VR,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,nModel,nRoots,nRoots,dcomplex(1.),this->resResults.VR,
         nModel,SCR,nModel,dcomplex(0.),SCR2,nModel);
 
       prettyPrintSmart(std::cout,"EV",SCR,nRoots,nRoots,nRoots);
@@ -882,19 +883,19 @@ namespace ChronusQ {
       std::copy_n(SCR2,nModel*nRoots,this->resResults.VR);
 
       for(auto k = 0; k < nRoots; k++)
-        Scale(nModel,dcomplex(1./std::sqrt(O[k])),
+        blas::scal(nModel,dcomplex(1./std::sqrt(O[k])),
             this->resResults.VR + k*nModel,1);
 
       // SCR = V* S V
-      Gemm('C','N',nModel,nModel,N/2,dcomplex(1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nModel,nModel,N/2,dcomplex(1.),
         modelBasis1_,N,modelBasis1_,N,dcomplex(0.),SCR,nModel);
-      Gemm('C','N',nModel,nModel,N/2,dcomplex(-1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nModel,nModel,N/2,dcomplex(-1.),
         modelBasis1_+N/2,N,modelBasis1_+N/2,N,dcomplex(1.),SCR,nModel);
 
       // SCR = c* SCR c
-      Gemm('N','N',nModel,nRoots,nModel,dcomplex(1.),SCR,nModel,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,nModel,nRoots,nModel,dcomplex(1.),SCR,nModel,
           this->resResults.VR,nModel,dcomplex(0.),SCR2,nModel);
-      Gemm('C','N',nRoots,nRoots,nModel,dcomplex(1.),this->resResults.VR,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nRoots,nRoots,nModel,dcomplex(1.),this->resResults.VR,
           nModel,SCR2,nModel,dcomplex(0.),SCR,nRoots);
 
       prettyPrintSmart(std::cout,"SCR AFTER",SCR,nRoots,nRoots,nRoots);
@@ -1002,11 +1003,11 @@ namespace ChronusQ {
       if( isRoot ) {
 
         // Form full M' = V**H M V
-        Gemm('C','N',nModel,nModel,N,T(1.),modelBasis1_,N,modelBasis1_LT_,N,
-          T(0.), this->fullMatrix_,nModel);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nModel,nModel,N,T(1.),
+          modelBasis1_,N,modelBasis1_LT_,N,T(0.), this->fullMatrix_,nModel);
 
         // M' = L L**H
-        int INFO = Cholesky('L',nModel,this->fullMatrix_,nModel);
+        int INFO = lapack::potrf(lapack::Uplo::Lower,nModel,this->fullMatrix_,nModel);
         if( INFO != 0 ) {
 
           CErr("Cholesky failed: H is not positive semidefinite");
@@ -1014,13 +1015,12 @@ namespace ChronusQ {
         }
 
         // V -> VL**-H
-        TriLinSolve('R','L','C','N',N,nModel,dcomplex(1.),this->fullMatrix_,
-          nModel,modelBasis1_,N);
+        blas::trsm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Lower,blas::Op::ConjTrans,blas::Diag::NonUnit,
+          N,nModel,dcomplex(1.),this->fullMatrix_,nModel,modelBasis1_,N);
 
         // MV -> MVL**-H
-        TriLinSolve('R','L','C','N',N,nModel,dcomplex(1.),this->fullMatrix_,
-          nModel,modelBasis1_LT_,N);
-
+        blas::trsm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Lower,blas::Op::ConjTrans,blas::Diag::NonUnit,
+          N,nModel,dcomplex(1.),this->fullMatrix_,nModel,modelBasis1_LT_,N);
       }
 
 
@@ -1067,7 +1067,7 @@ namespace ChronusQ {
 
       // Form V**H M**H K M V in FM
       if( isRoot )
-        Gemm('C','N',nModel,nModel,N,T(1.),modelBasis1_LT_,N,KV,N,T(0.),
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nModel,nModel,N,T(1.),modelBasis1_LT_,N,KV,N,T(0.),
           this->fullMatrix_,nModel);
 
 
@@ -1085,9 +1085,9 @@ namespace ChronusQ {
 
         for(auto k = 0; k < nModel; k++) {
           this->resResults.W[k] = std::sqrt(this->resResults.W[k]);
-          Scale(nModel,dcomplex(std::sqrt(this->resResults.W[k]/2.)),
+          blas::scal(nModel,dcomplex(std::sqrt(this->resResults.W[k]/2.)),
             this->resResults.VR + k*nModel,1);
-          Scale(nModel,
+          blas::scal(nModel,
             dcomplex(std::sqrt(0.5)/std::sqrt(this->resResults.W[k])),
             this->resResults.VL + k*nModel,1);
         }
@@ -1096,9 +1096,9 @@ namespace ChronusQ {
         ritzVecR_ = this->memManager_.template malloc<dcomplex>(N*nModel);
         ritzVecL_ = this->memManager_.template malloc<dcomplex>(N*nModel);
 
-        Gemm('N','N',N,nModel,nModel,dcomplex(1.),modelBasis1_,N,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nModel,nModel,dcomplex(1.),modelBasis1_,N,
            this->resResults.VR,nModel,dcomplex(0.),ritzVecR_,N);
-        Gemm('N','N',N,nModel,nModel,dcomplex(1.),modelBasis1_LT_,N,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nModel,nModel,dcomplex(1.),modelBasis1_LT_,N,
            this->resResults.VL,nModel,dcomplex(0.),ritzVecL_,N);
 
 
@@ -1107,7 +1107,7 @@ namespace ChronusQ {
 
         dcomplex * RES = this->memManager_.template malloc<dcomplex>(nModel*N);
 
-        Gemm('N','N',N,nModel,nModel,dcomplex(1.),KV,N,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nModel,nModel,dcomplex(1.),KV,N,
            this->resResults.VR,nModel,dcomplex(0.),RES,N);
 
         for(auto k = 0; k < nModel; k++) {
@@ -1116,7 +1116,7 @@ namespace ChronusQ {
             -dcomplex(this->resResults.W[k]*this->resResults.W[k]), 
             ritzVecR_ + k*N, N, RES + k*N, N);
 
-          resNorms_[k] = TwoNorm<double>(N,RES + k*N,1);
+          resNorms_[k] = blas::nrm2(N,RES + k*N,1);
 
         }
 
@@ -1193,7 +1193,10 @@ namespace ChronusQ {
       std::cout << "    * ORTHONORMALIZING PAIRED BASIS via SVD" << std::endl;
       double * SVAL = this->memManager_.template malloc<double>(2*nModel);
       dcomplex * dummy = nullptr;
-      SVD('O','N',N,2*nModel,VEXP,N,SVAL,dummy,1,dummy,1,this->memManager_);
+
+      lapack::gesvd(lapack::Job::OverwriteVec,lapack::Job::NoVec,
+        N,2*nModel,VEXP,N,SVAL,dummy,1,dummy,1);
+
       double orthoTol = 1e-12 * SVAL[0] * N;
 
       size_t nOrtho = 0;
@@ -1219,25 +1222,26 @@ namespace ChronusQ {
       ss.incMet = true;
 
 
-      int INFO = Cholesky('L',nOrtho,this->fullMatrix_,nOrtho);
+      int INFO = lapack::potrf(lapack::Uplo::Lower,nOrtho,this->fullMatrix_,nOrtho);
       if( INFO != 0 ) {
 
         CErr("Cholesky failed: H is not positive semidefinite");
 
       }
 
-      TriLinSolve('R','L','C','N',N,nOrtho,dcomplex(1.),this->fullMatrix_,
-        nOrtho,VEXP,N);
-      TriLinSolve('R','L','C','N',N,nOrtho,dcomplex(1.),this->fullMatrix_,
-        nOrtho,AVEXP,N);
+      blas::trsm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Lower,blas::Op::ConjTrans,blas::Diag::NonUnit,
+        N,nOrtho,dcomplex(1.),this->fullMatrix_,nOrtho,VEXP,N);
+
+      blas::trsm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Lower,blas::Op::ConjTrans,blas::Diag::NonUnit,
+        N,nOrtho,dcomplex(1.),this->fullMatrix_,nOrtho,AVEXP,N);
 
 
       std::cout << "    * FORMING S INNER PRODUCT FOR EIGENSYSTEM" 
         << std::endl;
       // FM = V* S V
-      Gemm('C','N',nOrtho,nOrtho,N/2,dcomplex(1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nOrtho,nOrtho,N/2,dcomplex(1.),
         VEXP,N,VEXP,N,dcomplex(0.),this->fullMatrix_,nOrtho);
-      Gemm('C','N',nOrtho,nOrtho,N/2,dcomplex(-1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nOrtho,nOrtho,N/2,dcomplex(-1.),
         VEXP+N/2,N,VEXP+N/2,N,dcomplex(1.),this->fullMatrix_,nOrtho);
 
 
@@ -1262,38 +1266,39 @@ namespace ChronusQ {
 
 
       // Orthonormalize Ritz coeffs wrt S
-      Gemm('C','N',nOrtho,nOrtho,N/2,dcomplex(1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nOrtho,nOrtho,N/2,dcomplex(1.),
         VEXP,N,VEXP,N,dcomplex(0.),this->fullMatrix_,nOrtho);
-      Gemm('C','N',nOrtho,nOrtho,N/2,dcomplex(-1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nOrtho,nOrtho,N/2,dcomplex(-1.),
         VEXP+N/2,N,VEXP+N/2,N,dcomplex(1.),this->fullMatrix_,nOrtho);
 
       dcomplex * SCR = 
         this->memManager_.template malloc<dcomplex>(nOrtho*nOrtho);
-      Gemm('N','N',nOrtho, nOrtho/2, nOrtho, dcomplex(1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,nOrtho, nOrtho/2, nOrtho, dcomplex(1.),
           this->fullMatrix_, nOrtho, this->resResults.VR, nOrtho,
           dcomplex(0.), SCR,nOrtho);
-      Gemm('C','N', nOrtho/2, nOrtho/2, nOrtho, dcomplex(1.),
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans, nOrtho/2, nOrtho/2, nOrtho, dcomplex(1.),
           this->resResults.VR, nOrtho, SCR, nOrtho,
           dcomplex(0.), this->fullMatrix_, nOrtho/2);
 
-      SVD('O','N',nOrtho/2, nOrtho/2, this->fullMatrix_, nOrtho/2,
-          SVAL,dummy,1,dummy,1,this->memManager_);
+      lapack::gesvd(lapack::Job::OverwriteVec,lapack::Job::NoVec,
+        nOrtho/2,nOrtho/2,this->fullMatrix_,nOrtho/2,SVAL,dummy,1,dummy,1);
 
-      Gemm('N','N', nOrtho, nOrtho/2, nOrtho/2, dcomplex(1.),
+
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans, nOrtho, nOrtho/2, nOrtho/2, dcomplex(1.),
           this->resResults.VR, nOrtho, this->fullMatrix_, nOrtho/2,
           dcomplex(0.), SCR, nOrtho);
 
       std::copy_n(SCR,nOrtho*nOrtho/2,this->resResults.VR);
 
       for(auto k = 0; k < nOrtho / 2; k++)
-        Scale(nOrtho, dcomplex( 1. / std::sqrt(std::abs(SVAL[k])) ), 
+        blas::scal(nOrtho, dcomplex( 1. / std::sqrt(std::abs(SVAL[k])) ), 
             this->resResults.VR + k*nOrtho, 1) ;
 
 
 
       // Compute Ritz Vectors
       ritzVecR_ = this->memManager_.template malloc<dcomplex>(N*nOrtho/2);
-      Gemm('N','N',N,nOrtho/2,nOrtho,dcomplex(1.),VEXP,N,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nOrtho/2,nOrtho,dcomplex(1.),VEXP,N,
          this->resResults.VR,nOrtho,dcomplex(0.),ritzVecR_,N);
 
 
@@ -1303,16 +1308,16 @@ namespace ChronusQ {
       std::copy_n(ritzVecR_,N*nOrtho/2,RES);
 
       for(auto k = 0; k < nOrtho/2; k++)
-        Scale(N,-dcomplex(this->resResults.W[k]), RES + k*N, 1);
+        blas::scal(N,-dcomplex(this->resResults.W[k]), RES + k*N, 1);
 
-      Gemm('N','N',N/2,nOrtho/2,nOrtho,dcomplex(1.),AVEXP,N,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N/2,nOrtho/2,nOrtho,dcomplex(1.),AVEXP,N,
          this->resResults.VR,nOrtho,dcomplex(1.),RES,N);
-      Gemm('N','N',N/2,nOrtho/2,nOrtho,dcomplex(-1.),AVEXP+N/2,N,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N/2,nOrtho/2,nOrtho,dcomplex(-1.),AVEXP+N/2,N,
          this->resResults.VR,nOrtho,dcomplex(1.),RES + N/2,N);
 
       resNorms_ = this->memManager_.template malloc<double>(nOrtho/2);
       for(auto k = 0; k < nOrtho/2; k++)
-        resNorms_[k] = TwoNorm<double>(N,RES+k*N,1);
+        resNorms_[k] = blas::nrm2(N,RES+k*N,1);
 
       // Compute properties using Ritz vectors
       this->resSettings.nRoots = nOrtho/2;
@@ -1379,7 +1384,7 @@ namespace ChronusQ {
 
 
     // Calculate RHS (subspace) = V^* RHS (full)
-    Gemm('C','N',NRHS,nModel,N,dcomplex(1.),respFactory_.dfdrResults.RHS,N,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NRHS,nModel,N,dcomplex(1.),respFactory_.dfdrResults.RHS,N,
       modelBasis1_,N,dcomplex(0.),RHS,NRHS);
     IMatCopy('C',NRHS,nModel,dcomplex(1.),RHS,NRHS,nModel);
 
@@ -1453,7 +1458,7 @@ namespace ChronusQ {
       this->memManager_.template malloc<T>(N*N) : nullptr;
 
     if( isRoot ) 
-    Gemm('C','N',nModel,nModel,N,T(1.),modelBasis1_,N,modelBasis1_LT_,N,T(0.),
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nModel,nModel,N,T(1.),modelBasis1_,N,modelBasis1_LT_,N,T(0.),
       this->fullMatrix_,nModel);
 
     return this->fullMatrix_;
@@ -1478,7 +1483,7 @@ namespace ChronusQ {
       this->memManager_.template malloc<T>(nProp*nModel) : nullptr;
 
     if( isRoot ) {
-      Gemm('C','N',nProp,nModel,N,dcomplex(1.),g,N,modelBasis1_,N,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nProp,nModel,N,dcomplex(1.),g,N,modelBasis1_,N,
         dcomplex(0.),newG,nProp);
       IMatCopy('C',nProp,nModel,dcomplex(1.),newG,nProp,nModel);
     }
