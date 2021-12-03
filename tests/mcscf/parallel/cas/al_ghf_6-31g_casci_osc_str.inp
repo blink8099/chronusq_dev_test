@@ -13,7 +13,7 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = 4CHF
+reference = GHF
 job = MCSCF
 
 [BASIS]
@@ -24,15 +24,16 @@ mem = 1 GB
 nsmp = 4
 
 [MCSCF]
-JOBTYPE = CASSCF
+JOBTYPE = CASCI
 NACTO = 8 
 NACTE = 3
-NRoots = 6
-StateAverage = true
-CIDiagAlg = Davidson
+NRoots = 56
+OSCISTREN = 1
+CIDIAGALG=FULLMATRIX
+#StateAverage = True
+
 
 [INTS]
 alg = incore
-DC = false
-libcint = true
+tpitransalg = N5
 

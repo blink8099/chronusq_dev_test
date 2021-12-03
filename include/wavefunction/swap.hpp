@@ -32,16 +32,20 @@ namespace ChronusQ {
   void WaveFunction<MatsT,IntsT>::swapMOs(
       std::vector<std::vector<std::pair<size_t, size_t>>> & moP, SpinType spin){
  
+    if (moP[spin].empty()) return;
+    
     auto MO = mo[spin].pointer();
     size_t LDMO = mo[spin].dimension();
     MatsT * SCR = this->memManager.template malloc<MatsT>(LDMO);
 
-    if( spin==0 ) std::cout << "  * the following mos are swapped" << std::endl;
-    else if( spin==1 ) std::cout << "  * the following beta mos are swapped" << std::endl;
+    if( spin==0 ) std::cout << "  * the following MOs are swapped" << std::endl;
+    
+    else if( spin==1 ) std::cout << "  * the following beta MOs are swapped" << std::endl;
 
     for( auto & pair: moP[spin] ){
 
-      std::cout << "    " << pair.first << "    " << pair.second << std::endl;
+      std::cout << "    " << std::setw(5) << pair.first << " <--> " 
+                << std::setw(5) << pair.second << std::endl;
 
       MatsT * first_p = MO + (pair.first-1) * LDMO;
       MatsT * second_p = MO + (pair.second-1) * LDMO;

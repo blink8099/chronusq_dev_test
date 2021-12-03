@@ -259,5 +259,18 @@ namespace ChronusQ {
   template SquareMatrix<double>& SquareMatrix<double>::operator-=( const SquareMatrix<double>& );
   template SquareMatrix<dcomplex>& SquareMatrix<dcomplex>::operator-=( const SquareMatrix<double>& );
   template SquareMatrix<dcomplex>& SquareMatrix<dcomplex>::operator-=( const SquareMatrix<dcomplex>& );
+  
+  // default TRANS is 'T'
+  template <typename MatsT>
+  SquareMatrix<MatsT> SquareMatrix<MatsT>::T(char TRANS) {
+    SquareMatrix<MatsT> out(memManager(), dimension());
+    SetMat(TRANS,dimension(),dimension(),MatsT(1.0),pointer(),dimension(),out.pointer(),dimension());
+    return out;
+  }
+  template SquareMatrix<double>   SquareMatrix<double>::T(char TRANS);
+  template SquareMatrix<dcomplex> SquareMatrix<dcomplex>::T(char TRANS);
+
+
+
 
 }; // namespace ChronusQ

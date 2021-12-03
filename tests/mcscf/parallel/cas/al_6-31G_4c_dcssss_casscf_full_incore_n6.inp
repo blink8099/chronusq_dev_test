@@ -13,7 +13,7 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = 4CHF
 job = MCSCF
 
 [BASIS]
@@ -21,18 +21,19 @@ basis = 6-31g
 
 [MISC]
 mem = 1 GB
-nsmp = 1
+nsmp = 4
 
 [MCSCF]
 JOBTYPE = CASSCF
 NACTO = 8 
 NACTE = 3
 NRoots = 6
-StateAverage = True
-CIDiagAlg = Davidson
-
+StateAverage = true
 
 [INTS]
 alg = incore
-
+tpitransalg = N6
+DC = true 
+SSSS = true
+libcint = true
 
