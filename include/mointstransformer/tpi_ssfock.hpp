@@ -156,7 +156,7 @@ namespace ChronusQ {
       // find out maximum batch size base on current memory limit
       
       // SCR size form fockbuilder
-      size_t fockGDSCRSize = ss_.fockBuilder->formRawGDSCRSizePerBatch(ss_, true); 
+      size_t fockGDSCRSize = ss_.fockBuilder->formRawGDSCRSizePerBatch(ss_, false, false); 
       
       // SCR size for spinor density and half-transformed integrals
       fockGDSCRSize += is4C ? pqSCRSize*pqSCRSize: 2*pqSCRSize*pqSCRSize;  

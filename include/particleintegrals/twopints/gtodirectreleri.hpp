@@ -61,10 +61,10 @@ namespace ChronusQ {
         const bool screen,
         std::vector<TwoBodyContraction<MatsT>> &list,
         EMPerturbation&,
-        const bool CoulombOnly = false) const {
+        const bool computeExchange = true) const {
       
-      if (CoulombOnly) directScaffoldLibcintCoulombOnly(comm, screen, list);
-      else directScaffoldLibcint(comm, screen, list);
+      if (computeExchange) directScaffoldLibcint(comm, screen, list); 
+      else CErr("twoBodyContract with Coulomb Only is deprecated "); 
      // directScaffold(comm, screen, list);
 //      twoBodyContract3Index(comm, list);
     }
@@ -74,12 +74,11 @@ namespace ChronusQ {
         const bool screen,
         std::vector<TwoBodyRelContraction<MatsT>> &list,
         EMPerturbation&,
-        const bool CoulombOnly = false) const {
+        const bool computeExchange = true) const {
       
-      if (CoulombOnly) directRelScaffoldLibcintCoulombOnly(comm, screen, list);
-      else CErr("Exchange Term NYI in twoBodyRelContract"); 
-     // directScaffold(comm, screen, list);
-//      twoBodyContract3Index(comm, list);
+      if (computeExchange) CErr("Exchange Term NYI in twoBodyRelContract"); 
+      else directRelScaffoldLibcintCoulombOnly(comm, screen, list);
+    
     }
     
     void directScaffold(
@@ -92,11 +91,6 @@ namespace ChronusQ {
         const bool,
         std::vector<TwoBodyContraction<MatsT>>&) const;
 
-    void directScaffoldLibcintCoulombOnly(
-        MPI_Comm,
-        const bool,
-        std::vector<TwoBodyContraction<MatsT>>&) const;
-    
     void directRelScaffoldLibcintCoulombOnly(
         MPI_Comm,
         const bool,

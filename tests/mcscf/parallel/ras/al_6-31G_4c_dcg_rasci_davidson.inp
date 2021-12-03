@@ -21,16 +21,22 @@ basis = 6-31g
 
 [MISC]
 mem = 1 GB
-nsmp = 1
+nsmp = 4
 
 [MCSCF]
-JOBTYPE = CASCI
-NACTO = 8 
-NACTE = 3
+JOBTYPE = RASCI
+NACTO = 2 8 2
+NACTE = 5
 NRoots = 6
+RAS1MAXHOLE = 1
+RAS3MAXELEC = 1
+CIDiagAlg = Davidson
 
 [INTS]
 alg = incore
-DC = false
+DC = true
+SSSS = true
+Gaunt = true
 libcint = true
+
 

@@ -104,9 +104,9 @@ namespace ChronusQ {
     std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> & exchangeMatrices,
     std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> & twoeHs) {
     
-    
     // disable libint2
     if (not this->hamiltonianOptions_.Libcint) CErr("4C Integrals Needs Libcint");
+    
     CQMemManager &mem = ss.memManager;
     GTODirectRelERIContraction<MatsT,IntsT> &relERICon =
         *std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.TPI);
@@ -115,10 +115,13 @@ namespace ChronusQ {
     bool computeExchange = (std::abs(xHFX) > 1e-12) and exchangeMatrices.size() > 0;
     bool computeTwoeHs   = twoeHs.size() > 0;
     
+    // disable exchange as NYI
     if (not computeCoulomb and not computeExchange and not computeTwoeHs) {
      CErr("Nothing specified to compute in FockBuilder::formRawGDInBatches");
     } else if(not computeCoulomb and not computeTwoeHs) {
      CErr("Only computeExchange is not supported in FockBuilder::formRawGDInBatches");
+    } else if (computeExchange) {
+     CErr("computeExchange NYI in FockBuilder::formRawGDInBatches");
     }
     
     auto & coulombContainers = computeCoulomb ? coulombMatrices: twoeHs;
@@ -135,16 +138,17 @@ namespace ChronusQ {
     size_t LS = NB2C*NB1C;
     size_t SL = NB1C;
 
-    auto MS = SCALAR;
-
     size_t mpiRank   = MPIRank(ss.comm);
     bool   isNotRoot = mpiRank != 0;
     
-    // allocate scratch spaces
-    
+    // allocate scratch spaces for Coulomb-type of contraction part
     std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>>
-      contract1PDMLL, contract1PDMSS, contract1PDMLS, contract1PDMSL, 
-      CScrLLMS, CScrSS, CScrLS, XScrLL, XScrSS, XScrLS; 
+      contractSymm1PDMLLMS, contractSymm1PDMSS, contract1PDMLSpmSL,  
+      CScrLLMS, CScrSS, CScrLS; 
+
+    //std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>>
+    //  contract1PDMLL, contract1PDMSS, contract1PDMLS, contract1PDMSL, 
+    //  XScrLL, XScrSS, XScrLS, XScrSL; 
      
     #define ALLOCATE_PAULISPINOR_SCR(SCR, SCRSIZE, hasXYZ) \
        SCR.push_back(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(mem, SCRSIZE, hasXYZ, hasXYZ)); 
@@ -155,81 +159,57 @@ namespace ChronusQ {
      * SCR Usage for different hamiltonian Options:
      *   
      *   Coulomb Terms and eXchange Terms
-     *   They won't be used at the same time!!!
      *
      * 1. Bare Coulomb:
-     *    - C: contract1PDMLL(only MS), CScrLLMS
+     *    - C: symmetrized contract1PDMLLMS, CScrLLMS 
      *    - X: contract1PDMLL(only MS), XScrLL 
      * 2. Dirac Coulomb without SSSS:
-     *    - C: contract1PDMSS, CScrLLMS 
-     *         contract1PDMLL, CScrSS
+     *    - C: symmetrized contract1PDMSS, CScrLLMS 
+     *         symmetrized contract1PDMLLMS, CScrSS
      *    - X: contract1PDMLS, XScrLS  
+     *         contract1PDMSL, XScrSL    // non-Hermitian ?? 
      * 3. Dirac Coulomb SSSS:
-     *    - C: contract1PDMSS, CScrSS   
+     *    - C: symmetrized contract1PDMSS, CScrSS   
      *    - X: contract1PDMSS, XScrSS  
      * 4. Gaunt:
-     *    - C: contract1PDMLS, CScrLS 
-     *         contract1PDMSL, CScrLS
+     *    - C: contract1PDMLS +/- contract1PDMSL, CScrLS 
      *    - X: contract1PDMLL, XScrLL 
      *         contract1PDMSS, XScrSS  
      *         contract1PDMLS, XScrLS
-     *         contract1PDMSL, XScrLS
+     *         contract1PDMSL, XScrSL
      * 5. Gauge:
-     *    - C: contract1PDMLS, CScrLS
-     *         contract1PDMSL, CScrLS
+     *    - C: contract1PDMLS +/- contract1PDMSL, CScrLS
+     *         contract1PDMSL, CScrSL
      *    - X: contract1PDMLL, XScrLL
      *         contract1PDMSS, XScrSS
      *         contract1PDMLS, XScrLS
-     *         contract1PDMSL, XScrLS
+     *         contract1PDMSL, XScrSL
      */
     
+    auto & HOps = this->hamiltonianOptions_;
+
+    bool allocateLLMS = HOps.BareCoulomb  or HOps.DiracCoulomb; 
+    bool allocateSS   = HOps.DiracCoulomb or HOps.DiracCoulombSSSS;
+    bool allocateLSSL = HOps.Gaunt or HOps.Gauge;
     
-    bool allocate1PDMLLXYZ = this->hamiltonianOptions_.DiracCoulomb or
-      this->hamiltonianOptions_.DiracCoulombSSSS or
-      this->hamiltonianOptions_.Gaunt or
-      this->hamiltonianOptions_.Gauge;
-    
-    bool allocate1PDMSS = allocate1PDMLLXYZ;
-    bool allocate1PDMLS = (this->hamiltonianOptions_.DiracCoulomb and computeExchange) or
-      this->hamiltonianOptions_.Gaunt or
-      this->hamiltonianOptions_.Gauge;
-    bool allocate1PDMSL = 
-      this->hamiltonianOptions_.Gaunt or
-      this->hamiltonianOptions_.Gauge;
-    
-    bool allocateCScrLLMS = this->hamiltonianOptions_.BareCoulomb or 
-      this->hamiltonianOptions_.DiracCoulomb;
-    bool allocateCScrSS = this->hamiltonianOptions_.DiracCoulomb or
-      this->hamiltonianOptions_.DiracCoulombSSSS;
-    bool allocateCScrLS = this->hamiltonianOptions_.Gaunt or 
-      this->hamiltonianOptions_.Gauge;
-    
-    bool allocateXScrLL = this->hamiltonianOptions_.BareCoulomb or 
-      this->hamiltonianOptions_.Gaunt or 
-      this->hamiltonianOptions_.Gauge;
-    bool allocateXScrSS = this->hamiltonianOptions_.DiracCoulombSSSS or 
-      this->hamiltonianOptions_.Gaunt or 
-      this->hamiltonianOptions_.Gauge;
-    bool allocateXScrLS = this->hamiltonianOptions_.Gaunt or 
-      this->hamiltonianOptions_.Gauge;
+    // TODO: Implement exchange part accordingly 
     
     for (auto i = 0ul; i < mPDM; i++) {
-      // Allocate Density
-      ALLOCATE_PAULISPINOR_SCR(contract1PDMLL, NB1C, allocate1PDMLLXYZ); 
-      if (allocate1PDMSS) ALLOCATE_PAULISPINOR_SCR(contract1PDMSS, NB1C, true);    
-      if (allocate1PDMLS) ALLOCATE_PAULISPINOR_SCR(contract1PDMLS, NB1C, true);    
-      if (allocate1PDMSL) ALLOCATE_PAULISPINOR_SCR(contract1PDMSL, NB1C, true);    
+      // Allocate Scatterred Density
+      if (allocateLLMS) ALLOCATE_PAULISPINOR_SCR(contractSymm1PDMLLMS, NB1C, false); 
+      if (allocateSS)   ALLOCATE_PAULISPINOR_SCR(contractSymm1PDMSS, NB1C, true);    
+      if (allocateLSSL) ALLOCATE_PAULISPINOR_SCR(contract1PDMLSpmSL, NB1C, true);    
       // allocate Coulomb SCR
-      if (allocateCScrLLMS) ALLOCATE_PAULISPINOR_SCR(CScrLLMS, NB1C, false); 
-      if (allocateCScrSS)   ALLOCATE_PAULISPINOR_SCR(CScrSS, NB1C, true);    
-      if (allocateCScrLS)   ALLOCATE_PAULISPINOR_SCR(CScrLS, NB1C, true);    
-      // if(allocateCScrSL)   ALLOCATE_PAULISPINOR_SCR(CScrSL, true);    
+      if (allocateLLMS) ALLOCATE_PAULISPINOR_SCR(CScrLLMS, NB1C, false); 
+      if (allocateSS)   ALLOCATE_PAULISPINOR_SCR(CScrSS, NB1C, true);    
+      if (allocateLSSL) ALLOCATE_PAULISPINOR_SCR(CScrLS, NB1C, true);    
       // allocate Exchange SCR
-      if (computeExchange) {
-        if (allocateXScrLL) ALLOCATE_PAULISPINOR_SCR(XScrLL, NB1C, true); 
-        if (allocateXScrSS) ALLOCATE_PAULISPINOR_SCR(XScrSS, NB1C, true);    
-        if (allocateXScrLS) ALLOCATE_PAULISPINOR_SCR(XScrLS, NB1C, true);    
-      }
+      // if (computeExchange) {
+      //   if (allocateXScrLL)  ALLOCATE_PAULISPINOR_SCR(XScrLL, NB1C, true); 
+      //   if (allocateXScrSS)  ALLOCATE_PAULISPINOR_SCR(XScrSS, NB1C, true);    
+      //   if (allocateCXScrLS) ALLOCATE_PAULISPINOR_SCR(XScrLS, NB1C, true);    
+      //   if (allocateCXScrSL) ALLOCATE_PAULISPINOR_SCR(XScrSL, NB1C, true);    
+      // }
     }
 
     // allocate dummies
@@ -238,14 +218,39 @@ namespace ChronusQ {
     // Compute 1/(2mc)^2
     MatsT C2 = 1./(4*SpeedOfLight*SpeedOfLight);
     
+    // make SCRs
+    auto onePDMLLSCR = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(mem, NB1C, false, false);
+    auto onePDMSSSCR = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(mem, NB1C, true, true);
+    auto onePDMLSSCR = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(mem, NB1C, true, true);
+    auto onePDMSLSCR = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(mem, NB1C, true, true);
+    
     // Component Scatter Density
     for (auto i = 0ul; i < mPDM; i++) {
-      auto onePDMLL = contract1PDMLL.size() != 0 ? contract1PDMLL[i]: dummy_pauli;
-      auto onePDMLS = contract1PDMLS.size() != 0 ? contract1PDMLS[i]: dummy_pauli;
-      auto onePDMSL = contract1PDMSL.size() != 0 ? contract1PDMSL[i]: dummy_pauli;
-      auto onePDMSS = contract1PDMSS.size() != 0 ? contract1PDMSS[i]: dummy_pauli;
       
-      onePDMs[i]->componentScatter(*onePDMLL, *onePDMLS, *onePDMSL, *onePDMSS);  
+      auto onePDMLL = allocateLLMS ? onePDMLLSCR: dummy_pauli;
+      auto onePDMSS = allocateSS   ? onePDMSSSCR: dummy_pauli;
+      auto onePDMLS = allocateLSSL ? onePDMLSSCR: dummy_pauli;
+      auto onePDMSL = allocateLSSL ? onePDMSLSCR: dummy_pauli;
+      
+      onePDMs[i]->componentScatter(*onePDMLL, *onePDMLS, *onePDMSL, *onePDMSS);
+      
+      // Take full advantage of Integral symmetry for Coulomb-type of terms
+      
+      if (allocateLLMS) contractSymm1PDMLLMS[i]->S() = onePDMLL->S() + onePDMLL->S().T(); 
+      
+      if (allocateSS) {
+        contractSymm1PDMSS[i]->S() = onePDMSS->S() + onePDMSS->S().T();        
+        contractSymm1PDMSS[i]->X() = onePDMSS->X() - onePDMSS->X().T();        
+        contractSymm1PDMSS[i]->Y() = onePDMSS->Y() - onePDMSS->Y().T();        
+        contractSymm1PDMSS[i]->Z() = onePDMSS->Z() - onePDMSS->Z().T();        
+      }
+      
+      if (allocateLSSL) {
+        contract1PDMLSpmSL[i]->S() = onePDMLS->S() - onePDMSL->S().T();        
+        contract1PDMLSpmSL[i]->X() = onePDMLS->X() + onePDMSL->X().T();        
+        contract1PDMLSpmSL[i]->Y() = onePDMLS->Y() + onePDMSL->Y().T();        
+        contract1PDMLSpmSL[i]->Z() = onePDMLS->Z() + onePDMSL->Z().T();        
+      }
     } 
     
 #ifdef _PRINT_MATRICES
@@ -281,12 +286,12 @@ namespace ChronusQ {
       std::vector<TwoBodyRelContraction<MatsT>> contractLL;
 
       for (auto i = 0ul; i < mPDM; i++) {
-        contractLL.push_back({contract1PDMLL[i], CScrLLMS[i], HerDen, BARE_COULOMB});
-        if (computeExchange) contractLL.push_back({contract1PDMLL[i], XScrLL[i]});
+        contractLL.push_back({contractSymm1PDMLLMS[i], CScrLLMS[i], HerDen, BARE_COULOMB});
+        // if (computeExchange) contractLL.push_back({contract1PDMLL[i], XScrLL[i]});
       } 
       
       // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
-      relERICon.twoBodyRelContract(ss.comm, true, contractLL, pert, not computeExchange); 
+      relERICon.twoBodyRelContract(ss.comm, true, contractLL, pert, computeExchange); 
       
       if (computeCoulomb or computeTwoeHs) { 
         for (auto i = 0ul; i < mPDM; i++) {
@@ -294,11 +299,11 @@ namespace ChronusQ {
         }  
       }
 
-      if (computeExchange) {
-        for (auto i = 0ul; i < mPDM; i++) {
-          exchangeMatrices[i]->componentAdd('N', MatsT(1.), "LL", *XScrLL[i]);
-        }  
-      }
+      // if (computeExchange) {
+      //   for (auto i = 0ul; i < mPDM; i++) {
+      //     exchangeMatrices[i]->componentAdd('N', MatsT(1.), "LL", *XScrLL[i]);
+      //   }  
+      // }
 
  #ifdef _PRINT_MATRICES
       std::cout<<"After BARE COULOMB"<<std::endl;
@@ -336,12 +341,12 @@ namespace ChronusQ {
         std::vector<TwoBodyRelContraction<MatsT>> contractDCLL;
         
         for (auto i = 0ul; i < mPDM; i++) {
-          contractDCLL.push_back({contract1PDMSS[i], CScrLLMS[i], HerDen, LLLL});
-          contractDCLL.push_back({contract1PDMLL[i], CScrSS[i]});
+          contractDCLL.push_back({contractSymm1PDMSS[i], CScrLLMS[i], HerDen, LLLL});
+          contractDCLL.push_back({contractSymm1PDMLLMS[i], CScrSS[i]});
         } 
 
         // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
-        relERICon.twoBodyRelContract(ss.comm, true, contractDCLL, pert, not computeExchange);
+        relERICon.twoBodyRelContract(ss.comm, true, contractDCLL, pert, computeExchange);
 
         // Add Dirac-Coulomb contributions to the LLLL block
         for (auto i = 0ul; i < mPDM; i++) {
@@ -428,360 +433,152 @@ namespace ChronusQ {
       } 
     
     } //_DIRAC_COULOMB
-//
-//
-//
-//    /*************************************/
-//    /*                                   */
-//    /*              SSSS                 */
-//    /*                                   */
-//    /*************************************/
-//
-//    if(this->hamiltonianOptions_.DiracCoulombSSSS) { // SSSS
-//
-//      double C4 = 1./(16*SpeedOfLight*SpeedOfLight*SpeedOfLight*SpeedOfLight);
-//  
-//      /*++++++++++++++++++++++++++++++++++++++++++++*/
-//      /* Start of Dirac-Coulomb (SS|SS) Contraction */
-//      /*++++++++++++++++++++++++++++++++++++++++++++*/
-//  
-//      std::vector<TwoBodyContraction<MatsT>> contractDCSS =
-//        { {contract1PDMLL.S().pointer(), CScrLLMS, HerDen, SSSS},
-//          {contract1PDMLL.S().pointer(), XScrLLMS},
-//          {contract1PDMLL.X().pointer(), XScrLLMX},
-//          {contract1PDMLL.Y().pointer(), XScrLLMY},
-//          {contract1PDMLL.Z().pointer(), XScrLLMZ},
-//          {contract1PDMSS.S().pointer(), CScrSSMS},
-//          {contract1PDMSS.X().pointer(), CScrSSMX},
-//          {contract1PDMSS.Y().pointer(), CScrSSMY},
-//          {contract1PDMSS.Z().pointer(), CScrSSMZ},
-//          {contract1PDMSS.S().pointer(), XScrSSMS},
-//          {contract1PDMSS.X().pointer(), XScrSSMX},
-//          {contract1PDMSS.Y().pointer(), XScrSSMY},
-//          {contract1PDMSS.Z().pointer(), XScrSSMZ},
-//          {contract1PDMLS.S().pointer(), XScrLSMS},
-//          {contract1PDMLS.X().pointer(), XScrLSMX},
-//          {contract1PDMLS.Y().pointer(), XScrLSMY},
-//          {contract1PDMLS.Z().pointer(), XScrLSMZ} };
-//
-//      // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
-//      relERICon.twoBodyContract(ss.comm, true, contractDCSS,pert);
-//
-//      // Add (SS|SS) Coulomb contributions to the SSSS block
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C4, CScrSSMS, NB1C, MatsT(1.0), 
-//                      ss.twoeH->S().pointer()+SS, NB2C,
-//                      ss.twoeH->S().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C4, CScrSSMX, NB1C, MatsT(1.0), 
-//                      ss.twoeH->X().pointer()+SS, NB2C,
-//                      ss.twoeH->X().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C4, CScrSSMY, NB1C, MatsT(1.0), 
-//                      ss.twoeH->Y().pointer()+SS, NB2C,
-//                      ss.twoeH->Y().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C4, CScrSSMZ, NB1C, MatsT(1.0), 
-//                      ss.twoeH->Z().pointer()+SS, NB2C,
-//                      ss.twoeH->Z().pointer()+SS, NB2C);
-//
-//      // Add (SS|SS) exchange contributions to the SSSS block
-//      MatAdd('N','N', NB1C, NB1C, -C4, XScrSSMS, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->S().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->S().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C4, XScrSSMX, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->X().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->X().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C4, XScrSSMY, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Y().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->Y().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C4, XScrSSMZ, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Z().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->Z().pointer()+SS, NB2C);
-//
-//
-//#ifdef _PRINT_MATRICES
-//      std::cout<<"After SSSS"<<std::endl;
-//      prettyPrintSmart(std::cout, "COULOMB-S",           ss.twoeH->S().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "COULOMB-X",           ss.twoeH->X().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "COULOMB-Y",           ss.twoeH->Y().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "COULOMB-Z",           ss.twoeH->Z().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
-//#endif
-//    }
-//
-//
-//    /*************************************/
-//    /*                                   */
-//    /*              GAUNT                */
-//    /*                                   */
-//    /*************************************/
-//
-//    // if the gauge term is included, the Gaunt term needs to be scaled by half
-//    if(this->hamiltonianOptions_.Gauge) C2=C2/2.0;
-//
-//    if(this->hamiltonianOptions_.Gaunt) { // Gaunt
-//
-//      std::vector<TwoBodyContraction<MatsT>> contractDCGaunt =
-//        { {contract1PDMLL.S().pointer(), CScrLLMS, HerDen, GAUNT},
-//  	  //
-//          {contract1PDMLL.S().pointer(), XScrLLMS},
-//          {contract1PDMLL.X().pointer(), XScrLLMX},
-//          {contract1PDMLL.Y().pointer(), XScrLLMY},
-//          {contract1PDMLL.Z().pointer(), XScrLLMZ},
-//	  //
-//          {contract1PDMSS.S().pointer(), CScrSSMS},
-//          {contract1PDMSS.X().pointer(), CScrSSMX},
-//          {contract1PDMSS.Y().pointer(), CScrSSMY},
-//          {contract1PDMSS.Z().pointer(), CScrSSMZ},
-//	  //
-//          {contract1PDMSS.S().pointer(), XScrSSMS},
-//          {contract1PDMSS.X().pointer(), XScrSSMX},
-//          {contract1PDMSS.Y().pointer(), XScrSSMY},
-//          {contract1PDMSS.Z().pointer(), XScrSSMZ},
-//	  //
-//          {contract1PDMLS.S().pointer(), XScrLSMS},
-//          {contract1PDMLS.X().pointer(), XScrLSMX},
-//          {contract1PDMLS.Y().pointer(), XScrLSMY},
-//          {contract1PDMLS.Z().pointer(), XScrLSMZ},
-//	  //
-//          {contract1PDMLS.S().pointer(), CScrLSMS},
-//          {contract1PDMLS.X().pointer(), CScrLSMX},
-//          {contract1PDMLS.Y().pointer(), CScrLSMY},
-//          {contract1PDMLS.Z().pointer(), CScrLSMZ},
-//	  //
-//          {contract1PDMSL.S().pointer(), CScrLSMS},
-//          {contract1PDMSL.X().pointer(), CScrLSMX},
-//          {contract1PDMSL.Y().pointer(), CScrLSMY},
-//          {contract1PDMSL.Z().pointer(), CScrLSMZ},
-//	  //
-//          {contract1PDMSL.S().pointer(), XScrLSMS},
-//          {contract1PDMSL.X().pointer(), XScrLSMX},
-//          {contract1PDMSL.Y().pointer(), XScrLSMY},
-//          {contract1PDMSL.Z().pointer(), XScrLSMZ},
-//	};
-//
-//      // Call the contraction engine to do the assembly of Gaunt
-//      relERICon.twoBodyContract(ss.comm, true, contractDCGaunt,pert);
-//
-//      // Add (LL|SS) Coulomb contributions
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLSMS, NB1C, MatsT(1.0), 
-//                      ss.twoeH->S().pointer()+LS, NB2C,
-//                      ss.twoeH->S().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLSMX, NB1C, MatsT(1.0), 
-//                      ss.twoeH->X().pointer()+LS, NB2C,
-//                      ss.twoeH->X().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLSMY, NB1C, MatsT(1.0), 
-//                      ss.twoeH->Y().pointer()+LS, NB2C,
-//                      ss.twoeH->Y().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLSMZ, NB1C, MatsT(1.0), 
-//                      ss.twoeH->Z().pointer()+LS, NB2C,
-//                      ss.twoeH->Z().pointer()+LS, NB2C);
-//
-//      // Add (LL|LL) exchange contributions
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMS, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->S().pointer(), NB2C,
-//                      ss.exchangeMatrix->S().pointer(), NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMX, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->X().pointer(), NB2C,
-//                      ss.exchangeMatrix->X().pointer(), NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMY, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Y().pointer(), NB2C,
-//                      ss.exchangeMatrix->Y().pointer(), NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMZ, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Z().pointer(), NB2C,
-//                      ss.exchangeMatrix->Z().pointer(), NB2C);
-//
-//
-//      // Add (SS|SS) exchange contributions
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrSSMS, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->S().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->S().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrSSMX, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->X().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->X().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrSSMY, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Y().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->Y().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrSSMZ, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Z().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->Z().pointer()+SS, NB2C);
-//
-//      // Add (LL|SS) exchange contributions
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMS, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->S().pointer()+LS, NB2C,
-//                      ss.exchangeMatrix->S().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMX, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->X().pointer()+LS, NB2C,
-//                      ss.exchangeMatrix->X().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMY, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Y().pointer()+LS, NB2C,
-//                      ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMZ, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Z().pointer()+LS, NB2C,
-//                      ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-//
-//
-//
-//#ifdef _PRINT_MATRICES
-//      std::cout<<"After GAUNT"<<std::endl;
-//      prettyPrintSmart(std::cout, "COULOMB-S",           ss.twoeH->S().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "COULOMB-X",           ss.twoeH->X().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "COULOMB-Y",           ss.twoeH->Y().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "COULOMB-Z",           ss.twoeH->Z().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
-//#endif
-//    }
-//
-//
-//    /*************************************/
-//    /*                                   */
-//    /*              GAUGE                */
-//    /*                                   */
-//    /*************************************/
-//
-//    if(this->hamiltonianOptions_.Gauge) { // Gauge
-//
-//      std::vector<TwoBodyContraction<MatsT>> contractDCGauge =
-//        { {contract1PDMLL.S().pointer(), CScrLLMS, HerDen, GAUGE},
-//          //
-//          {contract1PDMLL.S().pointer(), XScrLLMS},
-//          {contract1PDMLL.X().pointer(), XScrLLMX},
-//          {contract1PDMLL.Y().pointer(), XScrLLMY},
-//          {contract1PDMLL.Z().pointer(), XScrLLMZ},
-//          //
-//          {contract1PDMSS.S().pointer(), CScrSSMS},
-//          {contract1PDMSS.X().pointer(), CScrSSMX},
-//          {contract1PDMSS.Y().pointer(), CScrSSMY},
-//          {contract1PDMSS.Z().pointer(), CScrSSMZ},
-//          //
-//          {contract1PDMSS.S().pointer(), XScrSSMS},
-//          {contract1PDMSS.X().pointer(), XScrSSMX},
-//          {contract1PDMSS.Y().pointer(), XScrSSMY},
-//          {contract1PDMSS.Z().pointer(), XScrSSMZ},
-//          //
-//          {contract1PDMLS.S().pointer(), XScrLSMS},
-//          {contract1PDMLS.X().pointer(), XScrLSMX},
-//          {contract1PDMLS.Y().pointer(), XScrLSMY},
-//          {contract1PDMLS.Z().pointer(), XScrLSMZ},
-//          //
-//          {contract1PDMLS.S().pointer(), CScrLSMS},
-//          {contract1PDMLS.X().pointer(), CScrLSMX},
-//          {contract1PDMLS.Y().pointer(), CScrLSMY},
-//          {contract1PDMLS.Z().pointer(), CScrLSMZ},
-//          //
-//          {contract1PDMSL.S().pointer(), CScrLSMS},
-//          {contract1PDMSL.X().pointer(), CScrLSMX},
-//          {contract1PDMSL.Y().pointer(), CScrLSMY},
-//          {contract1PDMSL.Z().pointer(), CScrLSMZ},
-//          //
-//          {contract1PDMSL.S().pointer(), XScrLSMS},
-//          {contract1PDMSL.X().pointer(), XScrLSMX},
-//          {contract1PDMSL.Y().pointer(), XScrLSMY},
-//          {contract1PDMSL.Z().pointer(), XScrLSMZ},
-//        };
-//
-//      // Call the contraction engine to do the assembly of Gaunt
-//      relERICon.twoBodyContract(ss.comm, true, contractDCGauge,pert);
-//
-//      // Add (LL|SS) Coulomb contributions
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLSMS, NB1C, MatsT(1.0), 
-//                      ss.twoeH->S().pointer()+LS, NB2C,
-//                      ss.twoeH->S().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLSMX, NB1C, MatsT(1.0), 
-//                      ss.twoeH->X().pointer()+LS, NB2C,
-//                      ss.twoeH->X().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLSMY, NB1C, MatsT(1.0), 
-//                      ss.twoeH->Y().pointer()+LS, NB2C,
-//                      ss.twoeH->Y().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLSMZ, NB1C, MatsT(1.0), 
-//                      ss.twoeH->Z().pointer()+LS, NB2C,
-//                      ss.twoeH->Z().pointer()+LS, NB2C);
-//
-//      // Add (LL|LL) exchange contributions
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMS, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->S().pointer(), NB2C,
-//                      ss.exchangeMatrix->S().pointer(), NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMX, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->X().pointer(), NB2C,
-//                      ss.exchangeMatrix->X().pointer(), NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMY, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Y().pointer(), NB2C,
-//                      ss.exchangeMatrix->Y().pointer(), NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMZ, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Z().pointer(), NB2C,
-//                      ss.exchangeMatrix->Z().pointer(), NB2C);
-//
-//
-//      // Add (SS|SS) exchange contributions
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrSSMS, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->S().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->S().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrSSMX, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->X().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->X().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrSSMY, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Y().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->Y().pointer()+SS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrSSMZ, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Z().pointer()+SS, NB2C,
-//                      ss.exchangeMatrix->Z().pointer()+SS, NB2C);
-//
-//      // Add (LL|SS) exchange contributions
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMS, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->S().pointer()+LS, NB2C,
-//                      ss.exchangeMatrix->S().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMX, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->X().pointer()+LS, NB2C,
-//                      ss.exchangeMatrix->X().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMY, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Y().pointer()+LS, NB2C,
-//                      ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-//      MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMZ, NB1C, MatsT(1.0), 
-//                      ss.exchangeMatrix->Z().pointer()+LS, NB2C,
-//                      ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-//
-//
-//
-//#ifdef _PRINT_MATRICES
-//      std::cout<<"After GAUGE"<<std::endl;
-//      prettyPrintSmart(std::cout, "COULOMB-S",           ss.twoeH->S().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "COULOMB-X",           ss.twoeH->X().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "COULOMB-Y",           ss.twoeH->Y().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "COULOMB-Z",           ss.twoeH->Z().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
-//      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
-//#endif
-//    }
 
 
+
+    /*************************************/
+    /*                                   */
+    /*              SSSS                 */
+    /*                                   */
+    /*************************************/
+
+    if(this->hamiltonianOptions_.DiracCoulombSSSS) { // SSSS
+
+      MatsT C4 = 1./(16*SpeedOfLight*SpeedOfLight*SpeedOfLight*SpeedOfLight);
+  
+      /*++++++++++++++++++++++++++++++++++++++++++++*/
+      /* Start of Dirac-Coulomb (SS|SS) Contraction */
+      /*++++++++++++++++++++++++++++++++++++++++++++*/
+  
+      std::vector<TwoBodyRelContraction<MatsT>> contractDCSS;
+      for (auto i = 0ul; i < mPDM; i++) {
+          contractDCSS.push_back({contractSymm1PDMSS[i], CScrSS[i], HerDen, SSSS});
+          // if (computeExchange) contractDCSS.push_back({contract1PDMSS[i], XScrSS[i]}); 
+      } 
+
+      // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
+      relERICon.twoBodyRelContract(ss.comm, true, contractDCSS, pert, computeExchange);
+
+      // Add (SS|SS) Coulomb contributions to the SSSS block
+      for (auto i = 0ul; i < mPDM; i++) {
+        coulombContainers[i]->componentAdd('N', C4, "SS", *CScrSS[i]);
+        // if (computeExchange) exchangeMatrices[i]->componentAdd('N', -C4, "SS", *XScrSS[i]);
+      }  
+      
+#ifdef _PRINT_MATRICES
+      std::cout<<"After SSSS"<<std::endl;
+      prettyPrintSmart(std::cout, "COULOMB-S",           ss.twoeH->S().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-X",           ss.twoeH->X().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-Y",           ss.twoeH->Y().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-Z",           ss.twoeH->Z().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
+#endif
+    }
+
+
+    /*************************************/
+    /*                                   */
+    /*       GAUNT  and   GAUGE          */
+    /*                                   */
+    /*************************************/
+
+    // if the gauge term is included, the Gaunt term needs to be scaled by half
+    if(this->hamiltonianOptions_.Gauge) C2=C2/2.0;
+    
+    if (this->hamiltonianOptions_.Gaunt or this->hamiltonianOptions_.Gauge) {
+      
+      std::vector<TWOBODY_CONTRACTION_TYPE> contractTypes;
+      if (this->hamiltonianOptions_.Gaunt) contractTypes.push_back(GAUNT);
+      if (this->hamiltonianOptions_.Gauge) contractTypes.push_back(GAUGE);
+      
+      for (const auto & contT: contractTypes) {  
+        
+        std::vector<TwoBodyRelContraction<MatsT>> contractDCGau;
+
+        for (auto i = 0ul; i < mPDM; i++) {
+          contractDCGau.push_back({contract1PDMLSpmSL[i], CScrLS[i], HerDen, contT});
+          // if (computeExchange) {
+          //   contractDCGau.push_back({contract1PDMLS[i], XScrLS[i]});
+          //   auto XScrSL_i = not HerDen ? XScrSL[i]: nullptr;
+          //   contractDCGau.push_back({contract1PDMSL[i], XScrSL_i});
+          //   contractDCGau.push_back({contract1PDMLL[i], XScrLL[i]});
+          //   contractDCGau.push_back({contract1PDMSS[i], XScrSS[i]});
+          // }
+        } 
+
+        // Call the contraction engine to do the assembly of Gaunt/Gauge
+        relERICon.twoBodyRelContract(ss.comm, true, contractDCGau, pert, computeExchange);
+      
+        for (auto i = 0ul; i < mPDM; i++) {
+          // Add (LL|SS)  and (SS|LL) Coulomb contributions
+          coulombContainers[i]->componentAdd('N', C2, "LS", *CScrLS[i]);
+          
+          // get the SL contribution using symmetry
+          // CSLMS =  - [CLSMS]^T
+          // CSLMX =    [CLSMX]^T
+          // CSLMY =    [CLSMY]^T
+          // CSLMZ =    [CLSMZ]^T
+          CScrLS[i]->S() = - CScrLS[i]->S();
+          coulombContainers[i]->componentAdd('T', C2, "SL", *CScrLS[i]);
+
+          // if (computeExchange) {
+          //   // Add (LL|SS)  and (SS|LL) Exchange contributions
+          //   exchangeMatrices[i]->componentAdd('N', -C2, "LS", *XScrLS[i]);
+          //   if (not HerDen) exchangeMatrices[i]->componentAdd('N', -C2, "SL", *XScrSL[i]);  
+          //   // Add (LL|LL) exchange contributions
+          //   exchangeMatrices[i]->componentAdd('N', -C2, "LL", *XScrLL[i]);
+          //   // Add (SS|SS) exchange contributions
+          //   exchangeMatrices[i]->componentAdd('N', -C2, "SS", *XScrSS[i]);
+          // }
+        }  
+
+#ifdef _PRINT_MATRICES
+        if (contT == GAUNT) std::cout<<"After GAUNT"<<std::endl;
+        if (contT == GAUGE) std::cout<<"After GAUGE"<<std::endl;
+        prettyPrintSmart(std::cout, "COULOMB-S",           ss.twoeH->S().pointer(), NB2C, NB2C, NB2C);
+        prettyPrintSmart(std::cout, "COULOMB-X",           ss.twoeH->X().pointer(), NB2C, NB2C, NB2C);
+        prettyPrintSmart(std::cout, "COULOMB-Y",           ss.twoeH->Y().pointer(), NB2C, NB2C, NB2C);
+        prettyPrintSmart(std::cout, "COULOMB-Z",           ss.twoeH->Z().pointer(), NB2C, NB2C, NB2C);
+        prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
+        prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
+        prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
+        prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
+#endif
+      
+      } // contractType
+    
+    } // Gaunt and Gauge
 
     /*******************************/
     /* Final Assembly of 4C Matrix */
     /*******************************/
     ROOT_ONLY(ss.comm);
     
+    /*************************************************/
+    /* Hermitrize Coulomb and Exchange Part if HerDen*/
+    /*************************************************/
     
-    /****************************************/
-    /* Hermitrize Coulomb and Exchange Part */
-    /****************************************/
+    if (HerDen) {
+      if (computeCoulomb or computeTwoeHs) { 
+        for (auto i = 0ul; i < mPDM; i++) {
+          coulombContainers[i]->symmetrizeLSSL('C'); 
+        }  
+      }
 
-    if (computeCoulomb or computeTwoeHs) { 
-      for (auto i = 0ul; i < mPDM; i++) {
-        coulombContainers[i]->symmetrizeLSSL('C'); 
-      }  
+      // if (computeExchange) { 
+      //   for (auto i = 0ul; i < mPDM; i++) {
+      //     exchangeMatrices[i]->symmetrizeLSSL('C');
+      //   }  
+      // }
     }
 
-    if (computeExchange) { 
-      for (auto i = 0ul; i < mPDM; i++) {
-        exchangeMatrices[i]->symmetrizeLSSL('C');
-      }  
-    }
-
+    /*************************************************/
+    /* Sum Coulomb and Exchange to twoeH             */
+    /*************************************************/
+    
     if (computeTwoeHs) {
       for (auto i = 0ul; i < mPDM; i++) { 
         // G[D] += 2*J[D]
@@ -791,44 +588,12 @@ namespace ChronusQ {
           *twoeHs[i] *= 2.0;
         }
 
-        // Form GD: G[D] = 2.0*J[D] - K[D]
-        if (computeExchange) {
-          *twoeHs[i] -= xHFX * *exchangeMatrices[i];
-        } 
+        // // Form GD: G[D] = 2.0*J[D] - K[D]
+        // if (computeExchange) {
+        //   *twoeHs[i] -= xHFX * *exchangeMatrices[i];
+        // } 
       }
     }
-
-#ifdef _PRINT_MATRICES
-
-    prettyPrintSmart(std::cout,"twoeH MS",ss.twoeH->S().pointer(),NB2C,NB2C,NB2C);
-    prettyPrintSmart(std::cout,"twoeH MX",ss.twoeH->X().pointer(),NB2C,NB2C,NB2C);
-    prettyPrintSmart(std::cout,"twoeH MY",ss.twoeH->Y().pointer(),NB2C,NB2C,NB2C);
-    prettyPrintSmart(std::cout,"twoeH MZ",ss.twoeH->Z().pointer(),NB2C,NB2C,NB2C);
-
-    size_t NB4C2 = NB4C*NB4C;
-
-    MatsT* TEMP_GATHER1 = mem.malloc<MatsT>(NB4C2);
-    MatsT* TEMP_GATHER2 = mem.malloc<MatsT>(NB4C2);
-
-    memset(TEMP_GATHER1,0.,NB4C2*sizeof(MatsT));
-    memset(TEMP_GATHER2,0.,NB4C2*sizeof(MatsT));
-
-    std::cout << std::scientific << std::setprecision(16);
-    SpinGather(NB2C,TEMP_GATHER1,NB4C,contract1PDM.S().pointer(),NB2C,contract1PDM.Z().pointer(),NB2C,contract1PDM.Y().pointer(),NB2C,contract1PDM.X().pointer(),NB2C);
-    prettyPrintSmart(std::cout,"density Gather",TEMP_GATHER1,NB4C,NB4C,NB4C,1,12,16);
-
-
-    SpinGather(NB2C,TEMP_GATHER2,NB4C,ss.twoeH->S().pointer(),NB2C,ss.twoeH->Z().pointer(),NB2C,ss.twoeH->Y().pointer(),NB2C,ss.twoeH->X().pointer(),NB2C);
-    prettyPrintSmart(std::cout,"twoeH Gather",TEMP_GATHER2,NB4C,NB4C,NB4C,1,12,16);
-
-    SpinGather(NB2C,TEMP_GATHER1,NB4C,ss.coreH->S().pointer(),NB2C,ss.coreH->Z().pointer(),NB2C,ss.coreH->Y().pointer(),NB2C,ss.coreH->X().pointer(),NB2C);
-    prettyPrintSmart(std::cout,"coreH Gather",TEMP_GATHER1,NB4C,NB4C,NB4C,1,12,16);
- 
-    mem.free(TEMP_GATHER1);
-    mem.free(TEMP_GATHER2);
-
-#endif //_PRINT_MATRICES
-
 
   }; // FourCompFock<MatsT, IntsT>::formRawGDInBatchesDirect
 
@@ -841,10 +606,12 @@ namespace ChronusQ {
   /*******************************************************************************/
   template <typename MatsT, typename IntsT>
   size_t FourCompFock<MatsT,IntsT>::formRawGDSCRSizePerBatch(SingleSlater<MatsT,IntsT> &ss,
-    bool CoulombOnly) const {
-    
-      size_t SCRSize  = 0ul;
+    bool computeExchange, bool HerDen) const {
       
+      if (computeExchange) CErr("computeExchange NYI in FockBuilder::formRawGDSCRSizePerBatch"); 
+
+      size_t SCRSize  = 0ul;
+       
       if( std::dynamic_pointer_cast<GTODirectRelERIContraction<MatsT,IntsT>>(ss.TPI) ) {
         
         GTODirectRelERIContraction<MatsT,IntsT> &relERICon =
@@ -852,7 +619,7 @@ namespace ChronusQ {
         
         // Update with contraction SCR 
         #define UPDATE_CONTRACTION_SCR_SIZE(CONTTYPE) \
-          auto contSCR = relERICon.directRelScaffoldLibcintSCRSize(CONTTYPE, CoulombOnly); \
+          auto contSCR = relERICon.directRelScaffoldLibcintSCRSize(CONTTYPE, computeExchange); \
           SCRSize  = std::max(SCRSize, contSCR); 
 
         if (this->hamiltonianOptions_.BareCoulomb) {  
@@ -860,7 +627,7 @@ namespace ChronusQ {
         }
         if (this->hamiltonianOptions_.DiracCoulomb) { 
           UPDATE_CONTRACTION_SCR_SIZE(LLLL);
-          if (not CoulombOnly) UPDATE_CONTRACTION_SCR_SIZE(LLSS);
+          if (computeExchange) UPDATE_CONTRACTION_SCR_SIZE(LLSS);
         }
         if (this->hamiltonianOptions_.DiracCoulombSSSS) {
           UPDATE_CONTRACTION_SCR_SIZE(SSSS);
@@ -873,55 +640,34 @@ namespace ChronusQ {
         }
         
         // plus extra SCR to build component scattered X and AX
-        // see line 155 for sepecific allocations
-        bool allocate1PDMLLXYZ = this->hamiltonianOptions_.DiracCoulomb or
-          this->hamiltonianOptions_.DiracCoulombSSSS or
-          this->hamiltonianOptions_.Gaunt or
-          this->hamiltonianOptions_.Gauge;
-        
-        bool allocate1PDMSS = allocate1PDMLLXYZ;
-        bool allocate1PDMLS = (this->hamiltonianOptions_.DiracCoulomb and not CoulombOnly) or
-          this->hamiltonianOptions_.Gaunt or
-          this->hamiltonianOptions_.Gauge;
-        bool allocate1PDMSL = 
-          this->hamiltonianOptions_.Gaunt or
-          this->hamiltonianOptions_.Gauge;
-        
-        bool allocateCScrLLMS = this->hamiltonianOptions_.BareCoulomb or 
-          this->hamiltonianOptions_.DiracCoulomb;
-        bool allocateCScrSS = this->hamiltonianOptions_.DiracCoulomb or
-          this->hamiltonianOptions_.DiracCoulombSSSS;
-        bool allocateCScrLS = this->hamiltonianOptions_.Gaunt or 
-          this->hamiltonianOptions_.Gauge;
+        auto & HOps = this->hamiltonianOptions_;
+
+        // see line 197 for sepecific allocations
+        bool allocateLLMS = HOps.BareCoulomb  or HOps.DiracCoulomb; 
+        bool allocateSS   = HOps.DiracCoulomb or HOps.DiracCoulombSSSS;
+        bool allocateLSSL = HOps.Gaunt or HOps.Gauge;
         
         size_t NB1C  = ss.basisSet().nBasis;
         size_t NB1C2 = NB1C*NB1C;
-        // density requirements
-        SCRSize += allocate1PDMLLXYZ ? NB1C2*4: NB1C2;
-        SCRSize += allocate1PDMLS ? NB1C2*4: 0;
-        SCRSize += allocate1PDMSL ? NB1C2*4: 0;
-        SCRSize += allocate1PDMSS ? NB1C2*4: 0;
+        // density + Coulomb SCR requirements
+        SCRSize += allocateLLMS ? NB1C2*2: 0;
+        SCRSize += allocateSS   ? NB1C2*8: 0;
+        SCRSize += allocateLSSL ? NB1C2*8: 0;
         
-        // Coulomb SCR
-        SCRSize += allocateCScrLLMS ? NB1C2: 0;
-        SCRSize += allocateCScrSS ? NB1C2*4: 0;
-        SCRSize += allocateCScrLS ? NB1C2*4: 0;
-        
-        // eXchange SCR
-        if (not CoulombOnly) {
-          bool allocateXScrLL = this->hamiltonianOptions_.BareCoulomb or 
-            this->hamiltonianOptions_.Gaunt or 
-            this->hamiltonianOptions_.Gauge;
-          bool allocateXScrSS = this->hamiltonianOptions_.DiracCoulombSSSS or 
-            this->hamiltonianOptions_.Gaunt or 
-            this->hamiltonianOptions_.Gauge;
-          bool allocateXScrLS = this->hamiltonianOptions_.Gaunt or 
-            this->hamiltonianOptions_.Gauge;
-          
-          SCRSize += allocateXScrLL ? NB1C2*4: 0;
-          SCRSize += allocateXScrSS ? NB1C2*4: 0;
-          SCRSize += allocateXScrLS ? NB1C2*4: 0;
-        }
+        //// eXchange SCR
+        //if (computeExchange) {
+        //  bool allocateXScrLL = this->hamiltonianOptions_.BareCoulomb or 
+        //    this->hamiltonianOptions_.Gaunt or 
+        //    this->hamiltonianOptions_.Gauge;
+        //  bool allocateXScrSS = this->hamiltonianOptions_.DiracCoulombSSSS or 
+        //    this->hamiltonianOptions_.Gaunt or 
+        //    this->hamiltonianOptions_.Gauge;
+        //  
+        //  SCRSize += allocateXScrLL ? NB1C2*4: 0;
+        //  SCRSize += allocateXScrSS ? NB1C2*4: 0;
+        //  SCRSize += allocateCXScrLS ? NB1C2*4: 0;
+        //  SCRSize += allocateCXScrSL ? NB1C2*4: 0;
+        //}
 
       }
       
