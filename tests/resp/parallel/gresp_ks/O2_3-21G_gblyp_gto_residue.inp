@@ -14,7 +14,7 @@ reference = GBLYP
 job = RESP
 
 [SCF]
-guess=readden
+guess=readmo
 alg=skip
 
 [RESPONSE]

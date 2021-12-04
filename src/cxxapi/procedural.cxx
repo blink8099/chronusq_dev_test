@@ -290,6 +290,8 @@ namespace ChronusQ {
       guessSSOptions.hamiltonianOptions.OneESpinOrbit = false;
 
       ss->formGuess(guessSSOptions);
+      // Form initial fock from guess density
+      ss->formFock(emPert, false);
       ss->SCF(emPert);
     }
 
@@ -313,6 +315,9 @@ namespace ChronusQ {
       // FIXME: Need to implement TD-NEO
       if (doNEO)
         CErr("RESP-NEO NYI!",output);
+
+      if( ss->scfControls.scfAlg == _SKIP_SCF and ss->scfControls.guess == READDEN )
+        CErr("READDEN + SKIP + RESPONSE disabled. Use READMO instead.");
 
       auto resp = CQResponseOptions(output,input,ss);
       resp->savFile = rstFile;

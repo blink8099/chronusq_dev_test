@@ -15,7 +15,7 @@ reference = GLSDA
 job = RESP
 
 [SCF]
-guess=readden
+guess=readmo
 alg=skip
 
 [RESPONSE]
