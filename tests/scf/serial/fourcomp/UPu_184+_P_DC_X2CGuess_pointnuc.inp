@@ -13,9 +13,8 @@ reference = 4CHF
 job = SCF
 
 [SCF]
-guess = core
 damp = false
-guess=readden
+guess = readden
 
 [INTS]
 alg = incore
