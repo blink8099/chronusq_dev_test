@@ -506,7 +506,7 @@ namespace ChronusQ {
     }
 
     if( this->nC == 4 ) {
-      IntsT* ssOverlap = this->memManager.malloc<IntsT>(NB*NB);
+      IntsT* ssOverlap = this->memManager.template malloc<IntsT>(NB*NB);
       SetMat('N',NB,NB,1./(2*SpeedOfLight*SpeedOfLight),this->aoints.kinetic->pointer(),
                 NB,ssOverlap,NB);
       out << "\n\nCanonical Molecular Orbital Analysis (Alpha) for Small component";
