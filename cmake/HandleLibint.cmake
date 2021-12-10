@@ -191,6 +191,13 @@ if ( NOT TARGET ChronusQ::Libint2 )
 
         add_subdirectory ( ${libint2_SOURCE_DIR} ${libint2_BINARY_DIR} )
 
+        # ALWAYS build libint using unity build by setting UNITY_BUILD for libint2_obj
+        # this saves time and works around issues with Libint library being too big for Ninja on MacOS
+        if (NOT CMAKE_UNITY_BUILD)
+            set_target_properties(libint2_obj PROPERTIES UNITY_BUILD ON)
+            message(STATUS "Will unity-build Libint2")
+        endif()
+
       endif()
   
       install(TARGETS libint2  
