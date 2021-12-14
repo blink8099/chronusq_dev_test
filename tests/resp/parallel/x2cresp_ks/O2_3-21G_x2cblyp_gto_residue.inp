@@ -14,7 +14,7 @@ reference = X2CBLYP
 job = RESP
 
 [SCF]
-guess=readden
+guess=readmo
 alg=skip
 
 [RESPONSE]
