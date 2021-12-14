@@ -345,15 +345,7 @@ namespace ChronusQ {
 
     TimerOpts options;
   
-    //
-    // Constructors
-    //
-  
-    Timer()
-    {
-      if (omp_get_max_active_levels() > 1)
-        std::cerr << "WARNING: Timer is not safe for nested OMP parallelism";
-    };
+    Timer() = default; 
 
     // Must call before use. Can't be in constructor because Timer must be
     //   default constructable (for Singleton ProgramTimer)

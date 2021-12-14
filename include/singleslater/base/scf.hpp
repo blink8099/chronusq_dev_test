@@ -52,8 +52,10 @@ namespace ChronusQ {
     if( scfControls.scfAlg == _NEWTON_RAPHSON_SCF )
       scfControls.doExtrap = false;
 
-    if( scfControls.scfAlg == _SKIP_SCF )
+    if( scfControls.scfAlg == _SKIP_SCF ) {
       isConverged = true;
+      MOFOCK();
+    }
 
     // Compute initial properties
     this->computeProperties(pert);
