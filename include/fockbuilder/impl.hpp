@@ -223,7 +223,7 @@ namespace ChronusQ {
   /*******************************************************************************/
   template <typename MatsT, typename IntsT>
   size_t FockBuilder<MatsT,IntsT>::formRawGDSCRSizePerBatch(SingleSlater<MatsT,IntsT> &ss,
-    bool CoulombOnly) const {
+    bool computeExchange, bool HerDen) const {
   
       size_t SCRSize  = 0ul;
   
@@ -232,7 +232,7 @@ namespace ChronusQ {
         GTODirectTPIContraction<MatsT,IntsT> &ERICon =
             *std::dynamic_pointer_cast<GTODirectTPIContraction<MatsT,IntsT>>(ss.TPI);
         
-        size_t nConPerBatch = CoulombOnly ? 1: 5;
+        size_t nConPerBatch = computeExchange ? 5: 1;
 
         SCRSize += ERICon.directScaffoldNewSCRSize() * nConPerBatch;
       } 

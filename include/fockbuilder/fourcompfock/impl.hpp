@@ -60,6 +60,12 @@ namespace ChronusQ {
         *std::dynamic_pointer_cast<InCore4indexRelERI<IntsT>>(ss.aoints.TPI);
     CQMemManager &mem = ss.memManager;
 
+    bool computeExchange = std::abs(xHFX) >= 1e-12; 
+    
+    if (not HerDen and computeExchange) CErr("formGDInCore with exchange term NYI for non-Hermitian density ");
+    
+    bool RESET = false;
+    
     // Decide list of onePDMs to use
     PauliSpinorSquareMatrices<MatsT> &contract1PDM
         = increment ? *ss.deltaOnePDM : *ss.onePDM;
@@ -142,7 +148,7 @@ namespace ChronusQ {
       SetMat('N', NB1C, NB1C, MatsT(1.), contract1PDM[c].pointer()+SL, NB2C,
              contract1PDMSL[c].pointer(), NB1C);
     }
-
+    
 #ifdef _PRINT_MATRICES
     prettyPrintSmart(std::cout, "1PDM[MS]", contract1PDM.S().pointer(), NB2C, NB2C, NB2C);
     prettyPrintSmart(std::cout, "1PDM[MX]", contract1PDM.X().pointer(), NB2C, NB2C, NB2C);
@@ -192,7 +198,7 @@ namespace ChronusQ {
         { {contract1PDMLL.S().pointer(), Scr1, HerDen, COULOMB} };
 
       // Determine how many (if any) exchange terms to calculate
-      if( std::abs(xHFX) > 1e-12 )
+      if (computeExchange)
       for(size_t i = 0; i < ss.exchangeMatrix->nComponent(); i++) {
   
         PAULI_SPINOR_COMPS c = static_cast<PAULI_SPINOR_COMPS>(i);
@@ -212,7 +218,7 @@ namespace ChronusQ {
       SetMat('N', NB1C, NB1C, MatsT(1.), Scr1, NB1C, ss.coulombMatrix->pointer(), NB2C);
 
       // Assemble 4C exchangeMatrix 
-      if( std::abs(xHFX) > 1e-12 ) {
+      if(computeExchange) {
       for(auto i = 0; i < ss.exchangeMatrix->nComponent();i++){
         PAULI_SPINOR_COMPS c = static_cast<PAULI_SPINOR_COMPS>(i);
         SetMat('N', NB1C, NB1C, MatsT(1.), exchangeMatrixLL[c].pointer(), NB1C,
@@ -333,11 +339,11 @@ namespace ChronusQ {
 #ifdef _PRINT_MATRICES
   
       std::cout<<"After SSSS"<<std::endl;
-      prettyPrintSmart(std::cout, "COULOMB",    ss.coulombMatrix->pointer(),      NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB",    ss.coulombMatrix->pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMBSS-S", ss.twoeH->S().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMBSS-X", ss.twoeH->X().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMBSS-Y", ss.twoeH->Y().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMBSS-Z", ss.twoeH->Z().pointer(), NB2C, NB2C, NB2C);
   
 #endif //_PRINT_MATRICES
   
@@ -348,7 +354,7 @@ namespace ChronusQ {
   
   
 #if 1 
-      if( std::abs(xHFX) > 1e-12 ) {
+      if (computeExchange) {
       /*++++++++++++++++++++++++++++++++++++++++++*/
       /* Start of Dirac-Coulomb (LL|SS) / (SS|LL) */
       /*++++++++++++++++++++++++++++++++++++++++++*/
@@ -472,11 +478,11 @@ namespace ChronusQ {
       /*   End of Dirac-Coulomb (LL|SS) / (SS|LL) */
       /*------------------------------------------*/
     
-    } // HH all the terms for (LL|SS)/(SS|LL) block are exchange types
+    }  // computeExchange
       
       auto durERIDC = tock(topERIDC);
       std::cout << "Dirac-Coulomb Contraction duration   = " << durERIDC << std::endl;
-    }
+    } // Dirac Coulomb
   
 
 
@@ -579,6 +585,8 @@ namespace ChronusQ {
 #endif // Gaunt LLLL Spin-Orbit
   
 #if 1 //Gaunt LLLL
+      
+      if (computeExchange) {
       /*++++++++++++++++++++++++++++++++++++*/
       /* Start of Gaunt (LL|LL) Contraction */
       /*++++++++++++++++++++++++++++++++++++*/
@@ -599,7 +607,6 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, 3.0*iscale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer(), NB2C, ss.exchangeMatrix->S().pointer(), NB2C);
       MatAdd('N','N', NB1C, NB1C, 3.0*iscale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer(), NB2C, ss.exchangeMatrix->S().pointer(), NB2C);
   
-  
       /* Equation (114) */
       std::vector<TwoBodyContraction<MatsT>> contractGLL114 =
         { {contract1PDMSS.Z().pointer(), Scr1, HerDen, EXCHANGE, relERI[nERIRef+10].pointer()},
@@ -615,8 +622,6 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer(), NB2C, ss.exchangeMatrix->Z().pointer(), NB2C);
       MatAdd('N','N', NB1C, NB1C,  scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer(), NB2C, ss.exchangeMatrix->Z().pointer(), NB2C);
       MatAdd('N','N', NB1C, NB1C,  scale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer(), NB2C, ss.exchangeMatrix->Z().pointer(), NB2C);
-  
-  
   
       /* Equation (115) */
       std::vector<TwoBodyContraction<MatsT>> contractGLL115 =
@@ -651,8 +656,7 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer(), NB2C, ss.exchangeMatrix->Y().pointer(), NB2C);
       MatAdd('N','N', NB1C, NB1C,  scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer(), NB2C, ss.exchangeMatrix->Y().pointer(), NB2C);
       MatAdd('N','N', NB1C, NB1C,  scale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer(), NB2C, ss.exchangeMatrix->Y().pointer(), NB2C);
-  
-  
+
 #endif //Gaunt LLLL
   
 #ifdef _PRINT_MATRICES
@@ -665,8 +669,7 @@ namespace ChronusQ {
       prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
   
 #endif //_PRINT_MATRICES
-  
-      auto RESET = false;
+   
       if(RESET) {
         ss.coulombMatrix->clear();
         ss.exchangeMatrix->clear();
@@ -677,7 +680,6 @@ namespace ChronusQ {
       /*----------------------------------*/
       /* End of Gaunt (LL|LL) Contraction */
       /*----------------------------------*/
-  
   
   
   
@@ -753,7 +755,7 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C,    iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+SS, NB2C, ss.exchangeMatrix->S().pointer()+SS, NB2C);
       MatAdd('N','N', NB1C, NB1C,    iscale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+SS, NB2C, ss.exchangeMatrix->S().pointer()+SS, NB2C);
       MatAdd('N','N', NB1C, NB1C,    iscale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+SS, NB2C, ss.exchangeMatrix->S().pointer()+SS, NB2C);
-  
+
       /* Equation (130) */
       std::vector<TwoBodyContraction<MatsT>> contractGSS130 =
         { {contract1PDMLL.Z().pointer(), Scr1, HerDen, EXCHANGE, relERI[nERIRef+10].pointer(), TRANS_MNKL},
@@ -766,7 +768,7 @@ namespace ChronusQ {
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,      scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, 3.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,  3.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
       MatAdd('N','N', NB1C, NB1C,      scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
       MatAdd('N','N', NB1C, NB1C,      scale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
   
@@ -783,7 +785,7 @@ namespace ChronusQ {
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,      scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, 3.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,  3.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
       MatAdd('N','N', NB1C, NB1C,      scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
       MatAdd('N','N', NB1C, NB1C,      scale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
   
@@ -800,10 +802,10 @@ namespace ChronusQ {
   
       // Assemble 4C exchangeMatrix 
       MatAdd('N','N', NB1C, NB1C,      scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, 3.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,  3.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
       MatAdd('N','N', NB1C, NB1C,      scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
       MatAdd('N','N', NB1C, NB1C,      scale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
-  
+
 #endif // Gaunt SSSS
   
 #ifdef _PRINT_MATRICES
@@ -824,10 +826,8 @@ namespace ChronusQ {
       /*------------------------------------*/
       /*   End of Gaunt (SS|SS) Contraction */
       /*------------------------------------*/
-  
-  
-  
-  
+      
+      } // computeExchange, Gaunt (LL|LL) and (SS|SS) are all exchange terms
   
   
       /*++++++++++++++++++++++++++++++++++++*/
@@ -979,6 +979,7 @@ namespace ChronusQ {
   
 #if 1 // Gaunt LLSS COULOMB
   
+#if 1      
       /* Equation (91) */
       std::vector<TwoBodyContraction<MatsT>> contractGLS91 =
         { {contract1PDMLS.S().pointer(), Scr1, HerDen, COULOMB, relERI[nERIRef].pointer()},
@@ -989,13 +990,38 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS91);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C,   2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
+      // Assemble coulomb contributation direct to twoeH 
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr2, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr3, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr4, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+
+      /* Equation (92)Z first two terms */
+      std::vector<TwoBodyContraction<MatsT>> contractGLS92AZ =
+        { {contract1PDMLS.S().pointer(), Scr1, HerDen, COULOMB, relERI[nERIRef+3].pointer()},
+          {contract1PDMLS.Z().pointer(), Scr2, HerDen, COULOMB, relERI[nERIRef].pointer()} };
   
+      // Call the contraction engine to do the assembly
+      ss.TPI->twoBodyContract(ss.comm, contractGLS92AZ);
   
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,-2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+  
+      /* Equation (92)Z last term */
+      std::vector<TwoBodyContraction<MatsT>> contractGLS92BZ =
+        { {contract1PDMLS.X().pointer(), Scr1, HerDen, COULOMB, relERI[nERIRef+15].pointer()},
+          {contract1PDMLS.Y().pointer(), Scr2, HerDen, COULOMB, relERI[nERIRef+17].pointer()},
+          {contract1PDMLS.Z().pointer(), Scr3, HerDen, COULOMB, relERI[nERIRef+18].pointer()} };
+  
+      // Call the contraction engine to do the assembly
+      ss.TPI->twoBodyContract(ss.comm, contractGLS92BZ);
+  
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+
       /* Equation (92)X first two terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS92AX =
         { {contract1PDMLS.S().pointer(), Scr1, HerDen, COULOMB, relERI[nERIRef+1].pointer()},
@@ -1004,9 +1030,9 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS92AX);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,   2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
+      // Assemble coulomb contributation direct to twoeH 
+      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
   
   
       /* Equation (92)X last term */
@@ -1018,10 +1044,10 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS92BX);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
   
   
       /* Equation (92)Y first two terms */
@@ -1032,11 +1058,9 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS92AY);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,   2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-  
-  
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,-2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
   
       /* Equation (92)Y last term */
       std::vector<TwoBodyContraction<MatsT>> contractGLS92BY =
@@ -1047,47 +1071,18 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS92BY);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-  
-  
-      /* Equation (92)Z first two terms */
-      std::vector<TwoBodyContraction<MatsT>> contractGLS92AZ =
-        { {contract1PDMLS.S().pointer(), Scr1, HerDen, COULOMB, relERI[nERIRef+3].pointer()},
-          {contract1PDMLS.Z().pointer(), Scr2, HerDen, COULOMB, relERI[nERIRef].pointer()} };
-  
-      // Call the contraction engine to do the assembly
-      ss.TPI->twoBodyContract(ss.comm, contractGLS92AZ);
-  
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,   2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-  
-  
-      /* Equation (92)Z last term */
-      std::vector<TwoBodyContraction<MatsT>> contractGLS92BZ =
-        { {contract1PDMLS.X().pointer(), Scr1, HerDen, COULOMB, relERI[nERIRef+15].pointer()},
-          {contract1PDMLS.Y().pointer(), Scr2, HerDen, COULOMB, relERI[nERIRef+17].pointer()},
-          {contract1PDMLS.Z().pointer(), Scr3, HerDen, COULOMB, relERI[nERIRef+18].pointer()} };
-  
-      // Call the contraction engine to do the assembly
-      ss.TPI->twoBodyContract(ss.comm, contractGLS92BZ);
-  
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-  
-  
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+#endif
   
 #ifdef _PRINT_MATRICES
       std::cout<<"After Gaunt 91-92"<<std::endl;
-      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-S", ss.twoeH->S().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-X", ss.twoeH->X().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-Y", ss.twoeH->Y().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-Z", ss.twoeH->Z().pointer(), NB2C, NB2C, NB2C);
 #endif
   
       if(RESET) {
@@ -1095,6 +1090,7 @@ namespace ChronusQ {
         ss.exchangeMatrix->clear();
       }
   
+#if 1      
       /* Equation (136) */
       std::vector<TwoBodyContraction<MatsT>> contractGLS136 =
         { {contract1PDMSL.S().pointer(), Scr1, HerDen, COULOMB, relERI[nERIRef].pointer(), TRANS_KL},
@@ -1105,12 +1101,11 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS136);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C,  -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-  
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr2, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr3, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr4, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
   
       /* Equation (137)X first two terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS137AX =
@@ -1120,9 +1115,9 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS137AX);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
   
   
       /* Equation (137)X last term */
@@ -1133,11 +1128,11 @@ namespace ChronusQ {
   
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS137BX);
-  
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
+ 
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
   
       /* Equation (137)Y first two terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS137AY =
@@ -1147,9 +1142,9 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS137AY);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
   
   
       /* Equation (137)Y last term */
@@ -1161,10 +1156,10 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS137BY);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
   
       /* Equation (137)Z first two terms */
       std::vector<TwoBodyContraction<MatsT>> contractGLS137AZ =
@@ -1174,9 +1169,9 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS137AZ);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
   
   
       /* Equation (137)Z last term */
@@ -1188,29 +1183,28 @@ namespace ChronusQ {
       // Call the contraction engine to do the assembly
       ss.TPI->twoBodyContract(ss.comm, contractGLS137BZ);
   
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
   
-  
+#endif      
   
 #ifdef _PRINT_MATRICES
       std::cout<<"After Gaunt 136-137"<<std::endl;
-      prettyPrintSmart(std::cout, "EXCHANGE-S", ss.exchangeMatrix->S().pointer(), NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-X", ss.exchangeMatrix->X().pointer(), NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-Y", ss.exchangeMatrix->Y().pointer(), NB2C, NB2C, NB2C);
-      prettyPrintSmart(std::cout, "EXCHANGE-Z", ss.exchangeMatrix->Z().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-S", ss.twoeH->S().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-X", ss.twoeH->X().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-Y", ss.twoeH->Y().pointer(), NB2C, NB2C, NB2C);
+      prettyPrintSmart(std::cout, "COULOMB-Z", ss.twoeH->Z().pointer(), NB2C, NB2C, NB2C);
 #endif
       if(RESET) {
         ss.coulombMatrix->clear();
         ss.exchangeMatrix->clear();
       }
   
-  
-  
 #endif  // Gaunt LLSS COULOMB
-  
+      
+      if (computeExchange) {
 #if 1 // Gaunt LLSS EXCHANGE
       /* Equation (159) */
       std::vector<TwoBodyContraction<MatsT>> contractGLS159 =
@@ -1350,7 +1344,7 @@ namespace ChronusQ {
       /*------------------------------------*/
       /*   End of Gaunt (LL|SS) Contraction */
       /*------------------------------------*/
-  
+      } // computeExchange, LLSS exchange part 
   
       auto durERIDG = tock(topERIDG);
       std::cout << "Gaunt Contraction duration   = " << durERIDG << std::endl;
@@ -1415,13 +1409,14 @@ namespace ChronusQ {
       ss.TPI->twoBodyContract(ss.comm, contractSSSS70A);
  
 
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C, -2.0*scaleC4, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+SS, NB2C, ss.exchangeMatrix->S().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,-2.0*iscaleC4, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+SS, NB2C, ss.exchangeMatrix->S().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,-2.0*iscaleC4, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+SS, NB2C, ss.exchangeMatrix->S().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,-2.0*iscaleC4, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+SS, NB2C, ss.exchangeMatrix->S().pointer()+SS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*scaleC4, Scr1, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+SS, NB2C, ss.twoeH->S().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscaleC4, Scr2, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+SS, NB2C, ss.twoeH->S().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscaleC4, Scr3, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+SS, NB2C, ss.twoeH->S().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscaleC4, Scr4, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+SS, NB2C, ss.twoeH->S().pointer()+SS, NB2C);
 
 
+      if (computeExchange) {
 #if 1
       std::vector<TwoBodyContraction<MatsT>> contractSSSS70B =
         { {contract1PDMSS.S().pointer(), Scr1, HerDen, EXCHANGE, relERI[nERIRef   ].pointer()},
@@ -1509,6 +1504,7 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C,-iscaleC4, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+SS, NB2C, ss.exchangeMatrix->S().pointer()+SS, NB2C);
 
 #endif
+      } // computeExchange
 
       /* Equation 71 in the paper */
       std::vector<TwoBodyContraction<MatsT>> contractSSSS71A =
@@ -1521,13 +1517,14 @@ namespace ChronusQ {
       ss.TPI->twoBodyContract(ss.comm, contractSSSS71A);
  
 
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C,-2.0*iscaleC4, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scaleC4, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scaleC4, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scaleC4, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscaleC4, Scr1, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+SS, NB2C, ss.twoeH->Z().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,-2.0*scaleC4, Scr2, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+SS, NB2C, ss.twoeH->Z().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,-2.0*scaleC4, Scr3, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+SS, NB2C, ss.twoeH->Z().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,-2.0*scaleC4, Scr4, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+SS, NB2C, ss.twoeH->Z().pointer()+SS, NB2C);
 
 
+      if (computeExchange) {
 #if 1
       std::vector<TwoBodyContraction<MatsT>> contractSSSS71B =
         { {contract1PDMSS.Z().pointer(), Scr1, HerDen, EXCHANGE, relERI[nERIRef   ].pointer()},
@@ -1625,7 +1622,7 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, -scaleC4, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+SS, NB2C, ss.exchangeMatrix->Z().pointer()+SS, NB2C);
 
 #endif
-
+      } // computeExchange
 
 
 
@@ -1641,12 +1638,13 @@ namespace ChronusQ {
       ss.TPI->twoBodyContract(ss.comm, contractSSSS72A);
  
 
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C,-2.0*iscaleC4, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scaleC4, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scaleC4, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scaleC4, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C,  2.0*iscaleC4, Scr1, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+SS, NB2C, ss.twoeH->X().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scaleC4, Scr2, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+SS, NB2C, ss.twoeH->X().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scaleC4, Scr3, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+SS, NB2C, ss.twoeH->X().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scaleC4, Scr4, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+SS, NB2C, ss.twoeH->X().pointer()+SS, NB2C);
 
+      if (computeExchange) {
 #if 1
       std::vector<TwoBodyContraction<MatsT>> contractSSSS72B =
         { {contract1PDMSS.X().pointer(), Scr1, HerDen, EXCHANGE, relERI[nERIRef   ].pointer()},
@@ -1744,7 +1742,7 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, -scaleC4, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+SS, NB2C, ss.exchangeMatrix->X().pointer()+SS, NB2C);
 
 #endif
-
+      } // computeExchange
 
 
 
@@ -1759,12 +1757,13 @@ namespace ChronusQ {
       ss.TPI->twoBodyContract(ss.comm, contractSSSS73A);
  
 
-      // Assemble 4C exchangeMatrix 
-      MatAdd('N','N', NB1C, NB1C,-2.0*iscaleC4, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scaleC4, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scaleC4, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scaleC4, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
+      // Assemble 4C twoeH 
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscaleC4, Scr1, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+SS, NB2C, ss.twoeH->Y().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,-2.0*scaleC4, Scr2, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+SS, NB2C, ss.twoeH->Y().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,-2.0*scaleC4, Scr3, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+SS, NB2C, ss.twoeH->Y().pointer()+SS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,-2.0*scaleC4, Scr4, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+SS, NB2C, ss.twoeH->Y().pointer()+SS, NB2C);
 
+      if (computeExchange) {
 #if 1
       std::vector<TwoBodyContraction<MatsT>> contractSSSS73B =
         { {contract1PDMSS.Y().pointer(), Scr1, HerDen, EXCHANGE, relERI[nERIRef   ].pointer()},
@@ -1862,7 +1861,7 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, -scaleC4, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
 
 #endif
-
+     } // computeExchange
 
       
       auto durERIDCSSSS = tock(topERIDCSSSS);
@@ -1925,6 +1924,7 @@ namespace ChronusQ {
       dcomplex iscalef = 0.5* dcomplex(0.0, 1./(4*SpeedOfLight*SpeedOfLight));
 
 
+      if (computeExchange) {
       /*++++++++++++++++++++++++++++++++++++*/
       /* Start of Gauge (LL|LL) Contraction */
       /*++++++++++++++++++++++++++++++++++++*/
@@ -2096,6 +2096,9 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, -scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer(), NB2C, ss.exchangeMatrix->Y().pointer(), NB2C);
       MatAdd('N','N', NB1C, NB1C, -scale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer(), NB2C, ss.exchangeMatrix->Y().pointer(), NB2C);
  
+      /*++++++++++++++++++++++++++++++++++++*/
+      /*  End of Gauge (LL|LL) Contraction  */
+      /*++++++++++++++++++++++++++++++++++++*/
 
 
 
@@ -2267,7 +2270,11 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, -scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
       MatAdd('N','N', NB1C, NB1C, -scale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+SS, NB2C, ss.exchangeMatrix->Y().pointer()+SS, NB2C);
 
+      /*++++++++++++++++++++++++++++++++++++*/
+      /*  End of Gauge (SS|SS) Contraction  */
+      /*++++++++++++++++++++++++++++++++++++*/
 
+      } // computeExchange
 
       /*++++++++++++++++++++++++++++++++++++*/
       /* Start of Gauge (LL|SS) Contraction */
@@ -2282,11 +2289,11 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS232);
   
-      MatAdd('N','N', NB1C, NB1C,   2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,  -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
 
-      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr2, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr3, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr4, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
 
 
       std::vector<TwoBodyContraction<MatsT>> contractGLS2322 =
@@ -2297,19 +2304,18 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS2322);
   
-      MatAdd('N','N', NB1C, NB1C,  -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr2, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr3, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr4, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+LS, NB2C);
  
-
       /* Equation (233)X */
       std::vector<TwoBodyContraction<MatsT>> contractGLS233AX =
         { {contract1PDMLS.S().pointer(), Scr1, HerDen, COULOMB, relERI[nERIRef+4].pointer()} };
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233AX);
   
-      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
   
 
       std::vector<TwoBodyContraction<MatsT>> contractGLS233BX =
@@ -2319,9 +2325,9 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233BX);
   
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
  
 
       std::vector<TwoBodyContraction<MatsT>> contractGLS233CX =
@@ -2329,7 +2335,7 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233CX);
   
-      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
   
   
       std::vector<TwoBodyContraction<MatsT>> contractGLS233DX =
@@ -2339,11 +2345,9 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233DX);
   
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->X().pointer()+LS, NB2C, ss.exchangeMatrix->X().pointer()+LS, NB2C);
-
-
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+LS, NB2C);
 
       /* Equation (233)Y  */
       std::vector<TwoBodyContraction<MatsT>> contractGLS233AY =
@@ -2351,7 +2355,7 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233AY);
   
-      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
 
 
       std::vector<TwoBodyContraction<MatsT>> contractGLS233BY =
@@ -2361,9 +2365,9 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233BY);
   
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
 
 
       std::vector<TwoBodyContraction<MatsT>> contractGLS233CY =
@@ -2371,7 +2375,7 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233CY);
   
-      MatAdd('N','N', NB1C, NB1C,-2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
   
   
       std::vector<TwoBodyContraction<MatsT>> contractGLS233DY =
@@ -2381,9 +2385,9 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233DY);
   
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+LS, NB2C);
 
 
 
@@ -2393,7 +2397,7 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233AZ);
   
-      MatAdd('N','N', NB1C, NB1C,  2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
  
 
       std::vector<TwoBodyContraction<MatsT>> contractGLS233BZ =
@@ -2403,9 +2407,9 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233BZ);
   
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
   
   
       std::vector<TwoBodyContraction<MatsT>> contractGLS233CZ =
@@ -2413,7 +2417,7 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233CZ);
   
-      MatAdd('N','N', NB1C, NB1C,-2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, 2.0*iscale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
   
   
       std::vector<TwoBodyContraction<MatsT>> contractGLS233DZ =
@@ -2423,13 +2427,12 @@ namespace ChronusQ {
   
       ss.TPI->twoBodyContract(ss.comm, contractGLS233DZ);
   
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr1, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-      MatAdd('N','N', NB1C, NB1C,  2.0*scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-
-
-
-
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr1, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr2, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      MatAdd('N','N', NB1C, NB1C, -2.0*scale, Scr3, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+LS, NB2C);
+      
+      /* Gauge (LL|SS) Contraction Exchange part */
+      if (computeExchange) {
 
       /* Equation (248) */
       std::vector<TwoBodyContraction<MatsT>> contractGLL248 =
@@ -2593,6 +2596,8 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C,-iscale, Scr2, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
       MatAdd('N','N', NB1C, NB1C, -scale, Scr3, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
       MatAdd('N','N', NB1C, NB1C, -scale, Scr4, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+LS, NB2C);
+      
+      } // computeExchange
 
 #ifdef _PRINT_MATRICES
       std::cout<<"After Gauge LLLL"<<std::endl;
@@ -2618,7 +2623,8 @@ namespace ChronusQ {
     /* Final Assembly of 4C Matrix */
     /*******************************/
     ROOT_ONLY(ss.comm);
-
+    
+    if (computeExchange) {
     // Copy LS to SL part of the exchangeMatrix[MS]
     SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+SL, NB2C);
     // Copy LS to SL part of the exchangeMatrix[MX]
@@ -2627,9 +2633,34 @@ namespace ChronusQ {
     SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+SL, NB2C);
     // Copy LS to SL part of the exchangeMatrix[MZ]
     SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+SL, NB2C);
+    }
+    
+    if (HerDen) {
+      // Hermitrize matrices to avoid accumulate small rounding errors
+
+      // Copy LS to SL part of the twoeH[MS]
+      SetMat('C', NB1C, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+SL, NB2C);
+      // Copy LS to SL part of the twoeH[MX]
+      SetMat('C', NB1C, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+SL, NB2C);
+      // Copy LS to SL part of the twoeH[MY]
+      SetMat('C', NB1C, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+SL, NB2C);
+      // Copy LS to SL part of the twoeH[MZ]
+      SetMat('C', NB1C, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+SL, NB2C);
+    } else {
+      // only use symmetry of the integrals here
+
+      // Copy LS to SL part of the twoeH[MS]
+      SetMat('T', NB1C, NB1C, -MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+SL, NB2C);
+      // Copy LS to SL part of the twoeH[MX]
+      SetMat('T', NB1C, NB1C, MatsT(1.0), ss.twoeH->X().pointer()+LS, NB2C, ss.twoeH->X().pointer()+SL, NB2C);
+      // Copy LS to SL part of the twoeH[MY]
+      SetMat('T', NB1C, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+SL, NB2C);
+      // Copy LS to SL part of the twoeH[MZ]
+      SetMat('T', NB1C, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+SL, NB2C);
+    } 
 
     // Form GD: G[D] = 2.0*J[D] - K[D]
-    if( std::abs(xHFX) > 1e-12 ) {
+    if(computeExchange) {
       *ss.twoeH -= xHFX * *ss.exchangeMatrix;
     } 
     // G[D] += 2*J[D]
@@ -3726,8 +3757,8 @@ namespace ChronusQ {
 
     size_t mpiRank   = MPIRank(ss.comm);
     bool   isNotRoot = mpiRank != 0;
-    bool   CoulombOnly = std::abs(xHFX) < 1e-12; 
-
+    bool   computeExchange = std::abs(xHFX) >= 1e-12; 
+    
     PauliSpinorSquareMatrices<MatsT> exchangeMatrixLL(mem, NB1C);
 
     PauliSpinorSquareMatrices<MatsT> contract1PDMLL(mem, NB1C);
@@ -3870,11 +3901,11 @@ namespace ChronusQ {
             {contract1PDMLS.Z().pointer(), XScrLSMZ} };
   
         // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
-        relERICon.twoBodyContract(ss.comm, true, contractLL, pert, CoulombOnly);
+        relERICon.twoBodyContract(ss.comm, true, contractLL, pert, computeExchange);
   
         //SetMat('N', NB1C, NB1C, MatsT(1.), CScrLLMS, NB1C, ss.coulombMatrix->pointer(), NB2C);
         SetMat('N', NB1C, NB1C, MatsT(2.), CScrLLMS, NB1C, ss.twoeH->S().pointer(), NB2C);
-        if (not CoulombOnly) {
+        if (computeExchange) {
           SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMS, NB1C, ss.exchangeMatrix->S().pointer(), NB2C);
           SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMX, NB1C, ss.exchangeMatrix->X().pointer(), NB2C);
           SetMat('N', NB1C, NB1C, MatsT(1.), XScrLLMY, NB1C, ss.exchangeMatrix->Y().pointer(), NB2C);
@@ -3886,7 +3917,7 @@ namespace ChronusQ {
           { {contract1PDMLL.S().pointer(), CScrLLMS, HerDen, COULOMB} };
     
         // Determine how many (if any) exchange terms to calculate
-        if( not CoulombOnly ) {
+        if(computeExchange) {
           exchangeMatrixLL.clear();
           for(size_t i = 0; i < ss.exchangeMatrix->nComponent(); i++) {
     
@@ -3908,7 +3939,7 @@ namespace ChronusQ {
         SetMat('N', NB1C, NB1C, MatsT(1.), CScrLLMS, NB1C, ss.twoeH->S().pointer(), NB2C);
     
         // Assemble 4C exchangeMatrix 
-        if( not CoulombOnly ) {
+        if(computeExchange) {
           for(auto i = 0; i < ss.exchangeMatrix->nComponent();i++){
             PAULI_SPINOR_COMPS c = static_cast<PAULI_SPINOR_COMPS>(i);
             SetMat('N', NB1C, NB1C, MatsT(1.), exchangeMatrixLL[c].pointer(), NB1C,
@@ -3976,7 +4007,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), XScrLSMZ} };
 
       // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
-      relERICon.twoBodyContract(ss.comm, true, contractDCLL, pert, CoulombOnly);
+      relERICon.twoBodyContract(ss.comm, true, contractDCLL, pert, computeExchange);
 
       // Add Dirac-Coulomb contributions to the LLLL block
       MatAdd('N','N', NB1C, NB1C, 2.0*C2, CScrLLMS, NB1C, MatsT(1.0), 
@@ -4013,7 +4044,7 @@ namespace ChronusQ {
 #endif
 
 
-      if( not CoulombOnly ) {
+      if(computeExchange) {
 #if 1 
       std::vector<TwoBodyContraction<MatsT>> contractDCLS =
         { {contract1PDMLL.S().pointer(), CScrLLMS, HerDen, LLSS},
@@ -4106,7 +4137,7 @@ namespace ChronusQ {
           {contract1PDMLS.Z().pointer(), XScrLSMZ} };
 
       // Call the contraction engine to do the assembly of Dirac-Coulomb LLLL
-      relERICon.twoBodyContract(ss.comm, true, contractDCSS,pert);
+      relERICon.twoBodyContract(ss.comm, true, contractDCSS, pert);
 
       // Add (SS|SS) Coulomb contributions to the SSSS block
       MatAdd('N','N', NB1C, NB1C, 2.0*C4, CScrSSMS, NB1C, MatsT(1.0), 
@@ -4122,6 +4153,7 @@ namespace ChronusQ {
                       ss.twoeH->Z().pointer()+SS, NB2C,
                       ss.twoeH->Z().pointer()+SS, NB2C);
 
+      if (computeExchange) {
       // Add (SS|SS) exchange contributions to the SSSS block
       MatAdd('N','N', NB1C, NB1C, -C4, XScrSSMS, NB1C, MatsT(1.0), 
                       ss.exchangeMatrix->S().pointer()+SS, NB2C,
@@ -4135,7 +4167,7 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, -C4, XScrSSMZ, NB1C, MatsT(1.0), 
                       ss.exchangeMatrix->Z().pointer()+SS, NB2C,
                       ss.exchangeMatrix->Z().pointer()+SS, NB2C);
-
+      }
 
 #ifdef _PRINT_MATRICES
       std::cout<<"After SSSS"<<std::endl;
@@ -4218,6 +4250,7 @@ namespace ChronusQ {
                       ss.twoeH->Z().pointer()+LS, NB2C,
                       ss.twoeH->Z().pointer()+LS, NB2C);
 
+      if (computeExchange) {
       // Add (LL|LL) exchange contributions
       MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMS, NB1C, MatsT(1.0), 
                       ss.exchangeMatrix->S().pointer(), NB2C,
@@ -4260,7 +4293,7 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMZ, NB1C, MatsT(1.0), 
                       ss.exchangeMatrix->Z().pointer()+LS, NB2C,
                       ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-
+      }
 
 
 #ifdef _PRINT_MATRICES
@@ -4341,6 +4374,7 @@ namespace ChronusQ {
                       ss.twoeH->Z().pointer()+LS, NB2C,
                       ss.twoeH->Z().pointer()+LS, NB2C);
 
+      if (computeExchange) {
       // Add (LL|LL) exchange contributions
       MatAdd('N','N', NB1C, NB1C, -C2, XScrLLMS, NB1C, MatsT(1.0), 
                       ss.exchangeMatrix->S().pointer(), NB2C,
@@ -4383,7 +4417,7 @@ namespace ChronusQ {
       MatAdd('N','N', NB1C, NB1C, -C2, XScrLSMZ, NB1C, MatsT(1.0), 
                       ss.exchangeMatrix->Z().pointer()+LS, NB2C,
                       ss.exchangeMatrix->Z().pointer()+LS, NB2C);
-
+      }
 
 
 #ifdef _PRINT_MATRICES
@@ -4406,6 +4440,7 @@ namespace ChronusQ {
     /*******************************/
     ROOT_ONLY(ss.comm);
 
+    if (computeExchange) {
     // Copy LS to SL part of the exchangeMatrix[MS]
     SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->S().pointer()+LS, NB2C, ss.exchangeMatrix->S().pointer()+SL, NB2C);
     // Copy LS to SL part of the exchangeMatrix[MX]
@@ -4414,7 +4449,8 @@ namespace ChronusQ {
     SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->Y().pointer()+LS, NB2C, ss.exchangeMatrix->Y().pointer()+SL, NB2C);
     // Copy LS to SL part of the exchangeMatrix[MZ]
     SetMat('C', NB1C, NB1C, MatsT(1.0), ss.exchangeMatrix->Z().pointer()+LS, NB2C, ss.exchangeMatrix->Z().pointer()+SL, NB2C);
-
+    }
+    
     // Copy LS to SL part of the twoeH[MS]
     SetMat('C', NB1C, NB1C, MatsT(1.0), ss.twoeH->S().pointer()+LS, NB2C, ss.twoeH->S().pointer()+SL, NB2C);
     // Copy LS to SL part of the twoeH[MX]
@@ -4423,10 +4459,11 @@ namespace ChronusQ {
     SetMat('C', NB1C, NB1C, MatsT(1.0), ss.twoeH->Y().pointer()+LS, NB2C, ss.twoeH->Y().pointer()+SL, NB2C);
     // Copy LS to SL part of the twoeH[MZ]
     SetMat('C', NB1C, NB1C, MatsT(1.0), ss.twoeH->Z().pointer()+LS, NB2C, ss.twoeH->Z().pointer()+SL, NB2C);
-
+    if (false) {
+    }
 
     // Form GD: G[D] = 2.0*J[D] - K[D]
-    if( std::abs(xHFX) > 1e-12 ) *ss.twoeH -= xHFX * *ss.exchangeMatrix;
+    if(computeExchange) *ss.twoeH -= xHFX * *ss.exchangeMatrix;
 
 
     mem.free(CScrLLMS);

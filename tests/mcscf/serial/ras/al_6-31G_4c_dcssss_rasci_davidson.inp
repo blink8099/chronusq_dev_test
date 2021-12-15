@@ -13,11 +13,8 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = ROHF
+reference = 4CHF
 job = MCSCF
-
-[SCF]
-guess=readden
 
 [BASIS]
 basis = 6-31g 
@@ -27,13 +24,18 @@ mem = 1 GB
 nsmp = 1
 
 [MCSCF]
-JOBTYPE = CASCI
-NACTO = 4 
-NACTE = 3
-NRoots = 3 
-
+JOBTYPE = RASCI
+NACTO = 2 8 2
+NACTE = 5
+NRoots = 6
+RAS1MAXHOLE = 1
+RAS3MAXELEC = 1
+CIDiagAlg = Davidson
 
 [INTS]
 alg = incore
+DC = true
+SSSS = true
+libcint = true
 
 

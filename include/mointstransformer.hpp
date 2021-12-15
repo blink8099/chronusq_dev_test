@@ -97,7 +97,7 @@ namespace ChronusQ {
       TPI_TRANSFORMATION_ALG alg = DIRECT_N6): memManager_(mem), 
       ss_(ss), TPITransAlg_(alg) {
         
-        if (ss.nC == 4) {
+        if (ss.nC == 4 and alg == INCORE_N5) {
           auto & hamiltonianOptions = ss.fockBuilder->getHamiltonianOptions();
           if (hamiltonianOptions.Gaunt or
               hamiltonianOptions.DiracCoulombSSSS or 

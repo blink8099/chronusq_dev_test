@@ -376,20 +376,29 @@ namespace ChronusQ {
       }
       if (fvMOStrings.empty()) 
         FILL_DEFAULT_INDEX(inputOrbIndices, mo_iter, 'S', mcscf->MOPartition.nFVirt);
-      auto & haha = mcscf->MOPartition.nActOs;
+      
+      std::cout << std::endl;
+
       std::cout << "    Construct Orbital Indices as:" << std::endl;
-      std::cout << "      ";
-      for (auto & index: inputOrbIndices) std::cout << index << " ";
+      
+      // print 10 per line
+      for (auto i = 0ul, sPerLine = 10ul; i < inputOrbIndices.size(); i++) {
+        
+        if (i % sPerLine == 0) 
+          std::cout << "      MO " << std::setw(5) << i + 1 << " ~ " 
+                    << std::setw(5) << std::min(i + sPerLine, inputOrbIndices.size()) << ":    ";
+        
+        std::cout << inputOrbIndices[i] << "  ";
+
+        if ( (i+1) % sPerLine == 0) std::cout << std::endl;
+      } 
+      
       std::cout << std::endl << std::endl;
       
       mcscf->MOPartition.orbIndices = inputOrbIndices;
       mcscf->setActiveSpaceAndReOrder();
     }    
         
-    //mcscf->MOPartition.orbIndices = {'A','A','I','I','I','I','I','I','I','I',
-    //                                 'I','I','A','A','A','A','A','A',
-    //                                 'S','S','S','S','S','S','S','S'};
-
     // Parse CI Options
     if (isCI or isSCF) {
 

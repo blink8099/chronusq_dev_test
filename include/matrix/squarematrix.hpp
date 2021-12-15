@@ -159,7 +159,10 @@ namespace ChronusQ {
       GetMatRE('N',N_,N_,1.,pointer(),N_,realMat.pointer(),N_);
       return realMat;
     }
-
+    
+    // transform and return the transformed matrix
+    SquareMatrix<MatsT> T(char TRANS = 'T');
+    
     void clear() {
       std::fill_n(ptr_,N_*N_,MatsT(0.));
     }
@@ -185,7 +188,6 @@ namespace ChronusQ {
     template <typename MatsU>
     SquareMatrix<MatsU> spatialToSpinBlock() const;
     
-    
     template <typename MatsU>
     void componentScatter(SquareMatrix<MatsU> & LL,
                           SquareMatrix<MatsU> & LS,
@@ -206,6 +208,8 @@ namespace ChronusQ {
                          const SquareMatrix<MatsU> & LS,
                          const SquareMatrix<MatsU> & SL,
                          const SquareMatrix<MatsU> & SS);
+    
+    
     
     template <typename TransT>
     SquareMatrix<typename std::conditional<

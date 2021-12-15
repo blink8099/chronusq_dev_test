@@ -29,10 +29,11 @@ NACTO = 8
 NACTE = 3
 NRoots = 6
 StateAverage = true
-CIDiagAlg = Davidson
 
 [INTS]
-alg = incore
-DC = true
+alg = direct 
+tpitransalg = N6
+DC = true 
+SSSS = true
 libcint = true
 

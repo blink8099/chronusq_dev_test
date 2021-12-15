@@ -288,6 +288,32 @@ namespace ChronusQ {
 
       }
 
+    } else if (C.intTrans == TRANS_MN_TRANS_KL) { 
+      
+      // D(μν) = D(λκ)([μν]^T|[κλ]^T) = D(λκ)(νμ|λκ)
+      #pragma omp parallel for
+      for(auto m = 0; m < NB; ++m)
+      for(auto n = 0; n < NB; ++n)
+      for(auto k = 0; k < NB; ++k)
+      for(auto l = 0; l < NB; ++l) {
+
+        C.AX[m + n*NB] += C.ERI4[n + m*NB + l*NB2 + k*NB3]*C.X[l + k*NB];
+
+      }
+    
+    } else if (C.intTrans == TRANS_MN) { 
+      
+      // D(μν) = D(λκ)([μν]^T|κλ) = D(λκ)(νμ|κλ)
+      #pragma omp parallel for
+      for(auto m = 0; m < NB; ++m)
+      for(auto n = 0; n < NB; ++n)
+      for(auto k = 0; k < NB; ++k)
+      for(auto l = 0; l < NB; ++l) {
+
+        C.AX[m + n*NB] += C.ERI4[n + m*NB + k*NB2 + l*NB3]*C.X[l + k*NB];
+
+      }
+    
     } else if( C.intTrans == TRANS_MNKL ) {
 
       // D(μν) = D(λκ)(μν|κλ)^T = D(λκ)(κλ|μν)

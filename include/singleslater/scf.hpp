@@ -764,22 +764,24 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::MOIntsTransformationTest(EMPerturbation &pert) {
    
     // test on MO integral transfromations
-    MOIntsTransformer<MatsT, IntsT> N5TF(memManager, *this, INCORE_N5);
+    // MOIntsTransformer<MatsT, IntsT> N5TF(memManager, *this, INCORE_N5);
     MOIntsTransformer<MatsT, IntsT> N6TF(memManager, *this, INCORE_N6);  
 
     std::cout << "\n --------- Test on MO Ints Transformation----- \n" << std::endl;
     
     size_t NB  = this->nAlphaOrbital() * nC;
     size_t nMO = (this->nC == 4) ? NB / 2: NB;
-    InCore4indexTPI<MatsT> N6MOERI(memManager, nMO); 
-    InCore4indexTPI<MatsT> N5MOERI(memManager, nMO); 
-    OnePInts<MatsT> hCore(memManager, nMO); 
+    size_t nOcc = (this->nC == 1) ? this->nO/2: this->nO; 
 
-#if 0
+    InCore4indexTPI<MatsT> N6MOERI(memManager, nOcc); 
+    // InCore4indexTPI<MatsT> N5MOERI(memManager, nMO); 
+    OnePInts<MatsT> hCore(memManager, nOcc); 
+
+#if 1
     std::cout << "---- Test: Reconstruct SCF Energy" << std::endl; 
-    N6TF.transformHCore(hCore.pointer());
+    N6TF.transformHCore(pert, hCore.pointer(), "ij");
     auto timeIdN6 = tick();
-    N6TF.transformTPI(pert, N6MOERI.pointer(), "pqrs", false);
+    N6TF.transformTPI(pert, N6MOERI.pointer(), "ijkl", false, false);
     auto timeDur = tock(timeIdN6);
     
     MatsT SCFEnergy = MatsT(0.);
@@ -799,9 +801,27 @@ namespace ChronusQ {
     }
 
     std::cout << "SSFOCK_N6 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
-    N6MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
+    // N6MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
 
-    std::cout << " - Time (N6) for transforming pqrs " <<  " = " << timeDur << " s\n"; 
+    std::cout << " - Time (N6) for transforming ijkl " <<  " = " << timeDur << " s\n"; 
+
+    MatsT * h1e_ii  = this->memManager.template malloc<MatsT>(nOcc);
+    MatsT * GDjj_ii = this->memManager.template malloc<MatsT>(nOcc);
+
+    double fc1C = (this->nC == 1) ? 2.0 : 1.0;
+
+    N6TF.transformHCore(pert, h1e_ii, "ii", true);
+    N6TF.transformGD(pert, 'i', GDjj_ii, "jj", true, true, "WithInactive-i");  
+
+    MatsT ECore = 0.;
+    // compute core enenrgy
+    for (auto i = 0ul; i < nOcc; i++) {
+      ECore += h1e_ii[i] + 0.5 * GDjj_ii[i];
+    }
+    
+    SCFEnergy = ECore * fc1C;
+
+    std::cout << "SSFOCK_N6 SCF Energy using formFock exchange:" << std::setprecision(16) << SCFEnergy << std::endl;
 #else     
     
     std::vector<std::string> testcases = {"ijkl", "abcd", "pqia", "ipab", "ijab", "pqrs"};

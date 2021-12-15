@@ -72,7 +72,7 @@ namespace ChronusQ {
       std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &,
       std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &);
     
-    virtual size_t formRawGDSCRSizePerBatch(SingleSlater<MatsT,IntsT> &, bool) const;
+    virtual size_t formRawGDSCRSizePerBatch(SingleSlater<MatsT,IntsT> &, bool, bool) const;
     
     // Form the EPJ contribution to Fock matrix (see include/fockbuilder/impl.hpp for docs)
     virtual void formepJ(NEOSingleSlater<MatsT,IntsT> &, NEOSingleSlater<MatsT,IntsT> &, bool increment = false, double xHFX = 1.);

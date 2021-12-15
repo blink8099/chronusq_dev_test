@@ -180,26 +180,6 @@ namespace ChronusQ {
       else CErr("Unknown choice for SCF.GUESS",std::cout);
     }
 
-
-    // Common to all guess: form new set of orbitals from
-    // initial guess at Fock.
-    EMPerturbation pert; // Dummy EM perturbation
-    
-    // leave this out for future
-#if 0
-    // populate MO-FOCK
-    if (scfControls.scfAlg == _SKIP_SCF and
-        (scfControls.guess == READMO 
-         or scfControls.guess == FCHKMO))
-      MOFOCK();
-    else
-#endif
-
-    // TODO: change with updating unit tests to response
-    // if (scfControls.scfAlg != _SKIP_SCF or 
-    //     scfControls.guess == CORE or 
-    //     scfControls.guess == SAD) getNewOrbitals(pert,false);
-    
     // If RANDOM guess, scale the densites appropriately
     // *** Replicates on all MPI processes ***
     if( scfControls.guess == RANDOM ) {
@@ -231,8 +211,6 @@ namespace ChronusQ {
     }
 
     ProgramTimer::tock("Form Guess");
-
-//prettyPrintSmart(std::cout,"1pdm guess",this->onePDM[0],this->nOrbital(),this->nOrbital(),this->nOrbital());
 
   }; // SingleSlater<T>::formGuess
 

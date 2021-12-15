@@ -47,6 +47,9 @@ TEST( FOURCHF, UPu_184_plus_P_DC_pointnuc ) {
 
 };
 
+/*
+ * FIXME: Different compilers/LA libraries give different solutions to this
+ *        test
 // Two electron U-Pu 184+ test Dirac-Couloumb with X2CHF guess (readden)
 TEST( FOURCHF, UPu_184_plus_P_DC_X2CGuess_pointnuc ) {
 
@@ -55,6 +58,7 @@ TEST( FOURCHF, UPu_184_plus_P_DC_X2CGuess_pointnuc ) {
     false, false, false, false, false, true, false, "UPu_184+_X2C_pointnuc.scr.bin" );
 
 };
+*/
 
 #ifndef _CQ_GENERATE_TESTS
 // Two electron U-Pu 184+ test Dirac-Couloumb with readmo
