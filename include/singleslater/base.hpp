@@ -278,6 +278,8 @@ namespace ChronusQ {
     //   from the currently saved state (i.e. between SCF iterations)
     virtual void formDelta() = 0;
 
+    virtual void MOFOCK() = 0;
+
     //   Evaluate SCF convergence. This function should populate the
     //   SingleSlaterBase::scfConv variable and compare it to the 
     //   SingleSlaterBase::scfControls variable to evaluate convergence

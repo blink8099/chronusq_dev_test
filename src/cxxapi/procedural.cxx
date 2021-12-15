@@ -44,6 +44,8 @@
 #include <realtime.hpp>
 #include <itersolver.hpp>
 #include <coupledcluster.hpp>
+#include <mcwavefunction.hpp>
+#include <mcscf.hpp>
 
 #include <findiff/geomgrad.hpp>
 #include <particleintegrals/gradints.hpp>
@@ -256,7 +258,6 @@ namespace ChronusQ {
     // Done setting up
     //
     // START OF REAL PROCEDURAL SECTION
-    //
 
     for( auto& job: jobs ) {
 
@@ -306,7 +307,10 @@ namespace ChronusQ {
         // Run SCF job
         if( elecJob == SCF ) {
           ss->formCoreH(emPert, true);
-          if(firstStep) ss->formGuess(guessSSOptions);
+          if(firstStep) {
+            ss->formGuess(guessSSOptions);
+            ss->formFock(emPert, false);
+          }
           ss->SCF(emPert);
         }
 
@@ -332,6 +336,9 @@ namespace ChronusQ {
         if( elecJob == RESP ) {
 
 
+          if( ss->scfControls.scfAlg == _SKIP_SCF and ss->scfControls.guess == READDEN )
+            CErr("READDEN + SKIP + RESPONSE disabled. Use READMO instead.");
+
           auto resp = CQResponseOptions(output,input,ss);
           resp->savFile = rstFile;
           resp->run();
@@ -356,11 +363,18 @@ namespace ChronusQ {
           #endif
         }
 
+        if ( elecJob == MR ) {
+          auto mcscf = CQMCSCFOptions(output,input,ss);
+          mcscf->savFile = rstFile;
+          mcscf->run(emPert);
+        }
+
         firstStep = false;
 
       } // Loop over geometries
     } // Loop over different jobs
 
+    
     ProgramTimer::tock("Chronus Quantum");
     printTimerSummary(std::cout);
      

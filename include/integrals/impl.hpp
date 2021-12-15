@@ -178,7 +178,7 @@ namespace ChronusQ {
 
       case ELECTRON_REPULSION:
         CErr("Electron repulsion integrals are not implemented in computeAOOneP,"
-             " they are implemented in TwoEInts",std::cout);
+             " they are implemented in TwoPInts",std::cout);
         break;
       }
 

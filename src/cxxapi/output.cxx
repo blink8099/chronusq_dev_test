@@ -36,8 +36,8 @@ namespace ChronusQ {
     Timer& timer = *ProgramTimer::instance();
 
     // Magic formatting numbers
-    size_t sectionWidth = 32;
-    size_t durationWidth = 22;
+    size_t sectionWidth =  36;
+    size_t durationWidth = 20;
     size_t precision = 4;
     size_t limit = std::pow(10, -(precision+1));
 
@@ -156,6 +156,25 @@ namespace ChronusQ {
       printReg("    - Property Evaluation", "Property Eval", respId);
     }
 
+    // MCSCF specific
+    auto mcscfId = timer.getLabelId("MCSCF Total");
+    if ( mcscfId != 0 ) {
+      printReg("  - MCSCF", "MCSCF Total", mcscfId);
+      // CI
+      printReg("    - Solving CI", "Solve CI", mcscfId);
+      printSub("      - Integral Transformation", "Integral Trans", "Solve CI",mcscfId);
+      printSub("      - Diagonalization", "Diagonalization", "Solve CI",mcscfId);
+      printReg("        - Full Matrix Formation", "Full Matrix", mcscfId);
+      printReg("        - Sigma Formation", "Sigma", mcscfId);
+      // Orbital Rotation
+      printReg("    - Orbital Rotation", "Orbital Rotation", mcscfId);
+      printReg("      - Gradient Formation", "Form Gradient", mcscfId);
+      printReg("      - Hessian Formation", "Form Hessian", mcscfId);
+      printReg("      - MO Rotation", "Rotate MO", mcscfId);
+      printReg("      - IVO Generation", "Gen IVOs", mcscfId);
+      printReg("    - Property Evaluation", "Property Eval", mcscfId);
+    }
+    
     // Print footer
     out << BannerEnd << std::endl;
 

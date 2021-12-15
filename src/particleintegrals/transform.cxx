@@ -267,8 +267,6 @@ namespace ChronusQ {
       const std::vector<std::pair<size_t,size_t>> &off_sizes,
       OutT* out, bool increment) const {
     
-    std::cout << "in 4C subsetTransform Now " << std::endl;
-     
     // 4C subset transform, T is supposed to be at least 2*NB as (Large, Small) Component
     // if TRANS = 'N' or 'R' --> LDT = 2*NB
     // else if TRANS = 'T' or 'C' --> the other dimension is 2*NB 
@@ -360,7 +358,6 @@ namespace ChronusQ {
     }      
 
     mem.free(TLarge, TSmall);
-    std::cout << "4C subsetTransform FINISHED " << std::endl;
   }; // InCore4indexRelERI::subsetTransform
   
   template void InCore4indexRelERI<double>::subsetTransform(

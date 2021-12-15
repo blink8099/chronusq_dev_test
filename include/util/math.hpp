@@ -40,5 +40,25 @@ namespace ChronusQ {
   template <>
   inline dcomplex SmartConj(const dcomplex &x) { return std::conj(x); }
 
-};
+  // Combinaiton
+  inline size_t Comb(size_t N, size_t K){
 
+	if (K > N) CErr("Can not do combinations of choosing a K larger than N"); 
+
+    size_t KMin = std::min(K, N - K); 
+    size_t Comb, Comb_tmp;
+    
+    Comb = 1ul;
+    for (auto i = 1ul; i <= KMin; i ++) {
+      Comb_tmp = Comb;
+      Comb *= (N - KMin + i);
+      Comb /= i;
+
+      if (Comb  < Comb_tmp) CErr("Overflow of long unsign int detected in Comb"); 
+    }
+    
+    return Comb;
+
+  }; // Combination
+
+}; // namespace ChronusQ

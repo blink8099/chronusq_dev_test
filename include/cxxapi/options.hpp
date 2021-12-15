@@ -33,6 +33,7 @@
 #include <realtime.hpp>
 #include <response.hpp>
 #include <coupledcluster.hpp>
+#include <mcscf.hpp>
 
 
 
@@ -48,6 +49,7 @@ namespace ChronusQ {
     RT,
     RESP,
     CC,
+    MR,
     BOMD,
     EHRENFEST
   };
@@ -72,6 +74,9 @@ namespace ChronusQ {
     }
     else if( jobStr == "EHRENFEST" ) {
       job = EHRENFEST;
+    }
+    else if( jobStr == "MCSCF" ) {
+      job = MR;
     }
     else {
       jobStr = "Unrecognized job type \"" + jobStr + "\"!";
@@ -175,7 +180,6 @@ namespace ChronusQ {
 #endif  
   void CQCC_VALID(std::ostream &, CQInputFile &);
 
-
   // Parse geometry modifier options
   JobType CQGeometryOptions(std::ostream& out, CQInputFile& input, 
     JobType job, Molecule& mol, std::shared_ptr<SingleSlaterBase> ss,
@@ -189,6 +193,11 @@ namespace ChronusQ {
 
   void CQDYNAMICS_VALID( std::ostream& out, CQInputFile& input );
 
+  // Parse MCSCF options
+  std::shared_ptr<MCWaveFunctionBase> CQMCSCFOptions(std::ostream &, 
+     CQInputFile &, std::shared_ptr<SingleSlaterBase> &);
+  
+  void CQMCSCF_VALID(std::ostream &, CQInputFile &);
 
   std::shared_ptr<CQMemManager> CQMiscOptions(std::ostream &,
     CQInputFile &);
@@ -211,6 +220,7 @@ namespace ChronusQ {
     CQMISC_VALID(out,input);
     CQCC_VALID(out,input);
     CQDYNAMICS_VALID(out,input);
+    CQMCSCF_VALID(out,input);
 
   }
 

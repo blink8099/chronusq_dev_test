@@ -157,10 +157,15 @@ namespace ChronusQ {
       std::cout << "  *** Forming Initial Guess Density for SCF Procedure ***"
                 << std::endl << std::endl;
 
+    // Form initial density
+    // NOTE: The only postcondition that is necessarily satisfied by these
+    //   methods is that onePDM has been populated by a guess density. It does
+    //   NOT necessarily form an initial Fock matrix (sp. ReadMO/Read1PDM)
     if (std::dynamic_pointer_cast<MatrixFock<MatsT,IntsT>>(fockBuilder)) {
 
       EMPerturbation emPert;
       fockBuilder->formFock(*this, emPert, false, 0.0);
+      getNewOrbitals(emPert, false);
 
     } else {
 
@@ -189,8 +194,12 @@ namespace ChronusQ {
       MOFOCK();
     else
 #endif
-      getNewOrbitals(pert,false);
 
+    // TODO: change with updating unit tests to response
+    // if (scfControls.scfAlg != _SKIP_SCF or 
+    //     scfControls.guess == CORE or 
+    //     scfControls.guess == SAD) getNewOrbitals(pert,false);
+    
     // If RANDOM guess, scale the densites appropriately
     // *** Replicates on all MPI processes ***
     if( scfControls.guess == RANDOM ) {
@@ -253,11 +262,12 @@ namespace ChronusQ {
       size_t NB = this->fockMatrix->dimension();
       for(auto mat : this->fockMatrix->SZYXPointers())
         MPIBCast(mat,NB*NB,0,comm);
-   //Forming Orbitals from core guess
-    EMPerturbation pert; // Dummy EM perturbation
-    getNewOrbitals(pert,false);
     }
 #endif
+
+    // Forming Orbitals from core guess
+    EMPerturbation pert; // Dummy EM perturbation
+    getNewOrbitals(pert,false);
 
   }; // SingleSlater::CoreGuess
 
@@ -438,6 +448,9 @@ namespace ChronusQ {
       std::cout << std::endl
                 << "  *** Forming Initial Fock Matrix from SAD Density ***\n\n";
 
+    this->formFock(pert,false);
+    getNewOrbitals(pert,false);
+
   }; // SingleSlater<T>::SADGuess
 
 
@@ -475,7 +488,9 @@ namespace ChronusQ {
         MPIBCast(mat,NB*NB,0,comm);
     }
 #endif
-    EMPerturbation pert;
+
+    // Forming Orbitals from random guess
+    EMPerturbation pert; // Dummy EM perturbation
     getNewOrbitals(pert,false);
 
   }
@@ -509,16 +524,6 @@ namespace ChronusQ {
       }
 
     }
-
-    std::cout << "\n" << std::endl;
-    if( printLevel > 0 )
-      std::cout << std::endl
-                << "  *** Forming Initial Fock Matrix from Guess Density ***\n\n";
-
-    std::cout << "\n" << std::endl;
-    EMPerturbation pert;
-    formFock(pert,false);
-
   } // SingleSlater<T>::ReadGuess1PDM()
 
   /**
@@ -909,6 +914,9 @@ namespace ChronusQ {
 
     } else CErr("Could not determine type of scratch bin file");
 
+    EMPerturbation pert; // Dummy EM perturbation
+    this->formFock(pert,false);
+    getNewOrbitals(pert,false);
 
   } // SingleSlater<T>::readDiffTypeDenBin()
 
@@ -1044,14 +1052,6 @@ namespace ChronusQ {
     // Form density from MOs
     formDensity();
 
-    std::cout << "\n" << std::endl;
-    if( printLevel > 0 )
-      std::cout << std::endl
-                << "  *** Forming Initial Fock Matrix from Guess Density ***\n\n";
-
-    std::cout << "\n" << std::endl;
-    EMPerturbation pert;
-
   } // SingleSlater<T>::ReadGuessMO()
 
   /**
@@ -1100,15 +1100,6 @@ namespace ChronusQ {
 
     // Form density from MOs
     formDensity();
-
-    std::cout << "\n" << std::endl;
-    if( printLevel > 0 )
-      std::cout << std::endl
-                << "  *** Forming Initial Fock Matrix from Guess Density ***\n\n";
-
-    std::cout << "\n" << std::endl;
-    EMPerturbation pert;
-    formFock(pert,false);
 
   } // SingleSlater<T>::FchkGuessMO()
 

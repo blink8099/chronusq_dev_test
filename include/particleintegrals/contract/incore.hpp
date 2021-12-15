@@ -211,7 +211,7 @@ namespace ChronusQ {
 
     ProgramTimer::tock("J Contract");
 
-  }; // InCore4indexERIContraction::JContract
+  }; // InCore4indexTPIContraction::JContract
 
   template <typename MatsT, typename IntsT>
   void InCore4indexTPIContraction<MatsT, IntsT>::KContract(
@@ -254,7 +254,7 @@ namespace ChronusQ {
 
     ProgramTimer::tock("K Contract");
 
-  }; // InCore4indexERIContraction::KContract
+  }; // InCore4indexTPIContraction::KContract
 
 
   /**

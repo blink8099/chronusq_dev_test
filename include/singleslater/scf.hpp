@@ -510,6 +510,7 @@ namespace ChronusQ {
     size_t NB2 = NB*NB;
     bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
 
+
     // Copy over the fockMatrixOrtho into MO storage
     if(nC == 1 and iCS) 
       this->mo = fockMatrixOrtho->template spinGatherToBlocks<MatsT>(false,false);
@@ -519,8 +520,6 @@ namespace ChronusQ {
       this->mo = fockMatrixOrtho->template spinGatherToBlocks<MatsT>(false);
     else {
       this->mo[0] = fockMatrixOrtho->template spinGather<MatsT>();
-
-//    prettyPrintSmart(std::cout,"Orthormal Fock",this->mo[0].pointer(),NB,NB,NB);
     }
 
     // Diagonalize the Fock Matrix

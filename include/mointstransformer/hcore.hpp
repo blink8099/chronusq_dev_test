@@ -28,29 +28,189 @@
 namespace ChronusQ {
 
   /**
+   *  \brief form inactive core density
+   */
+  template <typename MatsT, typename IntsT>
+  std::shared_ptr<SquareMatrix<MatsT>> MOIntsTransformer<MatsT,IntsT>::formInactDen(
+    const char coreIndex) {
+  
+      size_t nAO  = ss_.nAlphaOrbital() * ss_.nC;
+      auto Den = std::make_shared<SquareMatrix<MatsT>>(memManager_, nAO);
+      
+      auto off_size = parseMOType(coreIndex);
+      size_t ioff = off_size.first;
+      size_t ni   = off_size.second;
+
+      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
+        nAO, nAO, ni, MatsT(1.), ss_.mo[0].pointer() + ioff*nAO, nAO,
+        ss_.mo[0].pointer() + ioff*nAO, nAO, MatsT(0.), Den->pointer(), nAO);
+      
+      return Den;
+
+  }; // form inactive core density
+  
+  /**
+   *  \brief transform MO G(D)  
+   */
+  template <typename MatsT, typename IntsT>
+  std::shared_ptr<OnePInts<MatsT>> MOIntsTransformer<MatsT,IntsT>::formAOGD(
+    EMPerturbation & pert, const SquareMatrix<MatsT> & Den, bool HerDen, 
+    bool cacheAOGD, const std::string & cacheId) {  
+     
+      std::string cacheAOGDStr = "AOGD-" + cacheId; 
+      auto AOGD = ints_cache_.template getIntegral<OnePInts, MatsT>(cacheAOGDStr);
+     
+#ifdef _DEBUG_MOINTSTRANSFORMER_CACHE
+      std::cout << "AOCache = " << std::setw(20) << cacheAOGDStr; 
+      if (AOGD) std::cout << "----Find cache!!!" << std::endl;
+      else {
+        std::cout << "----Not find cache, do transformation" << std::endl;
+#else       
+      if (not AOGD) { 
+#endif
+       
+        size_t nAO  = ss_.nAlphaOrbital() * ss_.nC;
+        
+        // hack thru ss_.forkbuilder->formGD
+        if (ss_.nC == 1) {
+          *ss_.onePDM = PauliSpinorSquareMatrices<MatsT>::spinBlockScatterBuild(Den);
+        } else{
+          *ss_.onePDM = Den.template spinScatter<MatsT>();  
+        }
+           
+        ss_.fockBuilder->formGD(ss_, pert, false, 1.0, HerDen);
+         
+        if (ss_.nC == 1) {
+          AOGD = std::make_shared<OnePInts<MatsT>>(0.5 * ss_.twoeH->S());
+        } else {
+          AOGD = std::make_shared<OnePInts<MatsT>>(
+            ss_.twoeH->template spinGather<MatsT>()); 
+        }  
+        
+        if (cacheAOGD) ints_cache_.addIntegral(cacheAOGDStr, AOGD);
+      }
+       
+      return AOGD; 
+  }; // MOIntsTransformer::getAOHCoreInCore
+  
+  /**
    *  \brief transform a subset of HCore 
    */
   template <typename MatsT, typename IntsT>
-  void MOIntsTransformer<MatsT,IntsT>::subsetTransformHCore(
-    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOHCore) {
+  std::shared_ptr<OnePInts<MatsT>> MOIntsTransformer<MatsT,IntsT>::formAOHCore(
+    EMPerturbation & pert, bool cacheAOHCore, const char coreIndex) {
     
-    size_t nAO = ss_.nAlphaOrbital() * ss_.nC;
-    
-    // populate AOHCore
-    auto AOHCore = ints_cache_.getIntegral<OnePInts,MatsT>("AOHCore");
-    
-    if (not AOHCore) {
-      if(ss_.nC == 1) {
-        AOHCore = std::make_shared<OnePInts<MatsT>>(0.5*ss_.coreH->S());
-      } else { 
-        AOHCore = std::make_shared<OnePInts<MatsT>>(
-          ss_.coreH->template spinGather<MatsT>());
+      bool withInactiveCore = coreIndex != '\0';
+
+      std::string cacheAOHCoreStr = "AOHCore";
+      if (withInactiveCore) {
+        cacheAOHCoreStr += "-WithInactive-";
+        cacheAOHCoreStr += coreIndex;
       }
-      ints_cache_.addIntegral("AOHCore", AOHCore);
-    }
-    
-    AOHCore->subsetTransform('N', ss_.mo[0].pointer(), nAO, off_sizes, MOHCore, false); 
+      
+      auto AOHCore = ints_cache_.template getIntegral<OnePInts, MatsT>(cacheAOHCoreStr);
+       
+#ifdef _DEBUG_MOINTSTRANSFORMER_CACHE
+      std::cout << "AOCache = " << std::setw(20) << cacheAOHCoreStr; 
+      if (AOHCore) std::cout << "----Find cache!!!" << std::endl;
+      else {
+        std::cout << "----Not find cache, do transformation" << std::endl;
+#else       
+      if (not AOHCore) {
+#endif
+        
+        AOHCore = ints_cache_.template getIntegral<OnePInts, MatsT>("AOHCore");
+        
+        if (not AOHCore) {
+          if(ss_.nC == 1) {
+            AOHCore = std::make_shared<OnePInts<MatsT>>(0.5*ss_.coreH->S());
+          } else { 
+            AOHCore = std::make_shared<OnePInts<MatsT>>(
+              ss_.coreH->template spinGather<MatsT>());
+          }
+          if (cacheAOHCore) ints_cache_.addIntegral("AOHCore", AOHCore);
+        }
+        
+        if (withInactiveCore) {
+
+          auto AOH1e = ints_cache_.template getIntegral<OnePInts, MatsT>("AOHCore");
+
+          auto Den = formInactDen(coreIndex);
+          std::string cacheAOGDStr = "WithInactive-";
+          cacheAOGDStr += coreIndex;
+          auto AOGD = formAOGD(pert, *Den, true, true, cacheAOGDStr); 
+          size_t nAO  = ss_.nAlphaOrbital() * ss_.nC;
+          
+          AOHCore = std::make_shared<OnePInts<MatsT>>(memManager_, nAO);
+          AOHCore->matrix() = AOGD->matrix() + AOH1e->matrix(); 
+          
+          if (cacheAOHCore) ints_cache_.addIntegral(cacheAOHCoreStr, AOHCore);
+        }
+      }
   
+      return AOHCore; 
+  }; // MOIntsTransformer::getAOHCoreInCore
+  
+  /**
+   *  \brief transform a subset of one-partical intgrals 
+   */
+  template <typename MatsT, typename IntsT>
+  void MOIntsTransformer<MatsT,IntsT>::subsetTransformOPI(
+    const std::vector<std::pair<size_t,size_t>> &off_sizes, 
+    const OnePInts<MatsT> & AOOPI, MatsT* MOOPI, bool deltaPQ) {
+    
+      size_t nAO = ss_.nAlphaOrbital() * ss_.nC;
+      if (not deltaPQ) {
+        AOOPI.subsetTransform('N', ss_.mo[0].pointer(), nAO, off_sizes, MOOPI, false); 
+      } else {
+        
+        size_t poff = off_sizes[0].first; 
+        size_t np   = off_sizes[0].second; 
+        MatsT * SCR = memManager_.malloc<MatsT>(nAO); 
+
+        for (auto p = 0ul; p < np; p++) {
+
+          auto pMO = ss_.mo[0].pointer() + (p + poff) * nAO;      
+          
+          // SCR(nu) = MO(mu, p)^H  AOHCOre(mu, nu) 
+          blas::gemm(blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, 
+            1, nAO, nAO, MatsT(1.), pMO, nAO, AOOPI.pointer(), nAO,
+            MatsT(0.), SCR, 1); 
+            
+          // MOTPI(p,p) = SCR(nu) MO(nu, p)
+          MOOPI[p] = blas::dotu(nAO, SCR, 1, pMO, 1);
+        }
+        memManager_.free(SCR);
+      } 
+  
+  }; // MOIntsTransformer::subsetTransformOPI
+  
+  
+  /**
+   *  \brief transform a subset of HCore 
+   */
+  template <typename MatsT, typename IntsT>
+  void MOIntsTransformer<MatsT,IntsT>::subsetTransformHCore(EMPerturbation & pert,
+    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOHCore,
+    bool deltaPQ, const char coreIndex) {
+    
+      auto AOHCore = formAOHCore(pert, true, coreIndex);
+      subsetTransformOPI(off_sizes, *AOHCore, MOHCore, deltaPQ); 
+      
   }; // MOIntsTransformer::subsetTransformHCore 
+
+  /**
+   *  \brief transform a subset of GD 
+   */
+  template <typename MatsT, typename IntsT>
+  void MOIntsTransformer<MatsT,IntsT>::subsetTransformGD(EMPerturbation & pert,
+    const SquareMatrix<MatsT> & Den, bool HerDen, MatsT* MOGD,
+    const std::vector<std::pair<size_t,size_t>> &off_sizes, 
+    bool deltaPQ, bool cacheAOGD, const std::string & cacheId) {
+    
+      auto AOGD = formAOGD(pert, Den, HerDen, cacheAOGD, cacheId);
+      subsetTransformOPI(off_sizes, *AOGD, MOGD, deltaPQ); 
+  
+  }; // MOIntsTransformer::subsetTransformAOGD 
 
 }; // namespace ChronusQ

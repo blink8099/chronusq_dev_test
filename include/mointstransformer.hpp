@@ -23,16 +23,35 @@
  */
 #pragma once
 
+#include <particleintegrals/twopints/incoreritpi.hpp>
 #include <fields.hpp>
 #include <singleslater.hpp>
 #include <singleslater/neo_singleslater.hpp>
 #include <matrix.hpp>
-#include <particleintegrals/twopints/incoreritpi.hpp>
+#include <mcwavefunction/base.hpp>
 
 #include <type_traits>
 
+// #define _DEBUG_MOINTSTRANSFORMER_CACHE
+
 namespace ChronusQ {
 
+  /**
+   *  \brief enum types that enable fast integral transformation  
+   *         for cases where two or more index are same 
+   */
+
+  enum TPI_TRANS_DELTA_TYPE {
+    NO_KRONECKER_DELTA,     // outputs (pq|rs)
+    // Coulomb Type
+    KRONECKER_DELTA_PQ,     // outputs (pp|rs) as T(p,r,s)
+    KRONECKER_DELTA_RS,     // outputs (pq|rr) as T(p,q,r)
+    KRONECKER_DELTA_PQ_RS,  // outputs (pp|rr) as T(p,r)
+    // eXchange Type
+    KRONECKER_DELTA_PS,     // outputs (pq|rp) as T(p,q,r)
+    KRONECKER_DELTA_RQ,     // outputs (pr|rs) as T(p,r,s)
+    KRONECKER_DELTA_PS_RQ,  // outputs (pr|rp) as T(p,r)
+  };
   
   /**
    *  \brief Templated class to handle AO to MO integral transformation
@@ -44,14 +63,15 @@ namespace ChronusQ {
 
   template<typename MatsT, typename IntsT>
   class MOIntsTransformer {
- 
+  
   protected:
 
     CQMemManager &memManager_; ///< CQMemManager to allocate matricies
     TPI_TRANSFORMATION_ALG TPITransAlg_;
     SingleSlater<MatsT,IntsT> & ss_;
     
-    IntegralsCollection ints_cache_ = IntegralsCollection(); // strorage of cache integral intermediates 
+    // storage of cache integral intermidates
+    IntegralsCollection ints_cache_ = IntegralsCollection(); 
     
     // variables for moints type
     std::vector<std::set<char>> symbol_sets_;
@@ -63,9 +83,19 @@ namespace ChronusQ {
     MOIntsTransformer() = delete;
     MOIntsTransformer( const MOIntsTransformer & ) = default;
     MOIntsTransformer( MOIntsTransformer && ) = default;
+    
+    /**
+     *  MOIntsTransformer Constructor. Constructs a MOIntsTransformer object
+     *
+     *  \param [in] mem ... CQ Memory Mamanger
+     *  \param [in] ss  ... SingleSlater reference, which provides AO integrals
+     *                      for transformation into MO basis via Direc or InCore
+     *  \param [in] alg ... Algorithm for two particle integral transformation 
+     *                      options see include/integrals.hpp
+     */                      
     MOIntsTransformer( CQMemManager &mem, SingleSlater<MatsT,IntsT> & ss,
-      TPI_TRANSFORMATION_ALG alg = DIRECT_N6):
-        memManager_(mem), ss_(ss), TPITransAlg_(alg) {
+      TPI_TRANSFORMATION_ALG alg = DIRECT_N6): memManager_(mem), 
+      ss_(ss), TPITransAlg_(alg) {
         
         if (ss.nC == 4) {
           auto & hamiltonianOptions = ss.fockBuilder->getHamiltonianOptions();
@@ -79,39 +109,89 @@ namespace ChronusQ {
           CErr("DIRECT N5 MOIntsTransformer NYI !");   
         }
         
-        // set default MO ranges
+        // set default MO ranges as single slater
         setMORanges();
 
     };
     
-    // Methods to parse types of integral indices
+    ~MOIntsTransformer() { clearAllCache(); };
+    void clearAllCache() { ints_cache_.clear(); };
+    
+    /* 
+     * helper functions to handles MO ranges through
+     *   a map of index char sets with {offset, N}
+     */
+
+    // setters 
     void resetMORanges() {
         symbol_sets_.clear();
         mo_ranges_.clear();
     };
-    
-    void clearAllCache() { ints_cache_.clear(); };
-
     void addMORanges(const std::set<char> &, const std::pair<size_t, size_t> &);
     void setMORanges(size_t nFrozenCore = 0, size_t nFrozenVirt = 0);  
-    // void setMORanges(MOSpacePartition); TODO: implement for CAS type   
+    void setMORanges(const MCWaveFunctionBase & ); // for MCWavefunction 
+    
+    // parsers
+    std::pair<size_t,size_t> parseMOType(const char);
     std::vector<std::pair<size_t,size_t>> parseMOType(const std::string &);
     char getUniqueSymbol(char type);
+    
+    // printers
     void printOffSizes(const std::vector<std::pair<size_t,size_t>> &);
-
+    void printMORangesSummary();
+    
+    /** 
+     * Major Intefaces to obtain different intgrals in MO basis
+     * See details in include/mointstransformer/impl.hpp
+     */
+    
     // Methods to transform HCore 
-    void transformHCore(MatsT * MOHCore, const std::string & moType = "pq");
-    void subsetTransformHCore(const std::vector<std::pair<size_t,size_t>> &, MatsT*);
+    void transformHCore(EMPerturbation &, MatsT * MOHCore, 
+      const std::string & moType = "pq", 
+      bool deltaPQ = false, const char coreIndex = '\0');
+    
+    // Methods to transform G(D)
+    void transformGD(EMPerturbation &, const SquareMatrix<MatsT> &, bool,
+      MatsT *, const std::string & moType = "pq", bool deltaPQ = false, 
+      bool cacheAOGD = false, const std::string & cacheId = "");
+    void transformGD(EMPerturbation &, const char, 
+      MatsT *, const std::string & moType = "pq", bool deltaPQ = false, 
+      bool cacheAOGD = false, const std::string & cacheId = "");
     
     // Methods to transform TPI 
     void transformTPI(EMPerturbation & pert, MatsT* MOTPI, 
-      const std::string & moType = "pqrs", bool cacheIntermediates = true, bool withExchange = false);
+      const std::string & moType = "pqrs", 
+      bool cacheIntermediates = true, bool withExchange = false,
+      TPI_TRANS_DELTA_TYPE delta = NO_KRONECKER_DELTA);
+    
+    
+   // Helper function used during transformation 
+    std::shared_ptr<OnePInts<MatsT>> formAOHCore(EMPerturbation &, 
+      bool cacheAOHCore = true, const char coreIndex = '\0');
+    void subsetTransformHCore(EMPerturbation &, 
+      const std::vector<std::pair<size_t,size_t>> &, 
+      MatsT*, bool, const char coreIndex = '\0');
+    void subsetTransformOPI(const std::vector<std::pair<size_t,size_t>> &,
+      const OnePInts<MatsT> & AOOPI, MatsT*, bool); 
+    
+    std::shared_ptr<OnePInts<MatsT>> formAOGD(EMPerturbation &, 
+      const SquareMatrix<MatsT> &, bool, bool cacheAOGD = false, 
+      const std::string & cacheId = "");
+    std::shared_ptr<SquareMatrix<MatsT>> formInactDen(const char coreIndex);
+    void subsetTransformGD(EMPerturbation &, 
+      const SquareMatrix<MatsT> &, bool, MatsT*, 
+      const std::vector<std::pair<size_t,size_t>> &, 
+      bool, bool cacheAOGD = false, const std::string & cacheId = ""); 
+    
     void subsetTransformTPISSFockN6(EMPerturbation &, 
-      const std::vector<std::pair<size_t,size_t>> &, MatsT*, const std::string &, bool);
-    std::shared_ptr<InCore4indexTPI<MatsT>> getAOTPIInCore(bool);
-    void subsetTransformTPIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, MatsT*, bool);
+      const std::vector<std::pair<size_t,size_t>> &, 
+      MatsT*, const std::string &, bool,
+      TPI_TRANS_DELTA_TYPE delta = NO_KRONECKER_DELTA);
+    
+    std::shared_ptr<InCore4indexTPI<MatsT>> formAOTPIInCore(bool);
+    void subsetTransformTPIInCoreN5(const std::vector<std::pair<size_t,size_t>> &, 
+      MatsT*, bool, TPI_TRANS_DELTA_TYPE delta = NO_KRONECKER_DELTA);
 
-    virtual ~MOIntsTransformer() {};
 
   }; // class MOIntsTransformer
 
