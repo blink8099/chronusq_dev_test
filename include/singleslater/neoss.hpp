@@ -302,6 +302,10 @@ namespace ChronusQ {
         applyToEach([&](SubSSPtr& ss){ ss->formGuess(ssopt); });
       }
 
+      virtual void formFock(EMPerturbation& emPert, bool increment = false, double xHFX = 1.) {
+        applyToEach([&](SubSSPtr& ss){ ss->formFock(emPert, increment, xHFX); });
+      }
+
       void formCoreH(EMPerturbation& emPert, bool save) {
         applyToEach([&](SubSSPtr& ss){ ss->formCoreH(emPert, save); });
       }

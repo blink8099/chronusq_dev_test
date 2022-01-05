@@ -172,6 +172,7 @@ namespace ChronusQ {
       if( this->molecule().nAtoms == 1  and scfControls.guess == SAD ) {
         CoreGuess();
       } else if( scfControls.guess == CORE ) CoreGuess();
+      else if( scfControls.guess == TIGHT ) TightGuess();
       else if( scfControls.guess == SAD ) SADGuess(ssOptions);
       else if( scfControls.guess == RANDOM ) RandomGuess();
       else if( scfControls.guess == READMO ) ReadGuessMO();
@@ -213,6 +214,59 @@ namespace ChronusQ {
     ProgramTimer::tock("Form Guess");
 
   }; // SingleSlater<T>::formGuess
+
+  /**
+   * \brief Populates the initial density as single occupied AOs on the
+   *        tightest basis functions for each atom
+   */
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT>::TightGuess() {
+    std::vector<size_t> occ;
+    BasisSet& basis = this->basisSet();
+
+    this->onePDM->clear();
+
+    // Get the shells on this atom
+    std::vector<size_t> atShells;
+    for( auto iSh = 0; iSh < basis.shells.size(); iSh++ ) {
+      atShells.push_back(iSh);
+    }
+
+    // Shells in descending order of tightest primative
+    // XXX: This is not necessarily the "tightest" basis function;
+    //      We should also account for the coefficients for generalized contractions
+    std::stable_sort(atShells.begin(), atShells.end(), 
+      [&basis](size_t sh1, size_t sh2) {
+        libint2::Shell& shell1 = basis.shells[sh1];
+        libint2::Shell& shell2 = basis.shells[sh2];
+        auto sh1m = std::max_element(shell1.alpha.begin(), shell1.alpha.end());
+        auto sh2m = std::max_element(shell2.alpha.begin(), shell2.alpha.end());
+        return *sh1m > *sh2m;
+      }
+    );
+
+    // Occupy tightest basis functions
+    size_t npart = this->nOA;
+    size_t ishell = 0;
+    while( npart > 0 ) {
+      std::cout << "npart: " << npart << std::endl;
+      size_t loc = basis.mapSh2Bf[atShells[ishell]];
+      size_t nbas = basis.shells[atShells[ishell]].size();
+      size_t nadd = std::min(nbas, npart);
+
+      for(size_t iadd = 0; iadd < nadd; iadd++, npart--) {
+          this->onePDM->S()(loc+iadd, loc+iadd) = 1.;
+      }
+      ishell += 1;
+    }
+
+    // Make charge and multiplicity correct
+    if( this->onePDM->hasZ() and MPIRank(comm) == 0 ) {
+      this->onePDM->Z() = (MatsT(this->nOA - this->nOB) / MatsT(this->nOA)) * this->onePDM->S();
+    }
+
+    this->onePDM->output(std::cout, "Guess PDM", true);
+  };
 
   /**
    *  \brief Populates the initial Fock matrix with the core

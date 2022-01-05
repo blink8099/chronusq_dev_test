@@ -193,7 +193,6 @@ namespace ChronusQ {
       doNEO? CQIntsOptions(output,input,*memManager,mol,basis,dfbasis,prot_basis,"EPINTS") : nullptr;
 
     std::shared_ptr<SingleSlaterBase> ss  = nullptr;
-    std::shared_ptr<SingleSlaterBase> pss = nullptr;
 
     SingleSlaterOptions ssOptions;
 
@@ -263,6 +262,7 @@ namespace ChronusQ {
 
       bool firstStep = true;
       std::shared_ptr<RealTimeBase> rt = nullptr;
+
       if (ssOptions.hamiltonianOptions.x2cType != X2C_TYPE::OFF) {
         compute_X2C_CoreH_Fock(*memManager, mol, *basis, aoints, emPert, ss, ssOptions);
       }

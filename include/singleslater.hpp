@@ -235,6 +235,7 @@ namespace ChronusQ {
     void formGuess(const SingleSlaterOptions&);
     void CoreGuess();
     void SADGuess(const SingleSlaterOptions&);
+    void TightGuess();
     void RandomGuess();
     void ReadGuessMO();
     void ReadGuess1PDM();

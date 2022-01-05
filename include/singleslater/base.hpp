@@ -86,6 +86,7 @@ namespace ChronusQ {
   enum SS_GUESS {
     CORE,
     SAD,
+    TIGHT,
     RANDOM,
     READMO,
     READDEN,
