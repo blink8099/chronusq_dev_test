@@ -351,8 +351,11 @@ namespace ChronusQ {
                 << " unique Atoms in Molecule Specification ***\n";
 
 
-    // Set all atomic centers to origin
-    for(auto &u : uniqueElements) u.coord = {0.,0.,0.};
+    // Set all atomic centers to origin and force classical
+    for(auto &u : uniqueElements) {
+      u.coord = {0.,0.,0.};
+      u.quantum = false;
+    }
 
     // Create a map from atoms in molecule to unique atom index
     std::map<size_t,size_t> mapAtom2Uniq;
