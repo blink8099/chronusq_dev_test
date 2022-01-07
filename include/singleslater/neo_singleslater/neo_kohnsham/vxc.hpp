@@ -999,12 +999,12 @@ namespace ChronusQ {
 
         // This evaluates the V variables for all components of the main system
         // (Scalar, MZ (UKS) and Mx, MY (2 Comp))
-        this->evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
+        evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
             SCRATCHNBNB_loc, SCRATCHNBNP_loc, Re1PDM->S().pointer(), DenS_loc, 
             GDenS_loc, GDenS_loc + NPts, GDenS_loc + 2*NPts, BasisEval);
 
         // evaluate density for auxiliary components
-        aux_neoks->evalDen((epcisGGA ? GRADIENT : NOGRAD), NPts, aux_NBE, 
+        evalDen((epcisGGA ? GRADIENT : NOGRAD), NPts, aux_NBE, 
           aux_NB, aux_subMatCut, 
           AUX_SCRATCHNBNB_loc, AUX_SCRATCHNBNP_loc, aux_Re1PDM->S().pointer(), aux_DenS_loc,
           aux_GDenS_loc, aux_GDenS_loc + NPts, aux_GDenS_loc + 2*NPts, aux_BasisEval);
@@ -1017,12 +1017,12 @@ namespace ChronusQ {
 #endif
 
         if ( this->onePDM->hasZ() )
-          this->evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
+          evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
                 SCRATCHNBNB_loc ,SCRATCHNBNP_loc, Re1PDM->Z().pointer(), DenZ_loc, 
                 GDenZ_loc, GDenZ_loc + NPts, GDenZ_loc + 2*NPts, BasisEval);
 
         if ( this->aux_neoss->onePDM->hasZ() )
-          aux_neoks->evalDen((epcisGGA ? GRADIENT : NOGRAD), NPts, aux_NBE, 
+          evalDen((epcisGGA ? GRADIENT : NOGRAD), NPts, aux_NBE, 
             aux_NB, aux_subMatCut, 
             AUX_SCRATCHNBNB_loc, AUX_SCRATCHNBNP_loc, aux_Re1PDM->Z().pointer(), 
             aux_DenZ_loc,
@@ -1127,7 +1127,7 @@ namespace ChronusQ {
         // Compute for the current batch the XC energy and increment the 
         // total XC energy.
         integrateXCEnergy[thread_id] += 
-          this->energy_vxc(NPts, weights, epsEval_loc, DenS_loc);
+          energy_vxc(NPts, weights, epsEval_loc, DenS_loc);
 
 #if VXC_DEBUG_LEVEL >= 1
         // TIMING
@@ -1140,7 +1140,7 @@ namespace ChronusQ {
         // Construct the required quantities for the formation of the Z 
         // vector (SCALAR) given the kernel derivatives wrt U variables. 
 
-        this->constructZVars(SCALAR,isGGA,NPts,dVU_n_loc,dVU_gamma_loc,
+        constructZVars(this->onePDM, SCALAR, isGGA,NPts,dVU_n_loc,dVU_gamma_loc,
           ZrhoVar1_loc, ZgammaVar1_loc, ZgammaVar2_loc);
 
         // Construct the required quantities for the formation of the Z
@@ -1167,7 +1167,7 @@ namespace ChronusQ {
             aux_GDenS_loc, aux_GDenZ_loc, nullptr, nullptr,
             BasisEval, ZMAT_loc);
         else
-          this->formZ_vxc(SCALAR,isGGA, NPts, NBE, IOff, epsScreen, weights, 
+          formZ_vxc(this->onePDM, SCALAR,isGGA, NPts, NBE, IOff, epsScreen, weights, 
             ZrhoVar1_loc, ZgammaVar1_loc, ZgammaVar2_loc, DenS_loc, 
             DenZ_loc, nullptr, nullptr, GDenS_loc, GDenZ_loc, nullptr, 
             nullptr, nullptr, nullptr,
@@ -1259,7 +1259,7 @@ namespace ChronusQ {
         // Construct the required quantities for the formation of 
         // the Z vector (Mz) given the kernel derivatives wrt U 
         // variables.
-        this->constructZVars(MZ,isGGA,NPts,dVU_n_loc,dVU_gamma_loc,ZrhoVar1_loc,
+        constructZVars(this->onePDM, MZ,isGGA,NPts,dVU_n_loc,dVU_gamma_loc,ZrhoVar1_loc,
           ZgammaVar1_loc, ZgammaVar2_loc);
 
         // Construct the required quantities for the formation of the Z
@@ -1277,7 +1277,7 @@ namespace ChronusQ {
             aux_GDenS_loc, aux_GDenZ_loc, nullptr, nullptr,
             BasisEval, ZMAT_loc);
         else
-          this->formZ_vxc(MZ,isGGA, NPts, NBE, IOff, epsScreen, weights, 
+          formZ_vxc(this->onePDM,MZ,isGGA, NPts, NBE, IOff, epsScreen, weights, 
             ZrhoVar1_loc, ZgammaVar1_loc, ZgammaVar2_loc, DenS_loc, 
             DenZ_loc, nullptr, nullptr, GDenS_loc, GDenZ_loc, nullptr, 
             nullptr, nullptr, nullptr, 

@@ -203,43 +203,7 @@ namespace ChronusQ {
     // VXC
     void formVXC(); 
 
-    void evalDen(SHELL_EVAL_TYPE typ, size_t NPts,size_t NBE, size_t NB, 
-      std::vector<std::pair<size_t,size_t>> &subMatCut, double *SCR1,
-      double *SCR2, double *DENMAT, double *Den, double *GDenX, double *GDenY, double *GDenZ,
-      double *BasisScr);
-
-    void formZ_vxc(DENSITY_TYPE denTyp, bool isGGA, size_t NPts, size_t NBE, size_t IOff, 
-      double epsScreen, std::vector<double> &weights, double *ZrhoVar1,
-      double *ZsigmaVar1, double *ZsigmaVar2, 
-      double *DenS, double *DenZ, double *DenY, double *DenX, 
-      double *GDenS, double *GDenZ, double *GDenY, double *GDenX, 
-      double *Kx, double *Ky, double *Kz, 
-      double *Hx, double *Hy, double *Hz,
-      double *BasisScratch, double *ZMAT);
-
-    double energy_vxc(size_t NPts, std::vector<double> &weights, double *EpsEval, double *Den);
-
-    void mkAuxVar(bool isGGA, 
-      double epsScreen, size_t NPts_Batch, 
-      double *n, double *mx, double *my, double *mz,
-      double *dndX, double *dndY, double *dndZ, 
-      double *dmxdX, double *dmxdY, double *dmxdZ, 
-      double *dmydX, double *dmydY, double *dmydZ, 
-      double *dmzdX, double *dmzdY, double *dmzdZ, 
-      double *Mnorm, double *Kx, double *Ky, double *Kz, 
-      double *Hx, double *Hy, double *Hz,
-      double *DSDMnorm, double *signMD,  
-      bool* Msmall, double *nColl, double *gammaColl );
-
-    void loadVXCder(size_t NPts, double *Den, double *sigma, double *EpsEval, double*VRhoEval, 
-      double *VsigmaEval, double *EpsSCR, double *VRhoSCR, double *VsigmaSCR); 
-
-    void constructZVars(DENSITY_TYPE denTyp, bool isGGA, size_t NPts, 
-      double *VrhoEval, double *VsigmaEval, double *ZrhoVar1, 
-      double *ZsigmaVar1, double *ZsigmaVar2);
-
     // FXC Terms
-      
     template <typename U>
     void evalTransDen(SHELL_EVAL_TYPE typ, size_t NPts,size_t NBE, size_t NB, 
       std::vector<std::pair<size_t,size_t>> &subMatCut, U *SCR1,

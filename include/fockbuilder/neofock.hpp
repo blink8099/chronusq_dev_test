@@ -109,6 +109,32 @@ namespace ChronusQ {
 
   };
 
+
+  template <typename MatsT, typename IntsT>
+  class NEOKSFockBuilder : NEOFockBuilder<MatsT,IntsT> {
+
+    double exc_;
+
+    public:
+    // Returns EPC in basis of passed-in SingleSlater
+    std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> formVXC(
+      SingleSlater<MatsT,IntsT>&);
+
+    // Interface methods
+    virtual void formFock(SingleSlater<MatsT,IntsT>&, EMPerturbation&,
+      bool increment = false, double xHFX = 1.);
+       
+    virtual std::vector<double> getGDGrad(SingleSlater<MatsT,IntsT>&,
+      EMPerturbation&, double xHFX = 1.) {
+      CErr( "NEO KS gradient NYI!" );
+    }
+
+    double exc() {
+      return exc_;
+    }
+
+  };
+
 }
 
 #include <fockbuilder/neofock/impl.hpp>
