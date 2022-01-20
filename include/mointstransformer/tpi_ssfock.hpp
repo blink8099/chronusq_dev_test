@@ -60,6 +60,94 @@ namespace ChronusQ {
     size_t nq = off_sizes[1].second;
     size_t nr = off_sizes[2].second;
     size_t ns = off_sizes[3].second;
+
+    size_t nAO  = ss_.nAlphaOrbital() * ss_.nC;
+    
+    // Initial Batching if can not hold all the HalfTransTPI
+    
+    size_t npq = (delta == KRONECKER_DELTA_PQ or 
+                  delta == KRONECKER_DELTA_PQ_RS ) ? np: np*nq;
+
+    size_t nrs = (delta == KRONECKER_DELTA_RS or 
+                  delta == KRONECKER_DELTA_PQ_RS ) ? nr: nr*ns;
+    
+    size_t halfTMOTPISize = nAO * nAO * std::min(npq, nrs); 
+    
+    auto nBatch = memManager_.max_avail_allocatable<MatsT>(halfTMOTPISize);
+    
+    // clear cache for more memory 
+    if ( nBatch <= 1) {
+      ints_cache_.clear();
+      nBatch = memManager_.max_avail_allocatable<MatsT>(halfTMOTPISize);
+    }
+
+    // No batch at this level if remaining memory can allocate at 
+    // least two halfTransTPI 
+    if (nBatch > 1) {
+      performSubsetTransformTPISSFockN6(pert, off_sizes, MOTPI, 
+        moType, cacheIntermediates, delta);
+      return;
+    } 
+    
+    // TODO: preserve the rs symmetry if presented
+    // simple batch over s here 
+    size_t nsMax = ns;
+    halfTMOTPISize = nAO * nAO * nr * nsMax;
+    nBatch = memManager_.max_avail_allocatable<MatsT>(halfTMOTPISize);
+    
+    while (nBatch <=1) {
+      nsMax /= 2;
+      nBatch = memManager_.max_avail_allocatable<MatsT>(halfTMOTPISize);
+    }
+
+    if (nsMax < 1 ) CErr("Memory not enough to batch over last index");
+    
+    std::cout << "* Batch over last indice s: with maxNs =  " << nsMax << std::endl;
+
+    size_t npqr = np * nq * nr; 
+
+    for (auto si = 0ul, sioff = soff, nbatch = 1ul; si < ns; nbatch++) {
+      
+      size_t nsi = std::min(nsMax, ns - si); 
+      
+      std::cout << "   - Batch " << nbatch << ": s range from " 
+                << std::setw(5) << sioff + 1 << " ~ " 
+                << std::setw(5) << sioff + nsi <<std::endl;  
+
+      std::vector<std::pair<size_t,size_t>> batch_off_sizes = off_sizes; 
+      batch_off_sizes[3].first = sioff;
+      batch_off_sizes[3].second = nsi;
+
+      performSubsetTransformTPISSFockN6(pert, batch_off_sizes, MOTPI + npqr * si,
+        moType, false, delta);
+      
+      si += nsi;
+      sioff += nsi;
+    }
+
+    return; 
+  
+  } // subsetTransformTPISSFockN6
+
+  /**
+   *  \brief transform AO TPI to form MO TPI
+   *  thru SingleSlater formfock 
+   */
+  template <typename MatsT, typename IntsT>
+  void MOIntsTransformer<MatsT,IntsT>::performSubsetTransformTPISSFockN6(EMPerturbation & pert, 
+    const std::vector<std::pair<size_t,size_t>> &off_sizes, MatsT* MOTPI, 
+    const std::string & moType, bool cacheIntermediates,
+    TPI_TRANS_DELTA_TYPE delta) {
+
+    size_t poff = off_sizes[0].first;
+    size_t qoff = off_sizes[1].first;
+    size_t roff = off_sizes[2].first;
+    size_t soff = off_sizes[3].first;
+    size_t np = off_sizes[0].second;
+    size_t nq = off_sizes[1].second;
+    size_t nr = off_sizes[2].second;
+    size_t ns = off_sizes[3].second;
+
     bool pqSymm = (poff == qoff) and (np == nq); 
     std::string moType_cache = "HalfTMOTPI-";
     moType_cache += getUniqueSymbol(moType[0]);
@@ -85,10 +173,16 @@ namespace ChronusQ {
     //if (rsSymm and not pqSymm)   swap_pq_rs = true; 
     
     // swap pq rs when nrs_batch < npq_batch because first half is N6 and second is N5
-    if (not swap_pq_rs and delta == NO_KRONECKER_DELTA) {
+    if (not swap_pq_rs) {
+      
       size_t npq_batch = pqSymm ? np * (np + 1) / 2: np*nq; 
       size_t nrs_batch = rsSymm ? nr * (nr + 1) / 2: nr*ns; 
-    
+      
+      if (delta == KRONECKER_DELTA_PQ or delta == KRONECKER_DELTA_PQ_RS) 
+        npq_batch = np;
+      if (delta == KRONECKER_DELTA_RS or delta == KRONECKER_DELTA_PQ_RS) 
+        nrs_batch = nr;
+
       if (npq_batch > nrs_batch) swap_pq_rs = true;  
     }
     
@@ -387,7 +481,7 @@ namespace ChronusQ {
     halfTMOTPI = nullptr;
     if (SCR) memManager_.free(SCR);
  
-  }; // MOIntsTransformer::subsetTransformTPISSFockN6
+  }; // MOIntsTransformer::perfromSubsetTransformTPISSFockN6
   
 
 }; // namespace ChronusQ

@@ -123,6 +123,9 @@ namespace ChronusQ {
     std::cout << "MCWaveFunction::alloc (this = " << this << ")" << std::endl;
 #endif
 
+    if (reference().nC == 4 and not this->FourCompNoPair) 
+      CErr("NYI for Four Component without NoPair Approximation");
+    
     size_t NS     = this->NStates;
     size_t NDet   = this->NDet;
     size_t nCorrO = this->MOPartition.nCorrO;

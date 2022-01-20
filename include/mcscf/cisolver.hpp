@@ -106,8 +106,8 @@ namespace ChronusQ {
 #endif
       
       // set davidson parameters
-      size_t kG = 3;
-      size_t m  = 50;
+      size_t kG = nDavidsonGuess_;
+      size_t m  = std::max(maxDavidsonSpace_, kG);
       size_t nG = kG*nR;
 
       dcomplex * curEig = mem.template malloc<dcomplex>(nG);

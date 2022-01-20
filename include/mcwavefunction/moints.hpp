@@ -85,7 +85,7 @@ namespace ChronusQ {
     InCore4indexTPI<MatsT> ERI_tuvw(mem, nCorrO);
     
     mointsTF->transformHCore(pert, hCore_tu.pointer(), "tu", false, 'i');
-    mointsTF->transformTPI(pert, ERI_tuvw.pointer(), "tuvw");
+    mointsTF->transformTPI(pert, ERI_tuvw.pointer(), "tuvw", this->cacheHalfTransTPI_);
     
     /*
      * compute hCoreP

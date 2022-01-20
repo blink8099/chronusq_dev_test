@@ -569,7 +569,7 @@ namespace ChronusQ {
       this->nGuess_ = kG*this->nRoots_;
     }
 
-    void setWhenSc(size_t __WhenSc) { whenSc = __WhenSc;}
+    void setWhenSc(size_t _WhenSc) { whenSc = _WhenSc;}
     
     void setEigForT(dcomplex * _Eig) {
       

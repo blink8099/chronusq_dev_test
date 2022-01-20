@@ -154,7 +154,7 @@ namespace ChronusQ {
 
 /*
  *  TODO: Test Damping 
- *
+ */
     // Dampping and taking care of negative or small eigenvalues 
 #pragma omp parallel for schedule(static) default(shared)       
     for (auto pq = 0ul; pq < nTOrb * nTOrb; pq++) {
@@ -163,7 +163,7 @@ namespace ChronusQ {
 //      else 
       if (std::abs(H[pq]) < settings.hessianDiagMinTol) H[pq]  = MatsT(1.0e6);
     }
-*/
+//*/
 
 #ifdef DEBUG_ORBITALROTATION_HESSIAN 
   prettyPrintSmart(std::cout, "OR Orbital-Orbital Hessian Approximated Diagonal",

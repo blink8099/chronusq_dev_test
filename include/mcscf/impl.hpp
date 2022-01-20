@@ -220,9 +220,13 @@ namespace ChronusQ {
     MCWaveFunction<MatsT,IntsT>::alloc();
     
     ciSolver = std::make_shared<CISolver<MatsT,IntsT>>(settings.ciAlg, 
-      settings.maxCIIter, settings.ciVectorConv);
+      settings.maxCIIter, settings.ciVectorConv,
+      settings.maxDavidsonSpace, settings.nDavidsonGuess);
     
     if (this->settings.doSCF) {
+      
+      this->cacheHalfTransTPI_ = true;
+      
       size_t nCorrO = this->MOPartition.nCorrO;
       oneRDMSOI = std::make_shared<SquareMatrix<MatsT>>(this->memManager,nCorrO);
       twoRDMSOI = std::make_shared<InCore4indexTPI<MatsT>>(this->memManager, nCorrO);     
