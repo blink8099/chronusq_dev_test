@@ -47,9 +47,11 @@ namespace ChronusQ {
      CIDiagonalizationAlgorithm ciAlg = CI_FULL_MATRIX; 
      
      // for davidson and gplhr
-	 size_t maxCIIter       = 128;        
-     double ciVectorConv    = 1.0e-6;    
-     
+	 size_t maxCIIter        = 128;        
+     double ciVectorConv     = 1.0e-6;    
+     size_t maxDavidsonSpace = 50;
+     size_t nDavidsonGuess   = 3;
+
      // SCF Settings 
      bool   doSCF              = false;
      bool   doIVOs             = false;
@@ -78,7 +80,9 @@ namespace ChronusQ {
     // for davidson and gplhr
     size_t maxIter_    = 128;       /// < Max Number of CI iteration 
     double vectorConv_ = 1.0e-6;    /// < Convergence criteria in terms of vector residue norm
-  
+    size_t maxDavidsonSpace_ = 50;  /// < Max davidson space in terms of n times of NRoots  
+    size_t nDavidsonGuess_ = 3;     /// < number of guess in the intial davidson first a few iterations 
+
     void davidsonGS(size_t, size_t, MatsT *, MatsT *);
     void davidsonPC(size_t, size_t, MatsT *, MatsT *, MatsT *, dcomplex *);
   
@@ -87,8 +91,8 @@ namespace ChronusQ {
     // default Constructor
     CISolver() = default;
     CISolver(CIDiagonalizationAlgorithm alg, size_t maxIter = 128,
-      double vectorConv =  1.0e-6) {
-      switchAlgorithm(alg, maxIter, vectorConv);
+      double vectorConv =  1.0e-6, size_t maxDSpace = 50, size_t nDGuess = 3) {
+      switchAlgorithm(alg, maxIter, vectorConv, maxDSpace, nDGuess);
     };
 
     // typeconversion
@@ -107,10 +111,13 @@ namespace ChronusQ {
     
     // switch Algrithm;
     void switchAlgorithm(CIDiagonalizationAlgorithm alg, 
-      size_t maxIter, double vectorConv) {
+      size_t maxIter = 128, double vectorConv = 1.0e-6, 
+      size_t maxDSpace = 50, size_t nDGuess = 3) {
         alg_ = alg;
         maxIter_ = maxIter;
-        vectorConv_ = vectorConv; 
+        vectorConv_ = vectorConv;
+        maxDavidsonSpace_ = maxDSpace;
+        nDavidsonGuess_ = nDGuess;
     }
 
     // solve CI

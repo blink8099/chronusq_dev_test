@@ -41,6 +41,8 @@ namespace ChronusQ {
       FormattedLine(std::cout,"  CI Algorithm:",  "Davidson");
       FormattedLine(std::cout,"  CI Maxmium Number of Iteration:",  maxCIIter);
       FormattedLine(std::cout,"  CI Vector Convergence Threshold:", ciVectorConv);
+      FormattedLine(std::cout,"  Max Len of Davidson Subspace (x NRoots):", maxDavidsonSpace);
+      FormattedLine(std::cout,"  Number of Davidson Guess(x NRoots):", nDavidsonGuess);
     } else CErr("NYI CI Algorithm");
     
     if(this->doSCF) {
