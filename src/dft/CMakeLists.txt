@@ -20,28 +20,14 @@
 # Contact the Developers:
 #   E-Mail: xsli@uw.edu
 #
-add_subdirectory(cqlinalg)
-add_subdirectory(matrix)
-add_subdirectory(grid)
-add_subdirectory(dft)
-add_subdirectory(molecule)
-add_subdirectory(basisset)
-add_subdirectory(particleintegrals)
-add_subdirectory(quantum)
-add_subdirectory(wavefunction)
-add_subdirectory(x2c)
-add_subdirectory(fourcomp)
-add_subdirectory(singleslater)
-add_subdirectory(realtime)
-add_subdirectory(itersolver)
-add_subdirectory(response)
-add_subdirectory(coupledcluster)  
-add_subdirectory(findiff)
-add_subdirectory(mcwavefunction)
-add_subdirectory(mcscf)
 
+add_library(dft STATIC epc.cxx util.cxx )
+target_link_libraries( dft PUBLIC ChronusQ::DepHeaders )
 
-list(REVERSE CQEX_LINK)
-add_subdirectory(cxxapi)
-
+# Append grid to executable link
+list(APPEND CQEX_LINK dft )
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
+
+if(CQEX_DEP)
+  add_dependencies(grid ${CQEX_DEP})
+endif()

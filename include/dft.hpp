@@ -159,4 +159,4 @@ namespace ChronusQ {
 };
 
 #include <dft/libxc_wrappers.hpp>
-#include <dft/neo_epc.hpp>
+#include <dft/epc.hpp>

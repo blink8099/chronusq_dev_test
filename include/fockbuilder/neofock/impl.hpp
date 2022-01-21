@@ -37,25 +37,25 @@ namespace ChronusQ {
     bool increment)
   {
     // Validate internal pointers
-    if( aux_ss == nullptr )
+    if( this->aux_ss == nullptr )
       CErr("aux_ss uninitialized in formepJ!");
-    if( outMat == nullptr )
+    if( this->outMat == nullptr )
       CErr("outMat uninitialized in formepJ!");
     if( contraction == nullptr )
       CErr("contraction uninitialized in formepJ!");
 
     // Decide onePDM to use
     PauliSpinorSquareMatrices<MatsT>& contract1PDM
-        = increment ? *aux_ss->deltaOnePDM : *aux_ss->onePDM;
+        = increment ? *this->aux_ss->deltaOnePDM : *this->aux_ss->onePDM;
 
     size_t NB = ss.basisSet().nBasis;
 
     // Zero out J and K[i]
     if(not increment)
-      outMat->clear();
+      this->outMat->clear();
   
     std::vector<TwoBodyContraction<MatsT>> contract =
-      { {contract1PDM.S().pointer(), outMat->pointer(), true, COULOMB} };
+      { {contract1PDM.S().pointer(), this->outMat->pointer(), true, COULOMB} };
 
     EMPerturbation pert;
     contraction->twoBodyContract(ss.comm, contract, pert);
@@ -65,7 +65,7 @@ namespace ChronusQ {
   std::vector<double> NEOFockBuilder<MatsT,IntsT>::formepJGrad(
     SingleSlater<MatsT,IntsT>& ss, EMPerturbation& pert, double xHFX) {
 
-    if( aux_ss == nullptr )
+    if( this->aux_ss == nullptr )
       CErr("aux_ss uninitialized in formepJGrad!");
     if( gradTPI == nullptr )
       CErr("gradTPI uninitialized in formepJGrad!");
@@ -101,7 +101,7 @@ namespace ChronusQ {
       JList.emplace_back(mem, NB);
       JList.back().clear();
       tempCont.push_back(
-         {aux_ss->onePDM->S().pointer(), JList.back().pointer(), true, COULOMB}
+         {this->aux_ss->onePDM->S().pointer(), JList.back().pointer(), true, COULOMB}
       );
 
       cList.push_back(tempCont);
@@ -137,27 +137,27 @@ namespace ChronusQ {
     SingleSlater<MatsT,IntsT>& ss, EMPerturbation& empert, bool increment,
     double xHFX)
   {
-    if( upstream == nullptr )
+    if( this->upstream == nullptr )
       CErr("Upstream FockBuilder uninitialized in formFock!");
 
     // Call all upstream FockBuilders
-    upstream->formFock(ss, empert, increment, xHFX);
+    this->upstream->formFock(ss, empert, increment, xHFX);
 
     formepJ(ss, increment);
 
-    *ss.twoeH -= 2. * *outMat;
-    *ss.fockMatrix -= 2. * *outMat;
+    *ss.twoeH -= 2. * *this->outMat;
+    *ss.fockMatrix -= 2. * *this->outMat;
   }
 
   template <typename MatsT, typename IntsT>
   std::vector<double> NEOFockBuilder<MatsT,IntsT>::getGDGrad(
     SingleSlater<MatsT,IntsT>& ss, EMPerturbation& pert, double xHFX) {
-    if( upstream == nullptr )
+    if( this->upstream == nullptr )
       CErr("Upstream FockBuilder uninitialized in getGDGrad!");
 
     size_t nGrad = 3*ss.molecule().nAtoms;
 
-    std::vector<double> gradient = upstream->getGDGrad(ss, pert, xHFX);
+    std::vector<double> gradient = this->upstream->getGDGrad(ss, pert, xHFX);
     std::vector<double> epjGrad = formepJGrad(ss, pert, xHFX);
 
     std::transform(gradient.begin(), gradient.end(), epjGrad.begin(),

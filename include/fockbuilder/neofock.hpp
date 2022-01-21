@@ -28,19 +28,52 @@
 namespace ChronusQ {
 
   template <typename MatsT, typename IntsT>
-  class NEOFockBuilder: public FockBuilder<MatsT,IntsT> {
+  class NEOFockBase {
+
+    protected:
+
+    FockBuilder<MatsT, IntsT>* upstream = nullptr;
+    SquareMatrix<MatsT>* outMat = nullptr;
+    SingleSlater<MatsT,IntsT>* aux_ss = nullptr;
+
+    public:
+
+    virtual FockBuilder<MatsT,IntsT>* getNonNEOUpstream() {
+      if( auto p = dynamic_cast<NEOFockBase<MatsT,IntsT>*>(upstream) ) {
+        return p->getNonNEOUpstream();
+      }
+      else {
+        return upstream;
+      }
+    }
+
+    // Setters
+    void setAux(SingleSlater<MatsT,IntsT>* ss) {
+      aux_ss = ss;
+    }
+
+    void setOutput(SquareMatrix<MatsT>* out) {
+      outMat = out;
+    }
+
+    void setUpstream(FockBuilder<MatsT,IntsT>* up) {
+      upstream = up;
+    }
+  };
+
+  template <typename MatsT, typename IntsT>
+  class NEOFockBuilder:
+    public FockBuilder<MatsT,IntsT>,
+    public NEOFockBase<MatsT,IntsT>
+  {
 
     template<typename MatsU, typename IntsU>
     friend class NEOFockBuilder;
 
     protected:
 
-    // "Other" single slater with which to contract
-    SingleSlater<MatsT,IntsT>* aux_ss = nullptr;
-    SquareMatrix<MatsT>* outMat = nullptr;
     std::shared_ptr<TPIContractions<MatsT,IntsT>> contraction = nullptr;
     GradInts<TwoPInts,IntsT>* gradTPI = nullptr;
-    FockBuilder<MatsT, IntsT>* upstream = nullptr;
 
     public:
 
@@ -64,34 +97,12 @@ namespace ChronusQ {
       { }
 
     // Setters
-    void setAux(SingleSlater<MatsT,IntsT>* ss) {
-      aux_ss = ss;
-    }
-
-    void setOutput(SquareMatrix<MatsT>* out) {
-      outMat = out;
-    }
-
     void setContraction(std::shared_ptr<TPIContractions<MatsT,IntsT>> cont) {
       contraction = cont;
     }
 
-    void setUpstream(FockBuilder<MatsT,IntsT>* up) {
-      upstream = up;
-    }
-
     void setGradientIntegrals(GradInts<TwoPInts,IntsT>* tpi) {
       gradTPI = tpi;
-    }
-
-    // Find the first non-NEO fockbuilder upstream and return it
-    FockBuilder<MatsT,IntsT>* getNonNEOUpstream() {
-      if( auto p = dynamic_cast<NEOFockBuilder<MatsT,IntsT>*>(upstream) ) {
-        return p->getNonNEOUpstream();
-      }
-      else {
-        return upstream;
-      }
     }
 
     // Inter-SingleSlater interaction
@@ -111,28 +122,50 @@ namespace ChronusQ {
 
 
   template <typename MatsT, typename IntsT>
-  class NEOKSFockBuilder : NEOFockBuilder<MatsT,IntsT> {
+  class NEOKohnShamBuilder :
+    public FockBuilder<MatsT, IntsT>,
+    public NEOFockBase<MatsT, IntsT>
+  {
 
-    double exc_;
+    template<typename MatsU, typename IntsU>
+    friend class NEOKohnShamBuilder;
+
+    protected:
+
+    // "Other" single slater with which to contract
+    std::vector<std::shared_ptr<DFTFunctional>> functionals;
+    IntegrationParam intParam;
 
     public:
-    // Returns EPC in basis of passed-in SingleSlater
-    std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> formVXC(
-      SingleSlater<MatsT,IntsT>&);
 
-    // Interface methods
+    NEOKohnShamBuilder() = delete;
+    NEOKohnShamBuilder(HamiltonianOptions hamiltonianOptions) :
+      FockBuilder<MatsT,IntsT>(hamiltonianOptions) { }
+
+    // Other type constructors
+    template <typename MatsU>
+    NEOKohnShamBuilder(const NEOKohnShamBuilder<MatsU,IntsT> &other ) : 
+      FockBuilder<MatsT,IntsT>( dynamic_cast<const FockBuilder<MatsU,IntsT>&>(other) )
+      { }
+    template <typename MatsU>
+    NEOKohnShamBuilder(NEOKohnShamBuilder<MatsU,IntsT> &&other ) :
+      FockBuilder<MatsT,IntsT>( dynamic_cast<FockBuilder<MatsU,IntsT>&&>(other) )
+      { }
+
+    void setFunctionals(std::vector<std::shared_ptr<DFTFunctional>> funcs) {
+      functionals = funcs;
+    }
+
+    void formVXC(SingleSlater<MatsT,IntsT>&);
+
+    // Interface method
     virtual void formFock(SingleSlater<MatsT,IntsT>&, EMPerturbation&,
       bool increment = false, double xHFX = 1.);
-       
+
     virtual std::vector<double> getGDGrad(SingleSlater<MatsT,IntsT>&,
       EMPerturbation&, double xHFX = 1.) {
-      CErr( "NEO KS gradient NYI!" );
+        CErr("Gradients of NEOKohnShamBuilder NYI!");
     }
-
-    double exc() {
-      return exc_;
-    }
-
   };
 
 }

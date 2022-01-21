@@ -36,553 +36,6 @@
 namespace ChronusQ {
 
   /**
-   *  \brief wrapper for evaluating and loading the NEO-DFT 
-   *  kernel derivatives from libxc wrt to the U var.
-   *
-   *  Note. We compute all the quantities for all points in the batch.
-   *
-   *  \param [in]  NPts       Number of points in the batch
-   *  \param [in]  Den        Pointer to the Uvar Density vector[+,-].
-   *  \param [in]  Gamma      Pointer to the GGA Uvar vector[++,+-,--]. 
-   *  \param [in]  aux_Den    Pointer to the auxiliary Uvar Density vector[+,-].
-   *  \param [in]  aux_Gamma  Pointer to the auxiliary GGA Uvar vector[++,+-,--]. 
-   *  \param [out] epsEval    Pointer to the energy per unit particle. 
-   *
-   *  \param [out] VRhoEval   Pointer to the first part der of 
-   *                          the energy per unit volume in terms of 
-   *                          the dens[+,-]. 
-   *
-   *  \param [out] VgammaEval Pointer to the first part der of 
-   *                          the energy per unit volume in terms of 
-   *                          the gammas[++,+-,--].
-   *
-   *  \param [out] CVgammaEval Pointer to the first part der of 
-   *                          the energy per unit volume in terms of 
-   *                          the gammas[++,+-,--].
-   *
-   *  \param [out] EpsSCR     Pointer for multiple functional eval. See epsEval
-   *  \param [out] VRhoSCR    Pointer for multiple functional eval. See VRhoEval
-   *  \param [out] VgammaSCR  Pointer for multiple functional eval. See VgammaEval
-   */  
-  template <typename MatsT, typename IntsT>
-  void NEOKohnSham<MatsT,IntsT>::loadVXCderWithEPC(size_t NPts, double *Den, double *Gamma,
-    double *aux_Den, double *aux_Gamma, double *cGamma, double *epsEval, double*VRhoEval, 
-    double *VgammaEval,double *CVgammaEval, double *EpsSCR, double *VRhoSCR, 
-    double *VgammaSCR, double *CVgammaSCR) { 
-
-    for(auto iF = 0; iF < this->functionals.size(); iF++) {
-      double *ES,*VR,*VS,*CVS;
-      if( iF == 0 ) {
-        ES = epsEval;
-        VR = VRhoEval;
-        VS = VgammaEval;
-        CVS = CVgammaEval;
-      } else {
-        ES = EpsSCR;
-        VR = VRhoSCR;
-        VS = VgammaSCR;
-        CVS = CVgammaSCR;
-      }
-
-      // electron or not
-      bool electron = (this->particle.charge < 0.);
-
-      // exchnage-correlation functional for electrons 
-      if (electron) 
-        if( this->functionals[iF]->isGGA() )
-          this->functionals[iF]->evalEXC_VXC(NPts,Den,Gamma,ES,VR,VS);
-        else
-          this->functionals[iF]->evalEXC_VXC(NPts,Den,ES,VR);
-
-      // epc functionals
-      //if (electron)
-      //  std::cout << "epc fucntional size for electron"  << epc_functionals.size() << std::endl;
-      //std::cout << "epc is GGA " << epc_functionals[iF]->isGGA() << std::endl;
-      if (iF < epc_functionals.size() ) {
-        if ( epc_functionals[iF]->isGGA() ) {
-          epc_functionals[iF]->evalEXC_VXC(NPts,Den,aux_Den,Gamma,aux_Gamma,cGamma,
-                                           ES,VR,VS,CVS,electron);
-        }
-        else {
-          //if (electron)
-          //  std::cout << "before entering evalEXC_VXC for EPC17 Electron" << std::endl;
-          //if (not electron)
-            epc_functionals[iF]->evalEXC_VXC(NPts,Den,aux_Den,ES,VR,electron);
-          }
-      }
-
-      if( iF != 0 ) {
-        MatAdd('N','N',NPts,1,1.,epsEval,NPts,1.,EpsSCR,NPts,epsEval,NPts);
-        MatAdd('N','N',2*NPts,1,1.,VRhoEval,2*NPts,1.,VRhoSCR,2*NPts,VRhoEval,2*NPts);
-      if( this->functionals[iF]->isGGA() )
-        MatAdd('N','N',3*NPts,1,1.,VgammaEval,3*NPts,1.,VgammaSCR,3*NPts,VgammaEval,3*NPts);
-      }
-
-    }
-
-  }; // NEOKohnSham<T,MatsT,IntsT>::loadVXCderWithEPC
-
-  /**
-   *  \brief form the U variables given the V variables.
-   *
-   *  \param [in]  isGGA                Whether to include GGA contributions
-   *  \param [in]  epsScreen            Screening tolerance
-   *  \param [in]  Scalar               Scalar
-   *  \param [in]  dndX, dndY, dndZ     Gradient components of n scalar
-   *  \param [in]  Mz, My, Mx           Magnetization components
-   *  \param [in]  dMkdX, dMkdY, dMkdZ  Gradient components of Mk component of the magnetization
-   *  \param [out] ncoll                U variable for density (+,-) for NPts
-   *  \param [out] gammaColl            U variable for Gdensity (++,+-,--) for NPts
-   *
-   */  
-  template <typename MatsT, typename IntsT>
-  void NEOKohnSham<MatsT,IntsT>::mkAuxVar(bool isGGA,
-    double epsScreen, size_t NPts,
-    double *Scalar, double *Mz, double *My, double *Mx,
-    double *dndX, double *dndY, double *dndZ, 
-    double *dMzdX, double *dMzdY, double *dMzdZ, 
-    double *dMydX, double *dMydY, double *dMydZ, 
-    double *dMxdX, double *dMxdY, double *dMxdZ, 
-    double *Mnorm, double *Kx, double *Ky, double *Kz, 
-    double *Hx, double *Hy, double *Hz,
-    double *DSDMnormv, double *signMDv,
-    bool *Msmall, double *nColl, double *gammaColl){
-
-#if VXC_DEBUG_LEVEL > 3
-    prettyPrintSmart(std::cerr,"Scalar Den   ",Scalar,NPts,1, NPts);
-    if( this->onePDM->hasZ() )
-      prettyPrintSmart(std::cerr,"Mz     Den   ",Mz,NPts,1, NPts);
-    if( this->onePDM->hasXY() ) {
-      prettyPrintSmart(std::cerr,"My     Den   ",My,NPts,1, NPts);
-      prettyPrintSmart(std::cerr,"Mx     Den   ",Mx,NPts,1, NPts);
-    }
-    if ( isGGA ) {
-      prettyPrintSmart(std::cerr,"Scalar DenX   ",dndX,NPts,1, NPts);
-      prettyPrintSmart(std::cerr,"Scalar DenY   ",dndY,NPts,1, NPts);
-      prettyPrintSmart(std::cerr,"Scalar DenZ   ",dndZ,NPts,1, NPts);
-      if( this->onePDM->hasZ() ) {
-        prettyPrintSmart(std::cerr,"Mz DenX   ",dMzdX,NPts,1, NPts);
-        prettyPrintSmart(std::cerr,"Mz DenY   ",dMzdY,NPts,1, NPts);
-        prettyPrintSmart(std::cerr,"Mz DenZ   ",dMzdZ,NPts,1, NPts);
-      }
-      if( this->onePDM->hasXY() ) {
-        prettyPrintSmart(std::cerr,"My DenX   ",dMydX,NPts,1, NPts);
-        prettyPrintSmart(std::cerr,"My DenY   ",dMydY,NPts,1, NPts);
-        prettyPrintSmart(std::cerr,"My DenZ   ",dMydZ,NPts,1, NPts);
-        prettyPrintSmart(std::cerr,"Mx DenX   ",dMxdX,NPts,1, NPts);
-        prettyPrintSmart(std::cerr,"Mx DenY   ",dMxdY,NPts,1, NPts);
-        prettyPrintSmart(std::cerr,"Mx DenZ   ",dMxdZ,NPts,1, NPts);
-      }
-    }
-#endif
-
-    auto onePDM = this->onePDM;   
-
-    double tmp = 0.;
-    double *uPlus  = nColl;
-    double *uMinus = nColl + 1;
-    memset(nColl,0,2*NPts*sizeof(double));
-
-
-    // LDA contributions
-    // U(+) = 0.5 * (SCALAR + MZ)
-    // U(-) = 0.5 * (SCALAR - MZ)
-    // 2C See J. Chem. Theory Comput. 2017, 13, 2591-2603  
-    // U(+) = 0.5 * (SCALAR + |M| )
-    // U(-) = 0.5 * (SCALAR - |M| )
-         
-    blas::axpy(NPts,0.5,Scalar,1,uPlus,2);
-    blas::axpy(NPts,0.5,Scalar,1,uMinus,2);
-
-    bool skipMz = false;
-    if( onePDM->hasZ() and not onePDM->hasXY() ) {
-    // UKS
-#if VXC_DEBUG_LEVEL < 3
-      double MaxDenZ = *std::max_element(Mz,Mz+NPts);
-      if (MaxDenZ < epsScreen) skipMz = true;
-#endif
-        if(not skipMz){
-          blas::axpy(NPts,0.5,Mz,1,uPlus,2);
-          blas::axpy(NPts,-0.5,Mz,1,uMinus,2);
-        }
-#if VXC_DEBUG_LEVEL >= 3
-      if(skipMz) std::cerr << "Skypped Mz " << std::endl;
-#endif
-    }  else if ( onePDM->hasXY())
-      
-      CErr("Relativistic NEO-Kohn-Sham NYI!",std::cout);
-
-    // GGA Contributions
-    // GAMMA(++) = 0.25 * (GSCALAR.GSCALAR + GMZ.GMZ) + 0.5 * GSCALAR.GMZ
-    // GAMMA(+-) = 0.25 * (GSCALAR.GSCALAR - GMZ.GMZ) 
-    // GAMMA(--) = 0.25 * (GSCALAR.GSCALAR + GMZ.GMZ) - 0.5 * GSCALAR.GMZ
-    //2C
-    // 2C See J. Chem. Theory Comput. 2017, 13, 2591-2603  
-    // GAMMA(++) = 0.25 * (GSCALAR.GSCALAR + SUM_K GMK.GMK) + 0.5 * SING * SQRT(SUM_K (GSCALAR.GMK)^2)
-    // GAMMA(+-) = 0.25 * (GSCALAR.GSCALAR - SUM_K (GMZ.GMK) ) 
-    // GAMMA(--) = 0.25 * (GSCALAR.GSCALAR + SUM_K GMK.GMK) - 0.5 * SIGN * SQRT(SUM_K (GSCALAR.GMK)^2)
-
-    if(isGGA) {
-      // RKS part
-      for(auto iPt = 0; iPt < NPts; iPt++) {
-        gammaColl[3*iPt] = 0.25 *  (dndX[iPt]*dndX[iPt] + dndY[iPt]*dndY[iPt] + dndZ[iPt]*dndZ[iPt]);
-        gammaColl[3*iPt+1] = gammaColl[3*iPt]; 
-        gammaColl[3*iPt+2] = gammaColl[3*iPt];
-      }
-
-      if( onePDM->hasZ() and not onePDM->hasXY() ) {
-      // UKS
-        for(auto iPt = 0; iPt < NPts; iPt++) {
-          if( not skipMz ) {
-            double inner  = 0.25 * 
-              (dMzdX[iPt]*dMzdX[iPt] + dMzdY[iPt]*dMzdY[iPt] + dMzdZ[iPt]*dMzdZ[iPt]);
-            double inner2 = 0.5  * 
-              (dMzdX[iPt]*dndX[iPt] + dMzdY[iPt]*dndY[iPt] + dMzdZ[iPt]*dndZ[iPt]);
-      
-            gammaColl[3*iPt]   += inner;
-            gammaColl[3*iPt+1] -= inner;
-            gammaColl[3*iPt+2] += inner;
-      
-            gammaColl[3*iPt]   += inner2;
-            gammaColl[3*iPt+2] -= inner2;
-          }
-        } // loop pts
-
-      }  else if ( onePDM->hasXY())
-        CErr("Relativistic NEO-Kohn-Sham NYI!",std::cout);
-    } //GGA 
-
-  }; //NEOKohnSham<MatsT,IntsT>::mkAuxVar
-
-  /**
-   *  \brief form the U variables given the V variables.
-   *
-   *  \param [in]  isGGA                Whether to include GGA contributions
-   *  \param [in]  check_aux            Whether the density matrix size check is done for aux system
-   *  \param [in]  epsScreen            Screening tolerance
-   *  \param [in]  Scalar               Scalar
-   *  \param [in]  dndX, dndY, dndZ     Gradient components of n scalar
-   *  \param [in]  Mz, My, Mx           Magnetization components
-   *  \param [in]  dMkdX, dMkdY, dMkdZ  Gradient components of Mk component of the magnetization
-   *  \param [out] ncoll                U variable for density (+,-) for NPts
-   *  \param [out] gammaColl            U variable for Gdensity (++,+-,--) for NPts
-   *
-   */  
-  template <typename MatsT, typename IntsT>
-  void NEOKohnSham<MatsT,IntsT>::mkCrossAuxVar(bool check_aux,
-    double epsScreen, size_t NPts,
-    double *dndX, double *dndY, double *dndZ, 
-    double *dMxdX, double *dMxdY, double *dMxdZ, 
-    double *dMydX, double *dMydY, double *dMydZ, 
-    double *dMzdX, double *dMzdY, double *dMzdZ, 
-    double *aux_dndX, double  *aux_dndY, double *aux_dndZ, 
-    double *aux_dMxdX, double *aux_dMxdY, double *aux_dMxdZ, 
-    double *aux_dMydX, double *aux_dMydY, double *aux_dMydZ, 
-    double *aux_dMzdX, double *aux_dMzdY, double *aux_dMzdZ, 
-    double *gammaColl){
-
-    // whether this is a proton wave function
-    bool electron = (this->particle.charge < 0.);
-
-    // GGA Contributions
-    // GAMMA(++) = 0.25 * (GSCALAR(e).GSCALAR(p) + GMZ(e).GMZ(p) + GSCALAR(e).GZ(p) + GZ(e).GSCALAR(p))
-    // GAMMA(+-) = 0.25 * (GSCALAR.GSCALAR - GMZ.GMZ) 
-    // GAMMA(-+) = 
-    // GAMMA(--) = 0.25 * (GSCALAR.GSCALAR + GMZ.GMZ) - 0.5 * GSCALAR.GMZ
-    //2C : not yet implemented
-
-    // RKS part
-    for(auto iPt = 0; iPt < NPts; iPt++) {
-      gammaColl[4*iPt] = 0.25 * (dndX[iPt]*aux_dndX[iPt] + dndY[iPt]*aux_dndY[iPt] + dndZ[iPt]*aux_dndZ[iPt]);
-      gammaColl[4*iPt+1] = gammaColl[4*iPt];
-      gammaColl[4*iPt+2] = gammaColl[4*iPt];
-      gammaColl[4*iPt+3] = gammaColl[4*iPt];
-    }
-
-    // main system is electron
-    if (electron) {
-
-      // restricted
-      for(auto iPt = 0; iPt < NPts; iPt++) {
-        gammaColl[4*iPt]   += 0.25 * (dndX[iPt]*aux_dMzdX[iPt] + dndY[iPt]*aux_dMzdY[iPt] + dndZ[iPt]*aux_dMzdZ[iPt]);
-        gammaColl[4*iPt+1] -= 0.25 * (dndX[iPt]*aux_dMzdX[iPt] + dndY[iPt]*aux_dMzdY[iPt] + dndZ[iPt]*aux_dMzdZ[iPt]);
-        gammaColl[4*iPt+2] += 0.25 * (dndX[iPt]*aux_dMzdX[iPt] + dndY[iPt]*aux_dMzdY[iPt] + dndZ[iPt]*aux_dMzdZ[iPt]);
-        gammaColl[4*iPt+3] -= 0.25 * (dndX[iPt]*aux_dMzdX[iPt] + dndY[iPt]*aux_dMzdY[iPt] + dndZ[iPt]*aux_dMzdZ[iPt]);
-      }
-
-      // UKS
-      if( this->onePDM->hasZ() ) {
-        for(auto iPt = 0; iPt < NPts; iPt++) {
-          // aa
-          gammaColl[4*iPt]  += 0.25 * (dMzdX[iPt]*aux_dMzdX[iPt] + dMzdY[iPt]*aux_dMzdY[iPt] + dMzdZ[iPt]*aux_dMzdZ[iPt]);
-          gammaColl[4*iPt]  += 0.25 * (dMzdX[iPt]*aux_dndX[iPt] + dMzdY[iPt]*aux_dndY[iPt] + dMzdZ[iPt]*aux_dndZ[iPt]);
-          // ab
-          gammaColl[4*iPt+1]  -= 0.25 * (dMzdX[iPt]*aux_dMzdX[iPt] + dMzdY[iPt]*aux_dMzdY[iPt] + dMzdZ[iPt]*aux_dMzdZ[iPt]);
-          gammaColl[4*iPt+1]  += 0.25 * (dMzdX[iPt]*aux_dndX[iPt] + dMzdY[iPt]*aux_dndY[iPt] + dMzdZ[iPt]*aux_dndZ[iPt]);
-          // ba
-          gammaColl[4*iPt+2]  -= 0.25 * (dMzdX[iPt]*aux_dMzdX[iPt] + dMzdY[iPt]*aux_dMzdY[iPt] + dMzdZ[iPt]*aux_dMzdZ[iPt]);
-          gammaColl[4*iPt+2]  -= 0.25 * (dMzdX[iPt]*aux_dndX[iPt] + dMzdY[iPt]*aux_dndY[iPt] + dMzdZ[iPt]*aux_dndZ[iPt]);
-          // bb
-          gammaColl[4*iPt+3]  += 0.25 * (dMzdX[iPt]*aux_dMzdX[iPt] + dMzdY[iPt]*aux_dMzdY[iPt] + dMzdZ[iPt]*aux_dMzdZ[iPt]);
-          gammaColl[4*iPt+3]  -= 0.25 * (dMzdX[iPt]*aux_dndX[iPt] + dMzdY[iPt]*aux_dndY[iPt] + dMzdZ[iPt]*aux_dndZ[iPt]);
-
-
-        }
-      }
-    }
-    else {  // main system is proton
-
-      // restricted
-      for(auto iPt = 0; iPt < NPts; iPt++) {
-        gammaColl[4*iPt]   += 0.25 * (dMzdX[iPt]*aux_dndX[iPt] + dMzdY[iPt]*aux_dndY[iPt] + dMzdZ[iPt]*aux_dndZ[iPt]);
-        gammaColl[4*iPt+1] += 0.25 * (dMzdX[iPt]*aux_dndX[iPt] + dMzdY[iPt]*aux_dndY[iPt] + dMzdZ[iPt]*aux_dndZ[iPt]);
-        gammaColl[4*iPt+2] -= 0.25 * (dMzdX[iPt]*aux_dndX[iPt] + dMzdY[iPt]*aux_dndY[iPt] + dMzdZ[iPt]*aux_dndZ[iPt]);
-        gammaColl[4*iPt+3] -= 0.25 * (dMzdX[iPt]*aux_dndX[iPt] + dMzdY[iPt]*aux_dndY[iPt] + dMzdZ[iPt]*aux_dndZ[iPt]);
-
-      }
-
-      // UKS
-      if( aux_neoks->onePDM->hasZ() ) {
-        for(auto iPt = 0; iPt < NPts; iPt++) {
-          // aa
-          gammaColl[4*iPt]  += 0.25 * (dMzdX[iPt]*aux_dMzdX[iPt] + dMzdY[iPt]*aux_dMzdY[iPt] + dMzdZ[iPt]*aux_dMzdZ[iPt]);
-          gammaColl[4*iPt]  += 0.25 * (dndX[iPt]*aux_dMzdX[iPt] + dndY[iPt]*aux_dMzdY[iPt] + dndZ[iPt]*aux_dMzdZ[iPt]);
-          // ab
-          gammaColl[4*iPt+1]  -= 0.25 * (dMzdX[iPt]*aux_dMzdX[iPt] + dMzdY[iPt]*aux_dMzdY[iPt] + dMzdZ[iPt]*aux_dMzdZ[iPt]);
-          gammaColl[4*iPt+1]  -= 0.25 * (dndX[iPt]*aux_dMzdX[iPt] + dndY[iPt]*aux_dMzdY[iPt] + dndZ[iPt]*aux_dMzdZ[iPt]);
-          // ba
-          gammaColl[4*iPt+2]  -= 0.25 * (dMzdX[iPt]*aux_dMzdX[iPt] + dMzdY[iPt]*aux_dMzdY[iPt] + dMzdZ[iPt]*aux_dMzdZ[iPt]);
-          gammaColl[4*iPt+2]  += 0.25 * (dndX[iPt]*aux_dMzdX[iPt] + dndY[iPt]*aux_dMzdY[iPt] + dndZ[iPt]*aux_dMzdZ[iPt]);
-          // bb
-          gammaColl[4*iPt+3]  += 0.25 * (dMzdX[iPt]*aux_dMzdX[iPt] + dMzdY[iPt]*aux_dMzdY[iPt] + dMzdZ[iPt]*aux_dMzdZ[iPt]);
-          gammaColl[4*iPt+3]  -= 0.25 * (dndX[iPt]*aux_dMzdX[iPt] + dndY[iPt]*aux_dMzdY[iPt] + dndZ[iPt]*aux_dMzdZ[iPt]);
-        }
-      }
-    }
-  }; //KohnSham<MatsT,IntsT>::mkCrossAuxVar
-
-
-  /**
-   *  \brief Construct the required quantities for the formation of the Z vector, 
-   *  for a given density component, given the kernel derivatives wrt U variables. 
-   *
-   *  See J. Chem. Theory Comput. 2011, 7, 3097–3104 (modified e derived for Scalar and Magn).
-   *
-   *  \param [in] dentyp       Type of 1PDM (SCALAR, {M_k}).
-   *  \param [in] isGGA        Whether to include GGA contributions.
-   *  \param [in] NPts         Number of points in the batch
-   *
-   *  \param [in] VRhoEval     Pointer to the first partial derivative of 
-   *                           the energy per unit volume in terms of the dens[+,-]. 
-   *
-   *  \param [in] VgammaEval   Pointer to the first partial derivative of 
-   *                           the energy per unit volume in terms of the 
-   *                           gammas[++,+-,--].
-   *
-   *  \param[out]  ZrhoVar1    Factors to multiply the scalar density for particular Z matrix
-   *  \param[out]  ZgammaVar1  Factors to multiply the gradient scalar density for particular Z matrix
-   *  \param[out]  ZgammaVar2  Factors to multiply the gradient particular mag 
-   *                           density for particular Z matrix
-   *  
-   *  Note we build 2 * X   in Eq 12 and 13 in J. Chem. Theory Comput. 2011, 7, 3097–3104.
-   *  Since ZMAT LDA part needs to factor 0.5 for the symmetrization procedure 
-   *  (see Eq. 15 1st term on r.h.s) ZrhoVar1  part does not need this factor anymore.
-   *
-   *  The 0.5 factors come from the chain rules.
-   *
-   *  On the other hand since we are building 2 * X, we factor already in both
-   *  ZgammaVar1 and ZgammaVar2 (since there is 0.5 coming from the chain rules
-   *  as well for the GGA terms). Note there is still a factor of 2 that is included
-   *  already in the Grad SCALAR/Mz (the one required in Eq 17).
-   *
-   *  Notes. The ZrhoVar1   multiply the LDA contribution to ZMAT 
-   *                        
-   *  Notes. The ZgammaVar1 multiply the GGA Del SCALAR
-   *                        contribution to ZMAT 
-   *  Notes. The ZgammaVar2 multiply the GGA Del Mk 
-   *                        contribution to ZMAT 
-   *  
-   */  
-  template <typename MatsT, typename IntsT>
-  void NEOKohnSham<MatsT,IntsT>::constructEPCZVars(DENSITY_TYPE denTyp, size_t NPts, 
-    double *CVgammaEval, double *ZgammaVar3) {
-
-
-    // FIXME: Don't zero out, copy / use MKL VAdd
-    memset(ZgammaVar3,0,NPts*sizeof(double));
-
-    // figure out whether this is proton's wave function
-    bool electron = (this->particle.charge < 0.);
-
-    if( denTyp == SCALAR ) {
-
-      // ( DE/DGamma++ DGamma++/DSCALAR + 
-      //   DE/DGamma+- DGamma+-/DSCALAR + 
-      //   DE/DGamma-- DGamma--/DSCALAR   ) 
-
-      //   Where DGamma++/DSCALAR = 0.5 * (Del SCAL + Del Mz --- only UKS)
-      //   Where DGamma+-/DSCALAR = 0.5 * (Del SCAL)
-      //   Where DGamma--/DSCALAR = 0.5 * (Del SCAL - Del Mz --- only UKS)
-      //   The Del SCAL and Del Mz will be assembled later in formZ_vxc
-      //   NOTE we are building 2 * Z. So 0.5 ---> 1.
-
-      // main system is electron
-      if (electron) {
-        blas::axpy(NPts,1.,CVgammaEval,4  ,ZgammaVar3,1);
-        blas::axpy(NPts,1.,CVgammaEval+2,4,ZgammaVar3,1);
-      }
-      else { // main system is proton
-        blas::axpy(NPts,1.,CVgammaEval,4  ,ZgammaVar3,1);
-        blas::axpy(NPts,1.,CVgammaEval+1,4,ZgammaVar3,1);
-      }
-
-    } else {
-
-      // ( DE/DGamma++ DGamma++/DMz + 
-      //   DE/DGamma+- DGamma+-/DMz + 
-      //   DE/DGamma-- DGamma--/DMz   ) 
-
-      //   Where DGamma++/DMz = 0.5 * (Del Mz + Del SCAL --- only UKS)
-      //   Where DGamma+-/DMz = 0.5 * (- Del Mz)
-      //   Where DGamma--/DMz = 0.5 * (Del Mz - Del SCAL --- only UKS)
-      //   The Del SCAL and Del Mz will be assembled later in formZ_vxc
-      //   NOTE we are building 2 * Z. So 0.5 ---> 1.
-
-      // main system is electron
-      if (electron) {
-        blas::axpy(NPts, 1.,CVgammaEval,4  ,ZgammaVar3,1);
-        blas::axpy(NPts,-1.,CVgammaEval+2,4,ZgammaVar3,1);
-      }
-      else { // main system is proton
-        blas::axpy(NPts, 1.,CVgammaEval,4  ,ZgammaVar3,1);
-        blas::axpy(NPts,-1.,CVgammaEval+1,4,ZgammaVar3,1);
-      }
-    }
-
-  }; //NEOKohnSham<MatsT,IntsT>::constructEPCZVars
-
-  /**
-   *  \brief assemble the final Z vector -> ZMAT (for a given density component),
-   *  given the precomputed required U dependent quantities 
-   *  (ZUvar# from constructZVars) and the V variables (DenS/Z/X/Y 
-   *  and  GDenS/Z/Y/X from evalDen) in input. It requires 
-   *  in input also the pointer (BasisScratch) to all basis set (and their gradient)
-   *
-   *  See J. Chem. Theory Comput. 2011, 7, 3097–3104 (modified e derived for Total and Magn)
-   *
-   *  \param [in]  isGGA        Whether to include GGA contributions
-   *  \param [in]  NPts         Number of points in the batch
-   *  \param [in]  NBE          Effective number of basis to be evalauted (only shell actives)
-   *  \param [in]  IOff         Offset used for accessing all basis set (and their gradient) 
-   *  \param [in]  epsScreen    Screening tollerance
-   *  \param [in]  weights      Quadrature weights
-   *
-   *  \param [in]  ZrhoVar1     Factors to multiply the scalar density for particular Z matrix
-   *  \param [in]  ZgammaVar1   Factors to multiply the gradient scalar density for particular Z matrix
-   *  \param [in]  ZgammaVar2   Factors to multiply the gradient particular mag 
-   *                            density for particular Z matrix
-   *
-   *  \param [in]  DenS         Pointer to the V variable - SCALAR
-   *  \param [in]  DenZ         Pointer to the V variable - Mz 
-   *  \param [in]  DenY         Pointer to the V variable - My
-   *  \param [in]  DenZ         Pointer to the V variable - Mx
-   *  \param [in]  GDenS        Pointer to the V variable - Gradient X,Y,Z comp of SCALAR
-   *  \param [in]  GDenZ        Pointer to the V variable - Gradient X,Y,Z comp of Mz 
-   *  \param [in]  GDenY        Pointer to the V variable - Gradient X,Y,Z comp of My
-   *  \param [in]  GDenZ        Pointer to the V variable - Gradient X,Y,Z comp of Mx
-   *
-   *  \param [in]  BasisScratch Pointer to Basis set evaluated over batch of points.
-   *
-   *  \param [out] Pointer to the ZMAT.
-   *   
-   *  Note. See Documentations of constructZVars.
-   */  
-  template <typename MatsT, typename IntsT>
-  void NEOKohnSham<MatsT,IntsT>::formZ_vxc_epc(DENSITY_TYPE denTyp, 
-    bool isGGA, size_t NPts, size_t NBE, size_t IOff, 
-    double epsScreen, std::vector<double> &weights, double *ZrhoVar1,
-    double *ZgammaVar1, double *ZgammaVar2, double *ZgammaVar3,
-    double *DenS, double *DenZ, double *DenY, double *DenX, 
-    double *GDenS, double *GDenZ, double *GDenY, double *GDenX, 
-    double *aux_DenS,  double *aux_DenZ,  double *aux_DenY,  double *aux_DenX, 
-    double *aux_GDenS, double *aux_GDenZ, double *aux_GDenY, double *aux_GDenX, 
-    double *BasisScratch, double *ZMAT){
-
-    double Fg;
-    // Fx,y,z  ^m(all batch) in J. Chem. Theory Comput. 2011, 7, 3097–3104 Eq. 17 (changed for Total and Magn)
-    double FgX;
-    double FgY;
-    double FgZ;
-
-    memset(ZMAT,0,IOff*sizeof(double));
-
-    if( not this->onePDM->hasXY() ) {
-      for(auto iPt = 0; iPt < NPts; iPt++) { 
-      // LDA part -> Eq. 15 and 16 (see constructZVars docs for the missing factor of 0.5)
-        Fg = weights[iPt] * ZrhoVar1[iPt];
-
-#if VXC_DEBUG_LEVEL < 3
-        if(std::abs(Fg) > epsScreen)
-#endif
-          blas::axpy(NBE,Fg,BasisScratch + iPt*NBE,1,ZMAT+iPt*NBE,1);
-
-      // GGA part -> Eq. 15 and 17 (see constructZVars docs for the missing factor of 2)
-        if( isGGA ) {
-          FgX = weights[iPt] * ZgammaVar1[iPt] * GDenS[iPt];
-          // add contribution of the epc part 
-          FgX += 0.5 * weights[iPt] * ZgammaVar3[iPt] * aux_GDenS[iPt];
-
-          if( this->onePDM->hasZ() )
-            FgX += weights[iPt] * ZgammaVar2[iPt] * GDenZ[iPt];
-
-          // add contribution of the epc part 
-          if( aux_neoks->onePDM->hasZ() )
-            FgX += 0.5 * weights[iPt] * ZgammaVar3[iPt] * aux_GDenZ[iPt];
-
-          FgY = weights[iPt] * ZgammaVar1[iPt] * GDenS[iPt + NPts];
-          // add contribution of the epc part 
-          FgY += 0.5 * weights[iPt] * ZgammaVar3[iPt] * aux_GDenS[iPt + NPts];
-          if( this->onePDM->hasZ() )
-            FgY += weights[iPt] * ZgammaVar2[iPt] * GDenZ[iPt + NPts];
-
-          // add contribution of the epc part 
-          if( aux_neoks->onePDM->hasZ() )
-            FgY += 0.5 * weights[iPt] * ZgammaVar3[iPt] * aux_GDenZ[iPt + NPts];
-
-          FgZ = weights[iPt] * ZgammaVar1[iPt] * GDenS[iPt + 2*NPts];
-          // add contribution of the epc part 
-          FgZ += 0.5 * weights[iPt] * ZgammaVar3[iPt] * aux_GDenS[iPt + 2*NPts];
-          if( this->onePDM->hasZ() )
-            FgZ += weights[iPt] * ZgammaVar2[iPt] * GDenZ[iPt + 2*NPts];
-
-          // add contribution of the epc part 
-          if( aux_neoks->onePDM->hasZ() )
-            FgZ += 0.5 * weights[iPt] * ZgammaVar3[iPt] * aux_GDenZ[iPt + 2*NPts];
-
-#if VXC_DEBUG_LEVEL < 3
-          if(std::abs(FgX) > epsScreen)
-#endif
-            blas::axpy(NBE,FgX,BasisScratch + iPt*NBE + IOff,1,ZMAT+iPt*NBE,1);
-
-#if VXC_DEBUG_LEVEL < 3
-          if(std::abs(FgY) > epsScreen)
-#endif
-            blas::axpy(NBE,FgY,BasisScratch + iPt*NBE + 2*IOff,1,ZMAT+iPt*NBE,1);
-
-#if VXC_DEBUG_LEVEL < 3
-          if(std::abs(FgZ) > epsScreen)
-#endif
-            blas::axpy(NBE,FgZ,BasisScratch + iPt*NBE + 3*IOff,1,ZMAT+iPt*NBE,1);
-        }
-      }
-
-    } else {
-      CErr("EPC-19 functional is not implemented for 2-component systems (GHF or X2C)!", std::cout);
-    } // 2C
-
-  }; // NEOKohnSham<MatsT,IntsT>::formZ_vxc_epc
-
-  /**
    *  \brief assemble the VXC for all density component over batch 
    *  of points
    *
@@ -1042,7 +495,8 @@ namespace ChronusQ {
 #endif
         
         // V -> U variables for NEO-DFT kernal derivatives 
-        aux_neoks->mkAuxVar(epcisGGA,epsScreen,NPts,
+        mkAuxVar(aux_neoks->onePDM,
+          epcisGGA,epsScreen,NPts,
           aux_DenS_loc,aux_DenZ_loc,nullptr,nullptr,
           aux_GDenS_loc,aux_GDenS_loc + NPts,aux_GDenS_loc + 2*NPts,
           aux_GDenZ_loc,aux_GDenZ_loc + NPts,aux_GDenZ_loc + 2*NPts,
@@ -1057,7 +511,8 @@ namespace ChronusQ {
 
 
         // V -> U variables for evaluating the kernel derivatives.
-        mkAuxVar(isGGA,epsScreen,NPts,
+        mkAuxVar(this->onePDM,
+          isGGA,epsScreen,NPts,
           DenS_loc,DenZ_loc,nullptr,nullptr,
           GDenS_loc,GDenS_loc + NPts,GDenS_loc + 2*NPts,
           GDenZ_loc,GDenZ_loc + NPts,GDenZ_loc + 2*NPts,
@@ -1073,7 +528,8 @@ namespace ChronusQ {
 
         // Cross V -> U variables
         if (isGGA and epcisGGA)
-          mkCrossAuxVar(false,epsScreen,NPts,
+          mkCrossAuxVar(false,this->particle.charge < 0,
+            this->onePDM, aux_neoks->onePDM, epsScreen,NPts,
             GDenS_loc,GDenS_loc + NPts,GDenS_loc + 2*NPts,
             nullptr,nullptr,nullptr,
             nullptr,nullptr,nullptr,
@@ -1111,7 +567,15 @@ namespace ChronusQ {
 #endif
 
         // Get NEO-DFT Energy derivatives wrt U variables
-        loadVXCderWithEPC(NPts, U_n_loc, U_gamma_loc, aux_U_n_loc,
+        loadVXCder(
+          this->functionals,
+          NPts, U_n_loc, U_gamma_loc,
+          epsEval_loc, dVU_n_loc, dVU_gamma_loc,
+          epsSCR_loc, dVU_n_SCR_loc, dVU_gamma_SCR_loc);
+
+        loadEPCVXCder(this->particle.charge < 0, 
+          this->epc_functionals,
+          NPts, U_n_loc, U_gamma_loc, aux_U_n_loc,
           aux_U_gamma_loc, cross_U_gamma_loc, epsEval_loc, dVU_n_loc,
           dVU_gamma_loc, cross_dVU_gamma_loc, epsSCR_loc, dVU_n_SCR_loc, 
           dVU_gamma_SCR_loc, cross_dVU_gamma_loc);
@@ -1146,7 +610,8 @@ namespace ChronusQ {
         // Construct the required quantities for the formation of the Z
         // vector for EPC-19 functional
         if (isGGA and epcisGGA)
-          constructEPCZVars(SCALAR,NPts,cross_dVU_gamma_loc, ZgammaVar3_loc);
+          constructEPCZVars(this->particle.charge < 0,
+            SCALAR,NPts,cross_dVU_gamma_loc, ZgammaVar3_loc);
 
 
 #if VXC_DEBUG_LEVEL >= 1
@@ -1160,7 +625,8 @@ namespace ChronusQ {
         // Creating ZMAT (SCALAR) according to 
         //   J. Chem. Theory Comput. 2011, 7, 3097–3104 Eq. 15 
         if (isGGA and epcisGGA)
-          formZ_vxc_epc(SCALAR, isGGA, NPts, NBE, IOff, epsScreen, weights,
+          formZ_vxc_epc(this->onePDM, aux_neoks->onePDM,
+            SCALAR, isGGA, NPts, NBE, IOff, epsScreen, weights,
             ZrhoVar1_loc, ZgammaVar1_loc, ZgammaVar2_loc, ZgammaVar3_loc,
             DenS_loc, DenZ_loc, nullptr, nullptr, GDenS_loc, GDenZ_loc, nullptr,
             nullptr, aux_DenS_loc, aux_DenZ_loc, nullptr, nullptr,
@@ -1265,12 +731,14 @@ namespace ChronusQ {
         // Construct the required quantities for the formation of the Z
         // vector for EPC-19 functional
         if (isGGA and epcisGGA)
-          constructEPCZVars(MZ,NPts,cross_dVU_gamma_loc, ZgammaVar3_loc);
+          constructEPCZVars(this->particle.charge < 0, 
+            MZ,NPts,cross_dVU_gamma_loc, ZgammaVar3_loc);
 
         // Creating ZMAT (Mz) according to 
         //   J. Chem. Theory Comput. 2011, 7, 3097–3104 Eq. 15 
         if (isGGA and epcisGGA)
-          formZ_vxc_epc(MZ, isGGA, NPts, NBE, IOff, epsScreen, weights,
+          formZ_vxc_epc(this->onePDM, aux_neoks->onePDM,
+            MZ, isGGA, NPts, NBE, IOff, epsScreen, weights,
             ZrhoVar1_loc, ZgammaVar1_loc, ZgammaVar2_loc, ZgammaVar3_loc,
             DenS_loc, DenZ_loc, nullptr, nullptr, GDenS_loc, GDenZ_loc, nullptr,
             nullptr, aux_DenS_loc, aux_DenZ_loc, nullptr, nullptr,

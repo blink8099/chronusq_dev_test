@@ -139,49 +139,6 @@ namespace ChronusQ {
     // VXC
     void formVXC();
 
-    void mkAuxVar(bool isGGA, 
-      double epsScreen, size_t NPts_Batch, 
-      double *n, double *mx, double *my, double *mz,
-      double *dndX, double *dndY, double *dndZ, 
-      double *dmxdX, double *dmxdY, double *dmxdZ, 
-      double *dmydX, double *dmydY, double *dmydZ, 
-      double *dmzdX, double *dmzdY, double *dmzdZ, 
-      double *Mnorm, double *Kx, double *Ky, double *Kz, 
-      double *Hx, double *Hy, double *Hz,
-      double *DSDMnorm, double *signMD,  
-      bool* Msmall, double *nColl, double *gammaColl );
-
-    void loadVXCderWithEPC(size_t NPts, double *Den, double *Gamma,
-      double *aux_Den, double *aux_Gamma, double *cGamma, 
-      double *epsEval, double *VRhoEval, double *VgammaEval,
-      double *CVgammaEval, double *EpsSCR, double *VRhoSCR, 
-      double *VgammaSCR, double *CVgammaSCR);
-
-    void constructEPCZVars(DENSITY_TYPE denTyp, size_t NPts, 
-      double *CVsigmaEval, double *ZsigmaVar3);
-
-    void mkCrossAuxVar(bool check_aux, 
-      double epsScreen, size_t NPts,
-      double *dndX, double *dndY, double *dndZ, 
-      double *dMxdX, double *dMxdY, double *dMxdZ, 
-      double *dMydX, double *dMydY, double *dMydZ, 
-      double *dMzdX, double *dMzdY, double *dMzdZ, 
-      double *aux_dndX, double  *aux_dndY, double *aux_dndZ, 
-      double *aux_dMxdX, double *aux_dMxdY, double *aux_dMxdZ, 
-      double *aux_dMydX, double *aux_dMydY, double *aux_dMydZ, 
-      double *aux_dMzdX, double *aux_dMzdY, double *aux_dMzdZ, 
-      double *gammaColl);
-
-    void formZ_vxc_epc(DENSITY_TYPE denTyp, 
-      bool isGGA, size_t NPts, size_t NBE, size_t IOff, 
-      double epsScreen, std::vector<double> &weights, double *ZrhoVar1,
-      double *ZgammaVar1, double *ZgammaVar2, double *ZgammaVar3,
-      double *DenS, double *DenZ, double *DenY, double *DenX, 
-      double *GDenS, double *GDenZ, double *GDenY, double *GDenX, 
-      double *aux_DenS,  double *aux_DenZ,  double *aux_DenY,  double *aux_DenX, 
-      double *aux_GDenS, double *aux_GDenZ, double *aux_GDenY, double *aux_GDenX, 
-      double *BasisScratch, double *ZMAT);
-
   }; // NEOKohnSham class
 
 
