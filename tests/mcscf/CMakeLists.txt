@@ -49,9 +49,9 @@ file(MAKE_DIRECTORY ${MCSCF_TEST_BINARY_ROOT}/parallel/ras)
 include( CQTestGeneration )
 
 # CAS test
-add_cq_test(OneC_CAS_FULLMATRIX  mcscftest "OneC_CAS_FULLMATRIX.*")
-add_cq_test(X2C_CAS_FULLMATRIX   mcscftest "X2C_CAS_FULLMATRIX.*")
-add_cq_test(FourC_CAS_FULLMATRIX mcscftest "FourC_CAS_FULLMATRIX.*")
+add_cq_test(OneC_CASSCF_FULLMATRIX  mcscftest "OneC_CASSCF_FULLMATRIX.*")
+add_cq_test(X2C_CASSCF_FULLMATRIX   mcscftest "X2C_CASSCF_FULLMATRIX.*")
+add_cq_test(FourC_CASSCF_FULLMATRIX mcscftest "FourC_CASSCF_FULLMATRIX.*")
 add_cq_test(CASCI_DAVIDSON       mcscftest "CASCI_DAVISON.*")
 add_cq_test(OneC_CAS_SWAP        mcscftest "OneC_CAS_SWAP.*")
 add_cq_test(TwoC_CAS_SWAP        mcscftest "TwoC_CAS_SWAP.*")
