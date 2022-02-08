@@ -49,19 +49,16 @@ file(MAKE_DIRECTORY ${MCSCF_TEST_BINARY_ROOT}/parallel/ras)
 include( CQTestGeneration )
 
 # CAS test
-add_cq_test(OneC_CAS_FULL     mcscftest "OneC_CAS_FULL.*")
-add_cq_test(OneC_CAS_DAVIDSON     mcscftest "OneC_CAS_DAVIDSON.*")
-add_cq_test(X2C_CAS_FULL     mcscftest "X2C_CAS_FULL.*")
-add_cq_test(X2C_CAS_DAVIDSON     mcscftest "X2C_CAS_DAVISON.*")
-add_cq_test(FourC_CAS_FULL   mcscftest "FourC_CAS_FULL.*")
-add_cq_test(FourC_CAS_DAVIDSON   mcscftest "FourC_CAS_DAVISON.*")
-add_cq_test(OneC_CAS_SWAP     mcscftest "OneC_CAS_SWAP.*")
-add_cq_test(TwoC_CAS_SWAP     mcscftest "TwoC_CAS_SWAP.*")
-add_cq_test(GHF_CAS_OSC       mcscftest "GHF_CAS_OSC.*")
+add_cq_test(OneC_CASSCF_FULLMATRIX  mcscftest "OneC_CASSCF_FULLMATRIX.*")
+add_cq_test(X2C_CASSCF_FULLMATRIX   mcscftest "X2C_CASSCF_FULLMATRIX.*")
+add_cq_test(FourC_CASSCF_FULLMATRIX mcscftest "FourC_CASSCF_FULLMATRIX.*")
+add_cq_test(CASCI_DAVIDSON       mcscftest "CASCI_DAVISON.*")
+add_cq_test(OneC_CAS_SWAP        mcscftest "OneC_CAS_SWAP.*")
+add_cq_test(TwoC_CAS_SWAP        mcscftest "TwoC_CAS_SWAP.*")
+add_cq_test(GHF_CAS_OSC          mcscftest "GHF_CAS_OSC.*")
 
 # RAS test
-add_cq_test(X2C_RAS_DAVIDSON     mcscftest "X2C_RAS_DAVIDSON.*")
-add_cq_test(FourC_RAS_DAVIDSON   mcscftest "FourC_RAS_DAVIDSON.*")
+add_cq_test(RAS_DAVIDSON         mcscftest "RAS_DAVIDSON.*")
 
 if( CQ_ENABLE_MPI )
 

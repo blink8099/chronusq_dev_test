@@ -17,7 +17,7 @@ reference = 4CHF
 job = MCSCF
 
 [BASIS]
-basis = 6-31g 
+basis = sto-3g 
 
 [MISC]
 mem = 1 GB
