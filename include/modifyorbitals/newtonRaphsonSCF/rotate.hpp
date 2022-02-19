@@ -116,7 +116,7 @@ std::vector<SquareMatrix<MatsT>> NewtonRaphsonSCF<MatsT>::computeUnitary(){
     try{
       MatExp(N,A[i].pointer(),N,U[i].pointer(),N,this->memManager);
     }
-    catch(CONVERGENCE_FAILURE){
+    catch(...){
         CErr("Matrix Exponential failed to converge");
     }
 #ifdef _NRSCF_DEBUG_UNITARY

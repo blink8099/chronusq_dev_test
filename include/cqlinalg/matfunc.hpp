@@ -49,9 +49,6 @@ namespace ChronusQ {
   void MatExp( size_t N, MatsU *A, size_t LDA,
     MatsU *ExpA, size_t LDEXPA, CQMemManager &mem);
 
-  // Empty struct's for exception handling
-  struct CONVERGENCE_FAILURE{};
-
 
 }; // namespace ChronusQ
 

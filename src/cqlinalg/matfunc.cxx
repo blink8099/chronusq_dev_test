@@ -141,7 +141,7 @@ namespace ChronusQ {
 
     mem.free(OddTerms, EvenTerms);
 
-    if(not converged) throw CONVERGENCE_FAILURE{};
+    if(not converged) throw std::runtime_error("Matrix Exponential calculation failed to converge");
   }; // MCSCF::MatExpT
 
   template void MatExp(size_t N, double *A, size_t LDA, double *ExpA, size_t LDEXPA, CQMemManager &mem);

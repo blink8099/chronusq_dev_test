@@ -238,7 +238,7 @@ void NewtonRaphsonSCF<MatsT>::computeSR1(size_t N, std::vector<MatsT*> x, std::v
   double normSHY = blas::nrm2(nParam, shy + (nUpdate - 1) * nParam, 1);
   try{
     SVDInverse(nUpdate, r, nUpdate, normSHY*1.E-8,this->memManager);
-  } catch (SVD_Failed){
+  } catch (...){
     CErr("SVD Failed in computing L-SR1");
   }
 

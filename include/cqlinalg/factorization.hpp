@@ -80,9 +80,6 @@ namespace ChronusQ {
     int LDB, dcomplex *ALPHA, _F *BETA, double hLim, double SIMGA, _F *VSL, 
     int LDVSL, _F *VSR, int LDVSR, CQMemManager &mem);
 
-  
-  // Execption object for SVDInverse function
-  struct SVD_Failed{};
 
   /*
    *   Brief: This function computes an approximate matrix inverse. If the matrix

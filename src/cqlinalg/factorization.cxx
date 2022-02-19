@@ -476,7 +476,7 @@ namespace ChronusQ {
   
     int info = lapack::gesvd(lapack::Job::AllVec, lapack::Job::AllVec, N, N, A, LDA, 
             sV, U, N, VT, N);
-    if( info != 0 ) throw SVD_Failed{};
+    if( info != 0 ) throw std::runtime_error("SVD Failed in SVD Inverse Function");
   
     // Zero out vectors that are singular or scale by inverse sing. value
     for( size_t i = 0; i < N; i++ ) {
