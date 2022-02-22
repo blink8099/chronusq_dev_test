@@ -128,8 +128,8 @@ public:
 
   // Quasi-Newton Functions
   void qnSetup();
-  void computeBFGS(size_t N, std::vector<MatsT*> x, std::vector<MatsT*> g, MatsT* dx);
-  void computeSR1(size_t N, std::vector<MatsT*> x, std::vector<MatsT*> g, MatsT* dx);
+  void computeBFGS(size_t N, const std::vector<MatsT*>& x, const std::vector<MatsT*>& g, MatsT* dx);
+  void computeSR1(size_t N, const std::vector<MatsT*>& x, const std::vector<MatsT*>& g, MatsT* dx);
   void computeMatrixInverse(const size_t, MatsT*, const size_t, const double);
 
   template<typename MatsU>

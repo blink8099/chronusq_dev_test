@@ -113,7 +113,7 @@ void NewtonRaphsonSCF<MatsT>::qnSetup() {
  *         as the last element for both the x and g vectors
  */
 template<typename MatsT>
-void NewtonRaphsonSCF<MatsT>::computeBFGS(size_t N, std::vector<MatsT*> x, std::vector<MatsT*> g, MatsT* dx) {
+void NewtonRaphsonSCF<MatsT>::computeBFGS(size_t N, const std::vector<MatsT*>& x, const std::vector<MatsT*>& g, MatsT* dx) {
 
   // If only 1 iteration, perform gradient descent
   if( N == 1 ) {
@@ -178,7 +178,7 @@ void NewtonRaphsonSCF<MatsT>::computeBFGS(size_t N, std::vector<MatsT*> x, std::
  *         as the last element for both the x and g vectors
  */
 template<typename MatsT>
-void NewtonRaphsonSCF<MatsT>::computeSR1(size_t N, std::vector<MatsT*> x, std::vector<MatsT*> g, MatsT* dx) {
+void NewtonRaphsonSCF<MatsT>::computeSR1(size_t N, const std::vector<MatsT*>& x, const std::vector<MatsT*>& g, MatsT* dx) {
 
   // If only 1 iteration, perform gradient descent
   if( N == 1 ) {
