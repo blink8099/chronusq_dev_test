@@ -491,7 +491,8 @@ namespace ChronusQ {
 
       MatAdd('N','N',NPts,1,1.,epsEval,NPts,1.,EpsSCR,NPts,epsEval,NPts);
       MatAdd('N','N',2*NPts,1,1.,VRhoEval,2*NPts,1.,VRhoSCR,2*NPts,VRhoEval,2*NPts);
-      MatAdd('N','N',3*NPts,1,1.,VgammaEval,3*NPts,1.,VgammaSCR,3*NPts,VgammaEval,3*NPts);
+      if( functionals[iF]->isGGA() )
+        MatAdd('N','N',3*NPts,1,1.,VgammaEval,3*NPts,1.,VgammaSCR,3*NPts,VgammaEval,3*NPts);
 
     }
 

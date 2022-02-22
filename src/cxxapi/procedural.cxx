@@ -66,10 +66,15 @@
 #include <corehbuilder/nonrel.hpp>
 #include <fockbuilder/matrixfock.hpp>
 
+#include <fockbuilder/neofock.hpp>
 
 //#include <cubegen.hpp>
 
 namespace ChronusQ {
+
+  template class NEOKohnShamBuilder<double,double>;
+  template class NEOKohnShamBuilder<dcomplex,double>;
+  template class NEOKohnShamBuilder<dcomplex,dcomplex>;
 
 #ifdef ENABLE_BCAST_COUNTER
   int bcastCounter = 0;

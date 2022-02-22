@@ -133,10 +133,15 @@ namespace ChronusQ {
       "B3PW91",
       "PBE0",
       "BHANDHLYP",
-      "BHANDH",
+      "BHANDH"
+    };
+
+    std::vector<std::string> EPCRefs {
       "EPC17",
       "EPC19"
     };
+
+    KSRefs.insert(KSRefs.begin(), EPCRefs.begin(), EPCRefs.end());
 
     // All reference keywords
     std::vector<std::string> rawRefs(KSRefs);
@@ -195,6 +200,9 @@ namespace ChronusQ {
 
     if( ref.isKSRef )
       ref.funcName = refString;
+
+    ref.isEPCRef =
+      std::find(EPCRefs.begin(),EPCRefs.end(),refString) != EPCRefs.end();
 
     // Raw reference
     if( ref.refType == isRawRef ) {
@@ -759,6 +767,12 @@ namespace ChronusQ {
 
     Particle p = hamiltonianOptions.particle;
 
+    if( p.charge < 0 && refOptions.isEPCRef )
+      CErr("EPC functionals only valid on proton references!");
+
+    if( p.charge >= 0 && refOptions.isKSRef && !refOptions.isEPCRef )
+      CErr("Proton Kohn Sham references require EPC functionals");
+
   #define KS_LIST(T) \
     refOptions.funcName,funcList,MPI_COMM_WORLD,intParam,mem,mol,basis,dynamic_cast<Integrals<T>&>(*aoints),refOptions.nC,refOptions.iCS,p
 
@@ -1212,6 +1226,15 @@ namespace ChronusQ {
         neoss_t->addSubsystem("Protonic", pss_t, {{"Electronic", {true, epaoints_t->TPI}}});
         neoss_t->setOrder({"Protonic", "Electronic"});
         neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
+
+        // Handle the fact that VXC will be formed by the NEOKohnShamBuilder
+        if( pssopt.refOptions.isEPCRef ) {
+          auto pks_t = std::dynamic_pointer_cast<KohnSham<double,double>>(pss_t);
+          pks_t->doVXC_ = false;
+          if( auto eks_t = std::dynamic_pointer_cast<KohnSham<double,double>>(ess_t) ) {
+            eks_t->doVXC_ = false;
+          }
+        }
       }
       else
         CErr("Electrons and protons must use the same field (real/real) or (complex/complex)");
@@ -1224,6 +1247,15 @@ namespace ChronusQ {
         neoss_t->addSubsystem("Protonic", pss_t, {{"Electronic", {true, epaoints_t->TPI}}});
         neoss_t->setOrder({"Protonic", "Electronic"});
         neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
+
+        // Handle the fact that VXC will be formed by the NEOKohnShamBuilder
+        if( pssopt.refOptions.isEPCRef ) {
+          auto pks_t = std::dynamic_pointer_cast<KohnSham<dcomplex,double>>(pss_t);
+          pks_t->doVXC_ = false;
+          if( auto eks_t = std::dynamic_pointer_cast<KohnSham<dcomplex,double>>(ess_t) ) {
+            eks_t->doVXC_ = false;
+          }
+        }
       }
       else
         CErr("Electrons and protons must use the same field (real/real) or (complex/complex)");

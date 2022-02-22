@@ -53,6 +53,7 @@ namespace ChronusQ {
     RefType refType = isRRef;    // R/U/G/2c/X2C/4c
 
     bool isKSRef = false;        // HF or DFT
+    bool isEPCRef = false;       // NEO-KS or not
 
     size_t nC = 1;               // number of component
     bool iCS = true;             // closed shell or not

@@ -130,10 +130,10 @@ namespace ChronusQ {
         if(ints.size() < subsystems.size())
           CErr("Subsystem and integral number mismatch in addSubsystem!");
 
-        // HamiltonianOptions is not relevant for the NEO builders
-        HamiltonianOptions options;
-
         auto NB = ss->basisSet().nBasis;
+
+        bool this_nuclear = ss->particle.charge > 0;
+        auto ks = std::dynamic_pointer_cast<KohnSham<MatsT,IntsT>>(ss);
 
         // Add a FockBuilder and Coulomb matrix:
         //   - For the new system's interaction with each other system
@@ -156,10 +156,12 @@ namespace ChronusQ {
           // Add a new coulomb matrix to the other system
           interCoulomb.at(x.first).insert({label, SquareMatrix<MatsT>(ss->memManager, other_NB)});
 
+          HamiltonianOptions this_options = ss->aoints.options_;
+          HamiltonianOptions other_options = x.second->aoints.options_;
 
           // New fock builders
-          auto this_newFock = std::make_shared<NEOFockBuilder<MatsT,IntsT>>(options);
-          auto other_newFock = std::make_shared<NEOFockBuilder<MatsT,IntsT>>(options);
+          auto this_newFock = std::make_shared<NEOFockBuilder<MatsT,IntsT>>(this_options);
+          auto other_newFock = std::make_shared<NEOFockBuilder<MatsT,IntsT>>(other_options);
 
           this_newFock->setAux(x.second.get());
           this_newFock->setOutput(&newCoulombs.at(x.first));
@@ -197,6 +199,46 @@ namespace ChronusQ {
 
           fockBuilders[label].push_back(this_newFock);
           fockBuilders[x.first].push_back(other_newFock);
+
+          // KS specific fock builders
+          // XXX: This assumes that there is no correlation functional between
+          //      nuclear subsystems
+          auto other_ks = std::dynamic_pointer_cast<KohnSham<MatsT,IntsT>>(x.second);
+          bool other_nuclear = x.second->particle.charge > 0;
+          std::shared_ptr<NEOKohnShamBuilder<MatsT,IntsT>> this_newKSBuilder = nullptr;
+          std::shared_ptr<NEOKohnShamBuilder<MatsT,IntsT>> other_newKSBuilder = nullptr;
+          if( other_ks && other_nuclear && !this_nuclear ) {
+            this_newKSBuilder = std::make_shared<NEOKohnShamBuilder<MatsT,IntsT>>(this_options);
+            other_newKSBuilder = std::make_shared<NEOKohnShamBuilder<MatsT,IntsT>>(other_options);
+
+            this_newKSBuilder->setFunctionals(other_ks->functionals);
+            other_newKSBuilder->setFunctionals(other_ks->functionals);
+
+            // Get EPC out of the functional list of the nuclear subsystem
+            other_ks->functionals.clear();
+          }
+          else if( ks && this_nuclear && !other_nuclear ) {
+            this_newKSBuilder = std::make_shared<NEOKohnShamBuilder<MatsT,IntsT>>(this_options);
+            other_newKSBuilder = std::make_shared<NEOKohnShamBuilder<MatsT,IntsT>>(other_options);
+
+            this_newKSBuilder->setFunctionals(ks->functionals);
+            other_newKSBuilder->setFunctionals(ks->functionals);
+
+            // Get EPC out of the functional list of the nuclear subsystem
+            ks->functionals.clear();
+          }
+
+          if( this_newKSBuilder ) {
+            this_newKSBuilder->setAux(x.second.get());
+            this_newKSBuilder->setUpstream(fockBuilders[label].back().get());
+
+            other_newKSBuilder->setAux(ss.get());
+            other_newKSBuilder->setUpstream(fockBuilders[x.first].back().get());
+
+            fockBuilders[label].push_back(this_newKSBuilder);
+            fockBuilders[x.first].push_back(other_newKSBuilder);
+          }
+
         }
 
         // Add the other system's coulomb matrices to the coulomb matrix storage

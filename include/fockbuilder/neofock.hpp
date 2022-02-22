@@ -132,9 +132,10 @@ namespace ChronusQ {
 
     protected:
 
-    // "Other" single slater with which to contract
-    std::vector<std::shared_ptr<DFTFunctional>> functionals;
+    std::vector<std::shared_ptr<DFTFunctional>> epc_functionals;
     IntegrationParam intParam;
+    std::shared_ptr<PauliSpinorSquareMatrices<double>> VXC;
+    double XCEnergy;
 
     public:
 
@@ -153,7 +154,8 @@ namespace ChronusQ {
       { }
 
     void setFunctionals(std::vector<std::shared_ptr<DFTFunctional>> funcs) {
-      functionals = funcs;
+      epc_functionals.clear();
+      epc_functionals.insert(epc_functionals.begin(), funcs.begin(), funcs.end());
     }
 
     void formVXC(SingleSlater<MatsT,IntsT>&);

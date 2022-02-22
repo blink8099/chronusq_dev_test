@@ -64,6 +64,7 @@ namespace ChronusQ {
     std::vector<std::shared_ptr<DFTFunctional>> functionals; ///< XC kernels
     IntegrationParam intParam; ///< Numerical integration controls
 
+    bool doVXC_ = true; ///< If this object is responsible for forming VXC
     bool isGGA_; ///< Whether or not the XC kernel is within the GGA
     double XCEnergy; ///< Exchange-correlation energy
 
@@ -154,14 +155,18 @@ namespace ChronusQ {
      */  
     virtual void formFock(EMPerturbation &pert, bool increment = false, double HFX = 0.) {
 
-      SingleSlater<MatsT,IntsT>::formFock(pert,increment,functionals.back()->xHFX);
+      double xHFX = functionals.size() != 0 ? functionals.back()->xHFX : 1.;
 
-      formVXC();
+      SingleSlater<MatsT,IntsT>::formFock(pert,increment,xHFX);
 
-      ROOT_ONLY(this->comm);
+      if( doVXC_ ) {
+        formVXC();
 
-      // Add VXC in Fock matrix
-      *this->fockMatrix += *VXC;
+        ROOT_ONLY(this->comm);
+
+        // Add VXC in Fock matrix
+        *this->fockMatrix += *VXC;
+      }
 
     }; // formFock
 
