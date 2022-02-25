@@ -26,6 +26,7 @@
 #include <chronusq_sys.hpp>
 #include <singleslater.hpp>
 #include <matrix.hpp>
+//#include <singleslater/base.hpp>
 
 namespace ChronusQ {
 
@@ -44,10 +45,10 @@ namespace ChronusQ {
       // pointer that points to the auxiliary class object 
       std::shared_ptr<NEOSingleSlater<MatsT,IntsT>> aux_neoss; 
 
-      double totalMacroEnergy;
-
      private:
      public:
+
+      double totalMacroEnergy;
 
        // Constructors
        template <typename... Args>
@@ -87,6 +88,11 @@ namespace ChronusQ {
          aux_neoss = neo_ss; 
        }
 
+       std::shared_ptr<NEOSingleSlater<MatsT,IntsT>> returnAux()
+       {
+         return aux_neoss;
+       }
+
        // Deallocation (see include/singleslater/neo_singleslater/impl.hpp for docs)
        void alloc();
        void dealloc();
@@ -108,26 +114,23 @@ namespace ChronusQ {
        // Form a fock matrix
        virtual void formFock(EMPerturbation &, bool increment = false, double xHFX = 1.);
 
+       // SCF Functions
+       inline double getTotalEnergy() { return this->totalMacroEnergy; };
+       std::vector<std::shared_ptr<SquareMatrix<MatsT>>> getOnePDM();
+       std::vector<std::shared_ptr<SquareMatrix<MatsT>>> getFock();
+       std::vector<std::shared_ptr<Orthogonalization<MatsT>>> getOrtho();
+       void formDensity(bool computeAuxDen = true);
+       void printProperties();
+       void formBothFock(EMPerturbation&, bool increment = false, double xHFX = 1.);
+       void runModifyOrbitals(EMPerturbation&);
+       std::vector<NRRotOptions> buildRotOpt();
+
+
        // Compute Energy
        //virtual void computeEnergy();
 
-       // Initialize SCF procedure
-       void SCFInit();
-
-       // Perform an NEO-SCF procedure 
-       void SCF(EMPerturbation &);
-
-       // Print Macro SCF information
-       void printSCFMacroProg(std::ostream &, bool);
-
        // Save the current state in NEO-SCF
        void saveCurrentState();
-
-       // Finalizes the SCF procedure
-       void SCFFin();
-
-       // Evaluate the NEO-SCF convergence
-       bool evalMacroConver(EMPerturbation &);
 
        // Compute properties of the overall electron-proton system
        virtual void computeTotalProperties(EMPerturbation &);

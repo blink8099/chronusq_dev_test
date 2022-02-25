@@ -31,7 +31,7 @@ add_executable(scftest ../ut.cxx
 	rhf.cxx uhf.cxx ghf.cxx rohf.cxx x2chf.cxx fourcomphf.cxx rhfnr.cxx
         rhf_giao.cxx uhf_giao.cxx rohf_giao.cxx ghf_giao.cxx
 	rks.cxx uks.cxx x2cks.cxx ks.cxx
-        misc.cxx ri.cxx
+        misc.cxx ri.cxx cediis.cxx qn.cxx
 )
 
 target_include_directories(scftest PUBLIC ${SCF_TEST_SOURCE_ROOT} 
@@ -82,6 +82,8 @@ file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/ri_rks)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/ri_uks)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/ri_x2c)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/neo_rks)
+file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/cediis)
+file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/qn)
 
 
 include( CQTestGeneration )
@@ -111,6 +113,10 @@ add_cq_test( KS_FUNC      scftest "KS_FUNC.*"    )
 add_cq_test( RI_RKS_SCF   scftest "RI_RKS.*"     )
 add_cq_test( RI_UKS_SCF   scftest "RI_UKS.*"     )
 add_cq_test( RI_X2CKS_SCF scftest "RI_X2CKS.*"   )
+add_cq_test( NEO_RKS_SCF  scftest "NEO_RKS.*"  )
+add_cq_test( CEDIIS_SCF   scftest "CEDIIS.*"  )
+add_cq_test( QN_SCF       scftest "QN_SCF*"  )
+add_cq_test( FOURC_QN_SCF scftest "FOURC_QN_SCF*"  )
 
 add_cq_test( MISC_SCF     scftest "MISC_SCF.*" )
 
@@ -134,6 +140,7 @@ if( CQ_ENABLE_MPI )
   add_cq_mpi_test( RI_RKS_SCF_MPI   2   scftest "RI_RKS.*"   )
   add_cq_mpi_test( RI_UKS_SCF_MPI   2   scftest "RI_UKS.*"   )
   add_cq_mpi_test( RI_X2CKS_SCF_MPI 2   scftest "RI_X2CKS.*" )
+  add_cq_mpi_test( QN_SCF_MPI       2   scftest "QN_SCF*"  )
 endif()
 
 

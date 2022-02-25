@@ -536,6 +536,92 @@ namespace ChronusQ {
   }; // RealTime::saveState
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::orbitalPop() {
+
+    // Spin-Gather Ortho Density
+    std::vector<SquareMatrix<dcomplex>> orthoDen;
+    if( propagator_.nC == 1 ){
+       orthoDen = propagator_.onePDMOrtho->template spinGatherToBlocks<dcomplex>(false);
+    } else {
+       orthoDen.push_back(propagator_.onePDMOrtho->template spinGather<dcomplex>());
+    }
+
+    // Transform a copy of the MOs because
+    std::vector<SquareMatrix<dcomplex>> orthoMO = propagator_.mo;
+
+    propagator_.orthoAB->nonortho2orthoCoeffs(orthoMO);
+
+    // Transform alpha Density and compute populations
+    size_t NB = orthoMO[0].dimension();
+    std::vector<double> population;
+    std::vector<SquareMatrix<dcomplex>> moDen;
+    moDen.push_back( orthoDen[0].transform('N',orthoMO[0].pointer(),NB,NB) );
+    for( size_t i=0; i<NB; ++i)
+        population.push_back( std::real(moDen[0](i,i)) );
+
+    // UHF Beta populations
+    if( propagator_.nC == 1 and not propagator_.iCS ){
+      moDen.push_back( orthoDen[1].transform('N',orthoMO[1].pointer(),NB,NB) );
+      for( size_t i=0; i<NB; ++i)
+          population.push_back( std::real(moDen[1](i,i)) );
+    }
+          
+    if( savFile.exists() ) {
+      size_t fullDim  = population.size();
+      hsize_t location = curState.iStep / this->orbitalPopFreq;
+      savFile.partialWriteData("RT/ORBITALPOPULATION", population.data(),
+        {location, 0}, {1, fullDim}, {0, 0}, {1, fullDim});
+    }
+
+    // Printing 
+    if( this->printLevel > 1 ) {
+
+      size_t orbPerRow = 5;
+      auto printBlock = [&](std::string header, size_t& start, size_t n){
+        std::cout << header << std::endl;
+        std::cout << std::fixed << std::setprecision(11);
+        
+        for(auto idx = 0; idx < n; idx += orbPerRow) {
+
+          size_t end = idx + orbPerRow < n ? orbPerRow : n - idx;
+          for(auto idummy = idx; idummy < idx+end; idummy++) {
+            std::cout << std::setw(15) << population[start+idummy];
+          }
+          std::cout << '\n';
+        }
+        start += n;
+      };
+
+      if( this->printLevel > 3 ){
+        moDen[0].output(std::cout, "MO Density Matrix", true);
+        if( propagator_.nC == 1 and not propagator_.iCS ) 
+            moDen[1].output(std::cout, "MO Beta Density Matrix", true);
+      }
+
+      size_t start = 0;
+      if( propagator_.nC == 1 ) {
+        printBlock("Alpha occupied orbitals", start, propagator_.nOA);
+        printBlock("Alpha virtual orbitals", start, propagator_.nVA);
+        if( not propagator_.iCS ){
+          printBlock("Beta occupied orbitals", start, propagator_.nOB);
+          printBlock("Beta virtual orbitals", start, propagator_.nVB);
+        }
+      }
+      else if( propagator_.nC == 2 ){
+        printBlock("Occupied orbitals", start, propagator_.nO);
+        printBlock("Virtual orbitals", start, propagator_.nV);
+      } else if( propagator_.nC == 4 ){
+        start += NB/2;
+        printBlock("Positive Energy Occupied orbitals", start, propagator_.nO);
+        printBlock("Positive Energy Virtual orbitals", start, propagator_.nV);
+      }
+      std::cout << std::flush;
+    }
+
+  }; // RealTime :: orbitalPop
+
+  /*
+  template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::orbitalPop() { 
 
     bool unrestricted = (propagator_.mo.size() > 1);
@@ -630,6 +716,7 @@ namespace ChronusQ {
     }
 
   };
+*/
 
 
 }; // namespace ChronusQ

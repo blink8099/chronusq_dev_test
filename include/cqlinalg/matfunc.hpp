@@ -24,6 +24,8 @@
 #pragma once
 
 #include <cqlinalg/cqlinalg_config.hpp>
+#include <cqlinalg/blasext.hpp>
+#include <cqlinalg/factorization.hpp>
 
 namespace ChronusQ {
 
@@ -38,6 +40,15 @@ namespace ChronusQ {
   template <typename _F1, typename _F2, typename _FC>
   void MatSeries(size_t NC, size_t N, _F1 *A, size_t LDA, _F2 *B,
     size_t LDB, _FC *C);
+
+    /*
+     * Computes the unitary Matrix Exponential (ExpA) Using Taylor Expansion
+     * from an antisymmetric matrix (A)
+     */
+  template <typename MatsU>
+  void MatExp( size_t N, MatsU *A, size_t LDA,
+    MatsU *ExpA, size_t LDEXPA, CQMemManager &mem);
+
 
 }; // namespace ChronusQ
 

@@ -33,6 +33,7 @@ namespace ChronusQ {
     std::vector<std::string> allowedKeywords = {
       "ENETOL",
       "DENTOL",
+      "FDCTOL",
       "MAXITER",
       "INCFOCK",
       "NINCFOCK",
@@ -40,6 +41,7 @@ namespace ChronusQ {
       "ALG",
       "EXTRAP",
       "DIIS",
+      "DIISALG",
       "NKEEP",
       "DAMP",
       "DAMPPARAM",
@@ -48,7 +50,11 @@ namespace ChronusQ {
       "PRINTMOS",
       "NEO",
       "PROT_GUESS",
-      "SWAPMO"
+      "SWAPMO",
+      "SWITCH",
+      "NRAPPROX",
+      "NRTRUST",
+	  "NRLEVELSHIFT"
     };
 
     // Specified keywords
@@ -153,6 +159,10 @@ namespace ChronusQ {
     OPTOPT( scfControls.denConvTol =
               input.getData<double>("SCF.DENTOL"); )
 
+    // Energy Gradient convergence tolerance
+    OPTOPT( scfControls.FDCConvTol =
+              input.getData<double>("SCF.FDCTOL"); )
+
     // Maximum SCF iterations
     OPTOPT( scfControls.maxSCFIter =
               input.getData<size_t>("SCF.MAXITER"); )
@@ -216,6 +226,28 @@ namespace ChronusQ {
 
     )
 
+    // Newton-Raphson SCF Approximation
+    OPTOPT(
+      std::string algString = input.getData<std::string>("SCF.NRAPPROX");
+      if( not algString.compare("FULL") )
+        scfControls.nrAlg = FULL_NR;
+      else if( not algString.compare("BFGS") )
+        scfControls.nrAlg = QUASI_BFGS;
+      else if( not algString.compare("SR1") )
+        scfControls.nrAlg = QUASI_SR1;
+      else if( not algString.compare("GRADDESCENT") )
+        scfControls.nrAlg = GRAD_DESCENT;
+      else CErr("Unrecognized entry for SCF.NRAPPROX");
+    )
+
+    // Newton-Raphson SCF Initial trust region and level-shift
+    OPTOPT(
+      scfControls.nrTrust = input.getData<double>("SCF.NRTRUST");
+    )
+    OPTOPT(
+      scfControls.nrLevelShift = input.getData<double>("SCF.NRLEVELSHIFT");
+    )
+
 
     // Restart jobs
     HandlePostSCFRestarts(out, input, scfControls);
@@ -229,17 +261,43 @@ namespace ChronusQ {
 
     // Handle DIIS options
     OPTOPT(
+      std::string diisAlg = input.getData<std::string>("SCF.DIISALG");
+      if( diisAlg == "CDIIS")
+      {
+        scfControls.diisAlg = CDIIS;
+      }
+      else if( diisAlg == "EDIIS" )
+      {
+        scfControls.diisAlg = EDIIS;
+      }
+      else if( diisAlg == "CEDIIS" )
+      {
+        scfControls.diisAlg = CEDIIS;
+      }
+      else
+      {
+        scfControls.diisAlg = CDIIS;
+      }
+    )
+
+    // Check if it specifically says DIIS=FALSE
+    OPTOPT(
       bool doDIIS = input.getData<bool>("SCF.DIIS");
-      if( not doDIIS )
+      if( not doDIIS ) 
         scfControls.diisAlg = NONE;
     );
 
     // Number of terms for keep for DIIS
-    OPTOPT( scfControls.nKeep =
-              input.getData<size_t>("SCF.NKEEP"); )
+    OPTOPT( scfControls.nKeep = input.getData<size_t>("SCF.NKEEP"); )
+    if( scfControls.nKeep < 1 )
+      scfControls.nKeep = 1;
+
+    // Point at which to switch from EDIIS to CDIIS
+    OPTOPT( scfControls.cediisSwitch = input.getData<double>("SCF.SWITCH"); )
+    if( scfControls.cediisSwitch <= 0. )
+      CErr("CEDIIS Switch is less than or equal to zero");
 
     // Parse Damping options
-      
     OPTOPT(
       scfControls.doDamp = input.getData<bool>("SCF.DAMP");
     );
@@ -305,6 +363,7 @@ namespace ChronusQ {
       }
     }
     if (scfControls.printMOCoeffs >= 10 ) CErr("SCF print level is not valid!");
+
 
 
 

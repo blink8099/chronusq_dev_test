@@ -161,11 +161,14 @@ namespace ChronusQ {
     // NOTE: The only postcondition that is necessarily satisfied by these
     //   methods is that onePDM has been populated by a guess density. It does
     //   NOT necessarily form an initial Fock matrix (sp. ReadMO/Read1PDM)
+    //
+    //   MO's are also initialized because they are needed before the first
+    //   fock build for RI/Cholesky.
     if (std::dynamic_pointer_cast<MatrixFock<MatsT,IntsT>>(fockBuilder)) {
 
       EMPerturbation emPert;
       fockBuilder->formFock(*this, emPert, false, 0.0);
-      getNewOrbitals(emPert, false);
+      getNewOrbitals();
 
     } else {
 
@@ -244,8 +247,7 @@ namespace ChronusQ {
 #endif
 
     // Forming Orbitals from core guess
-    EMPerturbation pert; // Dummy EM perturbation
-    getNewOrbitals(pert,false);
+    getNewOrbitals();
 
   }; // SingleSlater::CoreGuess
 
@@ -376,9 +378,11 @@ namespace ChronusQ {
 
       ss->comm = rcomm;
       ss->printLevel = 0;
+      ss->scfControls.scfAlg = _CONVENTIONAL_SCF;
       ss->scfControls.doIncFock = false;
       ss->scfControls.dampError = 1e-4;
       ss->scfControls.nKeep     = 8;
+      ss->buildModifyOrbitals();
 
       ss->formCoreH(pert);
       aointsAtom->TPI->computeAOInts(basis, atom, pert,
@@ -386,7 +390,7 @@ namespace ChronusQ {
 
 
       ss->formGuess(ssOptions);
-      ss->SCF(pert);
+      ss->runModifyOrbitals(pert);
 
       size_t NBbasis = basis.nBasis;
 
@@ -425,9 +429,11 @@ namespace ChronusQ {
       std::cout << std::endl
                 << "  *** Forming Initial Fock Matrix from SAD Density ***\n\n";
 
-    this->formFock(pert,false);
-    getNewOrbitals(pert,false);
-
+    ao2orthoDen();
+    computeNaturalOrbitals();
+//    this->formDensity();
+//    formFock(pert,false);
+//    getNewOrbitals();
 
   }; // SingleSlater<T>::SADGuess
 
@@ -452,7 +458,7 @@ namespace ChronusQ {
 
       // Randomize the Fock matricies
       for(auto F : this->fockMatrix->SZYXPointers()) {
-        for(auto k = 0ul; k < NB*NB; k++) F[k] = dis(gen);
+        for(auto k = 0ul; k < NB*NB; k++) F[k] += dis(gen);
         HerMat('L',NB,F,NB);
       }
 
@@ -469,7 +475,7 @@ namespace ChronusQ {
 
     // Forming Orbitals from random guess
     EMPerturbation pert; // Dummy EM perturbation
-    getNewOrbitals(pert,false);
+    getNewOrbitals();
 
   }
 
@@ -502,6 +508,10 @@ namespace ChronusQ {
       }
 
     }
+
+    ao2orthoDen();
+    computeNaturalOrbitals(); // Compute the natural orbitals so RI has an initial set of orbitals
+
   } // SingleSlater<T>::ReadGuess1PDM()
 
   /**
@@ -1069,6 +1079,120 @@ namespace ChronusQ {
     formDensity();
 
   } // SingleSlater<T>::FchkGuessMO()
+
+  /*
+   * Brief: Computes the Natural orbitals from the orthogonal
+   *        density
+   */
+  template<typename MatsT,typename IntsT>
+  void SingleSlater<MatsT,IntsT> :: computeNaturalOrbitals() {
+
+    if( MPIRank(comm) == 0) {
+
+    if( printLevel > 0 ) std::cout << "  *** Computing Natural Orbitals from Guess Density ***" << std::endl << std::endl;
+
+    size_t NBC = this->nC*basisSet().nBasis;
+    bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT, IntsT>>(this->fockBuilder) != nullptr);
+
+    if( this->nC == 1 ){
+      // Allocate Local Matrices
+      std::vector<SquareMatrix<MatsT>> SCR = this->onePDMOrtho->template spinGatherToBlocks<MatsT>(false);
+      double* eVals = this->memManager.template malloc<double>(NBC);
+
+
+      // Diagonalize Density
+      int INFO  = HermetianEigen('V', 'L', NBC, SCR[0].pointer(), NBC, eVals, this->memManager);
+      if( INFO != 0 )
+        CErr("HermetianEigen failed in computing Natural Orbitals", std::cout);
+
+      // Copy in reverse order to MO's
+      // Because the highest occupation numbers are last
+      for( size_t i=0; i<NBC; i++ ){
+         size_t disp = ((NBC - 1) - i)*NBC;
+         std::copy_n(SCR[0].pointer()+disp,NBC,this->mo[0].pointer()+i*NBC);
+      }
+      if( iRO ) std::copy_n(this->mo[0].pointer(),NBC*NBC,this->mo[1].pointer());
+
+#ifdef _SINGLESLATER_NATURAL_ORBITALS
+      std::cout << "Alpha Natural Orbital Occupations:" << std::endl;
+      for( size_t i=0; i<NBC; i++ )
+        std::cout << "  " << eVals[i] << std::endl;
+      prettyPrintSmart(std::cout, "Natural Orbitals (Alpha)", this->mo[0].pointer(),NBC,NBC,NBC);
+#endif
+
+      // Compute Beta Orbitals for Unrestricted
+      if( not (this->iCS) ){
+        INFO  = HermetianEigen('V', 'L', NBC, SCR[1].pointer(), NBC, eVals, this->memManager);
+        if( INFO != 0 )
+          CErr("HermetianEigen failed in computing Natural Orbitals", std::cout);
+
+        // Copy in reverse order
+        for( size_t i=0; i<NBC; i++ ){
+           size_t disp = ((NBC - 1) - i)*NBC;
+           std::copy_n(SCR[1].pointer()+disp,NBC,this->mo[1].pointer()+i*NBC);
+        }
+
+#ifdef _SINGLESLATER_NATURAL_ORBITALS
+      std::cout << "Beta Natural Orbital Occupations:" << std::endl;
+      for( size_t i=0; i<NBC; i++ )
+        std::cout << "  " << eVals[i] << std::endl;
+      prettyPrintSmart(std::cout, "Natural Orbitals (Beta)", this->mo[1].pointer(),NBC,NBC,NBC);
+#endif
+      }
+      this->memManager.free(eVals);
+
+    // 2C and 4C
+    } else {
+
+      SquareMatrix<MatsT> SCR = this->onePDMOrtho->template spinGather<MatsT>();
+      double* eVals = this->memManager.template malloc<double>(NBC);
+
+      // Diagonalize Density
+      int INFO  = HermetianEigen('V', 'L', NBC, SCR.pointer(), NBC, eVals, this->memManager);
+      if( INFO != 0 )
+        CErr("HermetianEigen failed in computing Natural Orbitals", std::cout);
+
+      // Copy in reverse order to MOs
+      if( this->nC == 4 ){
+        size_t nPos = NBC/2;
+        // Copy Positive energy orbitals
+        for( size_t i=0; i<nPos; ++i ){
+            size_t disp = ((NBC-1) - i)*NBC;
+           std::copy_n(SCR.pointer()+disp,NBC,this->mo[0].pointer()+(i+nPos)*NBC);
+        }
+        // Copy Negative energy orbitals
+        for( size_t i=nPos; i<NBC; ++i ){
+          size_t disp = ((NBC-1) - i)*NBC;
+          std::copy_n(SCR.pointer()+disp,NBC,this->mo[0].pointer()+(i-nPos)*NBC);
+        }
+      } else {
+        // 2C Copy natural orbitals
+        for( size_t i=0; i<NBC; ++i ){
+           size_t disp = ((NBC - 1) - i)*NBC;
+           std::copy_n(SCR.pointer()+disp,NBC,this->mo[0].pointer()+i*NBC);
+        }
+      }
+
+#ifdef _SINGLESLATER_NATURAL_ORBITALS
+      std::cout << "Natural Orbital Occupations:" << std::endl;
+      for( size_t i=0; i<NBC; i++ )
+        std::cout << "  " << eVals[i] << std::endl;
+      prettyPrintSmart(std::cout, "Natural Orbitals", this->mo[0].pointer(),NBC,NBC,NBC);
+#endif
+      this->memManager.free(eVals);
+    }
+    } // MPIRank == 0
+    ortho2aoMOs();
+  }
+
+  template <typename MatsT, typename IntsT>
+  void SingleSlater<MatsT,IntsT> :: getNewOrbitals() {
+      ao2orthoFock();
+      diagOrthoFock();
+      ortho2aoMOs();
+      formDensity();
+      saveCurrentState();
+  }
 
 }; // namespace ChronusQ
 

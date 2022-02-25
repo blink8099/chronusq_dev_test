@@ -182,6 +182,9 @@ namespace ChronusQ {
       double *aux_GDenS, double *aux_GDenZ, double *aux_GDenY, double *aux_GDenX, 
       double *BasisScratch, double *ZMAT);
 
+    // SCF Functions
+    void buildModifyOrbitals();
+
   }; // NEOKohnSham class
 
 

@@ -66,6 +66,14 @@ namespace ChronusQ {
   // Instantiate copy ructors
   template NEOKohnSham<dcomplex,double>::NEOKohnSham( NEOKohnSham<double,double> &&, int);
 
+  template class NEOHartreeFock<double,double>;
+  template class NEOHartreeFock<dcomplex,double>;
+  template class NEOHartreeFock<dcomplex,dcomplex>;
+  // Instantiate copy constructors
+  template NEOHartreeFock<dcomplex,double>::NEOHartreeFock(const NEOHartreeFock<double,double> &, int);
+  // Instantiate copy ructors
+  template NEOHartreeFock<dcomplex,double>::NEOHartreeFock( NEOHartreeFock<double,double> &&, int);
+
   template class HartreeFock<double,double>;
   template class HartreeFock<dcomplex,double>;
   template class HartreeFock<dcomplex,dcomplex>;
