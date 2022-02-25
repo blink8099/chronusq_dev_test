@@ -48,25 +48,6 @@ namespace ChronusQ {
   // Instantiate move ctors
   template SingleSlater<dcomplex,double>::SingleSlater( SingleSlater<double,double> &&, int);
 
-  template class NEOSingleSlater<double,double>;
-  template class NEOSingleSlater<dcomplex,double>;
-  template class NEOSingleSlater<dcomplex,dcomplex>;
-
-  // Instantiate copy constructors
-  template NEOSingleSlater<dcomplex,double>::NEOSingleSlater(const NEOSingleSlater<double,double> &, int);
-  template NEOSingleSlater<dcomplex,dcomplex>::NEOSingleSlater(const NEOSingleSlater<dcomplex,dcomplex> &, int);
-
-  // Instantiate move ctors
-  template NEOSingleSlater<dcomplex,double>::NEOSingleSlater( NEOSingleSlater<double,double> &&, int);
-
-  template class NEOKohnSham<double,double>;
-  template class NEOKohnSham<dcomplex,double>;
-  template class NEOKohnSham<dcomplex,dcomplex>;
-  // Instantiate copy constructors
-  template NEOKohnSham<dcomplex,double>::NEOKohnSham(const NEOKohnSham<double,double> &, int);
-  // Instantiate copy ructors
-  template NEOKohnSham<dcomplex,double>::NEOKohnSham( NEOKohnSham<double,double> &&, int);
-
   template class HartreeFock<double,double>;
   template class HartreeFock<dcomplex,double>;
   template class HartreeFock<dcomplex,dcomplex>;

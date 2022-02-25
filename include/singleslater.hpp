@@ -323,5 +323,4 @@ namespace ChronusQ {
 // Include headers for specializations of SingleSlater
 #include <singleslater/hartreefock.hpp> // HF specialization
 #include <singleslater/kohnsham.hpp>    // KS specialization
-#include <singleslater/neo_singleslater.hpp>  // NEO specialization
 

@@ -117,7 +117,7 @@ namespace ChronusQ {
       });
     }
     this->printMultipoles(std::cout);
-  }; // NEOSingleSlater::SCF()
+  }; // NEOSS::SCF()
 
 }; // namespace ChronusQ
 

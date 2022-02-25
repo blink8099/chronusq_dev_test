@@ -505,7 +505,7 @@ namespace ChronusQ {
 
     }
 
-  }; // NEOKohnSham<T,MatsT,IntsT>::loadVXCderWithEPC
+  }; // loadVXCderWithEPC
 
   /**
    *  \brief Construct the required quantities for the formation of the Z vector, 
@@ -571,6 +571,6 @@ namespace ChronusQ {
     blas::axpy(NPts,1.,CVgammaEval,4  ,ZgammaVar3,1);
     blas::axpy(NPts,sign,CVgammaEval+offset,4,ZgammaVar3,1);
 
-  }; //NEOKohnSham<MatsT,IntsT>::constructEPCZVars
+  }; // constructEPCZVars
 
 } // namespace ChronusQ

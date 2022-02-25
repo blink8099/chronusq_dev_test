@@ -383,7 +383,7 @@ namespace ChronusQ {
       CErr("EPC-19 functional is not implemented for 2-component systems (GHF or X2C)!", std::cout);
     } // 2C
 
-  }; // NEOKohnSham<MatsT,IntsT>::formZ_vxc_epc
+  }; // formZ_vxc_epc
 
 
 } // namespace ChronusQ

@@ -26,7 +26,6 @@
 #include <particleintegrals/twopints/incoreritpi.hpp>
 #include <fields.hpp>
 #include <singleslater.hpp>
-#include <singleslater/neo_singleslater.hpp>
 #include <matrix.hpp>
 #include <mcwavefunction/base.hpp>
 

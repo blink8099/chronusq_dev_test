@@ -236,6 +236,3 @@ namespace ChronusQ {
 #include <singleslater/kohnsham/scf.hpp>  
 
 #include <singleslater/hartreefock/scf.hpp>
-
-#include <singleslater/neo_singleslater.hpp>
-#include <singleslater/neo_singleslater/impl.hpp> // NEO headers
