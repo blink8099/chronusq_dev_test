@@ -192,7 +192,8 @@ namespace ChronusQ {
 
     // Assemble total energy
     this->totalEnergy = 
-      this->OBEnergy + this->MBEnergy + this->molecule().nucRepEnergy;
+      this->OBEnergy + this->MBEnergy + this->molecule().nucRepEnergy
+       + this->extraEnergy;
 
     // Sanity checks
     assert( not std::isnan(this->OBEnergy) );

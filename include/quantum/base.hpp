@@ -89,6 +89,7 @@ namespace ChronusQ {
     double OBEnergy;   ///< 1-Body operator contribution to the energy
     double MBEnergy;   ///< Many(2)-Body operator contribution to the energy
     double PPEnergy = 0.;   //<  Many(2)-Body proton-proton repulsion energy
+    double extraEnergy = 0;
     double totalEnergy;///< The total energy
 
 

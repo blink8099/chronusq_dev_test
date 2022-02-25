@@ -274,8 +274,6 @@ namespace ChronusQ {
       
       for(auto &X : integrateVXC) for(auto &Y : X) std::fill_n(Y,NB2,0.);
 
-      std::cout << " Address of MZ VXC: " << integrateVXC[SCALAR][thread_id] << std::endl;
-  
       std::vector<double> integrateXCEnergy(nthreads,0.);
   
       // Allocating Memory
@@ -310,7 +308,7 @@ namespace ChronusQ {
       
       // These quantities are only used for GGA functionals
       double *GDenS, *GDenZ, *U_gamma, *dVU_gamma;
-      if( isGGA ) {
+      if( isGGA || epcisGGA ) {
         GDenS = ss.memManager.template malloc<double>(3*NTNPPB);
         ZgammaVar1 = ss.memManager.template malloc<double>(NTNPPB);
         ZgammaVar2 = ss.memManager.template malloc<double>(NTNPPB);
@@ -331,7 +329,7 @@ namespace ChronusQ {
       if( ks && ks->functionals.size() > 1 ) {
         epsSCR    = ss.memManager.template malloc<double>(NTNPPB);
         dVU_n_SCR    = ss.memManager.template malloc<double>(2*NTNPPB);
-        if(isGGA) 
+        if(isGGA || epcisGGA) 
           dVU_gamma_SCR = 
             ss.memManager.template malloc<double>(3*NTNPPB);
       }
@@ -396,7 +394,7 @@ namespace ChronusQ {
       }
 
       double *aux_epsSCR, *aux_dVU_n_SCR, *aux_dVU_gamma_SCR;
-      if( ks && ks->functionals.size() > 1 ) {
+      if( epc_functionals.size() > 1 ) {
         aux_epsSCR    = ss.memManager.template malloc<double>(NTNPPB);
         aux_dVU_n_SCR    = ss.memManager.template malloc<double>(2*NTNPPB);
         if(epcisGGA) 
@@ -417,7 +415,7 @@ namespace ChronusQ {
 
       // --------------Cross Memory--------------------------------------------
       double *cross_U_gamma, *cross_dVU_gamma, *ZgammaVar3;
-      if (isGGA and epcisGGA) {
+      if (epcisGGA) {
         cross_U_gamma = ss.memManager.template malloc<double>(4*NTNPPB); 
         cross_dVU_gamma = ss.memManager.template malloc<double>(4*NTNPPB);
         ZgammaVar3 = ss.memManager.template malloc<double>(NTNPPB);
@@ -540,7 +538,7 @@ namespace ChronusQ {
 
         // ---------------Cross Between Main and Auxiliary system-------------
         double * cross_U_gamma_loc, *cross_dVU_gamma_loc, *ZgammaVar3_loc;
-        if (isGGA and epcisGGA) {
+        if (epcisGGA) {
           cross_U_gamma_loc = cross_U_gamma + 4*TIDNPPB;
           cross_dVU_gamma_loc = cross_dVU_gamma + 4*TIDNPPB;
           ZgammaVar3_loc = ZgammaVar3 + TIDNPPB;
@@ -549,7 +547,7 @@ namespace ChronusQ {
 
         // This evaluates the V variables for all components of the main system
         // (Scalar, MZ (UKS) and Mx, MY (2 Comp))
-        evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
+        evalDen((isGGA || epcisGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
             SCRATCHNBNB_loc, SCRATCHNBNP_loc, Re1PDM->S().pointer(), DenS_loc, 
             GDenS_loc, GDenS_loc + NPts, GDenS_loc + 2*NPts, BasisEval);
 
@@ -561,7 +559,7 @@ namespace ChronusQ {
 
 
         if ( ss.onePDM->hasZ() )
-          evalDen((isGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
+          evalDen((isGGA || epcisGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
                 SCRATCHNBNB_loc ,SCRATCHNBNP_loc, Re1PDM->Z().pointer(), DenZ_loc, 
                 GDenZ_loc, GDenZ_loc + NPts, GDenZ_loc + 2*NPts, BasisEval);
 
@@ -597,7 +595,7 @@ namespace ChronusQ {
 
         // V -> U variables for evaluating the kernel derivatives.
         mkAuxVar(ss.onePDM,
-          isGGA,epsScreen,NPts,
+          isGGA || epcisGGA,epsScreen,NPts,
           DenS_loc,DenZ_loc,nullptr,nullptr,
           GDenS_loc,GDenS_loc + NPts,GDenS_loc + 2*NPts,
           GDenZ_loc,GDenZ_loc + NPts,GDenZ_loc + 2*NPts,
@@ -611,9 +609,8 @@ namespace ChronusQ {
         );
 
 
-        std::cout << " 1 Address of MZ VXC: " << integrateVXC[SCALAR][thread_id] << std::endl;
         // Cross V -> U variables
-        if (isGGA and epcisGGA)
+        if (epcisGGA)
           mkCrossAuxVar(false,ss.particle.charge < 0,
             ss.onePDM, this->aux_ss->onePDM, epsScreen,NPts,
             GDenS_loc,GDenS_loc + NPts,GDenS_loc + 2*NPts,
@@ -634,6 +631,17 @@ namespace ChronusQ {
             NPts, U_n_loc, U_gamma_loc,
             epsEval_loc, dVU_n_loc, dVU_gamma_loc,
             epsSCR_loc, dVU_n_SCR_loc, dVU_gamma_SCR_loc);
+        else {
+          std::fill_n(epsEval_loc, NPts, 0.);
+          std::fill_n(dVU_n_loc, NPts, 0.);
+          if( isGGA || epcisGGA ) std::fill_n(dVU_gamma_loc, NPts, 0.);
+          if( ks && ks->functionals.size() > 1 ) {
+            std::fill_n(epsSCR_loc, NPts, 0.);
+            std::fill_n(dVU_n_SCR_loc, NPts, 0.);
+            if( isGGA || epcisGGA ) std::fill_n(dVU_gamma_SCR_loc, NPts, 0.);
+          }
+        }
+
 
         loadEPCVXCder(ss.particle.charge < 0, 
           epc_functionals,
@@ -650,20 +658,21 @@ namespace ChronusQ {
 
         // Construct the required quantities for the formation of the Z 
         // vector (SCALAR) given the kernel derivatives wrt U variables. 
-        constructZVars(ss.onePDM, SCALAR, isGGA,NPts,dVU_n_loc,dVU_gamma_loc,
-          ZrhoVar1_loc, ZgammaVar1_loc, ZgammaVar2_loc);
+        constructZVars(ss.onePDM, SCALAR, isGGA || epcisGGA, 
+          NPts,dVU_n_loc,dVU_gamma_loc, ZrhoVar1_loc, ZgammaVar1_loc,
+          ZgammaVar2_loc);
 
         // Construct the required quantities for the formation of the Z
         // vector for EPC-19 functional
-        if (isGGA and epcisGGA)
+        if (epcisGGA)
           constructEPCZVars(ss.particle.charge < 0,
             SCALAR,NPts,cross_dVU_gamma_loc, ZgammaVar3_loc);
 
         // Creating ZMAT (SCALAR) according to 
         //   J. Chem. Theory Comput. 2011, 7, 3097–3104 Eq. 15 
-        if (isGGA and epcisGGA)
+        if ( epcisGGA )
           formZ_vxc_epc(ss.onePDM, this->aux_ss->onePDM,
-            SCALAR, isGGA, NPts, NBE, IOff, epsScreen, weights,
+            SCALAR, epcisGGA, NPts, NBE, IOff, epsScreen, weights,
             ZrhoVar1_loc, ZgammaVar1_loc, ZgammaVar2_loc, ZgammaVar3_loc,
             DenS_loc, DenZ_loc, nullptr, nullptr, GDenS_loc, GDenZ_loc, nullptr,
             nullptr, aux_DenS_loc, aux_DenZ_loc, nullptr, nullptr,
@@ -687,7 +696,6 @@ namespace ChronusQ {
           blas::syr2k(blas::Layout::ColMajor,blas::Uplo::Lower,blas::Op::NoTrans,NBE,NPts,1.,BasisEval,NBE,ZMAT_loc,NBE,0.,
             SCRATCHNBNB_loc,NBE);
 
-          std::cout << " 2 Address of MZ VXC: " << integrateVXC[SCALAR][thread_id] << std::endl;
           // Locating the submatrix in the right position given the 
           // subset of shells for the given batch.
           IncBySubMat(NB,NB,NBE,NBE,integrateVXC[SCALAR][thread_id],NB,
@@ -705,20 +713,20 @@ namespace ChronusQ {
         // Construct the required quantities for the formation of 
         // the Z vector (Mz) given the kernel derivatives wrt U 
         // variables.
-        constructZVars(ss.onePDM, MZ,isGGA,NPts,dVU_n_loc,dVU_gamma_loc,ZrhoVar1_loc,
+        constructZVars(ss.onePDM, MZ,isGGA || epcisGGA,NPts,dVU_n_loc,dVU_gamma_loc,ZrhoVar1_loc,
           ZgammaVar1_loc, ZgammaVar2_loc);
 
         // Construct the required quantities for the formation of the Z
         // vector for EPC-19 functional
-        if (isGGA and epcisGGA)
+        if (epcisGGA)
           constructEPCZVars(ss.particle.charge < 0, 
             MZ,NPts,cross_dVU_gamma_loc, ZgammaVar3_loc);
 
         // Creating ZMAT (Mz) according to 
         //   J. Chem. Theory Comput. 2011, 7, 3097–3104 Eq. 15 
-        if (isGGA and epcisGGA)
+        if (epcisGGA)
           formZ_vxc_epc(ss.onePDM, this->aux_ss->onePDM,
-            MZ, isGGA, NPts, NBE, IOff, epsScreen, weights,
+            MZ, epcisGGA, NPts, NBE, IOff, epsScreen, weights,
             ZrhoVar1_loc, ZgammaVar1_loc, ZgammaVar2_loc, ZgammaVar3_loc,
             DenS_loc, DenZ_loc, nullptr, nullptr, GDenS_loc, GDenZ_loc, nullptr,
             nullptr, aux_DenS_loc, aux_DenZ_loc, nullptr, nullptr,
@@ -793,6 +801,8 @@ namespace ChronusQ {
 
       if( ks )
         ks->XCEnergy = XCEnergy;
+      else
+        ss.extraEnergy = XCEnergy;
 
 
 // Combine MPI results
@@ -820,13 +830,13 @@ namespace ChronusQ {
       // ----------------Main System-------------------------------------------- //
       ss.memManager.free(SCRATCHNBNB,SCRATCHNBNP,DenS,epsEval,U_n,
         dVU_n, ZrhoVar1,ZMAT);
-      if( isGGA )  
+      if( isGGA || epcisGGA )  
         ss.memManager.free(ZgammaVar1,ZgammaVar2,GDenS,U_gamma,
           dVU_gamma);
 
       if( ss.onePDM->hasZ() ) {
         ss.memManager.free(DenZ);
-        if( isGGA )  ss.memManager.free(GDenZ);
+        if( isGGA || epcisGGA )  ss.memManager.free(GDenZ);
       }
 
       if( ss.onePDM->hasXY() )
@@ -834,7 +844,7 @@ namespace ChronusQ {
 
       if( ks && ks->functionals.size() > 1 ) {
         ss.memManager.free(epsSCR,dVU_n_SCR);
-        if( isGGA ) ss.memManager.free(dVU_gamma_SCR);
+        if( isGGA || epcisGGA ) ss.memManager.free(dVU_gamma_SCR);
       }
 
       if( nthreads != 1 ) ss.memManager.free(intVXC_RAW);
@@ -866,7 +876,7 @@ namespace ChronusQ {
 
       // -----------------End Aux-------------------------------------------- //
       // -----------------Cross---------------------------------------------- //
-      if(isGGA and epcisGGA)
+      if(epcisGGA)
         ss.memManager.free(cross_U_gamma, cross_dVU_gamma, ZgammaVar3);
       // -----------------End Cross------------------------------------------ //
       // End freeing the memory

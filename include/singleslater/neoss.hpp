@@ -371,8 +371,18 @@ namespace ChronusQ {
 
         this->totalEnergy = 0.;
         applyToEach([&](SubSSPtr& ss){
-            ss->computeEnergy(); 
-            this->totalEnergy += ss->totalEnergy - this->molecule().nucRepEnergy;
+          ss->computeEnergy(); 
+          this->totalEnergy += ss->totalEnergy - this->molecule().nucRepEnergy;
+        });
+
+        // If we're doing EPC, we've double counted the energy, so subtract it
+        //   for all non-electronic systems here...
+        // XXX: If we ever have particle-particle correlation that isn't
+        //   between electrons and nuclei, this will no longer work
+        applyToEach([&](SubSSPtr& ss) {
+          auto ks = std::dynamic_pointer_cast<KohnSham<MatsT,IntsT>>(ss);
+          if( ss->particle.charge < 0 || !ks ) return;
+          this->totalEnergy -= ks->XCEnergy;
         });
 
         this->totalEnergy += this->molecule().nucRepEnergy;

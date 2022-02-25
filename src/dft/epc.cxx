@@ -476,10 +476,17 @@ namespace ChronusQ {
 
     for(auto iF = 0; iF < functionals.size(); iF++) {
       double *ES,*VR,*VS,*CVS;
-      ES = EpsSCR;
-      VR = VRhoSCR;
-      VS = VgammaSCR;
-      CVS = CVgammaSCR;
+      if( iF == 0 ) {
+        ES = epsEval;
+        VR = VRhoEval;
+        VS = VgammaEval;
+        CVS = CVgammaEval;
+      } else {
+        ES = EpsSCR;
+        VR = VRhoSCR;
+        VS = VgammaSCR;
+        CVS = CVgammaSCR;
+      }
 
       if ( functionals[iF]->isGGA() ) {
         functionals[iF]->evalEXC_VXC(NPts,Den1,Den2,Gamma1,Gamma2,cGamma,
@@ -489,10 +496,12 @@ namespace ChronusQ {
         functionals[iF]->evalEXC_VXC(NPts,Den1,Den2,ES,VR,electron);
       }
 
-      MatAdd('N','N',NPts,1,1.,epsEval,NPts,1.,EpsSCR,NPts,epsEval,NPts);
-      MatAdd('N','N',2*NPts,1,1.,VRhoEval,2*NPts,1.,VRhoSCR,2*NPts,VRhoEval,2*NPts);
-      if( functionals[iF]->isGGA() )
-        MatAdd('N','N',3*NPts,1,1.,VgammaEval,3*NPts,1.,VgammaSCR,3*NPts,VgammaEval,3*NPts);
+      if( iF != 0 ) {
+        MatAdd('N','N',NPts,1,1.,epsEval,NPts,1.,EpsSCR,NPts,epsEval,NPts);
+        MatAdd('N','N',2*NPts,1,1.,VRhoEval,2*NPts,1.,VRhoSCR,2*NPts,VRhoEval,2*NPts);
+        if( functionals[iF]->isGGA() )
+          MatAdd('N','N',3*NPts,1,1.,VgammaEval,3*NPts,1.,VgammaSCR,3*NPts,VgammaEval,3*NPts);
+      }
 
     }
 
