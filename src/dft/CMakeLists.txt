@@ -29,5 +29,5 @@ list(APPEND CQEX_LINK dft )
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
 if(CQEX_DEP)
-  add_dependencies(grid ${CQEX_DEP})
+  add_dependencies(dft ${CQEX_DEP})
 endif()
