@@ -43,7 +43,7 @@ TEST(RASCI_DAVIDSON, Al_631G ) {
 
 // SMP Al 6-31G(d) test
 
-TEST(FourC_RASCI_DAVIDSON, PAR_Al_631G ) {
+TEST(RASCI_DAVIDSON, PAR_Al_631G ) {
 
   CQMCSCFTEST( "mcscf/parallel/ras/al_6-31G_x2c_rasci_davidson", "al_6-31G_x2c_rasci.bin.ref" );
   CQMCSCFTEST( "mcscf/parallel/ras/al_6-31G_4c_bc_rasci_davidson", "al_6-31G_4c_bc_rasci.bin.ref" );

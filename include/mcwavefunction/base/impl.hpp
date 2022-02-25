@@ -202,6 +202,7 @@ namespace ChronusQ {
   
 
   /*
+   *  'N' -> Negative Energy MO, only for 4C 
    *  'I' -> Inactive  / inactive
    *  'A' -> Active   "1, 2, 3" for RAS
    *  'S' -> Secondary / frozen virtual
@@ -210,6 +211,13 @@ namespace ChronusQ {
 
     std::vector<size_t> nOrbs;
     std::vector<char> orbIdentifiers;
+    size_t totalRefMO = MOPartition.nMO;
+    
+    if (referenceWaveFunction().nC == 4 and FourCompNoPair) {
+      nOrbs.push_back(MOPartition.nMO);
+      orbIdentifiers.push_back('N');
+      totalRefMO *= 2;  
+    }
 
     // set up numbers 
     nOrbs.push_back(MOPartition.nInact);
@@ -243,11 +251,12 @@ namespace ChronusQ {
         }
         scan_start = scan_end;
       }
-    } else if (orbIndices.size() == MOPartition.nMO) {
+    } else if (orbIndices.size() == totalRefMO) {
+      
       // generating swapping pairs if necessary 
       std::vector<std::vector<std::pair<size_t, size_t>>> moPairs;
       moPairs.resize(2, {});
-
+      
       for(auto i = 0; i < nOrbs.size(); i++) {
         scan_end = scan_start + nOrbs[i];
         char & scan_id = orbIdentifiers[i];
@@ -255,7 +264,7 @@ namespace ChronusQ {
         for (size_t j = scan_start; j < scan_end; j++) {
           if (orbIndices[j] != scan_id) { 
             bool found = false;
-            for (size_t k = scan_end; k < MOPartition.nMO; k++) {
+            for (size_t k = scan_end; k < totalRefMO; k++) {
               if (orbIndices[k] == scan_id) {
                 found = true;
                 moPairs[0].push_back({j+1, k+1});

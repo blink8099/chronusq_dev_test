@@ -71,7 +71,7 @@ namespace ChronusQ {
     MatsT * tMO = mcwfn_.reference().mo[0].pointer() + toff*nAO;
 
     // form densty D(nu,mu) = C(nu, u) 1PDM_{tu} C(mu, t)^*
-    blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
+    blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, 
       nAO, nt, nt, MatsT(1.), tMO, nAO, oneRDM.pointer(), nt, MatsT(0.), SCR, nAO);
 
     blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 

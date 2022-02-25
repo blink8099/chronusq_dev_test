@@ -61,7 +61,9 @@ namespace ChronusQ {
       "INORBITAL",
       "FVORBITAL",
       "OSCISTREN",
-      "GENIVO"
+      "GENIVO",
+      "MAXDAVIDSONSPACE",
+      "NDAVIDSONGUESS"
     };
 
     // Specified keywords
@@ -339,8 +341,11 @@ namespace ChronusQ {
     if (selectMO) {
 
       std::cout << "  * Selecting Active Space Explicitly:" << std::endl;
-
-      std::vector<char> inputOrbIndices(mcscf->MOPartition.nMO, 'N');
+      
+      // accomondate cases for no no-pair approximation
+      size_t fourCOffSet = (ss->nC == 4 and mcscf->FourCompNoPair) ? mcscf->MOPartition.nMO: 0ul;  
+      
+      std::vector<char> inputOrbIndices(mcscf->MOPartition.nMO + fourCOffSet, 'N');
       
       // parse input
       SET_ORBITAL_INDEX(inputOrbIndices, fcMOStrings, 'I');
@@ -355,7 +360,7 @@ namespace ChronusQ {
       }
       
       // fill default index for those undefined ones
-      size_t mo_iter = 0ul;
+      size_t mo_iter = fourCOffSet;
       if (fcMOStrings.empty()) {
         size_t n_char = mcscf->MOPartition.nInact;
         FILL_DEFAULT_INDEX(inputOrbIndices, mo_iter, 'I', n_char);
@@ -386,7 +391,8 @@ namespace ChronusQ {
         
         if (i % sPerLine == 0) 
           std::cout << "      MO " << std::setw(5) << i + 1 << " ~ " 
-                    << std::setw(5) << std::min(i + sPerLine, inputOrbIndices.size()) << ":    ";
+                    << std::setw(5) 
+                    << std::min(i + sPerLine, inputOrbIndices.size()) << ":    ";
         
         std::cout << inputOrbIndices[i] << "  ";
 
@@ -417,6 +423,10 @@ namespace ChronusQ {
                   input.getData<size_t>("MCSCF.MAXCIITER"); )
         OPTOPT( mcscfSettings->ciVectorConv = 
                   input.getData<double>("MCSCF.CICONV"); )
+        OPTOPT( mcscfSettings->maxDavidsonSpace = 
+                  input.getData<size_t>("MCSCF.MAXDAVIDSONSPACE");)
+        OPTOPT( mcscfSettings->nDavidsonGuess = 
+                  input.getData<size_t>("MCSCF.NDAVIDSONGUESS");)
       } else CErr(ciALG + "is not a valid MCSCF.CIDIAGALG",out);
       
     } // CI Options

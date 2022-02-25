@@ -54,12 +54,15 @@ namespace ChronusQ {
   class MCWaveFunction : public MCWaveFunctionBase {
 
   protected:  
+    
     // Useful Typedefs
     typedef MatsT *                oper_t;
     typedef std::vector<oper_t>    oper_t_coll;
     
     SingleSlater<MatsT, IntsT> &   ref_; 
-
+    
+    bool cacheHalfTransTPI_ = false;
+    
   public:
     
 	// Integrals here are computed and stored in correalted space
