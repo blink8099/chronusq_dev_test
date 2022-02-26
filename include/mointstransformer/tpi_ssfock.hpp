@@ -95,22 +95,70 @@ namespace ChronusQ {
     halfTMOTPISize = nAO * nAO * nr * nsMax;
     nBatch = memManager_.max_avail_allocatable<MatsT>(halfTMOTPISize);
     
-    while (nBatch <=1) {
+    while (nBatch < 1) {
+      
       nsMax /= 2;
+      
+      std::cout << "nsMax = " << nsMax << std::endl;
+      
+      if (nsMax < 1) {
+        std::cout << "Memory not enough to batch over last index" << std::endl;
+        double mem_avail  = this->memManager_.template max_avail_allocatable<double>() 
+                           * sizeof(double) / 1e9; 
+        double mem_needed = nAO * nAO * nr * sizeof(MatsT) / 1e9;
+            
+        std::cout << "  - Memory available before batch integral transformation: " 
+                  << mem_avail << " GB" << std::endl; 
+        std::cout << "  - Memory needed at least for nsMax = 1: " 
+                  << mem_needed << " GB" << std::endl; 
+        
+        throw std::bad_alloc();
+      }
+      
+      halfTMOTPISize = nAO * nAO * nr * nsMax;
       nBatch = memManager_.max_avail_allocatable<MatsT>(halfTMOTPISize);
     }
-
-    if (nsMax < 1 ) CErr("Memory not enough to batch over last index");
     
+    // balance batching inside the work loop
+    if (nsMax > 1) {
+      size_t nMatsTAvail = memManager_.max_avail_allocatable<MatsT>();
+      // with extra memory as 20%
+      size_t fockGDSCRSize = ss_.fockBuilder->formRawGDSCRSizePerBatch(ss_, false, false) * 1.2; 
+      
+      // try different nsMax and use the smallest total batch
+      size_t nrnsMax = nr * nsMax; 
+      size_t maxNBatch = (nMatsTAvail - halfTMOTPISize)/fockGDSCRSize; 
+      size_t minTotalBatch = ((nrnsMax - 1)/maxNBatch + 1) * nBatch;
+      size_t bestnsMax = nsMax;
+      size_t curTotalBatch = minTotalBatch;
+
+      for (auto i = 1ul; i < nsMax; i++) {
+        nrnsMax = nr * i;
+        nBatch  = (ns - 1) / i + 1;
+        halfTMOTPISize = nAO * nAO * nr * i;
+        maxNBatch = (nMatsTAvail - halfTMOTPISize)/fockGDSCRSize;
+        curTotalBatch = ((nrnsMax - 1)/maxNBatch + 1) * nBatch;
+        if (curTotalBatch < minTotalBatch) {
+          minTotalBatch = curTotalBatch;
+          bestnsMax = i;
+        }
+      }
+      
+      // update nsMax
+      nsMax = bestnsMax;
+      halfTMOTPISize = nAO * nAO * nr * nsMax;
+      nBatch  = (ns - 1) / nsMax + 1;
+    }
+
     std::cout << "* Batch over last indice s: with maxNs =  " << nsMax << std::endl;
 
     size_t npqr = np * nq * nr; 
 
-    for (auto si = 0ul, sioff = soff, nbatch = 1ul; si < ns; nbatch++) {
+    for (auto si = 0ul, sioff = soff, iBatch = 1ul; si < ns; iBatch++) {
       
       size_t nsi = std::min(nsMax, ns - si); 
       
-      std::cout << "   - Batch " << nbatch << ": s range from " 
+      std::cout << "   - Batch " << iBatch << ": s range from " 
                 << std::setw(5) << sioff + 1 << " ~ " 
                 << std::setw(5) << sioff + nsi <<std::endl;  
 
@@ -279,16 +327,20 @@ namespace ChronusQ {
       size_t NJobComplete  = 0ul;
       size_t NJobToDo = 0ul;
 
+#ifdef _DEBUG_MOINTSTRANSFORMER_CACHE
+      std::cout << "First Half transfromation with maxNBatch = " << maxNBatch << std::endl;
+#endif
+      
       while (NJobComplete < NJob) { 
         
         size_t p, q;
         NJobToDo = std::min(maxNBatch, NJob-NJobComplete);
 
 #ifdef _DEBUG_MOINTSTRANSFORMER_CACHE
+        std::cout << "----" << std::endl;
         std::cout << "NJob         = " << NJob << std::endl;
         std::cout << "NJobComplete = " << NJobComplete << std::endl;
         std::cout << "NJobToDo     = " << NJobToDo << std::endl;
-        std::cout << "maxNBatch    = " << maxNBatch << std::endl;
 #endif
         
         // build fake densities in batch
