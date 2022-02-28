@@ -51,8 +51,9 @@ namespace ChronusQ {
     template <typename F>
     void applyToEach(F func) {
       if(order_.size() == subsystems.size()) {
-        for(auto& label: order_)
+        for(auto& label: order_) {
           func(subsystems.at(label));
+        }
       }
       else {
         for(auto& system: subsystems)
@@ -479,7 +480,7 @@ namespace ChronusQ {
             out << "  " << std::setw(14) << std::left << x.first << " SCF: ";
             auto nIter = x.second->scfConv.nSCFIter;
             out << nIter << " iteration" << (nIter > 1 ? "s" : "") << "; ";
-            out << "E = " << std::setw(14) << std::right;
+            out << "E = " << std::setw(14) << std::right << std::fixed;
             out << x.second->totalEnergy - this->molecule().nucRepEnergy;
             out << std::endl;
           }

@@ -275,6 +275,7 @@ namespace ChronusQ {
       for(auto &X : integrateVXC) for(auto &Y : X) std::fill_n(Y,NB2,0.);
 
       std::vector<double> integrateXCEnergy(nthreads,0.);
+      std::vector<double> integrateEPCEnergy(nthreads,0.);
   
       // Allocating Memory
       // ----------------------------------------------------------//
@@ -295,6 +296,8 @@ namespace ChronusQ {
         CErr("Relativistic NEO-Kohn-Sham NYI!", std::cout);
 
       double *epsEval = ss.memManager.template malloc<double>(NTNPPB);
+      double *epcEval = ss.memManager.template malloc<double>(NTNPPB);
+      std::fill_n(epcEval, NTNPPB, 0.);
 
       // Density U-Variables
       double *U_n   = 
@@ -478,6 +481,7 @@ namespace ChronusQ {
 
         // local vxc energy and U, V pointer
         double * epsEval_loc   = epsEval   +  TIDNPPB;
+        double * epcEval_loc   = epcEval   +  TIDNPPB;
         double * U_n_loc       = U_n       + 2*TIDNPPB;
         double * dVU_n_loc     = dVU_n     + 2*TIDNPPB;
         double * U_gamma_loc   = U_gamma   + 3*TIDNPPB;
@@ -544,7 +548,7 @@ namespace ChronusQ {
           ZgammaVar3_loc = ZgammaVar3 + TIDNPPB;
         }
         // ---------------End Cross-------------------------------------------
-
+        
         // This evaluates the V variables for all components of the main system
         // (Scalar, MZ (UKS) and Mx, MY (2 Comp))
         evalDen((isGGA || epcisGGA ? GRADIENT : NOGRAD), NPts, NBE, NB, subMatCut, 
@@ -648,13 +652,16 @@ namespace ChronusQ {
           NPts, U_n_loc, U_gamma_loc, aux_U_n_loc,
           aux_U_gamma_loc, cross_U_gamma_loc, epsEval_loc, dVU_n_loc,
           dVU_gamma_loc, cross_dVU_gamma_loc, epsSCR_loc, dVU_n_SCR_loc, 
-          dVU_gamma_SCR_loc, cross_dVU_gamma_loc);
+          dVU_gamma_SCR_loc, cross_dVU_gamma_loc, epcEval_loc);
 
 
         // Compute for the current batch the XC energy and increment the 
         // total XC energy.
         integrateXCEnergy[thread_id] += 
           energy_vxc(NPts, weights, epsEval_loc, DenS_loc);
+        //integrateEPCEnergy[thread_id] += 
+        //  energy_vxc(NPts, weights, epcEval_loc, DenS_loc);
+
 
         // Construct the required quantities for the formation of the Z 
         // vector (SCALAR) given the kernel derivatives wrt U variables. 
@@ -770,6 +777,9 @@ namespace ChronusQ {
 
 
       // Create the BeckeIntegrator object
+      if( ks ) intParam = ks->intParam;
+      else if( auto aux_ks = dynamic_cast<KohnSham<MatsT,IntsT>*>( this->aux_ss ) )
+        intParam = aux_ks->intParam;
       BeckeIntegrator<EulerMac> 
         integrator(intComm,ss.memManager,ss.molecule(),basis,aux_basis,
         EulerMac(intParam.nRad), intParam.nAng, intParam.nRadPerBatch,
@@ -828,7 +838,7 @@ namespace ChronusQ {
 
       // Freeing the memory
       // ----------------Main System-------------------------------------------- //
-      ss.memManager.free(SCRATCHNBNB,SCRATCHNBNP,DenS,epsEval,U_n,
+      ss.memManager.free(SCRATCHNBNB,SCRATCHNBNP,DenS,epsEval,epcEval,U_n,
         dVU_n, ZrhoVar1,ZMAT);
       if( isGGA || epcisGGA )  
         ss.memManager.free(ZgammaVar1,ZgammaVar2,GDenS,U_gamma,

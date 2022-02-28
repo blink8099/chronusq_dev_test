@@ -61,7 +61,7 @@ namespace ChronusQ {
 
     void evalEXC_VXC(size_t N, double *rho, double *aux_rho, double *sigma, double *aux_sigma,
                      double *cross_sigma, double *eps, double *vrho, double *vsigma, 
-                     double *vcsigma, bool electron);
+                     double *vcsigma, double* epc, bool electron);
 
   }; // class EPC19
 
@@ -214,7 +214,7 @@ namespace ChronusQ {
     size_t NPts, double *Den1, double *Gamma1,
     double *Den2, double *Gamma2, double *cGamma, double *epsEval, double *VRhoEval, 
     double *VgammaEval,double *CVgammaEval, double *EpsSCR, double *VRhoSCR, 
-    double *VgammaSCR, double *CVgammaSCR);
+    double *VgammaSCR, double *CVgammaSCR, double* epcEval);
 
   /**
    *  \brief Construct the required quantities for the formation of the Z vector, 

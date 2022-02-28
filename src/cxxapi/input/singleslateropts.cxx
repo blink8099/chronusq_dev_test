@@ -779,7 +779,6 @@ namespace ChronusQ {
   #define HF_LIST(T) \
     MPI_COMM_WORLD,mem,mol,basis,dynamic_cast<Integrals<T>&>(*aoints),refOptions.nC,refOptions.iCS,p
 
-
     // Construct the SS object
     std::shared_ptr<SingleSlaterBase> ss;
 

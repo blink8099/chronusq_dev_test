@@ -95,7 +95,7 @@ namespace ChronusQ {
    */
   void EPC19::evalEXC_VXC(size_t N, double *rho, double *aux_rho, double *sigma, double *aux_sigma,
                      double *cross_sigma, double *eps, double *vrho, double *vsigma, 
-                     double *vcsigma, bool electron)
+                     double *vcsigma, double* epc, bool electron)
   {
 
     // parameters
@@ -191,7 +191,7 @@ namespace ChronusQ {
     auto computeY3 = [&](double rho_e, double rho_p, std::vector<double> & outvec) {
       // size output vector correctly
       if(outvec.size() != 6)
-        outvec.resize(6);       
+        outvec.resize(6);
 
       outvec[0] = pow(rho_e, 2.0 / 3) * pow(rho_p, -1.0 / 3) / ((1 + pMass) * (1 + pMass));
       outvec[1] =  2.0 / 3 * outvec[0] / rho_e;
@@ -340,6 +340,8 @@ namespace ChronusQ {
         computeF0(X_vec, Y0_vec, Y2_vec, Z_vec, total_cgrad, F0);
 
         // eps (energy per unit particle) 
+        // epc[iPt]  += -1.0 * (F0[0] - Ge[1] * total_egrad - Gp[2] * total_pgrad) / total_erho;
+        // eps[iPt]  += epc[iPt];
         eps[iPt]  += -1.0 * (F0[0] - Ge[1] * total_egrad - Gp[2] * total_pgrad) / total_erho;
 
         // compute vrho
@@ -414,6 +416,8 @@ namespace ChronusQ {
         computeF0(X_vec, Y0_vec, Y2_vec, Z_vec, total_cgrad, F0);
 
         // eps (energy per unit particle)
+        // epc[iPt] = -1.0 * (F0[0] - Ge[1] * total_egrad - Gp[2] * total_pgrad) / total_prho;
+        // eps[iPt] = epc[iPt];
         eps[iPt] = -1.0 * (F0[0] - Ge[1] * total_egrad - Gp[2] * total_pgrad) / total_prho;
 
         // compute vrho
@@ -472,7 +476,7 @@ namespace ChronusQ {
     size_t NPts, double *Den1, double *Gamma1,
     double *Den2, double *Gamma2, double *cGamma, double *epsEval, double *VRhoEval, 
     double *VgammaEval,double *CVgammaEval, double *EpsSCR, double *VRhoSCR, 
-    double *VgammaSCR, double *CVgammaSCR) { 
+    double *VgammaSCR, double *CVgammaSCR, double* epcEval) { 
 
     for(auto iF = 0; iF < functionals.size(); iF++) {
       double *ES,*VR,*VS,*CVS;
@@ -489,8 +493,9 @@ namespace ChronusQ {
       }
 
       if ( functionals[iF]->isGGA() ) {
-        functionals[iF]->evalEXC_VXC(NPts,Den1,Den2,Gamma1,Gamma2,cGamma,
-                                     ES,VR,VS,CVS,electron);
+        auto fptr = dynamic_cast<EPC19*>(functionals[iF].get());
+        fptr->evalEXC_VXC(NPts,Den1,Den2,Gamma1,Gamma2,cGamma,
+                                     ES,VR,VS,CVS,epcEval,electron);
       }
       else {
         functionals[iF]->evalEXC_VXC(NPts,Den1,Den2,ES,VR,electron);
@@ -572,5 +577,24 @@ namespace ChronusQ {
     blas::axpy(NPts,sign,CVgammaEval+offset,4,ZgammaVar3,1);
 
   }; // constructEPCZVars
+
+  /**
+   *  \brief Evaluate the EXC energy 
+   *
+   *  \param [in] NPts     Number of points in the batch.
+   *  \param [in] weights  Quadrature weights.
+   *  \param [in] epsEval  Pointer to the energy per unit particle. 
+   *  \param [in] DenS     Pointer to the scalar density.
+   */  
+  double energy_epc(size_t NPts, std::vector<double> &weights, double *epsEval){
+
+    double XCEnergy = 0.0;
+
+    for(auto iPt = 0; iPt < NPts; iPt++)  
+      XCEnergy += weights[iPt] * epsEval[iPt];
+     // std::cerr << "XCEnergy " << XCEnergy << std::endl;
+    return XCEnergy;
+
+  };
 
 } // namespace ChronusQ
