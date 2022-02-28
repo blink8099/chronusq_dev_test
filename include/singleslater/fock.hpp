@@ -295,197 +295,38 @@ namespace ChronusQ {
     size_t NB = this->basisSet().nBasis;
     if( nC == 4 ) NB = 2 * NB;
     size_t nSQ  = NB*NB;
-
-    // Allocate orthogonalization matricies
-    ortho[0].clear();
-    ortho[1].clear();
+    size_t NBC = this->nC*basisSet().nBasis;
 
     // Allocate scratch
-    MatsT* SCR1 = memManager.malloc<MatsT>(nSQ);
-    std::fill_n(SCR1,nSQ,0.);
+    SquareMatrix<MatsT> overlapSpinor(memManager, NB);
+    overlapSpinor.clear();
+    SquareMatrix<MatsT> overlapAB(memManager, NBC);
+    overlapAB.clear();
 
     // Copy the overlap over to scratch space
     if ( nC != 4 ) {
-      std::copy_n(this->aoints.overlap->pointer(),nSQ,SCR1);
+      std::copy_n(this->aoints.overlap->pointer(),nSQ,overlapSpinor.pointer());
     } else if( nC == 4 ) {
       // HBL 4C May need a Ints type check (SetMat) to capture GIAO.
       SetMatRE('N',NB/2,NB/2,1.,
                reinterpret_cast<double*>(this->aoints.overlap->pointer()),NB/2,
-               SCR1,NB);
+               overlapSpinor.pointer(),NB);
       SetMatRE('N',NB/2,NB/2,1./(2*SpeedOfLight*SpeedOfLight),
                reinterpret_cast<double*>(this->aoints.kinetic->pointer()),NB/2,
-               SCR1+NB*NB/2+NB/2,NB);
+               overlapSpinor.pointer()+NB*NB/2+NB/2,NB);
       //prettyPrintSmart(std::cout,"S Metric",SCR1,NB,NB,NB);
     }
+    orthoSpinor = std::make_shared<Orthogonalization<MatsT>>(overlapSpinor);
 
-    if(orthoType == LOWDIN) {
-
-      // Allocate more scratch
-      MatsT* sE   = memManager.malloc<MatsT>(NB);
-      MatsT* SCR2 = memManager.malloc<MatsT>(nSQ);
-
-      
-      // Diagonalize the overlap in scratch S = V * s * V**T
-      HermetianEigen('V','U',NB,SCR1,NB,sE,memManager);
-
-
-      if( std::abs( sE[0] ) < 1e-10 )
-        CErr("Contracted Basis Set is Linearly Dependent!");
-
-      // Compute X = V * s^{-1/2} 
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++)
-        SCR2[i + j*NB] = 
-          SCR1[i + j*NB] / std::sqrt(sE[j]);
-
-      // Compute O1 = X * V**T
-      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
-                 NB, NB, NB, static_cast<MatsT>(1.0), SCR2, NB, SCR1, NB, static_cast<MatsT>(0.0), ortho[0].pointer(), NB);
-
-
-      // Compute X = V * s^{1/2} in place (by multiplying by s)
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++)
-        SCR2[i + j*NB] = 
-          SCR2[i + j*NB] * sE[j];
-
-      // Compute O2 = X * V**T
-      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,
-        static_cast<MatsT>(1.),SCR2,NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho[1].pointer(),NB);
-
-#ifdef _DEBUGORTHO
-      // Debug code to validate the Lowdin orthogonalization
-
-      std::cerr << "Debugging Lowdin Orthogonalization" << std::endl;
-      double maxDiff(-10000000);
-
-      // Check that ortho1 and ortho2 are inverses of eachother
-      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
-        static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[1].pointer(),NB,
-        static_cast<MatsT>(0.),SCR1,NB);
-      
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++) {
-
-        if( i == j ) maxDiff = 
-          std::max(maxDiff, std::abs(1. - SCR1[i + j*NB]));
-        else maxDiff = 
-          std::max(maxDiff,std::abs(SCR1[i + j*NB])); 
-
-      }
-
-      std::cerr << "  Ortho1 * Ortho2 = I: " << maxDiff << std::endl;
-
-      // Check that ortho2 * ortho2 is the overlap
-      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
-        static_cast<MatsT>(1.),ortho[1].pointer(),NB,ortho[1].pointer(),NB,
-        static_cast<MatsT>(0.),SCR1,NB);
-      
-      maxDiff = -100000;
-
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++) {
-
-          maxDiff = std::max(maxDiff,
-          std::abs(SCR1[i + j*NB] - 
-            this->aoints.overlap[i + j*NB])); 
-
-      }
-
-      std::cerr << "  Ortho2 * Ortho2 = S: " << maxDiff << std::endl;
-
-      // Check that ortho1 * ortho1 is the inverse of the overlap
-      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
-        static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[0].pointer(),NB,
-        static_cast<MatsT>(0.),SCR1,NB);
-      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
-        static_cast<MatsT>(1.),SCR1,NB,reinterpret_cast<MatsT*>(this->aoints.overlap),NB,
-        static_cast<MatsT>(0.),SCR2,
-        NB);
-      
-      maxDiff = -10000;
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++) {
-
-        if( i == j ) maxDiff = 
-          std::max(maxDiff, std::abs(1. - SCR2[i + j*NB]));
-        else maxDiff = 
-          std::max(maxDiff,std::abs(SCR2[i + j*NB])); 
-
-      }
-
-      std::cerr << "  Ortho1 * Ortho1 * S = I: " << maxDiff << std::endl;
-
-#endif
-
-      // Free Scratch Space
-      memManager.free(sE,SCR2);
-
-    } else if(orthoType == CHOLESKY) {
-
-      std::cout << 
-      "*** WARNING: Cholesky orthogonalization has not yet been confirmed ***" 
-      << std::endl;
-
-      // Compute the Cholesky factorization of the overlap S = L * L**T
-      lapack::potrf(lapack::Uplo::Lower,NB,SCR1,NB);
-
-      // Copy the lower triangle to ortho2 (O2 = L)
-      for(auto j = 0; j < NB; j++)
-      for(auto i = j; i < NB; i++)
-        ortho[1](i,j) = SCR1[i + j*NB];
-
-      // Compute the inverse of the overlap using the Cholesky factors
-      lapack::potri(lapack::Uplo::Lower,NB,SCR1,NB);
-
-      // O1 = O2**T * S^{-1}
-      blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB,NB,NB,
-        static_cast<MatsT>(1.),ortho[1].pointer(),NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho[0].pointer(),NB);
-
-      // Remove upper triangle junk from O1
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < j ; i++)
-        ortho[0](i,j) = 0.;
-
-#ifdef _DEBUGORTHO
-      // Debug code to validate the Lowdin orthogonalization
-
-      std::cerr << "Debugging Cholesky Orthogonalization" << std::endl;
-
-      // Debug code to validate the Cholesky orthogonalization
-      MatsT* SCR2 = memManager.malloc<MatsT>(nSQ);
-        
-      double maxDiff = -1000;
-      blas::gemm(blas::Layout::ColMajor,blas::Op::Trans,blas::Op::NoTrans,NB,NB,NB,
-        static_cast<MatsT>(1.),ortho1,NB,reinterpret_cast<MatsT*>(this->aoints.overlap),NB,
-        static_cast<MatsT>(0.),SCR1,
-        NB);
-      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,
-        static_cast<MatsT>(1.),SCR1,NB,ortho1,NB,
-        static_cast<MatsT>(0.),SCR2,
-        NB);
-
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++) {
-
-        if( i == j ) maxDiff = 
-          std::max(maxDiff, std::abs(1. - SCR2[i + j*NB]));
-        else maxDiff = 
-          std::max(maxDiff,std::abs(SCR2[i + j*NB])); 
-
-      }
-
-      std::cerr << "Ortho1**T * S ** Ortho1 = I: " << maxDiff << std::endl;
-
-      memManager.free(SCR2); // Free SCR2
-#endif
-        
-
+    // Copy to block diagonal for alpha/beta basis
+    if( nC > 1 ){
+      SetMat('N',NBC/2,NBC/2,MatsT(1.),overlapSpinor.pointer(), NBC/2, overlapAB.pointer(),NBC);
+      size_t disp = NBC/2 + NBC/2*NBC;
+      SetMat('N',NBC/2,NBC/2,MatsT(1.),overlapSpinor.pointer(), NBC/2, overlapAB.pointer()+disp,NBC);
+    } else {
+      overlapAB = overlapSpinor;
     }
-
-    memManager.free(SCR1); // Free SCR1
+    orthoAB = std::make_shared<Orthogonalization<MatsT>>(overlapAB);
 
   }; // computeOrtho
 

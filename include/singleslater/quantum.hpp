@@ -37,12 +37,20 @@ namespace ChronusQ {
    *
    *  specialization of Quantum::formDensity. Populates / overwrites
    *  onePDM storage
+   * 
+   *  NOTE: This function assumes the MO's are in the AO basis
    */ 
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::formDensity() {
 
     size_t NB  = this->nAlphaOrbital() * nC;
+    bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT, IntsT>>(this->fockBuilder) != nullptr);
 
+    // ROHF copy modified orbitals to redundant set
+    if( iRO ){
+      std::copy_n(this->mo[0].pointer(),NB*NB,this->mo[1].pointer());
+      std::copy_n(this->eps1,NB,this->eps2);
+    }
 
     // Form the 1PDM on the root MPI process as slave processes
     // do not posses the up-to-date MO coefficients
@@ -92,7 +100,7 @@ namespace ChronusQ {
         *this->onePDM = spinBlockForm.template spinScatter<MatsT>();
 
       }
-
+      ao2orthoDen();
     }
 
 

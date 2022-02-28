@@ -148,7 +148,7 @@ namespace ChronusQ {
 
     // Determine how many (if any) exchange terms to calculate
     if( std::abs(xHFX) > 1e-12 and not increment and ss.nC == 1 and
-        (ss.scfControls.guess != SAD or ss.scfConv.nSCFIter != 0) and
+//        (ss.scfControls.guess != SAD or ss.modifyOrbitals->scfConv.nSCFIter != 0) and
         std::dynamic_pointer_cast<InCoreRITPIContraction<MatsT, IntsT>>(ss.TPI)) {
       ROOT_ONLY(ss.comm);
       auto ritpi = std::dynamic_pointer_cast<InCoreRITPIContraction<MatsT, IntsT>>(ss.TPI);

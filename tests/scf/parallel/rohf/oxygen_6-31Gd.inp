@@ -17,6 +17,9 @@ geom:
 reference = Real ROHF
 job = SCF
 
+[SCF]
+guess = core
+
 [BASIS]
 basis = 6-31G(d) 
 

@@ -23,6 +23,7 @@
  */
 #include <cqlinalg/matfunc.hpp>
 #include <cqlinalg/blas3.hpp>
+#include <cqlinalg/blasutil.hpp>
 #include <cqlinalg/eig.hpp>
 
 namespace ChronusQ {
@@ -87,5 +88,63 @@ namespace ChronusQ {
 
   template void MatExp(char,size_t,dcomplex,dcomplex*,size_t,dcomplex*,size_t,
     CQMemManager&);
+
+
+  template <typename MatsU>
+  void MatExp(size_t N, MatsU *A, size_t LDA,
+    MatsU *ExpA, size_t LDEXPA, CQMemManager &mem) {
+
+    // allocate memory
+    size_t N2 = N*N;
+    MatsU * OddTerms  = mem.template malloc<MatsU>(N2);
+    MatsU * EvenTerms = mem.template malloc<MatsU>(N2);
+
+    std::fill_n(ExpA, N2, MatsU(0.));
+    // form zero order term
+    for (auto i = 0ul; i < N; i++) ExpA[i + i*N] = MatsU(1.);
+
+    // form 1st order term
+    std::copy_n(A, N2, OddTerms);
+
+    double residue;
+    double small_number = std::numeric_limits<double>::epsilon();
+    bool converged = false;
+    size_t maxIter = 200;
+    for (auto iter = 0ul; iter < maxIter; iter+=2) {
+      // add the odd term
+      MatAdd('N', 'N', N, N, MatsU(1.), OddTerms, N, MatsU(1.), ExpA, N, ExpA, N);
+
+      residue = lapack::lange(lapack::Norm::Fro, N, N, OddTerms, N);
+      if (residue <= small_number) {
+        converged = true;
+        break;
+      }
+
+      // form and add next even term
+      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
+        N, N, N, MatsU(1./(iter+2)), A, N, OddTerms, N,
+        MatsU(0.), EvenTerms, N);
+      MatAdd('N', 'N', N, N, MatsU(1.), EvenTerms, N, MatsU(1.), ExpA, N, ExpA, N);
+
+      residue = lapack::lange(lapack::Norm::Fro, N, N, EvenTerms, N);
+      if (residue <= small_number) {
+        converged = true;
+        break;
+      }
+
+      // form next odd term
+      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
+        N, N, N, MatsU(1./(iter+3)), A, N, EvenTerms, N,
+        MatsU(0.), OddTerms, N);
+
+    }
+
+    mem.free(OddTerms, EvenTerms);
+
+    if(not converged) throw std::runtime_error("Matrix Exponential calculation failed to converge");
+  }; // MCSCF::MatExpT
+
+  template void MatExp(size_t N, double *A, size_t LDA, double *ExpA, size_t LDEXPA, CQMemManager &mem);
+  template void MatExp(size_t N, dcomplex *A, size_t LDA, dcomplex *ExpA, size_t LDEXPA, CQMemManager &mem);
 
 }; // namespace ChronusQ

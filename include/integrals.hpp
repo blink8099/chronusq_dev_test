@@ -33,11 +33,6 @@
 
 namespace ChronusQ {
 
-  enum ORTHO_TYPE {
-    LOWDIN,
-    CHOLESKY
-  }; ///< Orthonormalization Scheme
-
   enum TPI_TRANSFORMATION_ALG {
       INCORE_N6 = 0, // hack thru ss.formfock
       DIRECT_N6 = 1, // hack thru ss.formfock

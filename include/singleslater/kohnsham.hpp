@@ -48,7 +48,6 @@ namespace ChronusQ {
   class KohnSham : virtual public SingleSlater<MatsT,IntsT>,
     public std::enable_shared_from_this<KohnSham<MatsT,IntsT>> {
 
-
   protected:
 
     // Useful typedefs
@@ -281,9 +280,9 @@ namespace ChronusQ {
 
 
 
-
-
-    MatsT* getNRCoeffs();
+    // SCF Functions
+    void buildModifyOrbitals();
+    void computeFullNRStep(MatsT*);
     std::pair<double,MatsT*> getStab();
 
   }; // class KohnSham

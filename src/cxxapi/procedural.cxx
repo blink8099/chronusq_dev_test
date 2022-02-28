@@ -214,11 +214,14 @@ namespace ChronusQ {
                                         aoints, prot_aoints,
                                         ep_aoints);
       ss->scfControls = scfControls;
-    }
-    else {
+      // For NEO only one ModifyOrbitals needs to be made since it is a
+      // driver for both the NEOSingleSlater and the aux_neoss
+      ss->buildModifyOrbitals();
+    } else {
       ssOptions = CQSingleSlaterOptions(output,input,mol,*basis,aoints);
       ssOptions.scfControls = scfControls;
       ss = ssOptions.buildSingleSlater(output,*memManager,mol,*basis,aoints);
+      ss->buildModifyOrbitals();
 
       // MO swapping
       HandleOrbitalSwaps(output, input, *ss);
@@ -316,7 +319,7 @@ namespace ChronusQ {
             ss->formGuess(guessSSOptions);
             ss->formFock(emPert, false);
           }
-          ss->SCF(emPert);
+          ss->runModifyOrbitals(emPert);
         }
 
         // Run RT job
