@@ -358,6 +358,7 @@ void Orthogonalization<MatsT>::computeOrtho() {
       MatsT* SCR2    = memManager.malloc<MatsT>(nSQ);
 
       // Diagonalize the overlap in scratch S = V * s * V**T
+      std::copy_n(overlap->pointer(),nSQ,sVecs);
       HermetianEigen('V','U',NB,sVecs,NB,sE,memManager);
 
       if( std::abs( sE[0] ) < 1e-10 )
