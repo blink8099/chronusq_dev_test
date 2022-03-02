@@ -231,19 +231,19 @@ namespace ChronusQ {
     if( ss->scfControls.guess == READMO or 
         ss->scfControls.guess == READDEN or
         ss->scfControls.prot_guess == READMO or
-        ss->scfControls.prot_guess == READDEN) 
+        ss->scfControls.prot_guess == READDEN
+        and scrFileName.empty())
       rstExists = true;
     else if( (ss->scfControls.guess == READDEN or
-             ss->scfControls.prot_guess == READDEN)
-        and not scrFileName.empty() )
+              ss->scfControls.prot_guess == READDEN)
+             and not scrFileName.empty() )
       ss->scrBinFileName = scrFileName;
-    if( ss->scfControls.guess == FCHKMO or
-        ss->scfControls.prot_guess == FCHKMO )
+    else if( ss->scfControls.guess == FCHKMO or
+             ss->scfControls.prot_guess == FCHKMO )
       ss->fchkFileName = scrFileName;
 
     // Create the restart and scratch files
     SafeFile rstFile(rstFileName, rstExists);
-    //SafeFile scrFile(scrFileName);
 
     if( not rstExists and rank == 0 ) rstFile.createFile();
 
