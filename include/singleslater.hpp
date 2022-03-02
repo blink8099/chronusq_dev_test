@@ -99,7 +99,6 @@ namespace ChronusQ {
 
     // Orthonormal density
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> onePDMOrtho; ///< List of populated orthonormal 1PDM matricies
-    std::vector<SquareMatrix<MatsT>> gradOrtho;
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> deltaOnePDM; ///< Change in density for incremental Fock Build
 
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH; ///< Core Hamiltonian (scalar and magnetization)

@@ -486,16 +486,8 @@ namespace ChronusQ {
       std::cout << std::endl
                 << "  *** Forming Initial Fock Matrix from SAD Density ***\n\n";
 
-<<<<<<< HEAD
-    this->formFock(pert,false);
-    getNewOrbitals(pert,false);
-=======
     ao2orthoDen();
     computeNaturalOrbitals();
-//    this->formDensity();
-//    formFock(pert,false);
-//    getNewOrbitals();
->>>>>>> 63417b01ce3e4b3e14e207d73c9ece981d10a99d
 
   }; // SingleSlater<T>::SADGuess
 
@@ -966,7 +958,7 @@ namespace ChronusQ {
 
     EMPerturbation pert; // Dummy EM perturbation
     this->formFock(pert,false);
-    getNewOrbitals(pert,false);
+    getNewOrbitals();
 
   } // SingleSlater<T>::readDiffTypeDenBin()
 

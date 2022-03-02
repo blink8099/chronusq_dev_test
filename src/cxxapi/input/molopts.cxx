@@ -184,7 +184,7 @@ namespace ChronusQ {
       // quantum nuclei
       if (tokens.size() == 5 and tokens[4] == "Q") {
         if (not doNEO)
-          CErr("Find quantum nuclei in regular SCF!");
+          CErr("Quantum nuclei in non-NEO SCF");
         else
           atoms.back().quantum = true;
       }

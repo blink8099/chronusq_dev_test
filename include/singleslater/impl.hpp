@@ -212,6 +212,3 @@ namespace ChronusQ {
 #include <singleslater/hartreefock/scf.hpp> // Newton-Raphson Functions
 
 #include <modifyorbitals/impl.hpp> // ModifyOrbitals Implementation headers
-
-#include <singleslater/neo_singleslater.hpp>
-#include <singleslater/neo_singleslater/impl.hpp> // NEO headers

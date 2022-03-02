@@ -124,164 +124,10 @@ namespace ChronusQ {
       void addSubsystem(
         std::string label,
         std::shared_ptr<SingleSlater<MatsT,IntsT>> ss,
-        const LabeledMap<std::pair<bool,std::shared_ptr<TwoPInts<IntsT>>>>& ints)
-      {
-
-        // Check that we have at least the same number of integrals as other systems
-        if(ints.size() < subsystems.size())
-          CErr("Subsystem and integral number mismatch in addSubsystem!");
-
-        auto NB = ss->basisSet().nBasis;
-
-        bool this_nuclear = ss->particle.charge > 0;
-        auto ks = std::dynamic_pointer_cast<KohnSham<MatsT,IntsT>>(ss);
-
-        // Add a FockBuilder and Coulomb matrix:
-        //   - For the new system's interaction with each other system
-        //   - For each other system's interaction with the new system
-
-        // Add the base fockBuilder to make sure it has a persistent lifetime
-        fockBuilders.insert({label, {ss->fockBuilder}});
-        // New coulomb matrices to be added to the _new_ system
-        std::unordered_map<std::string, SquareMatrix<MatsT>> newCoulombs;
-
-        // Loop over other subsystems
-        for( auto& x: subsystems ) {
-
-          // first = label;
-	        // second = SingleSlater;
-          auto other_NB = x.second->basisSet().nBasis;
-
-          // Add a new coulomb matrix to the new system
-          newCoulombs.insert({x.first, SquareMatrix<MatsT>(ss->memManager, NB)});
-          // Add a new coulomb matrix to the other system
-          interCoulomb.at(x.first).insert({label, SquareMatrix<MatsT>(ss->memManager, other_NB)});
-
-          HamiltonianOptions this_options = ss->aoints.options_;
-          HamiltonianOptions other_options = x.second->aoints.options_;
-
-          // New fock builders
-          auto this_newFock = std::make_shared<NEOFockBuilder<MatsT,IntsT>>(this_options);
-          auto other_newFock = std::make_shared<NEOFockBuilder<MatsT,IntsT>>(other_options);
-
-          this_newFock->setAux(x.second.get());
-          this_newFock->setOutput(&newCoulombs.at(x.first));
-          this_newFock->setUpstream(fockBuilders[label].back().get());
-
-          other_newFock->setAux(ss.get());
-          other_newFock->setOutput(&interCoulomb.at(x.first).at(label));
-          other_newFock->setUpstream(fockBuilders[x.first].back().get());
-
-          // Add integrals to other system (mostly for consistency)
-          auto& contractSecond = ints.at(x.first).first;
-          auto& tpi = ints.at(x.first).second;
-          interIntegrals[x.first].insert({label, {not contractSecond, tpi}});
-
-          // Contractions
-          std::shared_ptr<TPIContractions<MatsT,IntsT>> this_cont;
-          std::shared_ptr<TPIContractions<MatsT,IntsT>> other_cont;
-          if( auto tpi_t = std::dynamic_pointer_cast<DirectTPI<IntsT>>(tpi) ) {
-            this_cont = std::make_shared<GTODirectTPIContraction<MatsT,IntsT>>(*tpi_t);
-            other_cont = std::make_shared<GTODirectTPIContraction<MatsT,IntsT>>(*tpi_t);
-          }
-          else if( auto tpi_t = std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(tpi) ) {
-            this_cont = std::make_shared<InCore4indexTPIContraction<MatsT,IntsT>>(*tpi_t);
-            other_cont = std::make_shared<InCore4indexTPIContraction<MatsT,IntsT>>(*tpi_t);
-          }
-          else {
-            CErr("Invalid TwoPInts type for NEO!");
-          }
-          // Set contractSecond
-          this_cont->contractSecond = contractSecond;
-          other_cont->contractSecond = not contractSecond;
-
-          this_newFock->setContraction(this_cont);
-          other_newFock->setContraction(other_cont);
-
-          fockBuilders[label].push_back(this_newFock);
-          fockBuilders[x.first].push_back(other_newFock);
-
-          // KS specific fock builders
-          // XXX: This assumes that there is no correlation functional between
-          //      nuclear subsystems
-          auto other_ks = std::dynamic_pointer_cast<KohnSham<MatsT,IntsT>>(x.second);
-          bool other_nuclear = x.second->particle.charge > 0;
-          std::shared_ptr<NEOKohnShamBuilder<MatsT,IntsT>> this_newKSBuilder = nullptr;
-          std::shared_ptr<NEOKohnShamBuilder<MatsT,IntsT>> other_newKSBuilder = nullptr;
-          if( other_ks && other_nuclear && !this_nuclear ) {
-            this_newKSBuilder = std::make_shared<NEOKohnShamBuilder<MatsT,IntsT>>(this_options);
-            other_newKSBuilder = std::make_shared<NEOKohnShamBuilder<MatsT,IntsT>>(other_options);
-
-            this_newKSBuilder->setFunctionals(other_ks->functionals);
-            other_newKSBuilder->setFunctionals(other_ks->functionals);
-
-            // Get EPC out of the functional list of the nuclear subsystem
-            other_ks->functionals.clear();
-          }
-          else if( ks && this_nuclear && !other_nuclear ) {
-            this_newKSBuilder = std::make_shared<NEOKohnShamBuilder<MatsT,IntsT>>(this_options);
-            other_newKSBuilder = std::make_shared<NEOKohnShamBuilder<MatsT,IntsT>>(other_options);
-
-            this_newKSBuilder->setFunctionals(ks->functionals);
-            other_newKSBuilder->setFunctionals(ks->functionals);
-
-            // Get EPC out of the functional list of the nuclear subsystem
-            ks->functionals.clear();
-          }
-
-          if( this_newKSBuilder ) {
-            this_newKSBuilder->setAux(x.second.get());
-            this_newKSBuilder->setUpstream(fockBuilders[label].back().get());
-
-            other_newKSBuilder->setAux(ss.get());
-            other_newKSBuilder->setUpstream(fockBuilders[x.first].back().get());
-
-            fockBuilders[label].push_back(this_newKSBuilder);
-            fockBuilders[x.first].push_back(other_newKSBuilder);
-          }
-
-        }
-
-        // Add the other system's coulomb matrices to the coulomb matrix storage
-        interCoulomb.insert({label, std::move(newCoulombs)});
-
-        // Add the single slater object to the list of systems
-        subsystems[label] = ss;
-
-        // Add the integrals to this system
-        interIntegrals.insert({label, ints});
-
-        // Update all FockBuilders used to the most recent version
-        for( auto& x: subsystems ) {
-          x.second->fockBuilder = fockBuilders.at(x.first).back();
-        }
-      }
+        const LabeledMap<std::pair<bool,std::shared_ptr<TwoPInts<IntsT>>>>& ints);
 
       void addGradientIntegrals(std::string label1, std::string label2,
-        std::shared_ptr<GradInts<TwoPInts,IntsT>> ints, bool contractSecond) {
-
-        gradInterInts.insert({label1, {}});
-        gradInterInts.insert({label2, {}});
-
-        gradInterInts[label1].insert({label2, {contractSecond, ints}});
-        gradInterInts[label2].insert({label1, {not contractSecond, ints}});
-
-        // TODO: Make this work with nested systems. Right now there is no
-        //   guarantee that it will be placed on the right fockBuilder for more
-        //   than two systems. May require labeling of nested fockBuilders.
-        auto setGradInts = [&](std::shared_ptr<FockBuilder<MatsT,IntsT>>& fock) {
-          if(auto neofock = std::dynamic_pointer_cast<NEOFockBuilder<MatsT,IntsT>>(fock)) {
-            neofock->setGradientIntegrals(ints.get());
-          }
-          else {
-            CErr("Can't set gradient integrals on a non-NEOFockBuilder");
-          }
-        };
-
-        setGradInts(fockBuilders[label1].back());
-        setGradInts(fockBuilders[label2].back());
-
-      }
+        std::shared_ptr<GradInts<TwoPInts,IntsT>> ints, bool contractSecond);
 
       void setOrder(std::vector<std::string> labels) {
         order_ = labels;
@@ -329,14 +175,6 @@ namespace ChronusQ {
       }
 
       // Pass-through to each functions
-      void SCFInit() {
-        applyToEach([](SubSSPtr& ss){ ss->SCFInit(); });
-      }
-
-      void SCFFin() {
-        applyToEach([](SubSSPtr& ss){ ss->SCFFin(); });
-      }
-
       void saveCurrentState() {
         applyToEach([](SubSSPtr& ss){ ss->saveCurrentState(); });
       }
@@ -353,6 +191,10 @@ namespace ChronusQ {
         applyToEach([&](SubSSPtr& ss){ ss->formCoreH(emPert, save); });
       }
 
+      virtual void formDensity() {
+        applyToEach([&](SubSSPtr& ss){ ss->formDensity(); });
+      }
+
       // Propagate options that were set by value in the *Options functions
       void setSubSetup() {
         applyToEach([&](SubSSPtr& ss){
@@ -364,8 +206,17 @@ namespace ChronusQ {
         subsystems["Protonic"]->scfControls.guess = this->scfControls.prot_guess;
       }
 
-      
       std::vector<double> getGrad(EMPerturbation&, bool, bool);
+
+      // Functions for ModifyOrbitals
+      virtual void runModifyOrbitals(EMPerturbation&);
+      virtual void buildModifyOrbitals();
+      virtual void printProperties();
+      virtual std::vector<std::shared_ptr<SquareMatrix<MatsT>>> getOnePDM();
+      virtual std::vector<std::shared_ptr<SquareMatrix<MatsT>>> getFock();
+      virtual std::vector<std::shared_ptr<Orthogonalization<MatsT>>> getOrtho();
+      virtual double getTotalEnergy() { return this->totalEnergy; };
+
 
       // Properties
       void computeEnergy() {
@@ -471,9 +322,12 @@ namespace ChronusQ {
         applyToEach([](SubSSPtr& ss){ ss->computeSpin(); });      
       }
 
-      void methodSpecificProperties() { }
+      void methodSpecificProperties() {
+        applyToEach([](SubSSPtr& ss){ ss->methodSpecificProperties(); });      
+      }
 
       // Overrides specific to a NEO-SCF
+      /*
       void printSCFProg(std::ostream& out = std::cout, bool printDiff = true) {
         if( this->printLevel > 1 )
           for( auto& x: subsystems ) {
@@ -535,6 +389,7 @@ namespace ChronusQ {
       }
 
       void SCF(EMPerturbation& pert);
+      */
 
       // Disable NR/stability for now
       MatsT* getNRCoeffs() {
@@ -550,5 +405,5 @@ namespace ChronusQ {
 
 }
 
-#include <singleslater/neoss/scf.hpp>
+//#include <singleslater/neoss/scf.hpp>
 

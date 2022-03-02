@@ -29,95 +29,115 @@
 
 namespace ChronusQ {
 
-  /**
-   *  \brief Performs the NEO self-consistent field procedure given set of 
-   *  orbitals.
-   */
   template <typename MatsT, typename IntsT>
-  void NEOSS<MatsT,IntsT>::SCF(EMPerturbation &pert) {
-
-    applyToEach([](SubSSPtr& ss){ ss->printLevel = 0; });
-
-    // initialization
-    SCFInit(); 
-
-    // Initialize type independent parameters
-    bool isConverged = false;
-    this->scfControls.dampParam = this->scfControls.dampStartParam;
-    
-    this->scfControls.doIncFock = false;
-
-    if( this->scfControls.scfAlg == _NEWTON_RAPHSON_SCF )
-      this->scfControls.doExtrap = false;
-
-    if( this->scfControls.scfAlg == _SKIP_SCF )
-      isConverged = true;
-
-    // Compute initial properties
-    applyToEach([&](SubSSPtr& ss){
-      ss->formFock(pert);
-      ss->getNewOrbitals(pert,false);
+  void NEOSS<MatsT,IntsT>::printProperties() {
+    using SubSSPtr = std::shared_ptr<SingleSlater<MatsT,IntsT>>;
+    applyToEach([](NEOSS<MatsT,IntsT>::SubSSPtr& ss) {
+      ss->printMOInfo(std::cout);
+      ss->printSpin(std::cout);
+      ss->printMiscProperties(std::cout);
     });
-    this->computeProperties(pert);
+    this->printMultipoles(std::cout);
+  };
 
-    if ( this->printLevel > 0 and MPIRank(this->comm) == 0 ) {
-      this->printSCFHeader(std::cout,pert);
-      printSCFProg(std::cout,false);
-    }
+  template <typename MatsT, typename IntsT>
+  std::vector<std::shared_ptr<SquareMatrix<MatsT>>> NEOSS<MatsT,IntsT>::getFock() {
+    using SubSSPtr = std::shared_ptr<SingleSlater<MatsT,IntsT>>;
+    std::vector<std::shared_ptr<SquareMatrix<MatsT>>> focks;
+    applyToEach([&focks](SubSSPtr& ss) {
+      for( auto& X: ss->getFock() )
+        focks.push_back(X);
+    });
+    return focks;
+  };
 
-    for( this->scfConv.nSCFMacroIter = 0; this->scfConv.nSCFMacroIter < this->scfControls.maxSCFIter; 
-         this->scfConv.nSCFMacroIter++) {
+  template <typename MatsT, typename IntsT>
+  std::vector<std::shared_ptr<SquareMatrix<MatsT>>> NEOSS<MatsT,IntsT>::getOnePDM() {
+    using SubSSPtr = std::shared_ptr<SingleSlater<MatsT,IntsT>>;
+    std::vector<std::shared_ptr<SquareMatrix<MatsT>>> dens;
+    applyToEach([&dens](SubSSPtr& ss) {
+      for( auto& X: ss->getOnePDM() )
+        dens.push_back(X);
+    });
+    return dens;
+  };
 
-      // Save current state of the wave function (method specific)
-      saveCurrentState();
+  template <typename MatsT, typename IntsT>
+  std::vector<std::shared_ptr<Orthogonalization<MatsT>>> NEOSS<MatsT, IntsT>::getOrtho() {
+    using SubSSPtr = std::shared_ptr<SingleSlater<MatsT,IntsT>>;
+    std::vector<std::shared_ptr<Orthogonalization<MatsT>>> ortho;
+    applyToEach([&ortho](SubSSPtr& ss) {
+      for( auto& X: ss->getOrtho() )
+        ortho.push_back(X);
+    });
+    return ortho;
+  };
 
-      // Perform the SCF on each subsystem
-      applyToEach([&](SubSSPtr& ss){ ss->SCF(pert); });
+  template<typename MatsT, typename IntsT>
+  void NEOSS<MatsT, IntsT>::runModifyOrbitals(EMPerturbation& pert) {
+    using SubSSPtr = std::shared_ptr<SingleSlater<MatsT,IntsT>>;
 
-      // Exit loop on convergence
-      // NOTE: "Break" can be placed after isCovnerged
-      if(isConverged) break;
+    // Initialize properties
+    applyToEach([&pert](SubSSPtr& ss){
+      ss->getNewOrbitals();
+      ss->computeProperties(pert);
+    });
 
-      // Evaluate convergence
-      isConverged = evalConver(pert);
+    // Setup MO reference vector
+    std::vector<std::reference_wrapper<SquareMatrix<MatsT>>> moRefs;
+    applyToEach([&moRefs](SubSSPtr& ss) {
+      for( auto& m: ss->mo )
+        moRefs.emplace_back(m);
+    });
 
-      // Print out iteration information
-      if ( this->printLevel > 0 and (MPIRank(this->comm) == 0)) printSCFProg(std::cout,true);
+    // Setup Eigenvalue vector
+    std::vector<double*> epsVec;
+    applyToEach([&epsVec](SubSSPtr& ss) {
+      epsVec.push_back(ss->eps1);
+      if( ss->nC == 1 and !ss->iCS )
+        epsVec.push_back(ss->eps2);
+    });
 
-    }; // Iteration loop
+    this->modifyOrbitals->runModifyOrbitals(pert, moRefs, epsVec);
 
-    // Save current state of the wave function (method specific)
+    applyToEach([](SubSSPtr& ss) {
+      ss->ao2orthoFock();
+      ss->MOFOCK();
+    });
+
     saveCurrentState();
 
-    // finalize SCF
-    SCFFin();
+#ifdef CQ_ENABLE_MPI
+  // Broadcast the updated MOs to all MPI processes
+  if( MPISize(comm) > 1 ) {
 
-    // Compute initial properties
-    this->computeProperties(pert);
-
-    if(not isConverged)
-      CErr(std::string("NEO-SCF Failed to converge within ") + 
-        std::to_string(this->scfControls.maxSCFIter) + 
-        std::string(" iterations"));
-    else if ( this->printLevel > 0 ) {
-      std::cout << std::endl << "NEO-SCF Completed: E("
-                << this->refShortName_ << ") = " << std::fixed
-                << std::setprecision(10) << this->totalEnergy
-                << " Eh after " << this->scfConv.nSCFMacroIter
-                << " SCF Iteration" << std::endl;
-    }
-
-    if( this->printLevel > 0 ) std::cout << BannerEnd << std::endl;
-
-    if( this->printLevel > 0 ) {
       applyToEach([](SubSSPtr& ss) {
-        ss->printMOInfo(std::cout);
-        ss->printSpin(std::cout);
-        ss->printMiscProperties(std::cout);
+        std::cerr  << "  *** Scattering the AO-MOs ***\n";
+        size_t Nmo = ss->mo[0].dimension();
+        MPIBCast(ss->mo[0].pointer(),Nmo*Nmo,0,comm);
+        if( nC == 1 and not iCS )
+          MPIBCast(ss->mo[1].pointer(),Nmo*Nmo,0,comm);
+
+        std::cerr  << "  *** Scattering EPS ***\n";
+        MPIBCast(ss->eps1,Nmo,0,comm);
+        if( nC == 1 and not iCS )
+          MPIBCast(ss->eps2,Nmo,0,comm);
+
+        std::cerr  << "  *** Scattering FOCK ***\n";
+        size_t fockDim = ss->fockMatrix->dimension();
+        for(MatsT *mat : ss->fockMatrix->SZYXPointers())
+          MPIBCast(mat,fockDim*fockDim,0,comm);
+
+        std::cerr  << "  *** Scattering the 1PDM ***\n";
+        size_t denDim = ss->onePDM->dimension();
+        for(auto p : ss->onePDM->SZYXPointers())
+          MPIBCast(p,denDim*denDim,0,comm);
       });
+
     }
-    this->printMultipoles(std::cout);
-  }; // NEOSS::SCF()
+#endif
+
+  };
 
 }; // namespace ChronusQ
 

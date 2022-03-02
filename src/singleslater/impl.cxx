@@ -21,11 +21,11 @@
  *    E-Mail: xsli@uw.edu
  *  
  */
-#include <singleslater/neoss/impl.hpp>
 #include <singleslater/impl.hpp>
 #include <corehbuilder/impl.hpp>
 #include <fockbuilder/impl.hpp>
 #include <mointstransformer/impl.hpp>
+#include <singleslater/neoss/impl.hpp>
 
 namespace ChronusQ {
 

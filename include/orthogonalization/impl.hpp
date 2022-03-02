@@ -294,6 +294,7 @@ void Orthogonalization<MatsT>::computeOrtho() {
   void Orthogonalization<MatsT> :: orthogonalizeStates( SquareMatrix<MatsT>& mo, size_t nStates, size_t disp ) const {
 
     if( not overlap ) CErr("Overlap has not been initialized in orthogonalizeStates");
+    if( nStates == 0 ) return;
 
     size_t NB = mo.dimension();
     if( overlap->dimension() != NB ) CErr("Matrices are not the same dimension in orthogonalizeStates");
@@ -328,6 +329,77 @@ void Orthogonalization<MatsT>::computeOrtho() {
     
     prettyPrintSmart(std::cout, "Test Overlap Matrix", testOrtho.overlapPointer()->pointer(),nStates,nStates,nStates);
 #endif
+
+  }
+
+  // ====================================================================
+  // Transform input operators with the gradient of the orthogonalization
+  // ====================================================================
+  template <typename MatsT>
+  void Orthogonalization<MatsT> :: getOrthogonalizationGradients(
+    std::vector<SquareMatrix<MatsT>>& gradOrtho,
+    std::vector<SquareMatrix<MatsT>>& operators)
+  {
+
+    if( operators.size() == 0 )
+      CErr("No operators to transform in getOrthogonalizationGradients");
+    if( operators.size() != gradOrtho.size() )
+      CErr("Different number of operators and output matrices in getOrthogonalizationGradients");
+
+    size_t NB = operators[0].dimension();
+    size_t nSQ = NB*NB;
+    CQMemManager& memManager = overlap->memManager();
+
+    if( orthoType == LOWDIN ) {
+      MatsT* sVecs   = memManager.malloc<MatsT>(nSQ);
+      MatsT* sE      = memManager.malloc<MatsT>(NB);
+      MatsT* weights = memManager.malloc<MatsT>(nSQ);
+      MatsT* SCR1    = memManager.malloc<MatsT>(nSQ);
+      MatsT* SCR2    = memManager.malloc<MatsT>(nSQ);
+
+      // Diagonalize the overlap in scratch S = V * s * V**T
+      HermetianEigen('V','U',NB,sVecs,NB,sE,memManager);
+
+      if( std::abs( sE[0] ) < 1e-10 )
+        CErr("Contracted Basis Set is Linearly Dependent!");
+
+
+      // Compute weights = (sqrt(si) + sqrt(sj))^-1
+      for( auto i = 0; i < NB; i++ )
+      for( auto j = 0; j < NB; j++ ) {
+          weights[i*NB + j] = MatsT(1.) / (std::sqrt(sE[i]) + std::sqrt(sE[j]));
+      }
+
+      // Loop over gradient components
+      for( auto iGrad = 0; iGrad < operators.size(); iGrad++ ) {
+
+        //
+        // dV/dR = V . (weights x V**T . O . V) . V**T
+        //
+
+        // O . V
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,MatsT(1.),operators[iGrad].pointer(),NB,sVecs,NB,MatsT(0.),SCR1,NB);
+        // V**T . O . V
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,
+          NB,NB,NB,MatsT(1.),sVecs,NB,SCR1,NB,MatsT(0.),SCR2,NB);
+        // weights x V**T . O . V
+        std::transform(SCR2, SCR2+nSQ, weights, SCR2, std::multiplies<>());
+        // (weights x V**T . O . V) . V**T
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,
+          NB,NB,NB,MatsT(1.),SCR2,NB,sVecs,NB,MatsT(0.),SCR1,NB);
+        // dV/dR = V . (weights x V**T . O . V) . V**T
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,MatsT(1.),sVecs,NB,SCR1,NB,MatsT(0.),gradOrtho[iGrad].pointer(),NB);
+
+      } 
+
+      memManager.free(sVecs, sE, weights, SCR1, SCR2);
+
+    }
+    else if( orthoType == CHOLESKY ) {
+      CErr("Cholesky orthogonalization gradients not yet implemented");
+    }
 
   }
 }
