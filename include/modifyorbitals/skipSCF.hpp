@@ -41,7 +41,8 @@ public:
   void runModifyOrbitals(EMPerturbation& pert, VecMORef<MatsT>& mo, VecEPtr& eps) {
     ProgramTimer::tick("SCF Total");
 
-    this->getNewOrbitals(pert, mo, eps);
+    // Form the Fock matrix D(k) -> F(k)
+    ProgramTimer::timeOp("Form Fock", [&]() { this->modOrbOpt.formFock(pert); });
 
     // Compute initial properties
     this->modOrbOpt.computeProperties(pert);
