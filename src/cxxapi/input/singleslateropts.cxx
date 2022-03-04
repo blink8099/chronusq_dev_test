@@ -1197,7 +1197,7 @@ namespace ChronusQ {
 
 
   // NEO SingleSlater wrapper
-  std::shared_ptr<SingleSlaterBase> CQNEOSSOptions(
+  std::pair<std::shared_ptr<SingleSlaterBase>, SingleSlaterOptions> CQNEOSSOptions(
     std::ostream &out, CQInputFile &input,
     CQMemManager &mem, Molecule &mol,
     BasisSet &ebasis, BasisSet &pbasis,
@@ -1263,7 +1263,7 @@ namespace ChronusQ {
       CErr("NEO + GIAO NYI!");
     }
 
-    return neoss;
+    return {neoss, essopt};
 
   }
 

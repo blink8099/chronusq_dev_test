@@ -174,7 +174,8 @@ namespace ChronusQ {
       std::cout << std::endl << bannerTop << std::endl << std::endl;
     }
 
-    this->printLevel = 0;
+    if( this->printLevel == -1 )
+      this->printLevel = 0;
 
   };
 

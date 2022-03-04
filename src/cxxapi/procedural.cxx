@@ -209,10 +209,10 @@ namespace ChronusQ {
 
     // Create the SingleSlater object
     if (doNEO) {
-      ss = CQNEOSSOptions(output,input,*memManager,mol,
-                                       *basis,*prot_basis,
-                                        aoints, prot_aoints,
-                                        ep_aoints);
+      std::tie(ss, ssOptions) = CQNEOSSOptions(output,input,*memManager,mol,
+                                              *basis,*prot_basis,
+                                               aoints, prot_aoints,
+                                               ep_aoints);
       ss->scfControls = scfControls;
       // For NEO only one ModifyOrbitals needs to be made since it is a
       // driver for both the NEOSingleSlater and the aux_neoss

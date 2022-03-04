@@ -51,8 +51,7 @@ namespace ChronusQ {
 
     ProgramTimer::tick("Real Time Total");
 
-    if( printLevel > 0 )
-      printRTHeader();
+    printRTHeader();
 
     if ( savFile.exists() )
       if ( restart )
@@ -114,7 +113,8 @@ namespace ChronusQ {
         if( Start or FinMM ) curState.curStep = intScheme.rstStep;
         else                 curState.curStep = ModifiedMidpoint;
 
-        if( Start or FinMM ) std::cout << "  *** Restarting MMUT ***\n";
+        if( (Start or FinMM) && printLevel > 0 )
+          std::cout << "  *** Restarting MMUT ***\n";
 
       // For non leapfrog scheme, the step type is constant
       } else if ( intScheme.intAlg == ExpMagnus2 )
@@ -162,7 +162,7 @@ namespace ChronusQ {
         }
       }
 
-        // Form the Fock matrix at the current time
+      // Form the Fock matrix at the current time
       for(auto idx = 0; idx < systems_.size(); idx++) {
         this->formFock(false,curState.xTime,idx);
       }
@@ -500,9 +500,11 @@ namespace ChronusQ {
     );
     memManager_.free(timeData);
 
-    std::cout << "  *** Restoring from step " << restoreStep << " (";
-    std::cout << std::setprecision(4) << restoreStep * intScheme.deltaT;
-    std::cout << " AU) ***" << std::endl;
+    if( printLevel > 0 ) {
+      std::cout << "  *** Restoring from step " << restoreStep << " (";
+      std::cout << std::setprecision(4) << restoreStep * intScheme.deltaT;
+      std::cout << " AU) ***" << std::endl;
+    }
 
     intScheme.restoreStep = restoreStep;
 
@@ -535,7 +537,8 @@ namespace ChronusQ {
       hsize_t memLastPos = data.Time.size() - nSteps;
 
       if (nSteps != 0) {
-        std::cout << "  *** Saving data to binary file ***" << std::endl;
+        if( printLevel > 0 )
+          std::cout << "  *** Saving data to binary file ***" << std::endl;
         savFile.partialWriteData("RT/TIME", &data.Time[0], {lastPos},
             {nSteps}, {memLastPos}, {data.Time.size()});
         savFile.partialWriteData("RT/ENERGY", &data.Energy[0], {lastPos},

@@ -51,7 +51,7 @@ namespace ChronusQ {
   protected:
 
     // Useful typedefs
-    typedef MatsT*                   oper_t;
+    typedef MatsT*                    oper_t;
     typedef std::vector<oper_t>       oper_t_coll;
     typedef std::vector<oper_t_coll>  oper_t_coll2;
 

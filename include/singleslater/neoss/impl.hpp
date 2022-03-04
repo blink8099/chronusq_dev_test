@@ -56,7 +56,7 @@ namespace ChronusQ {
     SingleSlater<MatsT,IntsT>(dynamic_cast<const SingleSlater<MatsU,IntsT>&>(other), dummy),
     WaveFunctionBase(dynamic_cast<const WaveFunctionBase&>(other)),
     QuantumBase(dynamic_cast<const QuantumBase&>(other)),
-    order_(other.order_)
+    order_(other.order_), functionals(other.functionals)
   {
     // Loop over all old subsystems
     for( auto& x: other.subsystems ) {
@@ -78,6 +78,15 @@ namespace ChronusQ {
       // Get new SingleSlater object
       SubSSPtr new_sys = makeNewSS<MatsT>(old_sys);
       new_sys->fockBuilder = newFock;
+
+      // If we have EPC functionals and this is a nuclear subsystem, add the
+      // functionals (only works for electron/proton systems)
+      if( old_sys->particle.charge > 0 ) {
+        if( auto ks = std::dynamic_pointer_cast<KohnSham<MatsU,IntsT>>(old_sys) ) {
+          auto new_ks = std::dynamic_pointer_cast<KohnSham<MatsT,IntsT>>(new_sys);
+          new_ks->functionals.insert(new_ks->functionals.end(), functionals.begin(), functionals.end());
+        }
+      }
 
       // Add the new subsystem to the current object
       addSubsystem(label, new_sys, other.interIntegrals.at(label));
@@ -104,7 +113,7 @@ namespace ChronusQ {
     SingleSlater<MatsT,IntsT>(dynamic_cast<SingleSlater<MatsU,IntsT>&&>(other), dummy),
     WaveFunctionBase(dynamic_cast<WaveFunctionBase&&>(other)),
     QuantumBase(dynamic_cast<QuantumBase&&>(other)),
-    order_(other.order_)
+    order_(std::move(other.order_)), functionals(std::move(other.functionals))
   {
     CErr("NEOSS move constructor not fully implemented");
   }; // Other type move constructor
@@ -221,6 +230,8 @@ namespace ChronusQ {
         other_newKSBuilder->setFunctionals(ks->functionals);
 
         // Get EPC out of the functional list of the nuclear subsystem
+        this->functionals.insert(functionals.end(),
+          ks->functionals.begin(), ks->functionals.end());
         ks->functionals.clear();
       }
 
@@ -250,6 +261,7 @@ namespace ChronusQ {
     for( auto& x: subsystems ) {
       x.second->fockBuilder = fockBuilders.at(x.first).back();
     }
+
   };
 
 

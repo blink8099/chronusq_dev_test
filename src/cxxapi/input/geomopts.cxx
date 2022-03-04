@@ -253,8 +253,13 @@ namespace ChronusQ {
         rt->intScheme.nSteps = molOpt.nElectronicSteps;
         rt->intScheme.tMax = rt->intScheme.nSteps * rt->intScheme.deltaT;
 
-        md->gradientGetter = [&, rt](){
-          rt->printLevel = 1;
+        int printLevel = -1;
+        try {
+          printLevel = input.getData<int>("RT.PRINTLEVEL");
+        } catch(...) { }
+
+        md->gradientGetter = [&, printLevel, rt](){
+          rt->printLevel = printLevel;
           return rt->getGrad(emPert);
         };
 

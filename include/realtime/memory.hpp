@@ -36,14 +36,15 @@ namespace ChronusQ {
     if( std::is_same<NEOSS<dcomplex,IntsT>,_SSTyp<dcomplex,IntsT>>::value ) {
       auto prop_c = dynamic_cast<NEOSS<dcomplex,IntsT>*>(&propagator_);
       auto map = prop_c->getSubsystemMap();
+      auto order = prop_c->getOrder();
 
       assert( !map.empty() );
 
       // Loop over all subsystems
-      for( auto& x: map ) {
+      for( auto& label: order ) {
 
         // Easier to read name for the subsystem
-        auto& system = x.second;
+        auto& system = map[label];
 
         // Information for RealTime only
         size_t NB = system->onePDM->dimension();

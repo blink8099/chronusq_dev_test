@@ -62,15 +62,17 @@ namespace ChronusQ {
     coreHPerturbed(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.coreHPerturbed)),
     TPI(TPIContractions<MatsU,IntsT>::template convert<MatsT>(other.TPI)),
     coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
-    fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)),
-    orthoSpinor(std::make_shared<Orthogonalization<MatsT>>(*other.orthoSpinor)),
-    orthoAB(std::make_shared<Orthogonalization<MatsT>>(*other.orthoAB)) {
+    fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)) {
 
 #ifdef _SingleSlaterDebug
     std::cout << "SingleSlater<MatsT>::SingleSlater(const SingleSlater<U>&) "
               << "(this = " << this << ", other = " << &other << ")" 
               << std::endl;
 #endif
+    if( other.orthoSpinor )
+      orthoSpinor = std::make_shared<Orthogonalization<MatsT>>(*other.orthoSpinor);
+    if( other.orthoAB )
+      orthoAB = std::make_shared<Orthogonalization<MatsT>>(*other.orthoAB);
 
   }; // SingleSlater<MatsT>::SingleSlater(const SingleSlater<U> &)
 
@@ -106,15 +108,18 @@ namespace ChronusQ {
     coreHPerturbed(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.coreHPerturbed))),
     TPI(TPIContractions<MatsU,IntsT>::template convert<MatsT>(other.TPI)),
     coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
-    fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)),
-    orthoSpinor(std::make_shared<Orthogonalization<MatsT>>(std::move(*other.orthoSpinor))),
-    orthoAB(std::make_shared<Orthogonalization<MatsT>>(std::move(*other.orthoAB))){
+    fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)) {
 
 #ifdef _SingleSlaterDebug
     std::cout << "SingleSlater<MatsT>::SingleSlater(SingleSlater<U>&&) "
               << "(this = " << this << ", other = " << &other << ")" 
               << std::endl;
 #endif
+
+    if( other.orthoSpinor )
+      orthoSpinor = std::make_shared<Orthogonalization<MatsT>>(std::move(*other.orthoSpinor));
+    if( other.orthoAB )
+      orthoAB = std::make_shared<Orthogonalization<MatsT>>(std::move(*other.orthoAB));
 
   }; // SingleSlater<MatsT>::SingleSlater(SingleSlater<U> &&)
 

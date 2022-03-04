@@ -155,7 +155,7 @@ namespace ChronusQ {
 
     void setFunctionals(std::vector<std::shared_ptr<DFTFunctional>> funcs) {
       epc_functionals.clear();
-      epc_functionals.insert(epc_functionals.begin(), funcs.begin(), funcs.end());
+      epc_functionals.insert(epc_functionals.end(), funcs.begin(), funcs.end());
     }
 
     void formVXC(SingleSlater<MatsT,IntsT>&);

@@ -94,6 +94,9 @@ namespace ChronusQ {
       // Storage for FockBuilders (determines lifetime)
       LabeledMap<std::vector<std::shared_ptr<FockBuilder<MatsT,IntsT>>>> fockBuilders;
 
+      // Storage for functionals (only for constructing new NEOSS)
+      std::vector<std::shared_ptr<DFTFunctional>> functionals;
+
     public:
 
       // Main constructor
@@ -172,6 +175,10 @@ namespace ChronusQ {
 
       const std::unordered_map<std::string, SubSSPtr>& getSubsystemMap() {
         return subsystems;
+      }
+
+      const std::vector<std::string>& getOrder() {
+        return order_;
       }
 
       // Pass-through to each functions
