@@ -42,6 +42,7 @@ RUN git clone https://urania.chem.washington.edu/chronusq/libint-cq.git && \
 # Compile chronusq
 COPY . /opt/chronusq_public/
 WORKDIR /opt/chronusq_public/
+RUN ./bin/buildblas
 RUN mkdir build && cd build && cmake -DOPENBLAS_DYNAMIC_ARCH=ON -DCMAKE_INSTALL_PREFIX=$PACKAGE_INSTALL_PATH .. && \
     cmake --build . --target install -j 5 && \
     cd /opt/chronusq_public/ && rm -rf build && rm -rf external
