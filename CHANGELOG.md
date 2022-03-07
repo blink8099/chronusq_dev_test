@@ -9,6 +9,31 @@
 
   FORMAT: YYYY-MM-DD
 
+  - 2022-03-07 0.6.0 (BETA)
+    - Added Functionality:
+      - Add many varieties of configuration interaction
+        - Complete active space (CASCI and CASSCF) for all Hamiltonians
+        - Restricted active space (RASCI) for 2 component Hamiltonians
+      - Add nuclear electronic orbital Hartree-Fock and DFT (SCF & Real Time)
+      - Add quasi-Newton SCF optimization methods (BFGS/SR1)
+      - Add efficient Cholesky decomposition based RI approximation algorithms
+      - Allow classical nuclei to carry variable and fractional charges
+      - Add option to swap molecular orbitals in initial guess
+      - Add overall program timer and some summary sections
+      - Improve molecular orbital printing
+      - Allow guesses from references of different types
+      - Add time dependent population analysis in real time methods
+    - Internal Refactoring:
+      - Minimum C++ standard now supported is C++ 17
+      - Support Libcint as a possible integral module
+      - Move linear algebra interface to BLAS++/LAPACK++
+    - Bug Fixes:
+      - Remove QZ convergence failure
+      - Corrected spelling of "Schwarz"
+      - Add missing template instantiation in GCC 10 compilation
+      - Fix segfault when reading basis in input file
+  <br>
+
   - 2020-12-08 0.5.0 (BETA)
     - Added Functionality:
       - Add Relativistic (X2C) Coupled Cluster Singles and Doubles (MPI only)
