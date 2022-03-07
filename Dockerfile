@@ -8,8 +8,8 @@ RUN yum -y update && \
 # Install CQ dependency
 
 ## install gcc, g++ and gfortran
-RUN yum -y install devtoolset-8-gcc devtoolset-8-gcc-c++ devtoolset-8-gcc-gfortran 
-SHELL ["/bin/scl", "enable", "devtoolset-8"]
+RUN yum -y install devtoolset-9-gcc devtoolset-9-gcc-c++ devtoolset-9-gcc-gfortran 
+SHELL ["/bin/scl", "enable", "devtoolset-9"]
 ## install cmake, 
 RUN wget -qO- "https://cmake.org/files/v3.18/cmake-3.18.2-Linux-x86_64.tar.gz" | tar --strip-components=1 -xz -C /usr/local
 ## install eigen3 thru epel
@@ -35,13 +35,15 @@ RUN wget -q "https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.12/hdf5-1.12.
 WORKDIR /opt/
 RUN git clone https://urania.chem.washington.edu/chronusq/libint-cq.git && \ 
     cd /opt/libint-cq/ && \
+    git checkout 2.7.0-beta.6 && \
     mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$PACKAGE_INSTALL_PATH .. && \ 
     cmake --build . --target install -j 5 && \
-    cd /opt/ && rm -rf libint-cq
+    cd /opt/ && rm -rf libint-cq 
 
 # Compile chronusq
 COPY . /opt/chronusq_public/
 WORKDIR /opt/chronusq_public/
+RUN ./bin/buildblas 5 $PACKAGE_INSTALL_PATH
 RUN mkdir build && cd build && cmake -DOPENBLAS_DYNAMIC_ARCH=ON -DCMAKE_INSTALL_PREFIX=$PACKAGE_INSTALL_PATH .. && \
     cmake --build . --target install -j 5 && \
     cd /opt/chronusq_public/ && rm -rf build && rm -rf external
@@ -51,7 +53,11 @@ FROM alpine:3.12
 COPY --from=compile_stage /opt/chronusq_public/basis /opt/chronusq_public/basis 
 COPY --from=compile_stage /lib64/ /lib64/
 COPY --from=compile_stage /usr/local/lib/libhdf5* /lib64/
+COPY --from=compile_stage /usr/local/lib/libopenblas* /lib64/
 COPY --from=compile_stage /usr/local/bin/chronusq /usr/bin/
+COPY --from=compile_stage /usr/local/lib64/* /lib64/
+
+
 
 WORKDIR /home/chronusq/
 ENTRYPOINT ["chronusq"]
