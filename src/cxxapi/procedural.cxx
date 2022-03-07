@@ -228,10 +228,10 @@ namespace ChronusQ {
     }
 
     bool rstExists = false;
-    if( ss->scfControls.guess == READMO or 
-        ss->scfControls.guess == READDEN or
-        ss->scfControls.prot_guess == READMO or
-        ss->scfControls.prot_guess == READDEN
+    if( (ss->scfControls.guess == READMO or 
+         ss->scfControls.guess == READDEN or
+         ss->scfControls.prot_guess == READMO or
+         ss->scfControls.prot_guess == READDEN)
         and scrFileName.empty())
       rstExists = true;
     else if( (ss->scfControls.guess == READDEN or
