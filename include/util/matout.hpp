@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -143,7 +143,32 @@ void prettyPrintSmart(std::ostream& out, std::string str, const T* A,
 
 }; // prettyPrintSmart (T = dcomplex)
 
+/**
+ *  \brief Print a int matrix in a standard way given raw storage and
+ *  dimension parameters
+ *
+ *  \param [in/out] out        Output device
+ *  \param [in]     A          Raw storage of the matrix A
+ *  \param [in]     M          Number of rows of the matrix A
+ *  \param [in]     N          Number of cols of the matrix A
+ *  \param [in]     LDA        Leading dimension of the matrix A
+ *  \param [in]     colStride  Column stride of A
+ *  \param [in]     list       Number of columns to print before page break
+ *  \param [in]     printWidth Field with of a matrix column
+ */
+template <typename T, 
+          typename std::enable_if<
+                     std::is_same<T,int>::value,int>::type = 0>
+void prettyPrintSmart(std::ostream& out, std::string str, const T* A,
+  const size_t M, const size_t N, const size_t LDA, const size_t colStride = 1, 
+  const size_t list = 10, const size_t printWidth = 8) {
 
+  out.fill(' ');
+  out << std::endl << str + ": " << std::endl;
+
+  prettyPrintSmartBase(out,A,M,N,LDA,colStride,list,printWidth);
+
+}; // prettyPrintSmart (T = int)
 
 template <typename T, 
           typename std::enable_if<

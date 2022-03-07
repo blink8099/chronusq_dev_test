@@ -1,7 +1,7 @@
 /*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,13 +22,15 @@
  *
  */
 #pragma once
+//#define REAL_SPACE_X2C_ALGORITHM
+//#define UDU_ATOMIC_X2C_ALGORITHM
 
-#include <corehbuilder.hpp>
 #include <molecule.hpp>
 #include <memmanager.hpp>
 #include <basisset.hpp>
 #include <fields.hpp>
 #include <integrals.hpp>
+#include <singleslater.hpp>
 
 namespace ChronusQ {
 
@@ -40,7 +42,7 @@ namespace ChronusQ {
    *  Stores intermediate matrices.
    */
   template <typename MatsT, typename IntsT>
-  class X2C : public CoreHBuilder<MatsT,IntsT> {
+  class X2C {
 
     template <typename MatsU, typename IntsU>
     friend class X2C;
@@ -49,22 +51,31 @@ namespace ChronusQ {
 
   protected:
 
-    CQMemManager    &memManager_;        ///< CQMemManager to allocate matricies
-    Molecule         molecule_;          ///< Molecule object for nuclear potential
-    BasisSet         basisSet_;          ///< BasisSet for original basis defintion
-    BasisSet         uncontractedBasis_; ///< BasisSet for uncontracted basis defintion
-    Integrals<IntsT> uncontractedInts_;  ///< AOIntegrals for uncontracted basis
-    size_t           nPrimUse_;          ///< Number of primitives used in p space
+    Integrals<IntsT>   &aoints_;            ///< AOIntegrals for contracted basis
+    SingleSlaterOptions ssOptions_;         ///< Options to build 4C singleslater object
+    CQMemManager       &memManager_;        ///< CQMemManager to allocate matricies
+    Molecule            molecule_;          ///< Molecule object for nuclear potential
+    BasisSet            basisSet_;          ///< BasisSet for original basis defintion
+    BasisSet            uncontractedBasis_; ///< BasisSet for uncontracted basis defintion
+    Integrals<IntsT>    uncontractedInts_;  ///< AOIntegrals for uncontracted basis
+    size_t              nPrimUse_;          ///< Number of primitives used in p space
 
   public:
 
     // Operator storage
     IntsT*  mapPrim2Cont = nullptr;
     std::shared_ptr<SquareMatrix<MatsT>> W  = nullptr; ///< W = (\sigma p) V (\sigma p)
+
+    // Transformations for momentum space
     IntsT*  UK = nullptr; ///< K transformation between p- and R-space
     double* p  = nullptr; ///< p momentum eigens
-    MatsT*  X  = nullptr; ///< X = S * L^-1
-    MatsT*  Y  = nullptr; ///< Y = sqrt(1 + X**H * X)
+
+    // X and Y matrices, means differently in real- and momentum-spaces.
+    std::shared_ptr<SquareMatrix<MatsT>> X = nullptr; ///< X = S * L^-1
+    std::shared_ptr<SquareMatrix<MatsT>> Y = nullptr; ///< Y = 1/sqrt(1 + X**H * X)
+    ///< In real-space non-orthogonal basis, Y = ( S^-1/2 (S + 1/2c^2 X^H T X) S^-1/2 )^-1/2
+
+    // Picture-change U matrics from primitives to contracted basis
     MatsT*  UL = nullptr; ///< Picture change matrix of large component
     MatsT*  US = nullptr; ///< Picture change matrix of small component
 
@@ -81,15 +92,15 @@ namespace ChronusQ {
     /**
      * \brief Constructor
      *
-     *  \param [in] aoints     Reference to the global AOIntegrals
-     *  \param [in] memManager Memory manager for matrix allocation
-     *  \param [in] mol        Molecule object for molecular specification
-     *  \param [in] basis      The GTO basis for integral evaluation
-     *  \param [in] scalarOnly Flag for scalar relativistic calculation
+     *  \param [in] aoints             Reference to the global AOIntegrals
+     *  \param [in] memManager         Memory manager for matrix allocation
+     *  \param [in] mol                Molecule object for molecular specification
+     *  \param [in] basis              The GTO basis for integral evaluation
+     *  \param [in] hamiltonianOptions Flags for AO integrals evaluation
      */
     X2C(Integrals<IntsT> &aoints, CQMemManager &mem,
-        const Molecule &mol, const BasisSet &basis, AOIntsOptions aoiOptions) :
-      CoreHBuilder<MatsT,IntsT>(aoints, aoiOptions),
+        const Molecule &mol, const BasisSet &basis, SingleSlaterOptions ssOptions) :
+      aoints_(aoints), ssOptions_(ssOptions),
       memManager_(mem),molecule_(mol), basisSet_(basis),
       uncontractedBasis_(basisSet_.uncontractBasis()) {}
 
@@ -113,22 +124,37 @@ namespace ChronusQ {
     virtual void dealloc();
 
     // Compute core Hamitlonian
-    virtual void computeCoreH(EMPerturbation&,
+    virtual void computeOneEX2C(EMPerturbation&,
         std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
-    virtual void computeX2C(EMPerturbation&,
+    virtual void computeOneEX2C_Umatrix();
+    virtual void computeOneEX2C_UDU(EMPerturbation&,
         std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
-    virtual void computeU();
-    virtual void computeX2C_UDU(EMPerturbation&,
-        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
-    virtual void computeX2C_corr(EMPerturbation&,
+    virtual void computeOneEX2C_corr(EMPerturbation&,
         std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
     void BoettgerScale(std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
 
+    // Compute Fock X2C
+    virtual void computeFockX2C(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> fockMatrix = nullptr,
+        bool incore = true, double threshSchwarz = 1e-12);
+    void computeFockX2C_Umatrix(const SquareMatrix<MatsT> &fourCompMOSpin);
+
+    static void compute_CoreH_Fock(CQMemManager &mem, Molecule &mol,
+        BasisSet &basis, std::shared_ptr<IntegralsBase> aoints,
+        EMPerturbation &emPert,
+        std::shared_ptr<SingleSlaterBase> ss, SingleSlaterOptions ssOptions);
+
     // Compute the gradient
-    virtual void getGrad() {
+    virtual std::vector<double> getGrad(EMPerturbation&, SingleSlater<MatsT,IntsT>&) {
       CErr("X2C CoreH gradient NYI",std::cout);
     }
 
   };
+
+  void compute_X2C_CoreH_Fock(CQMemManager &mem, Molecule &mol,
+      BasisSet &basis, std::shared_ptr<IntegralsBase> aoints,
+      EMPerturbation &emPert,
+      std::shared_ptr<SingleSlaterBase> ss, SingleSlaterOptions ssOptions);
 
 }; // namespace ChronusQ

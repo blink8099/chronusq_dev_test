@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -129,7 +129,7 @@ using namespace ChronusQ;
   double tol = 1e-8;\
   \
   RunChronusQ(TEST_ROOT #in ".inp","STDOUT", \
-    TEST_OUT #in ".bin",TEST_OUT #in ".scr");\
+    TEST_OUT #in ".bin","");\
   \
   SafeFile refFile(RT_TEST_REF #ref,true);\
   SafeFile resFile(TEST_OUT #in ".bin",true);\

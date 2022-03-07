@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -67,10 +67,11 @@ namespace ChronusQ {
   void Molecule::computeNNRep() {
     nucRepEnergy = 0.;
     for(size_t iAtm = 0; iAtm < nAtoms; iAtm++)
-    for(size_t jAtm = 0; jAtm < iAtm  ; jAtm++) 
-      nucRepEnergy += 
-        atoms[iAtm].atomicNumber * atoms[jAtm].atomicNumber / 
-        RIJ[iAtm][jAtm];
+    for(size_t jAtm = 0; jAtm < iAtm  ; jAtm++)
+      if (not atoms[iAtm].quantum and not atoms[jAtm].quantum )
+        nucRepEnergy +=
+          atoms[iAtm].nucCharge * atoms[jAtm].nucCharge /
+          RIJ[iAtm][jAtm];
   }
 
   /**
@@ -87,15 +88,19 @@ namespace ChronusQ {
 
     for(size_t iAtm = 0; iAtm < nAtoms; iAtm++) 
     for(size_t iXYZ = 0; iXYZ < 3     ; iXYZ++) { 
+      if( atoms[iAtm].quantum )
+        continue;
       for(size_t jAtm = 0; jAtm < nAtoms; jAtm++){ 
+        if( atoms[jAtm].quantum )
+          continue;
         if(iAtm == jAtm) continue;
         nucRepForce[iAtm][iXYZ] += 
-          atoms[jAtm].atomicNumber * 
+          atoms[jAtm].nucCharge *
           ( atoms[jAtm].coord[iXYZ] - atoms[iAtm].coord[iXYZ] ) /
           RIJ[iAtm][jAtm] / RIJ[iAtm][jAtm] / RIJ[iAtm][jAtm]; 
       }
 
-      nucRepForce[iAtm][iXYZ] *= atoms[iAtm].atomicNumber;
+      nucRepForce[iAtm][iXYZ] *= atoms[iAtm].nucCharge;
     }
   } // Molecule::computeNNX
 
@@ -141,7 +146,7 @@ namespace ChronusQ {
 
     for(size_t iAtm = 0; iAtm < nAtoms; iAtm++) 
     for(size_t iXYZ = 0; iXYZ < 3     ; iXYZ++) {
-      COC[iXYZ] += atoms[iAtm].atomicNumber * atoms[iAtm].coord[iXYZ];
+      COC[iXYZ] += atoms[iAtm].nucCharge * atoms[iAtm].coord[iXYZ];
     }
 
     std::transform(COC.begin(),COC.end(),COC.begin(),
@@ -206,7 +211,7 @@ namespace ChronusQ {
       chargeDist.push_back(
         libint2::Shell {
           { zeta }, 
-          {{0,false,{double(atom.atomicNumber)}}},
+          {{0,false,{atom.nucCharge}}},
           atom.coord
         }
       );
@@ -214,7 +219,7 @@ namespace ChronusQ {
       // Handle the fact that libint likes to make things square normalized
       // not normalized
       chargeDist.back().contr[0].coeff[0] = 
-        atom.atomicNumber * std::pow(zeta / M_PI, 1.5);
+        atom.nucCharge * std::pow(zeta / M_PI, 1.5);
 
     } // loop over atoms
 
@@ -253,9 +258,15 @@ namespace ChronusQ {
         << std::endl;
     out << "  " << std::setw(fieldNameWidth) << "Total Electrons" 
         << mol.nTotalE << std::endl;
-    out << "  " << std::setw(fieldNameWidth) << "Charge" 
-        << std::setw(fieldValueWidth) <<  mol.charge << "electrons" 
+    out << "  " << std::setw(fieldNameWidth) << "Particle Number Charge"
+        << std::setw(fieldValueWidth) <<  mol.charge << "e"
         << std::endl;
+    double molecCharge=-double(mol.nTotalE);
+    for(auto i=0; i<mol.atoms.size(); i++) molecCharge += mol.atoms[i].nucCharge;
+    out << "  " << std::setw(fieldNameWidth) << "Molecular Charge"
+        << std::setw(fieldValueWidth) << std::fixed << std::setprecision(3) <<  molecCharge << "e"
+        << std::endl;
+    out << std::left << std::setprecision(8) << std::scientific;
     out << "  " << std::setw(fieldNameWidth) <<  "Nuclear Repulsion Energy"
         << std::setw(fieldValueWidth) << mol.nucRepEnergy << "Eh" << std::endl;
 
@@ -293,8 +304,8 @@ namespace ChronusQ {
     out << "  " << std::setw(fieldNameWidth) << "Geometry:" << std::endl;
     out << bannerMid << std::endl;
     out << "    " << std::setw(shortFieldWidth) << std::left << "Element";
-    out << std::setw(shortFieldWidth) << std::left << "Charge";
-    out << std::setw(shortFieldWidth) << "Mass (AMU)";
+    out << std::left << std::setw(shortFieldWidth-1) << "ZNuc";
+    out << std::right << std::setw(shortFieldWidth) << "Mass (AMU)";
     out << std::right << std::setw(fieldValueWidth) << "X (Bohr)";
     out << std::right << std::setw(fieldValueWidth) << "Y (Bohr)";
     out << std::right << std::setw(fieldValueWidth) << "Z (Bohr)";
@@ -313,11 +324,13 @@ namespace ChronusQ {
         (it == atomicReference.end() ? "X" : it->first);
     //out << "    " << std::setw(shortFieldWidth) << std::left << "X";
 
-      out << std::setw(shortFieldWidth) << mol.atoms[iAtm].atomicNumber;
-      out << std::setw(shortFieldWidth) << mol.atoms[iAtm].atomicMass ;
-   
+      out << std::left <<  std::setw(shortFieldWidth-1) <<
+             std::fixed << std::setprecision(1) << mol.atoms[iAtm].nucCharge;
       out << std::right;
-      out << std::setw(fieldValueWidth) << mol.atoms[iAtm].coord[0];
+      out << std::setw(shortFieldWidth) <<
+             std::setprecision(5) << std::scientific << mol.atoms[iAtm].atomicMass ;
+
+      out << std::setw(fieldValueWidth-1) << mol.atoms[iAtm].coord[0];
       out << std::setw(fieldValueWidth) << mol.atoms[iAtm].coord[1];
       out << std::setw(fieldValueWidth) << mol.atoms[iAtm].coord[2];
 

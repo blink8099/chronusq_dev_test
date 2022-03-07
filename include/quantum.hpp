@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -54,8 +54,8 @@ namespace ChronusQ {
     // Helper functions for the automatic evaluation of properties
     // see include/quantum/properties.hpp for documentation
 
-    template <typename RetTyp, DENSITY_TYPE DenTyp, typename Op>
-    RetTyp OperatorSpinCombine(const Op&);
+    template <DENSITY_TYPE DenTyp, typename Op>
+    double OperatorSpinCombine(const Op&);
 
   public:
 
@@ -78,8 +78,8 @@ namespace ChronusQ {
      *  \param [in] N     Dimension of the density matricies to be allocated
      */ 
     Quantum(MPI_Comm c, CQMemManager &mem, size_t _nC = 1, 
-      bool _iCS = true, size_t N = 0, bool doAlloc = true): 
-      QuantumBase(c,mem,_nC,_iCS) {
+      bool _iCS = true, Particle p = {-1.0, 1.0}, size_t N = 0, bool doAlloc = true): 
+      QuantumBase(c,mem,_nC,_iCS,p) {
 
         // Allocate densities
         if( N != 0 and doAlloc ) alloc(N);
@@ -120,9 +120,9 @@ namespace ChronusQ {
      *  \param [in]       op     Square matrix to trace with 1PDM
      *  \returns          Trace of op with the DenTyp 1PDM (cast to type RetTyp)
      */ 
-    template <typename RetTyp, DENSITY_TYPE DenTyp, typename Op>
-    inline RetTyp computeOBProperty(const Op &op) {
-      return OperatorSpinCombine<RetTyp,DenTyp>(op);
+    template <DENSITY_TYPE DenTyp, typename Op>
+    inline double computeOBProperty(const Op &op) {
+      return OperatorSpinCombine<DenTyp>(op);
     }; // Quantum<MatsT>::computeOBProperty (single operator)
 
     /**
@@ -133,11 +133,11 @@ namespace ChronusQ {
      *  \param [in]       opv    List of qquare matrices to trace with 1PDM
      *  \returns          List of traces of opv with the DenTyp 1PDM (cast to type RetTyp)
      */ 
-    template <typename RetTyp, DENSITY_TYPE DenTyp, typename Op>
-    inline std::vector<RetTyp> computeOBProperty(const std::vector<Op> &opv) {
-      std::vector<RetTyp> results;
+    template <DENSITY_TYPE DenTyp, typename Op>
+    inline std::vector<double> computeOBProperty(const std::vector<Op> &opv) {
+      std::vector<double> results;
       for(auto &op : opv) 
-        results.emplace_back(computeOBProperty<RetTyp,DenTyp>(op));
+        results.emplace_back(computeOBProperty<DenTyp>(op));
       return results;
     }; // Quantum<MatsT>::computeOBProperty (many operators)
 

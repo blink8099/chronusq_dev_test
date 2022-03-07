@@ -1,7 +1,7 @@
 /*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,8 +39,8 @@ namespace ChronusQ {
 
     // Disable default constructor
     NRCoreH() = delete;
-    NRCoreH(Integrals<IntsT> &aoints, AOIntsOptions aoiOptions):
-      CoreHBuilder<MatsT,IntsT>(aoints, aoiOptions) {}
+    NRCoreH(Integrals<IntsT> &aoints, HamiltonianOptions hamiltonianOptions):
+      CoreHBuilder<MatsT,IntsT>(aoints, hamiltonianOptions) {}
 
     // Same or Different type
     template <typename MatsU>
@@ -64,9 +64,8 @@ namespace ChronusQ {
         std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
 
     // Compute the gradient
-    virtual void getGrad() {
-      CErr("NR CoreH gradient NYI",std::cout);
-    }
+    virtual std::vector<double> getGrad(EMPerturbation&,
+      SingleSlater<MatsT,IntsT>&);
 
   };
 

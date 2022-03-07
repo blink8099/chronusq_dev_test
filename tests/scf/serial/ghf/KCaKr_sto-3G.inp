@@ -16,7 +16,8 @@ job = SCF
 basis = sto-3g 
 
 [SCF]
-printmos=TRUE
 maxiter=2000
 guess=fchkmo
+enetol=1e-14
+dentol=1e-14
 

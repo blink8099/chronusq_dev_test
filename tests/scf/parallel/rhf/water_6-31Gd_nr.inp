@@ -23,6 +23,7 @@ basis = 6-31G(d)
 
 [SCF]
 ALG = NR
+NRApprox = Full
 
 [MISC]
 nsmp = 2

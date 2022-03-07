@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -68,7 +68,8 @@ namespace ChronusQ {
     // to use the guess Fock and it's not saved anyway.
     if(scfConv.nSCFIter == 0) return;
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
+    if( this->nC == 4 ) NB = 2 * NB;
     double dp = scfControls.dampParam;
    
     // Damp the current orthonormal Fock matrix 
@@ -79,7 +80,10 @@ namespace ChronusQ {
       PauliSpinorSquareMatrices<MatsT> FSCR(this->memManager, NB,
           fockMatrixOrtho->hasXY(), fockMatrixOrtho->hasZ());
 
-      savFile.readData("/SCF/FOCK_ORTHO", FSCR);
+      if (this->particle.charge < 0.)
+        savFile.readData("/SCF/FOCK_ORTHO", FSCR);
+      else
+        savFile.readData("/PROT_SCF/FOCK_ORTHO", FSCR);
 
       *fockMatrixOrtho = (1-dp) * *fockMatrixOrtho + dp * FSCR;
 
@@ -99,7 +103,8 @@ namespace ChronusQ {
   void SingleSlater<MatsT,IntsT>::scfDIIS(size_t nExtrap) {
 
     // Save the current AO Fock and density matrices
-    size_t NB    = basisSet().nBasis;
+    size_t NB    = this->basisSet().nBasis;
+    if( this->nC == 4 ) NB = 2 * NB;
     size_t iDIIS = scfConv.nSCFIter % scfControls.nKeep;
 
     diisFock[iDIIS] = *this->fockMatrix;
@@ -110,7 +115,7 @@ namespace ChronusQ {
 
     scfConv.nrmFDC = 0.;
     for(auto E : diisError[iDIIS].SZYXPointers())
-      scfConv.nrmFDC = std::max(scfConv.nrmFDC,TwoNorm<double>(NB*NB,E,1));
+      scfConv.nrmFDC = std::max(scfConv.nrmFDC,blas::nrm2(NB*NB,E,1));
 
     // Just save the Fock, density, and commutator for the first iteration
     if (scfConv.nSCFIter == 0) return;
@@ -128,8 +133,9 @@ namespace ChronusQ {
         *this->onePDM += extrap.coeffs[j] * diisOnePDM[j];
       }
     } else {
-      std::cout << "\n    *** WARNING: DIIS Inversion Failed -- "
-                << " Defaulting to Fixed-Point step ***\n" << std::endl;
+      if( printLevel > 0 )
+        std::cout << "\n    *** WARNING: DIIS Inversion Failed -- "
+                  << " Defaulting to Fixed-Point step ***\n" << std::endl;
     }
 
     // Transform AO fock into the orthonormal basis
@@ -172,7 +178,7 @@ namespace ChronusQ {
 
     // Allocate memory to store previous orthonormal Fock for damping 
     if( scfControls.doDamp and not savFile.exists() ) {
-      SPIN_OPERATOR_ALLOC(basisSet().nBasis,prevFock);
+      SPIN_OPERATOR_ALLOC(this->basisSet().nBasis,prevFock);
     }
 
   }; // SingleSlater<T>::allocExtrapStorage
@@ -214,19 +220,20 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   void SingleSlater<MatsT,IntsT>::FDCommutator(PauliSpinorSquareMatrices<MatsT> &FDC) {
 
-    size_t NB    = basisSet().nBasis;
+    size_t NB    = this->basisSet().nBasis;
     bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
+    if( this->nC == 4 ) NB = 2 * NB;
 
     if(this->nC == 1) {
       SquareMatrix<MatsT> SCR(memManager, NB);
 
       // FD(S) = F(S)D(S)
-      Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho->S().pointer(), NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, NB, NB, NB, MatsT(1.), fockMatrixOrtho->S().pointer(), NB,
         onePDMOrtho->S().pointer(), NB, MatsT(0.), FDC.S().pointer(), NB);
 
       // FD(S) += F(z)D(z)
       if(nC == 2 or !iCS and !iRO) {
-        Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho->Z().pointer(), NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, NB, NB, NB, MatsT(1.), fockMatrixOrtho->Z().pointer(), NB,
           onePDMOrtho->Z().pointer(), NB, MatsT(0.), SCR.pointer(), NB);
         FDC.S() += SCR;
       }
@@ -239,9 +246,9 @@ namespace ChronusQ {
 
       if(nC == 2 or !iCS and !iRO) {
         // FD(z) = F(S)D(z) + F(z)D(S)
-        Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho->S().pointer(), NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, NB, NB, NB, MatsT(1.), fockMatrixOrtho->S().pointer(), NB,
           onePDMOrtho->Z().pointer(), NB, MatsT(0.), FDC.Z().pointer(), NB);
-        Gemm('N', 'N', NB, NB, NB, MatsT(1.), fockMatrixOrtho->Z().pointer(), NB,
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans, blas::Op::NoTrans, NB, NB, NB, MatsT(1.), fockMatrixOrtho->Z().pointer(), NB,
           onePDMOrtho->S().pointer(), NB, MatsT(0.), SCR.pointer(), NB);
         FDC.Z() += SCR;
 
@@ -258,7 +265,7 @@ namespace ChronusQ {
       SquareMatrix<MatsT> SCR(memManager, 2*NB);
 
       // Compute FD product
-      Gemm('N','N',2*NB,2*NB,2*NB,MatsT(1.),FO.pointer(),2*NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NB,2*NB,2*NB,MatsT(1.),FO.pointer(),2*NB,
            DO.pointer(),2*NB,MatsT(0.),SCR.pointer(),2*NB);
       
       // Compute FD - DF (Store in FO scratch)

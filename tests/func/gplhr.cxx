@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <memmanager.hpp>
 #include <itersolver.hpp>
 #include <util/files.hpp>
+#include <util/timer.hpp>
 
 #include <util/matout.hpp>
 #include <cqlinalg/factorization.hpp>
@@ -159,14 +160,14 @@ void GPLHR_TEST(size_t nRoots, size_t m, dcomplex sigma,
 
       grid->Scatter(N,nVec,V,N,VLOC,MLoc_V,0,0);
 
-      Gemm('N','N',N,nVec,N,EigT(1.),ALOC,1,1,descA,VLOC,1,1,descV,
+      Gemm_MPI('N','N',N,nVec,N,EigT(1.),ALOC,1,1,descA,VLOC,1,1,descV,
           EigT(0.),AVLOC,1,1,descV);
 
       grid->Gather(N,nVec,AV,N,AVLOC,MLoc_V,0,0);
 
     } else 
 #endif
-      Gemm('N','N',N,nVec,N,EigT(1.),A,N,V,N,EigT(0.),AV,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nVec,N,EigT(1.),A,N,V,N,EigT(0.),AV,N);
 
   };
 
@@ -178,13 +179,15 @@ void GPLHR_TEST(size_t nRoots, size_t m, dcomplex sigma,
     if( doPre )
     // Scale by inverse diagonals
     for( auto k = 0ul; k < N; k++ ) 
-      Scale(nVec, EigT(1.) / DIAG[k], AV + k, N);
+      blas::scal(nVec, EigT(1.) / DIAG[k], AV + k, N);
   };
 
 
 #ifndef _CQ_GENERATE_TESTS
 
 
+  size_t nThreads = omp_get_num_threads();
+  ProgramTimer::initialize("GPLHR test", nThreads);
   GPLHR<EigT> gplhr(MPI_COMM_WORLD,mem,N,300,conver,nRoots,
     func,PC);
 
@@ -226,7 +229,7 @@ void GPLHR_TEST(size_t nRoots, size_t m, dcomplex sigma,
   dcomplex *VR = mem.malloc<dcomplex>(N*N);
   dcomplex *VL = mem.malloc<dcomplex>(N*N);
 
-  GeneralEigen('V','V',N,ACMPLX,N,W,VL,N,VR,N,mem);
+  GeneralEigenSymm('V','V',N,ACMPLX,N,W,VL,N,VR,N);
 
   matFile.safeWriteData("/W",W,{N});
 

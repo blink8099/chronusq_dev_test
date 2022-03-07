@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #pragma once
 
 #include <itersolver.hpp>
+#include <util/matout.hpp>
 
 namespace ChronusQ {
 
@@ -32,9 +33,10 @@ namespace ChronusQ {
 
     bool isRoot = MPIRank(this->comm_) == 0;
     this->mSS_ = std::min(this->mSS_,this->N_);
-
+    this->nGuess_ = std::min(this->nGuess_,this->N_);
+     
     alloc(); // Allocate Scratch space
-
+    
     if( isRoot ) {
       std::cout << "\n  * IterDiagonalizer will solve for " << nRoots_ 
         << " eigenroots\n\n";
@@ -65,7 +67,6 @@ namespace ChronusQ {
 
     }
 
-
     // Macro iterations UNFINISHED
     for(auto iMacro = 0; iMacro < this->maxMacroIter_; iMacro++) {
 
@@ -75,7 +76,7 @@ namespace ChronusQ {
       restart();
     }
 
-  };
+  }; // iterDiagonalizer::run 
 
 }; // namespace ChronusQ
 

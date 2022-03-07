@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <singleslater.hpp>
 #include <singleslater/hartreefock.hpp>
 #include <singleslater/kohnsham.hpp>
+#include <singleslater/neoss.hpp>
 
 #include <response/tbase.hpp>
 
@@ -87,8 +88,6 @@ namespace ChronusQ {
 
 
       }
-
-
       inline virtual size_t getNSingleDim(const bool doTDA = false) {
 
         size_t N = 0;
@@ -99,7 +98,6 @@ namespace ChronusQ {
         size_t nOV   = ss.nO  * ss.nV;
 
         N = (ss.nC == 1) ? nOAVA + nOBVB : nOV;
-
 
         if( not doTDA and not doReduced ) N *= 2;
 
@@ -145,7 +143,6 @@ namespace ChronusQ {
           dynamic_cast<const SingleSlaterPolarBase&>(other)
         ) { }
 
-
       MatsT*                   formFullFromMemory(); 
       MatsT*                   formFullMatrix(); 
       void                 formRHS();
@@ -154,7 +151,10 @@ namespace ChronusQ {
       void                 eigVecNorm();
       void                 constructShifts();
       void                 postLinearSolve();
-      void                 resGuess(size_t, MatsT*, size_t);
+      virtual void         resGuess(size_t, MatsT*, size_t);
+
+      MatsT getGDiag(size_t, size_t, bool, SingleSlater<MatsT,IntsT>&, MatsT*,
+        MatsT*);
 
 
       // Internal implementations for direct linear transformation
@@ -186,9 +186,11 @@ namespace ChronusQ {
       // Toggle between direct / incore
       template <typename U>
       void formLinearTrans(RC_coll<U> x, SINGLESLATER_POLAR_COPT op) {
-       
-        if( this->genSettings.formFullMat ) formLinearTrans_incore(x,op);
-        else  formLinearTrans_direct(this->comm_,x,op);
+
+        ProgramTimer::timeOp("Linear Trans", [&]() {
+          if( this->genSettings.formFullMat ) formLinearTrans_incore(x,op);
+          else  formLinearTrans_direct(this->comm_,x,op);
+        });
 
       };
 
@@ -261,19 +263,20 @@ namespace ChronusQ {
 
       // Transform ph-transition vector MO -> AO
       template <typename U, typename... Args>
-      std::vector<TwoBodyContraction<U>> 
-        phTransitionVecMO2AO(MPI_Comm c, bool scatter, size_t nVec, size_t N, 
-          Args... Vs);
+      std::vector<TwoBodyContraction<U>> phTransitionVecMO2AO(
+        MPI_Comm c,bool scatter, size_t nVec, size_t N,
+        SingleSlater<MatsT,IntsT>& ss1, SingleSlater<MatsT,IntsT>& ss2,
+        bool doExchange, Args... Vs);
 
       // Transform ph-transition vector AO -> MO
       template <typename U, typename... Args>
       void phTransitionVecAO2MO(size_t nVec, size_t N, 
-        std::vector<TwoBodyContraction<U>> &cList, Args... HVs); 
+        std::vector<TwoBodyContraction<U>> &cList,SingleSlater<MatsT, IntsT>& ss,bool doExchange, Args... HVs); 
 
       // Scale transition vector by diagonals of orbital Hessian
       template <typename U>
-      void phEpsilonScale(bool doInc, bool doInv, size_t nVec, size_t N, 
-        U* V, U* HV);
+      void phEpsilonScale(bool doInc, bool doInv, size_t nVec, size_t N,SingleSlater<MatsT, IntsT>& ss, 
+       U* V, U* HV);
   }; 
 
 
@@ -345,8 +348,6 @@ namespace ChronusQ {
         PolarizationPropagator<SingleSlater<MatsT, IntsT>>(
           dynamic_cast<const PolarizationPropagator<SingleSlater<MatsT, IntsT>>&>(other)
         ){ }
-
-
       // Inherit the ResponseTBase exposures from 
       // PolarizationPropagator<SingleSlater>
       using PolarizationPropagator<SingleSlater<MatsT, IntsT>>::formLinearTrans;
@@ -369,16 +370,93 @@ namespace ChronusQ {
 
       };
 
+  };
 
 
+ 
+  //Class specialization to deal with NEOSS Objects
+  template <typename MatsT, typename IntsT>
+  class PolarizationPropagator< NEOSS<MatsT, IntsT> > :
+    public PolarizationPropagator< SingleSlater<MatsT, IntsT> >{
 
+      template<typename U>
+      using RC_coll = std::vector<RESPONSE_CONTRACTION<U>>;
 
+      std::vector<MatsT> diagonals;
 
-  }; 
+    public:
+
+      PolarizationPropagator( MPI_Comm c, ResponseType job,
+        std::shared_ptr<NEOSS<MatsT, IntsT>> ref, MatsT* fullMatrix = nullptr ) :
+        PolarizationPropagator<SingleSlater<MatsT, IntsT>>(c,job,
+          std::dynamic_pointer_cast<SingleSlater<MatsT, IntsT>>(ref),fullMatrix) {
+        this->PC_ = [&](size_t nVec, MatsT shift, MatsT *V, MatsT *AV) {
+          neoPreConditioner(nVec,shift,V,AV);
+        };
+        this->nSPC_ = [&](size_t nVec, MatsT *V, MatsT *AV) {
+          neoPreConditioner(nVec,MatsT(0.),V,AV);
+        };
+        this->cmplxPC_ = [&](size_t nVec, dcomplex shift, dcomplex *V,
+          dcomplex *AV) {
+          neoPreConditioner(nVec,shift,V,AV);
+        };
+      }
+
+      PolarizationPropagator( const PolarizationPropagator &other ) :
+        PolarizationPropagator<SingleSlater<MatsT, IntsT>>(
+          dynamic_cast<const PolarizationPropagator<SingleSlater<MatsT, IntsT>>&>(other)
+        ){ }
+
+      // Inherit the ResponseTBase exposures from 
+      // PolarizationPropagator<SingleSlater>
+      using PolarizationPropagator<SingleSlater<MatsT, IntsT>>::formLinearTrans;
+
+      template <typename U>
+      void formLinearTrans_direct_impl(MPI_Comm, RC_coll<U> x,
+          SINGLESLATER_POLAR_COPT op, bool noTrans);
+
+      virtual size_t getNSingleDim(const bool);
+
+      size_t getNSingleSSDim(SingleSlater<MatsT,IntsT>& , const bool);
+
+      std::pair<size_t,MatsT*> formPropGrad( ResponseOperator );
+
+      template <typename U>
+      void neoPreConditioner(size_t nVec, U shift, U* V, U* AV);
+
+      template <typename U>
+      std::vector< std::pair< std::pair<int,int>, U > >
+        getMOContributions(U *V, double tol);
+
+      template <typename U>
+      void printResMO_impl( std::ostream &out, size_t nRoots, double *W_print,
+      std::vector<std::pair<std::string,double *>> data,U* VL, U* VR);
+
+      void resGuess(size_t, MatsT*, size_t);
+
+      // Interface to PolarizationPropagator<SingleSlater> double exposure
+      void formLinearTrans_direct(MPI_Comm c, RC_coll<double> x,
+          SINGLESLATER_POLAR_COPT op, bool noTrans = false); 
+      // Interface to PolarizationPropagator<SingleSlater> dcomplex exposure
+      void formLinearTrans_direct(MPI_Comm c, RC_coll<dcomplex> x,
+          SINGLESLATER_POLAR_COPT op, bool noTrans = false){ 
+      
+        formLinearTrans_direct_impl(c,x,op,noTrans);
+
+      };
+        
+      virtual void printResMO(std::ostream &out, size_t nRoots, double *W, 
+        std::vector<std::pair<std::string,double *>> data, double* VL, double* VR) {
+          printResMO_impl(out,nRoots,W,data,VL,VR);
+      };
+      virtual void printResMO(std::ostream &out, size_t nRoots, double *W, 
+        std::vector<std::pair<std::string,double *>> data, dcomplex* VL, dcomplex* VR) {
+          printResMO_impl(out,nRoots,W,data,VL,VR);
+      };
+ 
+  };
 
 
 
 };
-
-
 

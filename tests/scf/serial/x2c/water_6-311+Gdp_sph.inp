@@ -15,11 +15,15 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = 2CHF
 job = SCF
+x2ctype = OneE
 
 [BASIS]
 basis = 6-311+G(d,p) 
+
+[INTS]
+libcint = true
 
 [MISC]
 nsmp = 1

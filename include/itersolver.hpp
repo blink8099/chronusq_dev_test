@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ namespace ChronusQ {
 
     inline void defaultShiftVec_(size_t nVec, _F shift, _F *V, _F *AV) {
 
-      AXPY(nVec*N_,shift,V,1,AV,1);
+      blas::axpy(nVec*N_,shift,V,1,AV,1);
 
     };
 
@@ -461,9 +461,9 @@ namespace ChronusQ {
 
     }
 
-    void setM(size_t __m) {
+    void setM(size_t _m) {
 
-      m = __m;
+      m = _m;
       this->mSS_ = (3 + m)*this->nRoots_;
 
     }
@@ -555,23 +555,30 @@ namespace ChronusQ {
     ~Davidson() { 
     
       if( RelRes  ) this->memManager_.free(RelRes);
-      if( EigForT ) this->memManager_.free(EigForT);
       if( Guess   ) this->memManager_.free(Guess);
 
     }
 
-    void setM(size_t __m) {
-      m = __m;
+    void setM(size_t _m) {
+      m = _m;
       this->mSS_ = m*this->nRoots_;
     }
     
-    void setkG(size_t __kG) {
-      kG = __kG;
+    void setkG(size_t _kG) {
+      kG = _kG;
       this->nGuess_ = kG*this->nRoots_;
     }
 
-    void setWhenSc(size_t __WhenSc) { whenSc = __WhenSc;}
+    void setWhenSc(size_t _WhenSc) { whenSc = _WhenSc;}
     
+    void setEigForT(dcomplex * _Eig) {
+      
+      if( this->memManager_.getSize(_Eig) < this->nGuess_ ) 
+        CErr("Davison EigForT requires a memory block with size at least nGuess ",std::cout);
+        
+      EigForT = _Eig;
+    } 
+
     void alloc() {
 
       IterDiagonalizer<_F>::alloc();
@@ -579,11 +586,8 @@ namespace ChronusQ {
       // NO MPI
       ROOT_ONLY(this->comm_);
 
-
       // Allocate Davidson specific Memory
       this->RelRes  = this->memManager_.template malloc<double>(this->nGuess_);
-      this->EigForT = this->memManager_.template malloc<dcomplex>(this->nGuess_);
-
     }
 
     bool runMicro();

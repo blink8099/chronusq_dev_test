@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -46,17 +46,21 @@ namespace ChronusQ {
   };
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::formFock(bool increment, double t) {
+  void RealTime<_SSTyp,IntsT>::formFock(bool increment, double t, size_t idx) {
 
-    // Get perturbation for the current time and build a Fock matrix
-    EMPerturbation pert_t = pert.getPert(curState.xTime);
+    ProgramTimer::timeOp("Form Fock", [&]() {
 
-    // Add on the SCF Perturbation
-    if ( intScheme.includeSCFField )
-      for( auto& field : scfPert.fields )
-        pert_t.addField( field );
+      // Get perturbation for the current time and build a Fock matrix
+      EMPerturbation pert_t = pert.getPert(t);
 
-    propagator_.formFock(pert_t,increment);
+      // Add on the SCF Perturbation
+      if ( intScheme.includeSCFField )
+        for( auto& field : scfPert.fields )
+          pert_t.addField( field );
+
+      systems_[idx]->formFock(pert_t,increment);
+
+    });
 
   };
 

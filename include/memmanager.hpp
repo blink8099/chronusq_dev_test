@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -138,13 +138,13 @@ namespace ChronusQ {
       
        // Check to see if requested memory would overflow allocated
        // memory. Throw a bad alloc if so
-       if( (NAlloc_ + nBlocks) * BlockSize_ > N_ ) {
-         std::bad_alloc excp;
-         throw excp;
-       }
+       //if( (NAlloc_ + nBlocks) * BlockSize_ > N_ ) {
+       //  std::bad_alloc excp;
+       //  throw excp;
+       //}
 
-       // Update the number of allocated blocks
-       NAlloc_ += nBlocks; 
+       //// Update the number of allocated blocks
+       //NAlloc_ += nBlocks; 
 
        #ifdef MEM_PRINT
          std::cerr << "Allocating " << n << " words of " << typeid(T).name()
@@ -252,6 +252,34 @@ namespace ChronusQ {
 
        return std::floor(it->second.first / sizeof(T));
      }; // CQMemManager::getSize
+
+
+     /**
+      *  Return the maximum allocatable size
+      *
+      */
+     template <typename T>
+     size_t max_avail_allocatable(size_t size = 1) {
+
+       size_t mem_max = N_/(sizeof(T) * size);
+       size_t mem_min = 0;
+       size_t trial_mem = 0;
+       T * trial_alloc;
+
+       while(true) {
+         try {
+           trial_mem = (mem_max-mem_min)/2 + mem_min;
+           trial_alloc = CQMemManager::template malloc<T>(trial_mem * size);
+           free(trial_alloc);
+           mem_min = trial_mem;
+         } catch (std::bad_alloc& ba) {
+           mem_max = trial_mem - 1;
+         }
+         if (mem_max - mem_min == 1 or mem_max == mem_min) break;
+       }
+
+       return mem_min;
+     }
 
 
 

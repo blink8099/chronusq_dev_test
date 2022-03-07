@@ -1,7 +1,7 @@
 /*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,7 +32,9 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   class FourComponent : public CoreHBuilder<MatsT,IntsT> {
-  protected:
+
+    template <typename MatsU, typename IntsU>
+    friend class FourComponent;
 
   public:
 
@@ -40,30 +42,47 @@ namespace ChronusQ {
 
     // Disable default constructor
     FourComponent() = delete;
-    FourComponent(Integrals<IntsT> &aoints):
-      CoreHBuilder<MatsT,IntsT>(aoints, {true,true,true}) {}
 
-    // Same or Different type
-    template <typename MatsU>
-    FourComponent(const FourComponent<MatsU,IntsT> &other):
-      CoreHBuilder<MatsT,IntsT>(other) {}
-    template <typename MatsU>
-    FourComponent(FourComponent<MatsU,IntsT> &&other):
-      CoreHBuilder<MatsT,IntsT>(other) {}
+    // Default copy and move constructors
+    FourComponent(const FourComponent<MatsT,IntsT> &);
+    FourComponent(FourComponent<MatsT,IntsT> &&);
 
-    // Virtual destructor
+    /**
+     * \brief Constructor
+     *
+     *  \param [in] aoints             Reference to the global AOIntegrals
+     *  \param [in] memManager         Memory manager for matrix allocation
+     *  \param [in] mol                Molecule object for molecular specification
+     *  \param [in] basis              The GTO basis for integral evaluation
+     *  \param [in] hamiltonianOptions Flags for AO integrals evaluation
+     */
+    FourComponent(Integrals<IntsT> &aoints, HamiltonianOptions hamiltonianOptions) :
+      CoreHBuilder<MatsT,IntsT>(aoints, hamiltonianOptions) {}
+
+    // Different type
+    template <typename MatsU>
+    FourComponent(const FourComponent<MatsU,IntsT> &other, int dummy = 0);
+    template <typename MatsU>
+    FourComponent(FourComponent<MatsU,IntsT> &&     other, int dummy = 0);
+
+    /**
+     *  Destructor.
+     *
+     *  Destructs a FourComponent object
+     */
     virtual ~FourComponent() {}
 
-    // Public member functions
+
+    // Public Member functions
 
     // Compute core Hamitlonian
     virtual void computeCoreH(EMPerturbation&,
-        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>) {
-      CErr("4C NYI",std::cout);
-    }
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
+    virtual void compute4CCH(EMPerturbation&,
+        std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
 
     // Compute the gradient
-    virtual void getGrad() {
+    virtual std::vector<double> getGrad(EMPerturbation&, SingleSlater<MatsT,IntsT>&) {
       CErr("4C CoreH gradient NYI",std::cout);
     }
 

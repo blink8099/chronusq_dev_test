@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,12 +43,6 @@ CQCRESTEST_IMPL_NP( H2O_321G_GHF_GTO_RESIDUE,
     "resp/serial/gresp_hf/H2O_3-21G_ghf_gto_residue",
     "H2O_3-21G_ghf_gto_residue.bin.ref" )
 
-// H3 sto-3g TD-GHF (RESIDUE)
-CQCRESFCHKTEST_IMPL_NP( H3_sto3g_GHF_GTO_RESIDUE,
-    "resp/serial/gresp_hf/H3_sto-3g_ghf_gto_residue",
-    "H3_sto-3g_ghf_gto_residue.bin.ref", 
-    "H3_sto-3g_ghf_gto_residue.fchk" )
-
 #ifdef _CQ_DO_PARTESTS
 
 // H2O 3-21G TD-GHF (RESIDUE)
@@ -56,9 +50,4 @@ CQCRESTEST_IMPL_NP( PAR_H2O_321G_GHF_GTO_RESIDUE,
     "resp/parallel/gresp_hf/H2O_3-21G_ghf_gto_residue",
     "H2O_3-21G_ghf_gto_residue.bin.ref" )
 
-// H3 sto-3g TD-GHF (RESIDUE)
-CQCRESFCHKTEST_IMPL_NP( PAR_H3_sto3g_GHF_GTO_RESIDUE,
-    "resp/parallel/gresp_hf/H3_sto-3g_ghf_gto_residue",
-    "H3_sto-3g_ghf_gto_residue.bin.ref", 
-    "H3_sto-3g_ghf_gto_residue.fchk" )
 #endif

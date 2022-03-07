@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ add_executable(cctest ../ut.cxx x2c_cc.cxx)
 
 target_include_directories(cctest PUBLIC ${CC_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
-target_link_libraries(cctest PUBLIC ${CQEX_LINK})
+target_link_libraries(cctest PUBLIC ChronusQ::Dependencies ${CQEX_LINK})
 target_link_libraries(cctest PUBLIC ChronusQ::gtest)
 
 

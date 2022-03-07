@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2019 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,11 +21,11 @@
 #   E-Mail: xsli@uw.edu
 #
 
-cmake_minimum_required(VERSION 3.11...3.14 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 
 project(ChronusQ
-    VERSION 0.5.0
+    VERSION 0.6.0
     DESCRIPTION
     "Chronus Quantum is an ab initio computational chemistry \
 software package that focuses on explicitly time-dependent and unconventional \
@@ -33,55 +33,57 @@ post-SCF quantum mechanical methods."
     LANGUAGES CXX C Fortran)
 
 
+# Append local cmake directory to find CMAKE Modules
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+include(CQHelperFunctions)
+
 # -----------------------------------------------------------------------------
 # Options
 # -----------------------------------------------------------------------------
 
+option(BLAS_EXTERNAL       "Search for external BLAS"        ON)
 option(CQ_ENABLE_MPI       "Enable MPI parallelism"          OFF)
 option(ENABLE_COVERAGE     "Enable coverage and profiling"   OFF)
 option(CQ_LINALG_USESYSTEM "Use System defaults for LA libs" OFF)
 option(CQ_EXTERNAL_OPENMP  "Force linking to an external OpenMP library" OFF)
 option(CQ_ENABLE_TA  "Enable TA"  OFF)
-
-
-# Libint building options
-set(BUILD_LIBINT_TYPES NONE ALLOW FORCE)
-set(CQ_BUILD_LIBINT_TYPE ALLOW CACHE STRING "Disable, enable, or force CQ to build libint")
-set_property(CACHE CQ_BUILD_LIBINT_TYPE PROPERTY STRINGS ${BUILD_LIBINT_TYPES})
-
-if ( NOT CQ_BUILD_LIBINT_TYPE IN_LIST BUILD_LIBINT_TYPES )
-  message ( FATAL_ERROR "CQ_BUILD_LIBINT_TYPE must be one of ${BUILD_LIBINT_TYPES}" )
-endif()
-
-
-# Whether to build in external or build directory
 option(CQ_EXTERNAL_IN_BUILD_DIR "Build external dependencies in the build directory" OFF)
 
+
+# Required package building options
+#   These set the variables CQ_BUILD_${PKGNAME}_TYPE as ALLOW, FORCE, or NONE
+#   e.g.the option for libint is CQ_BUILD_LIBINT_TYPE
+build_pkg_option( LIBINT ALLOW )
+build_pkg_option( LIBCINT ALLOW )
+
+# -----------------------------------------------------------------------------
+
+
+# Move FetchContent base to either external in project root or build root
+#   Can be overridden by specifying FETCHCONTENT_BASE_DIR
+#   CMake's default for this is _deps in build root
 if ( NOT FETCHCONTENT_BASE_DIR AND NOT CQ_EXTERNAL_IN_BUILD_DIR )
   set ( FETCHCONTENT_BASE_DIR "${PROJECT_SOURCE_DIR}/external"
         CACHE STRING "" FORCE )
+elseif( NOT FETCHCONTENT_BASE_DIR )
+  set ( FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/external"
+        CACHE STRING "" FORCE )
 endif()
-
-# -----------------------------------------------------------------------------
 
 # Add specified paths to CMAKE_PREFIX_PATH
 if( MPI_PREFIX )
   set( CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${MPI_PREFIX} )
 endif()
 
-# Append local cmake directory to find CMAKE Modules
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-
-
 # C++14
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
-# Intel C++14
-if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" )
-endif()
 
+# Dummy target to collect general libraries to link
+add_library( ChronusQ::Dependencies INTERFACE IMPORTED )
+# Dummy target to collect header/compile definitions to link
+add_library( ChronusQ::DepHeaders   INTERFACE IMPORTED )
 
 
 # Parallelism
@@ -91,85 +93,59 @@ message( "ChronusQ Parallelism Settings" )
 
 # OpenMP
 message( "" )
-if( CQ_EXTERNAL_OPENMP )
-  message ("  Forcing linking to external OpenMP library!")
-  message ("  Using user specified OpenMP flags: ${OpenMP_CXX_FLAGS}")
-  set(CQ_EXT_LINK "omp;${CQ_EXT_LINK}")
-else()
-  find_package(OpenMP REQUIRED)
-  message ("  Using automatic OpenMP flags: ${OpenMP_CXX_FLAGS}")
-endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+find_package(OpenMP REQUIRED)
+target_link_libraries( ChronusQ::Dependencies INTERFACE OpenMP::OpenMP_CXX )
+copy_header_properties( OpenMP::OpenMP_CXX ChronusQ::DepHeaders )
 
-
+# MPI
 if( MPI_PREFIX )
   # MPI_PREFIX paths to CMAKE_PREFIX_PATH
   message( "" )
   message( STATUS "Adding ${MPI_PREFIX} to CMAKE_PREFIX_PATH" )
   set( CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${MPI_PREFIX} )
 endif()
-
-# MPI
-if(CQ_ENABLE_MPI)
-  include(HandleMPI)
-endif()
+include(HandleMPI)
 
 
 message( "\n\n" )
-
-
-
-
-
-
-
-
-
-# FLAGS
-include(HandleCXXFlags)
 
 
 # Define include directories
 include_directories("${PROJECT_SOURCE_DIR}/include")
 include_directories("${PROJECT_BINARY_DIR}/include")
 
-# Linear Algebra
-include(HandleLA)
-
 
 
 # Non-trivial dependencies
 message( "ChronusQ Dependencies" )
 
+# Linear Algebra
+include(HandleLA)
+
 
 include(HandleLibint)
+include(HandleLibcint)
 include(FindLibXC)
 
-set(CQEX_LINK ${CQ_EXT_LINK} )
+set(CQEX_LINK ${CQ_EXT_LINK})
 
 # HDF5
+# HDF5 targets aren't until CMake 3.19, so mock them here
 find_package(HDF5 REQUIRED CXX)
 add_library( ChronusQ::HDF5 INTERFACE IMPORTED )
 set_target_properties( ChronusQ::HDF5 PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${HDF5_INCLUDE_DIRS}"
   INTERFACE_LINK_LIBRARIES      "${HDF5_CXX_LIBRARIES}"
 )
+target_link_libraries( ChronusQ::Dependencies INTERFACE ChronusQ::HDF5 )
 list(APPEND CQEX_LINK ChronusQ::HDF5 )
 
 
 message( "\n\n" )
 
 
-if( CQ_ENABLE_TA )
-  if(NOT CQ_ENABLE_MPI)
-    message(FATAL_ERROR "TiledArray must be compiled with mpi!")
-  endif()
-  message("Enable TiledArray")
-  include(FindTiledArray)
-  set( CQ_HAS_TA ON )
-else()
-  message("TiledArray will not be compiled, Coupled-Cluster will be disabled.")
-endif()
+include(HandleTiledArray)
+
 
 # Compiling with coverage report
 if(ENABLE_COVERAGE)

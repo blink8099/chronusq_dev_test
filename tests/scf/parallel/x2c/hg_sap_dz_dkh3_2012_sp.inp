@@ -13,11 +13,15 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = 2CHF
 job = SCF
+x2ctype = OneE
 
 [BASIS]
 basis = SAPPORO-DKH3-DZP-2012-SP 
+
+[INTS]
+libcint = true
 
 [MISC]
 nsmp = 2

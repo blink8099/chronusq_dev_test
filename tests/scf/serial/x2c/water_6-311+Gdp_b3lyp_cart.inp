@@ -15,8 +15,9 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CB3LYP
+reference = 2CB3LYP
 job = SCF
+x2ctype = OneE
 
 [BASIS]
 basis = 6-311+G(d,p) 

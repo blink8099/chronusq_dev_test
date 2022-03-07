@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,8 +26,10 @@
 #include <chronusq_sys.hpp>
 #include <wavefunction.hpp>
 #include <singleslater/base.hpp>
-#include <electronintegrals/twoeints.hpp>
+#include <particleintegrals/twopints.hpp>
 #include <matrix.hpp>
+#include <orthogonalization.hpp>
+#include <modifyorbitals.hpp>
 
 // Debug print triggered by Wavefunction
   
@@ -42,6 +44,8 @@ namespace ChronusQ {
   class CoreHBuilder;
   template <typename MatsT, typename IntsT>
   class FockBuilder;
+  template <typename MatsT, typename IntsT>
+  class MOIntsTransformer;
 
   /**
    *  \brief The SingleSlater class. The typed abstract interface for all
@@ -65,7 +69,7 @@ namespace ChronusQ {
     typedef std::vector<oper_t>       oper_t_coll;
     typedef std::vector<oper_t_coll>  oper_t_coll2;
 
-    BasisSet &basisSet_; ///< BasisSet for the GTO basis defintion
+    //BasisSet &basisSet_; ///< BasisSet for the GTO basis defintion
 
   private:
   public:
@@ -95,37 +99,22 @@ namespace ChronusQ {
 
     // Orthonormal density
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> onePDMOrtho; ///< List of populated orthonormal 1PDM matricies
-
-
-    // Current / change in state information (for use with SCF)
-    std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> curOnePDM; ///< List of the current 1PDMs
-    std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> deltaOnePDM; ///< List of the changes in the 1PDMs
-
-    // Stores the previous Fock matrix to use for damping
-    std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> prevFock; ///< AO Fock from the previous SCF iteration
-
-    // Stores the previous matrices to use for DIIS 
-    std::vector<PauliSpinorSquareMatrices<MatsT>> diisFock; ///< List of AO Fock matrices for DIIS extrap
-    std::vector<PauliSpinorSquareMatrices<MatsT>> diisOnePDM; ///< List of AO Density matrices for DIIS extrap
-    std::vector<PauliSpinorSquareMatrices<MatsT>> diisError; ///< List of orthonormal [F,D] for DIIS extrap
-
-    // 1-e integrals
-    ///< ortho[0] : Orthogonalization matrix which S -> I
-    ///< ortho[1] : Inverse of ortho[0]
-    std::vector<SquareMatrix<MatsT>> ortho;
+    std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> deltaOnePDM; ///< Change in density for incremental Fock Build
 
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreH; ///< Core Hamiltonian (scalar and magnetization)
     std::shared_ptr<PauliSpinorSquareMatrices<MatsT>> coreHPerturbed; ///< Perturbed Core Hamiltonian (scalar and magnetization)
 
-    // CoreH and Fock builders
-    std::shared_ptr<ERIContractions<MatsT,IntsT>> ERI; ///< ERIContractions
+    // Algorithm Abstractions
+    std::shared_ptr<TPIContractions<MatsT,IntsT>> TPI; ///< TPIContractions
     std::shared_ptr<CoreHBuilder<MatsT,IntsT>> coreHBuilder; ///< Builder for CoreH
-    std::shared_ptr<FockBuilder<MatsT,IntsT>> fockBuilder; ///< Builder for Fock
+    std::shared_ptr<FockBuilder<MatsT,IntsT>> fockBuilder;  ///< Builder for Fock
+    std::shared_ptr<Orthogonalization<MatsT>> orthoSpinor;  ///< Orthogonalization functions for spinor basis
+    std::shared_ptr<Orthogonalization<MatsT>> orthoAB;      ///< Orthogonalization functions alpha/beta basis
+    std::shared_ptr<ModifyOrbitals<MatsT>> modifyOrbitals;  ///< SCF/RT Abstraction Object
 
     // Method specific propery storage
     std::vector<double> mullikenCharges;
     std::vector<double> lowdinCharges;
-
 
 
     // Constructors
@@ -141,10 +130,11 @@ namespace ChronusQ {
     template <typename... Args>
     SingleSlater(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
                  Integrals<IntsT> &aoi, Args... args) :
-      SingleSlaterBase(c,mem,args...), WaveFunctionBase(c,mem,args...),
+      SingleSlaterBase(c,mem,mol,basis,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...),
-      WaveFunction<MatsT,IntsT>(c,mem,mol,basis.nBasis,aoi,args...),
-      basisSet_(basis)
+      WaveFunction<MatsT,IntsT>(c,mem,mol,basis,aoi,args...)
+      //, basisSet_(basis)
       //, coreType(NON_RELATIVISTIC), orthoType(LOWDIN)
     {
       // Allocate SingleSlater Object
@@ -186,7 +176,7 @@ namespace ChronusQ {
 
     // Public Member functions
 
-    BasisSet& basisSet() { return basisSet_; }
+    //BasisSet& basisSet() { return basisSet_; }
       
       
 
@@ -201,11 +191,12 @@ namespace ChronusQ {
     void computeEnergy();
     void computeMultipole(EMPerturbation &);
     void computeSpin();
+    virtual std::vector<double> getEnergySummary();
 
     // Compute various core Hamitlonian
-    void formCoreH(EMPerturbation&); // Compute the CH
-//  void updateCoreH(EMPerturbation &);
+    void formCoreH(EMPerturbation&, bool); // Compute the CH
     void computeOrtho();  // Evaluate orthonormalization transformations
+    void computeOrthoGrad(); // Evaluate gradient of orthonormalization
 
     // Method specific properties
     void populationAnalysis();
@@ -213,56 +204,65 @@ namespace ChronusQ {
       populationAnalysis();
     }
 
-
-
-
-
     // Form a fock matrix (see include/singleslater/fock.hpp for docs)
     virtual void formFock(EMPerturbation &, bool increment = false, double xHFX = 1.);
+    void formFock(EMPerturbation& pert) { formFock(pert,false,1.);};
+
+    // Get the total gradient
+    virtual std::vector<double> getGrad(EMPerturbation&, bool equil,
+      bool saveInts);
 
     // Form initial guess orbitals
     // see include/singleslater/guess.hpp for docs)
-    void formGuess();
+    void formGuess(const SingleSlaterOptions&);
     void CoreGuess();
-    void SADGuess();
+    void SADGuess(const SingleSlaterOptions&);
+    void TightGuess();
     void RandomGuess();
     void ReadGuessMO();
     void ReadGuess1PDM();
     void FchkGuessMO();
+    void computeNaturalOrbitals();
+    void getNewOrbitals();
 
-    // Fchk-related functions 
+    // ReadGuess1PDM functions
+    void readSameTypeDenBin();
+    void readDiffTypeDenBin(std::string binName);
+    template <typename ScrMatsT>
+    void getScr1PDM(SafeFile &);
+
+    // Fchk-related functions
     std::vector<int> fchkToCQMO();
+    std::unordered_map<int,std::vector<int>> returnAngReorder();
     void reorderAngMO(std::vector<int> sl, MatsT* tmo, int sp);
     void reorderSpinMO();
 
-    // SCF procedural functions (see include/singleslater/scf.hpp for docs)
-
     // Transformation functions to and from the orthonormal basis
     void ao2orthoFock();
+    void ao2orthoMOs();
+    void ao2orthoDen();
     void ortho2aoDen();
     void ortho2aoMOs();
+    void orthoAOMO();
 
-    // Evaluate convergence
-    bool evalConver(EMPerturbation &);
-
-    // Obtain new orbitals
-    void getNewOrbitals(EMPerturbation &, bool frmFock = true);
-    void ConventionalSCF(bool modF);
-    void NewtonRaphsonSCF();
-    virtual MatsT* getNRCoeffs() = 0;
+    // SCF Specific Functions
+    inline virtual double getTotalEnergy() { return this->totalEnergy; };
+    virtual void printProperties();
+    virtual std::vector<std::shared_ptr<SquareMatrix<MatsT>>> getOnePDM();
+    virtual std::vector<std::shared_ptr<SquareMatrix<MatsT>>> getFock();
+    virtual std::vector<std::shared_ptr<Orthogonalization<MatsT>>> getOrtho();
+    virtual void runModifyOrbitals(EMPerturbation&);
+    virtual std::vector<NRRotOptions> buildRotOpt();
 
     // Misc procedural
     void diagOrthoFock();
-    void FDCommutator(PauliSpinorSquareMatrices<MatsT>&);
+    void diagAOFock();
     virtual void saveCurrentState();
-    virtual void formDelta();
-    void orthoAOMO();
-    void SCFInit();
-    void SCFFin();
 
     // Stability and reopt
     virtual std::pair<double,MatsT*> getStab() = 0;
     bool checkStability();
+    virtual MatsT* getNRCoeffs() { return nullptr;};
 
     // Print functions
     void printFock(std::ostream& )    ;
@@ -271,18 +271,15 @@ namespace ChronusQ {
     void printJ(std::ostream&)        ;
     void printK(std::ostream&)        ;
     void printMiscProperties(std::ostream&);
-    void printMOInfo(std::ostream&); 
+    void printEPS(std::ostream&);
+    void printMOInfo(std::ostream&, size_t a = 0); 
     virtual void printFockTimings(std::ostream&);
 
-    // SCF extrapolation functions (see include/singleslater/extrap.hpp for docs)
-    void allocExtrapStorage();
-    void deallocExtrapStorage();
-    void modifyFock();
-    void fockDamping();
-    void scfDIIS(size_t);
-
-
-
+    // Method to produce a test on integral transformation 
+#ifdef TEST_MOINTSTRANSFORMER
+    void MOIntsTransformationTest(EMPerturbation &);
+#endif    
+    std::shared_ptr<MOIntsTransformer<MatsT, IntsT>> generateMOIntsTransformer();
 
     // MO Transformations
     void MOFOCK();
@@ -294,6 +291,7 @@ namespace ChronusQ {
 // Include declaration of CoreHBuilder and FockBuilder
 #include <corehbuilder.hpp>
 #include <fockbuilder.hpp>
+#include <mointstransformer.hpp>
 
 // Include headers for specializations of SingleSlater
 #include <singleslater/hartreefock.hpp> // HF specialization

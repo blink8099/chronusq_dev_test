@@ -1,7 +1,7 @@
 /*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,10 +33,19 @@ namespace ChronusQ {
    */
   template <typename MatsT, typename IntsT>
   class FockBuilder {
+
+    template <typename MatsU, typename IntsU>
+    friend class FockBuilder;
+
+  protected:
+    HamiltonianOptions hamiltonianOptions_; ///< One electron terms to be computed
+
   public:
 
     // Constructors
-    FockBuilder() = default;
+    FockBuilder() = delete;
+    FockBuilder(HamiltonianOptions hamiltonianOptions):
+      hamiltonianOptions_(hamiltonianOptions) {}
 
     // Different type
     template <typename MatsU>
@@ -49,15 +58,26 @@ namespace ChronusQ {
 
 
     // Public member functions
+    const HamiltonianOptions& getHamiltonianOptions() const {
+      return hamiltonianOptions_;
+    }
 
     // Form the Hartree-Fock perturbation tensor (see include/fockbuilder/impl.hpp for docs)
-    virtual void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
-
+    virtual void formGD(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1., bool HerDen = true);
+    
+    virtual void formRawGDInBatches(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool, double, bool, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &, 
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &,
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>> &);
+    
+    virtual size_t formRawGDSCRSizePerBatch(SingleSlater<MatsT,IntsT> &, bool, bool) const;
+    
     // Form a fock matrix (see include/fockbuilder/impl.hpp for docs)
     virtual void formFock(SingleSlater<MatsT,IntsT> &, EMPerturbation &, bool increment = false, double xHFX = 1.);
 
-    // Compute the gradient
-    virtual void getGrad() {}
+    // Compute the 2e gradient
+    virtual std::vector<double> getGDGrad(SingleSlater<MatsT,IntsT>&, EMPerturbation&, double xHFX = 1.);
 
     // Pointer convertor
     template <typename MatsU>

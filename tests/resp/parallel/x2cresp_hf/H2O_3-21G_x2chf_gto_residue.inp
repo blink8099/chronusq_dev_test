@@ -11,8 +11,9 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = 2CHF
 job = RESP
+x2ctype = OneE
 
 [RESPONSE]
 TYPE = RESIDUE

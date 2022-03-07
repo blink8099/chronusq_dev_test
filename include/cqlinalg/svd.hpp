@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,12 +28,8 @@
 namespace ChronusQ {
 
   template <typename _F>
-  int SVD(char JOBU, char JOBVT, int M, int N, _F *A, int LDA, double *S,
-    _F *U, int LDU, _F *VT, int LDVT, CQMemManager &mem);
-
-  template <typename _F>
   size_t ORTH(int M, int N, _F *A, int LDA, double *S,
-    _F *U, int LDU, CQMemManager &mem);
+    _F *U, int LDU);
 
 }; // namespace ChronusQ
 

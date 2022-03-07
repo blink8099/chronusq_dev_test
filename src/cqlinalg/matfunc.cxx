@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
  */
 #include <cqlinalg/matfunc.hpp>
 #include <cqlinalg/blas3.hpp>
+#include <cqlinalg/blasutil.hpp>
 #include <cqlinalg/eig.hpp>
 
 namespace ChronusQ {
@@ -35,7 +36,7 @@ namespace ChronusQ {
     // Allocate space for eigenvalues and scratch
     double *W = mem.malloc<double>(N);
     _F1* SCR  = mem.malloc<_F1>(N*N);
-    _F2* SCR2  = mem.malloc<_F1>(N*N);
+    _F2* SCR2  = mem.malloc<_F2>(N*N);
 
     std::copy_n(A,N*N,SCR); // Copy A to SCR
 
@@ -48,7 +49,7 @@ namespace ChronusQ {
       SCR2[i + j*N] = SCR[i + j*N] * func(W[j]);
     
     // Compute B**H = V * X**H
-    Gemm('N','C',N,N,N,_F2(1.),SCR,N,SCR2,N,_F2(0.),B,LDB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,N,N,N,_F2(1.),SCR,N,SCR2,N,_F2(0.),B,LDB);
 
     // FIXME: Use MKL for this transpose when direct is merged in
     Eigen::Map<Eigen::Matrix<_F2,Eigen::Dynamic,Eigen::Dynamic,
@@ -60,6 +61,10 @@ namespace ChronusQ {
 
   };
 
+  template void MatDiagFunc(const std::function<double(double)> &func, size_t N, dcomplex *A, size_t LDA,
+                            dcomplex *B, size_t LDB, CQMemManager &mem);
+  template void MatDiagFunc(const std::function<double(double)> &func, size_t N, double *A, size_t LDA,
+                            double *B, size_t LDB, CQMemManager &mem);
 
 
   template <typename _FExp, typename _F1, typename _F2>
@@ -83,5 +88,63 @@ namespace ChronusQ {
 
   template void MatExp(char,size_t,dcomplex,dcomplex*,size_t,dcomplex*,size_t,
     CQMemManager&);
+
+
+  template <typename MatsU>
+  void MatExp(size_t N, MatsU *A, size_t LDA,
+    MatsU *ExpA, size_t LDEXPA, CQMemManager &mem) {
+
+    // allocate memory
+    size_t N2 = N*N;
+    MatsU * OddTerms  = mem.template malloc<MatsU>(N2);
+    MatsU * EvenTerms = mem.template malloc<MatsU>(N2);
+
+    std::fill_n(ExpA, N2, MatsU(0.));
+    // form zero order term
+    for (auto i = 0ul; i < N; i++) ExpA[i + i*N] = MatsU(1.);
+
+    // form 1st order term
+    std::copy_n(A, N2, OddTerms);
+
+    double residue;
+    double small_number = std::numeric_limits<double>::epsilon();
+    bool converged = false;
+    size_t maxIter = 200;
+    for (auto iter = 0ul; iter < maxIter; iter+=2) {
+      // add the odd term
+      MatAdd('N', 'N', N, N, MatsU(1.), OddTerms, N, MatsU(1.), ExpA, N, ExpA, N);
+
+      residue = lapack::lange(lapack::Norm::Fro, N, N, OddTerms, N);
+      if (residue <= small_number) {
+        converged = true;
+        break;
+      }
+
+      // form and add next even term
+      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
+        N, N, N, MatsU(1./(iter+2)), A, N, OddTerms, N,
+        MatsU(0.), EvenTerms, N);
+      MatAdd('N', 'N', N, N, MatsU(1.), EvenTerms, N, MatsU(1.), ExpA, N, ExpA, N);
+
+      residue = lapack::lange(lapack::Norm::Fro, N, N, EvenTerms, N);
+      if (residue <= small_number) {
+        converged = true;
+        break;
+      }
+
+      // form next odd term
+      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
+        N, N, N, MatsU(1./(iter+3)), A, N, EvenTerms, N,
+        MatsU(0.), OddTerms, N);
+
+    }
+
+    mem.free(OddTerms, EvenTerms);
+
+    if(not converged) throw std::runtime_error("Matrix Exponential calculation failed to converge");
+  }; // MCSCF::MatExpT
+
+  template void MatExp(size_t N, double *A, size_t LDA, double *ExpA, size_t LDEXPA, CQMemManager &mem);
+  template void MatExp(size_t N, dcomplex *A, size_t LDA, dcomplex *ExpA, size_t LDEXPA, CQMemManager &mem);
 
 }; // namespace ChronusQ

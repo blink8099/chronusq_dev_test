@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@ namespace ChronusQ {
    *  has been populated in some way.
    */ 
   void SingleSlaterBase::SCF(EMPerturbation &pert) {
+ 
+    ProgramTimer::tick("SCF Total");
 
     SCFInit();
 
@@ -43,19 +45,22 @@ namespace ChronusQ {
     bool isConverged = false;
     scfControls.dampParam = scfControls.dampStartParam;
 
-//XSLIC
-//    scfControls.doIncFock = scfControls.doIncFock and (this->aoints.cAlg == DIRECT);
+    //TODO: incremental Fock is broken
+    //scfControls.doIncFock = scfControls.doIncFock and (this->aoints.cAlg == DIRECT);
     scfControls.doIncFock = false;
                  
     if( scfControls.scfAlg == _NEWTON_RAPHSON_SCF )
       scfControls.doExtrap = false;
 
-    if( scfControls.scfAlg == _SKIP_SCF )
+    if( scfControls.scfAlg == _SKIP_SCF ) {
       isConverged = true;
+      MOFOCK();
+    }
 
-    // Compute initial properties
+    // Compute fock matrix and initial properties
+    this->formFock(pert);
+    this->getNewOrbitals(pert,false);
     this->computeProperties(pert);
-
 
     if( printLevel > 0 and MPIRank(comm) == 0 ) {
       printSCFHeader(std::cout,pert);
@@ -65,11 +70,14 @@ namespace ChronusQ {
     for( scfConv.nSCFIter = 0; scfConv.nSCFIter < scfControls.maxSCFIter; 
          scfConv.nSCFIter++) {
 
+
       // Save current state of the wave function (method specific)
       saveCurrentState();
 
       // Exit loop on convergence
       if(isConverged) break;
+
+      ProgramTimer::tick("SCF Iter");
 
       // Get new orbtials and densities from current state: 
       //   C/D(k) -> C/D(k + 1)
@@ -80,6 +88,8 @@ namespace ChronusQ {
 
       // Print out iteration information
       if( printLevel > 0 and (MPIRank(comm) == 0)) printSCFProg(std::cout);
+
+      ProgramTimer::tock("SCF Iter");
 
     }; // Iteration loop
 
@@ -106,13 +116,19 @@ namespace ChronusQ {
 
     if( printLevel > 0 ) std::cout << BannerEnd << std::endl;
 
-    if( printLevel > 0 ) {
+    if( printLevel > 1 ) {
       this->printMOInfo(std::cout);
       this->printMultipoles(std::cout);
       this->printSpin(std::cout);
       this->printMiscProperties(std::cout);
     }
-    
+
+    ProgramTimer::tock("SCF Total");
+
+#ifdef TEST_MOINTSTRANSFORMER
+    MOIntsTransformationTest(pert);
+#endif
+
   }; // SingleSlaterBase::SCF()
 
   

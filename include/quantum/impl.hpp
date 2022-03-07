@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you ca redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -96,6 +96,7 @@ namespace ChronusQ {
     std::cout << "Quantum::alloc (this = " << this << ")" << std::endl;
     #endif
 
+    if (nC == 4) N *= 2;
     SPIN_OPERATOR_ALLOC(N,onePDM);
 
   }; // Quantum<T>::alloc

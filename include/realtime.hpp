@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <cerr.hpp>
 #include <memmanager.hpp>
 #include <singleslater.hpp>
+#include <singleslater/neoss.hpp>
 
 
 // RT Headers
@@ -54,6 +55,8 @@ namespace ChronusQ {
 
     size_t iSave    = 50; ///< Save progress every N steps
     size_t restoreStep = 0;  ///< Restore propagation from this step
+
+    size_t nSteps = 0; ///< Electronic steps to update tMax
 
     bool   includeSCFField = true;  ///< Whether to include the SCF field
 
@@ -100,6 +103,9 @@ namespace ChronusQ {
 
     IntegrationProgress curState;  ///< Current state of the time propagation
     IntegrationData     data;      ///< Data collection
+
+    int printLevel = 1; ///< Amount of printing in RT calc
+    size_t orbitalPopFreq = 0; ///< Amount of printing in RT calc
     
     bool restart   = false; ///< Restarting calc from bin file
 
@@ -113,6 +119,11 @@ namespace ChronusQ {
 
     // RealTimeBase procedural functions
     virtual void doPropagation()         = 0;
+    virtual double totalEnergy()         = 0;
+    virtual std::vector<double> getGrad(EMPerturbation&) = 0;
+    virtual void formCoreH(EMPerturbation&)              = 0;
+    virtual void updateAOProperties(double) = 0;
+    virtual void createRTDataSets(size_t maxPoints) = 0;
 
     // Progress functions
     void printRTHeader();
@@ -149,10 +160,11 @@ namespace ChronusQ {
     typedef std::vector<oper_t>       oper_t_coll;
 
     SingleSlaterBase         *reference_ = nullptr;  ///< Initial conditions
-    _SSTyp<dcomplex,IntsT>    propagator_; ///< Object for time propagation
+    _SSTyp<dcomplex,IntsT>    propagator_; ///< Total system with complex matrices 
+    std::vector<SingleSlater<dcomplex, IntsT>*> systems_; ///< Objects for time propagation
 
-    std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> DOSav;
-    std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> UH;
+    std::vector<std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>>> DOSav;
+    std::vector<std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>>> UH;
     
   public:
 
@@ -177,31 +189,47 @@ namespace ChronusQ {
       RealTimeBase(reference.memManager),
       reference_(&reference), propagator_(reference) { 
 
-      alloc(); 
+      alloc<RefMatsT>(); 
 
     }; // RealTime constructor
   
-    ~RealTime(){ dealloc(); }
+    inline double totalEnergy(){
+      //propagator_.computeEnergy();
+      return propagator_.totalEnergy;
+    }
 
+    inline void formCoreH(EMPerturbation &emPert) {
+      return propagator_.formCoreH(emPert, false);
+    }
+
+    inline std::vector<double> getGrad(EMPerturbation &emPert) {
+      return propagator_.getGrad(emPert,false,false);
+    }
 
     // RealTime procedural functions
+    // RealTime procedural functions
     void doPropagation(); // From RealTimeBase
-    void formPropagator();
-    void formFock(bool,double t);
-    void propagateWFN();
+    void propagateStep();
+    void formPropagator(size_t);
+    void formFock(bool,double,size_t);
+    void updateAOProperties(double t);
+    void propagateWFN(size_t);
     void saveState(EMPerturbation&);
     void restoreState(); 
-    void createRTDataSets();
+    void createRTDataSets(size_t maxPoints);
+    void orbitalPop();
 
     // Progress functions
     void printRTHeader();
     void printRTStep();
+    void printStepSummary();
+    void printStepDetail();
     void appendStepRecord();
 
 
     // Memory functions
+    template <typename MatsT>
     void alloc();
-    void dealloc();
 
   }; // class RealTime
   

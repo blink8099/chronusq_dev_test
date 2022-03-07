@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 #include <basisset/reference.hpp>
 #include <cxxapi/output.hpp>
 
+#include <libcint.hpp>
+
 #include <util/matout.hpp>
 #include <cqlinalg/blas1.hpp>
 #include <cqlinalg/blas3.hpp>
@@ -48,13 +50,14 @@ namespace ChronusQ {
    */
   BasisSet::BasisSet(std::string _basisName, std::string _basisDef,
     bool doDef, const Molecule &mol, BASIS_FUNCTION_TYPE _basisType, bool
-    _forceCart, bool doPrint) {
+    _forceCart, bool doPrint, bool _nucBasis) {
 
     basisType = _basisType;
     forceCart = _forceCart;
     basisName = _basisName;
     basisDef  = _basisDef;
     inputDef  = doDef;
+    nucBasis  = _nucBasis;
 
 
     std::string uppercase(basisName);
@@ -69,7 +72,7 @@ namespace ChronusQ {
     }
 
     // Generate the reference basis set of that keyword
-    ReferenceBasisSet ref(basisName, basisDef, inputDef, _forceCart, doPrint);
+    ReferenceBasisSet ref(basisName, basisDef, inputDef, _forceCart, doPrint, _nucBasis);
 
     // Update appropriate shell set and coefficients for the Molecule
     // object
@@ -92,7 +95,7 @@ namespace ChronusQ {
    *  Computes nShell, nBasis and nPrimitive. Determines  maxL and maxPrim.
    *  Constructs the shell mappings to basis function number and center number
    */ 
-  void BasisSet::update() {
+  void BasisSet::update(bool computeShellPairs) {
 
     // Compute the number of shells
     nShell = shells.size();
@@ -160,22 +163,65 @@ namespace ChronusQ {
       auto it = std::find_if(mapSh2Cen.begin(),mapSh2Cen.end(),
                   [&](size_t x){ return x == iAtm; });
 
-      size_t firstShell = std::distance(mapSh2Cen.begin(),it);
-      mapCen2BfSt.emplace_back(mapSh2Bf[firstShell]);
+      if (nucBasis and it == mapSh2Cen.end())
+        mapCen2BfSt.emplace_back(0);
+      else {
+        size_t firstShell = std::distance(mapSh2Cen.begin(),it);
+        mapCen2BfSt.emplace_back(mapSh2Bf[firstShell]);
+      }
 
     }
+
+    //std::cout << "mapCen2BfSt is " << std::endl;
+    //for(size_t ii = 0; ii < mapCen2BfSt.size(); ii++)
+    //  std::cout << mapCen2BfSt[ii] << "  ";
+    //std::cout << std::endl;
 
 
 
 
     // Compute shell pair data
-    const auto max_engine_precision = std::numeric_limits<double>::epsilon();
-    const auto ln_prec = std::log(max_engine_precision);
-    shellData.computeShellPairs(shells,mapSh2Cen,maxPrim,maxL,1e-12,
-        ln_prec);
+    if (computeShellPairs) {
+      const auto max_engine_precision = std::numeric_limits<double>::epsilon();
+      const auto ln_prec = std::log(max_engine_precision);
+      shellData.computeShellPairs(shells,mapSh2Cen,maxPrim,maxL,1e-12,
+          ln_prec);
+    }
 
   }; // BasisSet::update
 
+  /**
+   *  Updates the member data of a BasisSet object assuming one or more nuclei
+   *  have been moved
+   *
+   */
+  void BasisSet::updateNuclearCoordinates(const Molecule &mol) {
+
+    // Early return if this basis set doesn't actually contain anything
+    if( basisName == "" and basisDef == "" and shells.size() == 0 )
+      return;
+
+    // Generate the reference basis set of that keyword
+    ReferenceBasisSet ref(basisName, basisDef, inputDef, forceCart, false, nucBasis);
+
+    // update appropriate shell set and coefficients for the Molecule
+    // object
+    std::tie(shells,unNormCont) = std::move(ref.generateShellSet(mol));
+
+    // clear the old list of centers
+    centers.clear();
+
+    // Update the copy of the basis centers
+    std::for_each(mol.atoms.begin(),mol.atoms.end(),
+                  [&]( const Atom &at ){
+                    centers.emplace_back(at.coord);
+                  }
+    );
+
+    // Update the BasisSet member data
+    update();
+
+  };
 
 
   /**
@@ -270,7 +316,11 @@ namespace ChronusQ {
   }; // BasisSet::uncontractShells
 
 
-  BasisSet BasisSet::uncontractBasis() {
+  /**
+   * @brief Return a new BasisSet object with only the primitives
+   *
+   */
+  BasisSet BasisSet::uncontractBasis() const {
 
 
     // Copy basis
@@ -283,7 +333,7 @@ namespace ChronusQ {
 
     std::sort(newBasis.shells.begin(), newBasis.shells.end(),
       [this](const libint2::Shell &a, const libint2::Shell &b)->bool {
-        return primitives[a] < primitives[b];
+        return primitives.at(a) < primitives.at(b);
     });
 
     newBasis.update();
@@ -293,9 +343,149 @@ namespace ChronusQ {
   };
 
 
+  /**
+   * @brief Generates a new BasisSet object,
+   *        where basis functions sharing the same set of primitives
+   *        are grouped together in one libint2::Shell
+   *
+   */
+  BasisSet BasisSet::groupGeneralContractionBasis() const {
 
 
-  void BasisSet::makeMapPrim2Cont(double *SUn, double *MAP, CQMemManager &mem) {
+    // Copy basis
+    BasisSet GCBasis(*this);
+
+    std::vector<libint2::Shell> shells;
+
+    shells.push_back(*GCBasis.shells.begin());
+
+    for (auto it = ++GCBasis.shells.begin(); it != GCBasis.shells.end(); it++) {
+
+      if (shells.back().O == it->O and
+          shells.back().alpha == it->alpha and
+          shells.back().contr[0].l == it->contr[0].l) {
+        // This shell has the same origin, set of exponents, and angular momentum
+        // as the previous shell, merge to previous contraction coefficients.
+
+        shells.back().contr.push_back(it->contr[0]);
+
+      } else {
+        // A different shell
+
+        shells.push_back(*it);
+      }
+
+    }
+
+    GCBasis.shells = shells;
+
+    GCBasis.update(false); // Update, but do not compute shell pair data.
+                           // Computing shell pair data does not work with GC
+
+    return GCBasis;
+
+  };
+
+
+  /**
+   * @brief computes the necessary length of the env vector for libcint computation
+   *
+   */
+  size_t BasisSet::getLibcintEnvLength(const Molecule &mol) const {
+    return PTR_ENV_START +
+        mol.nAtoms * 4 +
+        std::accumulate(shells.begin(),
+                        shells.end(),
+                        0,
+                        [](const size_t &count, const libint2::Shell &sh) {
+                          return count + sh.alpha.size() * (1 + sh.contr.size());
+                        });
+  }
+
+
+  /**
+   * @brief sets up the atm, bas, and env vectors for libcint computation
+   */
+  void BasisSet::setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env,
+                               bool finiteWidthNuc) const {
+
+    double sNorm;
+
+    int nAtoms = mol.nAtoms;
+    int nShells = nShell;
+    int off = PTR_ENV_START; // = 20
+
+    for(int iAtom = 0; iAtom < nAtoms; iAtom++) {
+
+      atm(CHARGE_OF, iAtom) = mol.atoms[iAtom].integerNucCharge();
+
+      atm(PTR_COORD, iAtom) = off;
+      env[off++] = mol.atoms[iAtom].coord[0]; // x (Bohr)
+      env[off++] = mol.atoms[iAtom].coord[1]; // y (Bohr)
+      env[off++] = mol.atoms[iAtom].coord[2]; // z (Bohr)
+
+      if (finiteWidthNuc) {
+        if (mol.atoms[iAtom].fractionalNucCharge()) {
+          CErr("Libcint cannot handle finite nucleus + fractional nuclear charge.");
+        }
+        atm(NUC_MOD_OF, iAtom) = GAUSSIAN_NUC;
+        atm(PTR_ZETA  , iAtom) = off;
+        env[off++] = mol.chargeDist[iAtom].alpha[0];
+      } else {
+        if (mol.atoms[iAtom].fractionalNucCharge()) {
+          atm(NUC_MOD_OF     , iAtom) = FRAC_CHARGE_NUC;
+          atm(PTR_FRAC_CHARGE, iAtom) = off;
+          env[off++] = mol.atoms[iAtom].nucCharge;
+        } else {
+          atm(NUC_MOD_OF, iAtom) = POINT_NUC;
+        }
+      }
+
+    }
+
+    for (size_t iAtom : mol.atomsQ) {
+      atm(CHARGE_OF , iAtom) = 0;
+      atm(NUC_MOD_OF, iAtom) = POINT_NUC;
+    }
+
+    for(int iShell = 0; iShell < nShells; iShell++) {
+
+      int nContr = shells[iShell].contr.size();
+
+      bas(ATOM_OF , iShell)  = std::distance(mol.atoms.begin(),
+          std::find_if( mol.atoms.begin(),
+                        mol.atoms.end(),
+                        [this, iShell](const Atom &a){
+                          return a.coord == shells[iShell].O;
+                        }));
+      if (bas(ATOM_OF , iShell) >= nAtoms) {
+        CErr("setLibcintEnv: Cannot find corresponding atom for shell");
+      }
+      bas(ANG_OF  , iShell)  = shells[iShell].contr[0].l;
+      bas(NPRIM_OF, iShell)  = shells[iShell].alpha.size();
+      bas(NCTR_OF , iShell)  = nContr;
+      bas(KAPPA_OF, iShell)  = 0;
+      bas(PTR_EXP , iShell)  = off;
+
+      for(int iPrim=0; iPrim < shells[iShell].alpha.size(); iPrim++)
+        env[off++] = shells[iShell].alpha[iPrim];
+
+      bas(PTR_COEFF, iShell) = off;
+
+      // Spherical GTO normalization constant missing in Libcint
+      sNorm = 2.0*std::sqrt(M_PI)/std::sqrt(2.0*shells[iShell].contr[0].l+1.0);
+      for (size_t i = 0; i < nContr; i++) {
+        for(int iCoeff=0; iCoeff<shells[iShell].alpha.size(); iCoeff++){
+          env[off++] = shells[iShell].contr[i].coeff[iCoeff]*sNorm;
+        }
+      }
+
+    }
+  }
+
+
+
+  void BasisSet::makeMapPrim2Cont(const double *SUn, double *MAP, CQMemManager &mem) const {
 
     memset(MAP,0,nPrimitive * nBasis * sizeof(double));
 
@@ -316,7 +506,7 @@ namespace ChronusQ {
             { {shells[iSh].contr[iC].l, shells[iSh].contr[iC].pure, { 1.0 } } },
             { { shells[iSh].O[0], shells[iSh].O[1], shells[iSh].O[2] } }
           };
-          size_t primIdx = primitives[prim];
+          size_t primIdx = primitives.at(prim);
           for(size_t iB = 0; iB < nBf; iB++) {
             MAP[cumeNBf+iB + (primIdx+iB)*nBasis] = unNormCont[iSh][iP];
           }
@@ -329,7 +519,7 @@ namespace ChronusQ {
  
     // Compute SUn * MAP
     double *SCR = mem.malloc<double>(nBasis*nPrimitive);
-    Gemm('N','T',nPrimitive,nBasis,nPrimitive,static_cast<double>(1.),SUn,nPrimitive,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,nPrimitive,nBasis,nPrimitive,static_cast<double>(1.),SUn,nPrimitive,
       MAP,nBasis,static_cast<double>(0.),SCR,nPrimitive);
 
 
@@ -356,13 +546,13 @@ namespace ChronusQ {
       for(size_t i = 0; i < n1; i++) {
       // i loop over the function in the current shell             
 
-        double fact = InnerProd<double>(nPrimitive,MAP + (i+Itot) ,nBasis,
+        double fact = blas::dot(nPrimitive,MAP + (i+Itot) ,nBasis,
                                                    SCR + (i+Itot)*nPrimitive,1);
         // i+I is the basis function index 
         double alpha = buff[i + i*n1];
         // alpha is the diagonal element of overlap of basis function i+Itot
          
-        Scale(nPrimitive,std::sqrt(alpha)/std::sqrt(fact),
+        blas::scal(nPrimitive,std::sqrt(alpha)/std::sqrt(fact),
           MAP + (i+Itot),nBasis);
 
       } // for size_t i = 0
@@ -403,7 +593,7 @@ namespace ChronusQ {
 
           size_t n2 = shs[s2].size();
           engine.compute(shs[s1],shs[s2]);
-          double norm = TwoNorm<double>(n1*n2,const_cast<double*>(buf[0]),1);
+          double norm = blas::nrm2(n1*n2,const_cast<double*>(buf[0]),1);
           significant = (norm >= shell_thresh);
 
         }
@@ -495,9 +685,15 @@ double doubleFact(int t){
 //---------------------------------------------------------//
 // polynomial coeff:   (x+a)^l= sum(coeff * x^i * a^(l-i)) //
 //---------------------------------------------------------//
-double polyCoeff(int l, int i){
-  if (l>= i) return factorial(l)/( factorial(i)*factorial(l-i) );
-  else std::cout<<"polyCoeff error"<<std::endl;
+double polyCoeff(int l, int i) {
+
+  double dummy;
+  if (l >= i) {
+    return factorial(l)/( factorial(i)*factorial(l-i) );
+  } else { 
+    CErr("polyCoeff error");
+    return dummy;
+  }
 }
 
 
@@ -564,6 +760,8 @@ std::complex <double> cart2sphCoeff(int L, int m, int lx, int ly, int lz){
   coeff = pref * sumval;
   return coeff;
   }
+
+  return coeff;
 } // cart2sphCoeff   
 
 std::vector<std::vector<double>> car2sph_matrix;

@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ namespace ChronusQ {
 
     size_t         nExtrap;     ///< Size of extrapolation space
     std::vector<T> coeffs;      ///< Vector of extrapolation coeficients
-    const std::vector<PauliSpinorSquareMatrices<T>> &errorMetric; ///< Vector of vectors containing error metrics
+    const std::vector<std::vector<SquareMatrix<T>>> &errorMetric; ///< Vector of vectors containing error metrics
 
     // Constructor
       
@@ -62,7 +62,7 @@ namespace ChronusQ {
      *  \param [in]  errorMetric Vector of vectors containing error metrics
      *  \param [out] InvFail     Boolean of whether matrix inversion failed
      */ 
-    DIIS(size_t nExtrap, const std::vector<PauliSpinorSquareMatrices<T>> &errorMetric) :
+    DIIS(size_t nExtrap, const std::vector<std::vector<SquareMatrix<T>>> &errorMetric) :
       nExtrap(nExtrap), errorMetric(errorMetric) {
 
       coeffs.resize(nExtrap+1);
@@ -93,24 +93,27 @@ namespace ChronusQ {
     int N          = nExtrap + 1;
     int NRHS       = 1;
     bool InvFail   = false;
-    SquareMatrix<T> B(errorMetric[0].memManager(), N);
+    SquareMatrix<T> B(errorMetric[0][0].memManager(), N);
     B.clear();
 
-    size_t NB = errorMetric[0].dimension();
-    size_t OSize = NB*NB;
     // Build the B matrix
-    for(auto j = 0ul; j < nExtrap; j++){
-      for(auto k = 0ul; k <= j; k++){
-        B(k,j) += InnerProd<T>(OSize,errorMetric[k].S().pointer(),1,
-                               errorMetric[j].S().pointer(),1);
-        if (errorMetric[k].hasZ())
-          B(k,j) += InnerProd<T>(OSize,errorMetric[k].Z().pointer(),1,
-                                 errorMetric[j].Z().pointer(),1);
-        if (errorMetric[k].hasXY()) {
-          B(k,j) += InnerProd<T>(OSize,errorMetric[k].Y().pointer(),1,
-                                 errorMetric[j].Y().pointer(),1);
-          B(k,j) += InnerProd<T>(OSize,errorMetric[k].X().pointer(),1,
-                                 errorMetric[j].X().pointer(),1);
+    for( auto l=0ul; l<errorMetric[0].size(); l++){
+      size_t NB = errorMetric[0][l].dimension();
+      size_t OSize = NB*NB;
+      for(auto j = 0ul; j < nExtrap; j++){
+        for(auto k = 0ul; k <= j; k++){
+          B(k,j) += blas::dot(OSize,errorMetric[k][l].pointer(),1,
+                                 errorMetric[j][l].pointer(),1);
+          /*
+          if (errorMetric[k].hasZ())
+            B(k,j) += blas::dot(OSize,errorMetric[k][l].Z().pointer(),1,
+                                   errorMetric[j][l].Z().pointer(),1);
+          if (errorMetric[k].hasXY()) {
+            B(k,j) += blas::dot(OSize,errorMetric[k][l].Y().pointer(),1,
+                                   errorMetric[j][l].Y().pointer(),1);
+            B(k,j) += blas::dot(OSize,errorMetric[k][l].X().pointer(),1,
+                                 errorMetric[j][l].X().pointer(),1);
+           */
         }
       }
     }
@@ -130,7 +133,10 @@ namespace ChronusQ {
     std::fill_n(&coeffs[0],N,0.);
     coeffs[nExtrap] = -1.0;
  
-    int INFO = LinSolve(N, 1, B.pointer(), N, &coeffs[0], N);
+    CQMemManager &mem = errorMetric[0][0].memManager();
+    int64_t* IPIV = mem.malloc<int64_t>(N);
+    int INFO = lapack::gesv(N, 1, B.pointer(), N, IPIV, &coeffs[0], N);
+    mem.free(IPIV);
 
 //  for(auto i = 0ul; i < N; i++)
 //    std::cout << "coeff = " << coeffs[i] << std::endl;
@@ -138,7 +144,6 @@ namespace ChronusQ {
   //prettyPrintSmart(std::cout,"B Matrix Factored",&B[0],N,N,N);
     InvFail = (INFO != 0);
     return !InvFail;
-
   }; // function DIIS
 
 

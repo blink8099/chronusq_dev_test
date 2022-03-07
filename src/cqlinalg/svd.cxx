@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,54 +25,11 @@
 #include <cqlinalg/svd.hpp>
 #include <cqlinalg/util.hpp>
 #include <cerr.hpp>
+#include <lapack.hh>
 #include <limits>
 
 namespace ChronusQ {
 
-  template <>
-  int SVD(char JOBU, char JOBVT, int M, int N, double *A, int LDA, double *S,
-    double *U, int LDU, double *VT, int LDVT, CQMemManager &mem) {
-
-    int INFO;
-  
-    auto test = std::bind(dgesvd_,&JOBU,&JOBVT,&M,&N,A,&LDA,S,U,&LDU,VT,&LDVT,
-      std::placeholders::_1,std::placeholders::_2,&INFO);
-  
-    int LWORK = getLWork<double>(test);
-    double *WORK = mem.malloc<double>(LWORK);
-    
-    dgesvd_(&JOBU,&JOBVT,&M,&N,A,&LDA,S,U,&LDU,VT,&LDVT,WORK,&LWORK,&INFO);
-
-    mem.free(WORK);
-
-    return INFO;
-
-  }; // SVD (double)
-
-  template <>
-  int SVD(char JOBU, char JOBVT, int M, int N, dcomplex *A, int LDA, double *S,
-    dcomplex *U, int LDU, dcomplex *VT, int LDVT, CQMemManager &mem) {
-
-    int INFO;
-  
-    int LRWORK = 5*std::min(M,N);
-    double   *RWORK = mem.malloc<double>(LRWORK);
-
-    auto test = std::bind(zgesvd_,&JOBU,&JOBVT,&M,&N,A,&LDA,S,U,&LDU,VT,&LDVT,
-      std::placeholders::_1,std::placeholders::_2,RWORK,&INFO);
-  
-    int LWORK  = getLWork<dcomplex>(test);
-    dcomplex *WORK  = mem.malloc<dcomplex>(LWORK);
-
-    
-    zgesvd_(&JOBU,&JOBVT,&M,&N,A,&LDA,S,U,&LDU,VT,&LDVT,WORK,&LWORK,RWORK,
-      &INFO);
-
-    mem.free(WORK,RWORK);
-
-    return INFO;
-
-  }; // SVD (dcomplex)
 
   template <typename T>
   struct real_type {
@@ -86,12 +43,12 @@ namespace ChronusQ {
 
   template <typename _F>
   size_t ORTH(int M, int N, _F *A, int LDA, double *S,
-    _F *U, int LDU, CQMemManager &mem) {
+    _F *U, int LDU) {
 
     if (not U) U = A;
 
-    int INFO = SVD(A == U ? 'O' : 'S', 'N', M, N, A, LDA, S, U, LDU,
-      reinterpret_cast<_F*>(NULL),LDA, mem);
+    int INFO = lapack::gesvd(A == U ? lapack::Job::OverwriteVec : lapack::Job::SomeVec, 
+                 lapack::Job::NoVec, M, N, A, LDA, S, U, LDU, reinterpret_cast<_F*>(NULL),LDA);
 
     if (INFO < 0)
       CErr(std::to_string(-INFO) + "-th argument had an illegal value.");
@@ -106,8 +63,8 @@ namespace ChronusQ {
 
   }; // ORTH
 
-  template size_t ORTH(int, int, double*, int, double*, double*, int, CQMemManager&);
-  template size_t ORTH(int, int, dcomplex*, int, double*, dcomplex*, int, CQMemManager&);
+  template size_t ORTH(int, int, double*, int, double*, double*, int);
+  template size_t ORTH(int, int, dcomplex*, int, double*, dcomplex*, int);
 
 }; // namespace ChronusQ
 

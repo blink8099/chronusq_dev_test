@@ -1,7 +1,7 @@
 /*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,134 @@ TEST( RI_RHF, water_631Gd_ccpvdzrifit ) {
 
   CQSCFTEST( "scf/serial/ri_rhf/water_6-31Gd_cc-pvdz-rifit",
              "water_6-31Gd_cc-pvdz-rifit.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) default Cholesky test
+TEST( RI_RHF, water_631Gd_cd ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/water_6-31Gd_cd",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) traditional Cholesky test
+TEST( RI_RHF, water_631Gd_cd_traditional ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/water_6-31Gd_cd_traditional",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) dyanmic Cholesky test
+TEST( RI_RHF, water_631Gd_cd_dynamicall ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/water_6-31Gd_cd_dynamicall",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) original span-factor Cholesky test
+TEST( RI_RHF, water_631Gd_cd_spanfactor ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/water_6-31Gd_cd_spanfactor",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) dynamic-ERI span-factor Cholesky test
+TEST( RI_RHF, water_631Gd_cd_dynamiceri ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/water_6-31Gd_cd_dynamiceri",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) reuse-Mpq span-factor Cholesky test
+TEST( RI_RHF, water_631Gd_cd_spanfactorreuse ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/water_6-31Gd_cd_spanfactorreuse",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ traditional Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_traditional ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_traditional",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ traditional libcint Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_traditional_libcint ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_traditional_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ dynamic-ERI span-factor Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_dynamiceri ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_dynamiceri",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ dynamic-ERI span-factor libcint Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_dynamiceri_libcint ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_dynamiceri_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ dynamic-all Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_dynamicall ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_dynamicall",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ dynamic-all libcint Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_dynamicall_libcint ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_dynamicall_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ span-factor Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_spanfactor ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_spanfactor",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ span-factor libcint Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_spanfactor_libcint ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_spanfactor_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ span-factor-reuse Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_spanfactorreuse ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_spanfactorreuse",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ span-factor-reuse libcint Cholesky test
+TEST( RI_RHF, H2S_ccpVDZ_cd_spanfactorreuse_libcint ) {
+
+  CQSCFTEST( "scf/serial/ri_rhf/H2S_cc-pvdz_cd_spanfactorreuse_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
 
 };
 
@@ -71,7 +199,7 @@ TEST( RI_X2CHF, cd_sap_dz_dkh3_2012_sp_x2c_jfit ) {
 
   CQSCFTEST( "scf/serial/ri_x2c/cd_sap-dz-dkh3-2012-sp_x2c-jfit",
              "cd_sap-dz-dkh3-2012-sp_x2c-jfit.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
@@ -80,16 +208,25 @@ TEST( RI_X2CHF, hg_sap_dz_dkh3_2012_sp_x2c_jfit ) {
 
   CQSCFTEST( "scf/serial/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c-jfit",
              "hg_sap-dz-dkh3-2012-sp_x2c-jfit.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
-// Hg X2C UHF/sapporo_dz_dkh3_2012_sp/x2c-jfit test
+// Hg X2C HF/sapporo_dz_dkh3_2012_sp default Cholesky test
+TEST( RI_X2CHF, hg_sap_dz_dkh3_2012_sp_x2c_cd ) {
+
+  CQSCFTEST( "scf/serial/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c_cd",
+             "hg_sap-dz-dkh3-2012-sp_x2c_cd.bin.ref",
+             1e-6 );
+
+};
+
+// Hg X2C B3LYP/sapporo_dz_dkh3_2012_sp/x2c-jfit test
 TEST( RI_X2CKS, hg_sap_dz_dkh3_2012_sp_x2c_jfit_b3lyp ) {
 
   CQSCFTEST( "scf/serial/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c-jfit_b3lyp",
              "hg_sap-dz-dkh3-2012-sp_x2c-jfit_b3lyp.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
@@ -100,6 +237,134 @@ TEST( RI_RHF, PAR_water_631Gd_ccpvdzrifit ) {
 
   CQSCFTEST( "scf/parallel/ri_rhf/water_6-31Gd_cc-pvdz-rifit",
              "water_6-31Gd_cc-pvdz-rifit.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) default Cholesky test
+TEST( RI_RHF, PAR_water_631Gd_cd ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/water_6-31Gd_cd",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) traditional Cholesky test
+TEST( RI_RHF, PAR_water_631Gd_cd_traditional ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/water_6-31Gd_cd_traditional",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) dynamic Cholesky test
+TEST( RI_RHF, PAR_water_631Gd_cd_dynamicall ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/water_6-31Gd_cd_dynamicall",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) original span-factor Cholesky test
+TEST( RI_RHF, PAR_water_631Gd_cd_spanfactor ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/water_6-31Gd_cd_spanfactor",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) dynamic-ERI span-factor Cholesky test
+TEST( RI_RHF, PAR_water_631Gd_cd_dynamiceri ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/water_6-31Gd_cd_dynamiceri",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// Water RHF/6-31G(d) reuse-Mpq span-factor Cholesky test
+TEST( RI_RHF, PAR_water_631Gd_cd_spanfactorreuse ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/water_6-31Gd_cd_spanfactorreuse",
+             "water_6-31Gd_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ traditional Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_traditional ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_traditional",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ traditional libcint Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_traditional_libcint ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_traditional_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ dynamic-ERI span-factor Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_dynamiceri ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_dynamiceri",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ dynamic-ERI span-factor libcint Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_dynamiceri_libcint ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_dynamiceri_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ dynamic-all Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_dynamicall ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_dynamicall",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ dynamic-all libcint Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_dynamicall_libcint ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_dynamicall_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ span-factor Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_spanfactor ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_spanfactor",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ span-factor libcint Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_spanfactor_libcint ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_spanfactor_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ span-factor-reuse Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_spanfactorreuse ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_spanfactorreuse",
+             "H2S_cc-pvdz_cd.bin.ref" );
+
+};
+
+// H2S RHF/cc-pVDZ span-factor-reuse libcint Cholesky test
+TEST( RI_RHF, PAR_H2S_ccpVDZ_cd_spanfactorreuse_libcint ) {
+
+  CQSCFTEST( "scf/parallel/ri_rhf/H2S_cc-pvdz_cd_spanfactorreuse_libcint",
+             "H2S_cc-pvdz_cd.bin.ref" );
 
 };
 
@@ -140,7 +405,7 @@ TEST( RI_X2CHF, PAR_cd_sap_dz_dkh3_2012_sp_x2c_jfit ) {
 
   CQSCFTEST( "scf/parallel/ri_x2c/cd_sap-dz-dkh3-2012-sp_x2c-jfit",
              "cd_sap-dz-dkh3-2012-sp_x2c-jfit.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
@@ -149,16 +414,25 @@ TEST( RI_X2CHF, PAR_hg_sap_dz_dkh3_2012_sp_x2c_jfit ) {
 
   CQSCFTEST( "scf/parallel/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c-jfit",
              "hg_sap-dz-dkh3-2012-sp_x2c-jfit.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 
-// Hg X2C UHF/sapporo_dz_dkh3_2012_sp/x2c-jfit test
+// Hg X2C HF/sapporo_dz_dkh3_2012_sp default Cholesky test
+TEST( RI_X2CHF, PAR_hg_sap_dz_dkh3_2012_sp_x2c_cd ) {
+
+  CQSCFTEST( "scf/parallel/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c_cd",
+             "hg_sap-dz-dkh3-2012-sp_x2c_cd.bin.ref",
+             1e-6 );
+
+};
+
+// Hg X2C B3LYP/sapporo_dz_dkh3_2012_sp/x2c-jfit test
 TEST( RI_X2CKS, PAR_hg_sap_dz_dkh3_2012_sp_x2c_jfit_b3lyp ) {
 
   CQSCFTEST( "scf/parallel/ri_x2c/hg_sap-dz-dkh3-2012-sp_x2c-jfit_b3lyp",
              "hg_sap-dz-dkh3-2012-sp_x2c-jfit_b3lyp.bin.ref",
-             1e-7 );
+             1e-6 );
 
 };
 

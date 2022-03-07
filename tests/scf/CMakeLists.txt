@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,15 +28,15 @@ set(SCF_TEST_BINARY_ROOT "${TEST_BINARY_ROOT}/scf" )
 
 # Set up compilation of SCF test exe
 add_executable(scftest ../ut.cxx 
-	rhf.cxx uhf.cxx ghf.cxx rohf.cxx x2chf.cxx rhfnr.cxx
+	rhf.cxx uhf.cxx ghf.cxx rohf.cxx x2chf.cxx fourcomphf.cxx rhfnr.cxx
         rhf_giao.cxx uhf_giao.cxx rohf_giao.cxx ghf_giao.cxx
 	rks.cxx uks.cxx x2cks.cxx ks.cxx
-        misc.cxx ri.cxx
+        misc.cxx ri.cxx cediis.cxx qn.cxx
 )
 
 target_include_directories(scftest PUBLIC ${SCF_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
-target_link_libraries(scftest PUBLIC ${CQEX_LINK})
+target_link_libraries(scftest PUBLIC ChronusQ::Dependencies ${CQEX_LINK})
 target_link_libraries(scftest PUBLIC ChronusQ::gtest)
 
 if(CQEX_DEP)
@@ -51,6 +51,7 @@ file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/rohf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/uks)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/ghf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/x2c)
+file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/fourcomp)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/rhf_giao)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/uhf_giao)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/rohf_giao)
@@ -61,6 +62,7 @@ file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/ri_rohf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/ri_rks)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/ri_uks)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/ri_x2c)
+file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/neo_rhf)
 
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/rhf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/rks)
@@ -68,6 +70,7 @@ file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/uhf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/rohf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/uks)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/x2c)
+file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/fourcomp)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/rhf_giao)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/uhf_giao)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/rohf_giao)
@@ -78,6 +81,9 @@ file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/ri_rohf)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/ri_rks)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/ri_uks)
 file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/parallel/ri_x2c)
+file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/neo_rks)
+file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/cediis)
+file(MAKE_DIRECTORY ${SCF_TEST_BINARY_ROOT}/serial/qn)
 
 
 include( CQTestGeneration )
@@ -88,6 +94,7 @@ add_cq_test( UHF_SCF      scftest "UHF.*"      )
 add_cq_test( GHF_SCF      scftest "GHF.*"      )
 add_cq_test( ROHF_SCF     scftest "ROHF.*"     )
 add_cq_test( X2CHF_SCF    scftest "X2CHF.*"    )
+add_cq_test( FOURCHF_SCF  scftest "FOURCHF.*"    )
 add_cq_test( RHF_NR_SCF   scftest "RHF_NR.*"   )
 add_cq_test( RHF_GIAO_SCF scftest "RHF_GIAO.*" )
 add_cq_test( UHF_GIAO_SCF scftest "UHF_GIAO.*" )
@@ -106,6 +113,10 @@ add_cq_test( KS_FUNC      scftest "KS_FUNC.*"    )
 add_cq_test( RI_RKS_SCF   scftest "RI_RKS.*"     )
 add_cq_test( RI_UKS_SCF   scftest "RI_UKS.*"     )
 add_cq_test( RI_X2CKS_SCF scftest "RI_X2CKS.*"   )
+add_cq_test( NEO_RKS_SCF  scftest "NEO_RKS.*"  )
+add_cq_test( CEDIIS_SCF   scftest "CEDIIS.*"  )
+add_cq_test( QN_SCF       scftest "QN_SCF*"  )
+add_cq_test( FOURC_QN_SCF scftest "FOURC_QN_SCF*"  )
 
 add_cq_test( MISC_SCF     scftest "MISC_SCF.*" )
 
@@ -129,6 +140,7 @@ if( CQ_ENABLE_MPI )
   add_cq_mpi_test( RI_RKS_SCF_MPI   2   scftest "RI_RKS.*"   )
   add_cq_mpi_test( RI_UKS_SCF_MPI   2   scftest "RI_UKS.*"   )
   add_cq_mpi_test( RI_X2CKS_SCF_MPI 2   scftest "RI_X2CKS.*" )
+  add_cq_mpi_test( QN_SCF_MPI       2   scftest "QN_SCF*"  )
 endif()
 
 

@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@
 #include <response/results.hpp>
 
 namespace ChronusQ {
-
-  struct ResponseBase {
+  
+		struct ResponseBase {
 
     SafeFile savFile; ///< Data File
 
@@ -53,7 +53,7 @@ namespace ChronusQ {
 
 
 
-    virtual size_t getNSingleDim(const bool doTDA = false) = 0;
+    virtual size_t getNSingleDim( const bool doTDA = false) = 0;
 
 
     // Memory allocation

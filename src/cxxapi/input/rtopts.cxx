@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,7 +35,9 @@ namespace ChronusQ {
 
     // Allowed keywords
     std::vector<std::string> allowedKeywords = {
-      "TMAX",
+      "TYPE",          // Type of dynamics: BOMD (Default), Ehrenfest, RT
+      "TMAX",          // The total time for the whole dynamics: 100 fs (Default)
+      "UNITS",         // The units of time: FS (Default), AU
       "DELTAT",
       "IRSTRT",
       "FIELD",
@@ -43,7 +45,9 @@ namespace ChronusQ {
       "RESTARTSTEP",
       "SAVESTEP",
       "RESTART",
-      "SCFFIELD"
+      "SCFFIELD",
+      "PRINTLEVEL",
+      "ORBITALPOPULATION"
     };
 
     // Specified keywords
@@ -102,6 +106,9 @@ namespace ChronusQ {
 
 
     // Construct RT object
+    CONSTRUCT_RT( NEOSS, double, double     );
+    CONSTRUCT_RT( NEOSS, dcomplex, double   );
+    CONSTRUCT_RT( NEOSS, dcomplex, dcomplex );
 
     CONSTRUCT_RT( HartreeFock, double, double     );
     CONSTRUCT_RT( HartreeFock, dcomplex, double   );
@@ -111,8 +118,7 @@ namespace ChronusQ {
     CONSTRUCT_RT( KohnSham, dcomplex, double   );
   //CONSTRUCT_RT( KohnSham, dcomplex, dcomplex );
 
-
-    // Parse Options
+     // Parse Options
 
     try {
       rt->intScheme.tMax = input.getData<double>("RT.TMAX");
@@ -282,6 +288,16 @@ namespace ChronusQ {
     // Whether we are restarting an RT calculation
     OPTOPT(
       rt->restart = input.getData<bool>("RT.RESTART");
+    )
+
+    // Amount of printing in the RT calc
+    OPTOPT(
+      rt->printLevel = input.getData<size_t>("RT.PRINTLEVEL");
+    )
+
+    // Amount of printing in the RT calc
+    OPTOPT(
+      rt->orbitalPopFreq = input.getData<size_t>("RT.ORBITALPOPULATION");
     )
 
     return rt;

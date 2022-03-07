@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -482,6 +482,11 @@ namespace ChronusQ {
     double           epsScreen_;   ///< Raw screening tolerance
     size_t           NDer;         ///< Number of required basis set derivatives
 
+    BasisSet         &basisSet2_;  ///< Second BasisSet for the GTO basis defintion
+    SHELL_EVAL_TYPE  typ2_      ;  ///< Specification of second basis evaluation requirements
+    size_t           NDer2;        ///< Number of required basis set derivatives for 2nd basis
+    bool             Int2nd = false; ///< Whether to integrate second basis set
+
   public:
 
     // Defaulted / Deleted ctors
@@ -499,9 +504,24 @@ namespace ChronusQ {
       BasisSet &basis, _QTyp1 g, size_t NAng, size_t NRadPerMacroBatch, 
       SHELL_EVAL_TYPE typ, double epsScreen) :
       comm(c), memManager_(mem),molecule_(mol),basisSet_(basis),typ_(typ),
-      epsScreen_(epsScreen),
+      basisSet2_(basis),epsScreen_(epsScreen),
       SphereIntegrator<_QTyp1>(g,NAng,{0.,0.,0.},1.,NRadPerMacroBatch),
       NDer((typ_ == GRADIENT) ? 4:1){ };
+
+    /**
+     *  \brief BeckeIntegrator constructor
+     *
+     *  Constructs a BeckeIntegrator object from a Quadrature scheme for the
+     *  radial integration by taking two basis sets as input
+     */
+    BeckeIntegrator(MPI_Comm c, CQMemManager &mem, Molecule &mol,
+      BasisSet &basis1, BasisSet &basis2, _QTyp1 g, size_t NAng, size_t NRadPerMacroBatch, 
+      SHELL_EVAL_TYPE typ1, SHELL_EVAL_TYPE typ2, double epsScreen) : 
+      comm(c), memManager_(mem),molecule_(mol),basisSet_(basis1),typ_(typ1),
+      epsScreen_(epsScreen),basisSet2_(basis2),typ2_(typ2),
+      SphereIntegrator<_QTyp1>(g,NAng,{0.,0.,0.},1.,NRadPerMacroBatch),
+      NDer((typ_ == GRADIENT) ? 4:1),NDer2((typ2_ == GRADIENT) ? 4:1),
+      Int2nd(true) { };
 
     /**
      *  Functions for the multicenter numerical integration from
@@ -757,6 +777,12 @@ namespace ChronusQ {
       double *BasisEval = 
         memManager_.template malloc<double>(nthreads*NDer*maxBatchSize*basisSet_.nBasis);
 
+      // Allocate Basis2 scratch
+      double *Basis2Eval;
+      //std::cout << "In integrate " << Int2nd << std::endl;
+      if (Int2nd) 
+        Basis2Eval = memManager_.template malloc<double>(nthreads*NDer2*maxBatchSize*basisSet2_.nBasis);
+
       // Allocate Basis scratch (shell cartisian)
       int LMax = 0;
       for(auto iSh = 0; iSh < basisSet_.nShell; iSh++)
@@ -765,6 +791,17 @@ namespace ChronusQ {
       size_t shSizeCar = ((LMax+1)*(LMax+2))/2; 
       double * SCR_Car = 
         memManager_.template malloc<double>(nthreads*NDer*shSizeCar);
+
+      // Allocate Basis2 scratch (shell cartisian)
+      int LMax2 = 0;
+      if (Int2nd)
+        for(auto iSh = 0; iSh < basisSet2_.nShell; iSh++)
+          LMax2 = std::max(basisSet2_.shells[iSh].contr[0].l,LMax2);
+
+      size_t shSizeCar2 = ((LMax2+1)*(LMax2+2))/2; 
+      double * SCR_Car2;
+      if (Int2nd) 
+        SCR_Car2 = memManager_.template malloc<double>(nthreads*NDer2*shSizeCar2);
 
       // Allocate scratch for Point Distances (squared and components) from each atomic center
 
@@ -775,6 +812,7 @@ namespace ChronusQ {
 
       // Populate cutoff Map (for each shell the distance beyond which the shell contribution is negligeble
       std::vector<double> mapSh2Cut;
+      std::vector<double> mapSh2Cut2;
 
       double epsilon = 
         std::max((epsScreen_/maxBatchSizeAtoms),std::numeric_limits<double>::epsilon()); 
@@ -797,6 +835,18 @@ namespace ChronusQ {
           )
         );
 
+      if (Int2nd) 
+        for(auto iSh = 0; iSh < basisSet2_.nShell; iSh++)
+          mapSh2Cut2.emplace_back(
+            cutFunc(
+              *std::max_element(
+                basisSet2_.shells[iSh].alpha.begin(),
+                basisSet2_.shells[iSh].alpha.end(),[&](double x, double y){
+                  return cutFunc(x) < cutFunc(y);
+                }
+              )
+            )
+          );
 
       // Function that it is finally integrated
       auto g = [&](T &res, std::vector<cart_t> &batch, std::vector<double> &weights, 
@@ -811,6 +861,12 @@ namespace ChronusQ {
 
         double * BasisEval_loc = BasisEval + thread_id * NDer * maxBatchSize * basisSet_.nBasis;
         double * SCR_Car_loc   = SCR_Car   + thread_id * NDer * shSizeCar;
+
+        double * BasisEval2_loc, * SCR_Car2_loc;
+        if (Int2nd) {
+          BasisEval2_loc = Basis2Eval + thread_id * NDer2 * maxBatchSize * basisSet2_.nBasis;
+          SCR_Car2_loc   = SCR_Car2   + thread_id * NDer2 * shSizeCar2;  
+        }
 
         double * cenRSq_loc = cenRSq + thread_id * maxBatchSizeAtoms;
         double * cenR_loc   = cenR   + thread_id * maxBatchSizeAtoms;
@@ -859,6 +915,7 @@ namespace ChronusQ {
               (RAS >= (minR + mapSh2Cut[iSh])) or
               (RAS <  (maxR - mapSh2Cut[iSh]))  
             )
+           //true
 #else
             true
 #endif
@@ -906,6 +963,67 @@ namespace ChronusQ {
           batchSubMat[0].second = 
             batchSubMat[0].first + basisSet_.shells[batchEvalShells[0]].size();
 
+        //----------------------NEO---------------------------------
+        std::vector<bool> evalShell2;
+        size_t basisEvalDim2(0);
+        std::vector<size_t> batchEvalShells2;
+
+        // SubMat Vector of pairs specifing the blocks of the super matrix to be used
+        std::vector<std::pair<size_t,size_t>> batchSubMat2; 
+
+#if INT_DEBUG_LEVEL > 0
+           //std::cerr << "Screen ON eps= " << epsilon<<std::endl;
+        
+#endif
+        if (Int2nd)
+          for(auto iSh = 0; iSh < basisSet2_.nShell; iSh++) {
+
+            double RAS = molecule_.RIJ[iAtm][basisSet2_.mapSh2Cen[iSh]];
+            // this is always set to be true since it is the main system that matters
+            evalShell2.emplace_back(true);
+
+            if(evalShell2.back()) {
+              basisEvalDim2 += basisSet2_.shells[iSh].size();
+              batchEvalShells2.emplace_back(iSh);
+            }
+
+          }
+ 
+#if INT_DEBUG_LEVEL >= 3
+        //std::cerr << "AUX BASIS DIM " << aux_basisEvalDim << std::endl;
+#endif
+
+        if (Int2nd) {
+          //FIXME (Write a function to handle this)
+          batchSubMat2.emplace_back(
+            basisSet2_.mapSh2Bf[batchEvalShells2[0]],
+            basisSet2_.mapSh2Bf[batchEvalShells2.back()] +
+              basisSet2_.shells[batchEvalShells2.back()].size()
+          );
+
+          for(auto iShell = batchEvalShells2.begin(); 
+              iShell != batchEvalShells2.end()-1;
+              ++iShell){
+
+            if(*(iShell+1) - (*iShell) != 1){
+              batchSubMat2.back().second = 
+                basisSet2_.mapSh2Bf[*iShell] + basisSet2_.shells[*iShell].size();
+
+              batchSubMat2.emplace_back(
+                basisSet2_.mapSh2Bf[*(iShell+1)],
+                basisSet2_.mapSh2Bf[batchEvalShells2.back()] +
+                  basisSet2_.shells[batchEvalShells2.back()].size()
+              );
+            }
+       
+          }
+
+          if(batchEvalShells2.size() == 1) 
+            batchSubMat2[0].second = 
+              batchSubMat2[0].first + basisSet2_.shells[batchEvalShells2[0]].size();
+        }
+        //-----------------------end NEO----------------------------------------------------
+
 #if INT_DEBUG_LEVEL >= 1
         // TIMING
         auto topBasis = std::chrono::high_resolution_clock::now();
@@ -913,6 +1031,10 @@ namespace ChronusQ {
         
         evalShellSet(typ_,basisSet_.shells,evalShell,cenRSq_loc,cenXYZ_loc,batch.size(),molecule_.nAtoms,
           basisSet_.mapSh2Cen,basisEvalDim,BasisEval_loc,SCR_Car_loc,shSizeCar,basisSet_.forceCart);
+
+        if (Int2nd)
+          evalShellSet(typ2_,basisSet2_.shells,evalShell2,cenRSq_loc,cenXYZ_loc,batch.size(), molecule_.nAtoms,
+            basisSet2_.mapSh2Cen,basisEvalDim2,BasisEval2_loc,SCR_Car2_loc,shSizeCar2,basisSet2_.forceCart);
 
 #if INT_DEBUG_LEVEL >= 1
         // TIMNG
@@ -952,7 +1074,31 @@ namespace ChronusQ {
 
 
         // Final call to be resambled ba the lambda function
-        func(res,batch,weights,basisEvalDim,BasisEval_loc,batchEvalShells,batchSubMat,args...);
+        if (not Int2nd) {
+          //std::cout << "before call to func " << std::endl;
+          std::vector<size_t> basisEvalDim_vec{basisEvalDim};
+          std::vector<double*> BasisEval_loc_vec{BasisEval_loc};
+          std::vector<std::vector<size_t>> batchEvalShells_vec;
+          batchEvalShells_vec.push_back(batchEvalShells);
+          std::vector<std::vector<std::pair<size_t,size_t>>> batchSubMat_vec;
+          batchSubMat_vec.push_back(batchSubMat);
+
+          func(res,batch,weights,basisEvalDim_vec,BasisEval_loc_vec,
+               batchEvalShells_vec,batchSubMat_vec,args...);
+        }
+        else {
+          std::vector<size_t> basisEvalDim_vec{basisEvalDim, basisEvalDim2};
+          std::vector<double*> BasisEval_loc_vec{BasisEval_loc, BasisEval2_loc};
+          std::vector<std::vector<size_t>> batchEvalShells_vec; 
+          batchEvalShells_vec.push_back(batchEvalShells);
+          batchEvalShells_vec.push_back(batchEvalShells2);
+          std::vector<std::vector<std::pair<size_t,size_t>>> batchSubMat_vec;
+          batchSubMat_vec.push_back(batchSubMat); 
+          batchSubMat_vec.push_back(batchSubMat2);
+
+          func(res,batch,weights,basisEvalDim_vec,BasisEval_loc_vec,
+               batchEvalShells_vec,batchSubMat_vec,args...);
+        }
 
 #if INT_DEBUG_LEVEL >= 1
         auto botFunc = std::chrono::high_resolution_clock::now();
@@ -987,6 +1133,9 @@ namespace ChronusQ {
 
       // clean memory
       memManager_.free(BasisEval,cenRSq,cenXYZ,cenR,SCR_Car);
+
+      if (Int2nd)
+       memManager_.free(Basis2Eval,SCR_Car2);
 
 #if INT_DEBUG_LEVEL >= 1
       //TIMING

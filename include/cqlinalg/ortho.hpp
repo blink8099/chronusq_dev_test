@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ namespace ChronusQ {
       // Normalize the first vector
       F inner = vecNorm(V);
       if(std::abs(inner) < eps) CErr("Zero inner product incurred!");
-      Scale(N, 1./inner, V, 1);
+      blas::scal(N, 1./inner, V, 1);
     }
 
     // Orthonormalize the rest of the matrix using GS
@@ -57,7 +57,7 @@ namespace ChronusQ {
       // Project out the inner products
       for(auto iRe = 0; iRe < (NRe+1); iRe++) {
         matInner(iOrtho,1,V,LDV,V_p,LDV,SCR);
-        Gemm('N','N',N,1,iOrtho,F(-1.),V,LDV,SCR,iOrtho,F(1.),V_p,LDV);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,1,iOrtho,F(-1.),V,LDV,SCR,iOrtho,F(1.),V_p,LDV);
       }
 
       // Normalize the new vector
@@ -65,9 +65,9 @@ namespace ChronusQ {
       std::cout << k << " " << inner << std::endl;
       if(std::abs(inner) < N*eps) { 
         std::cout << "Zero inner product incurred! " << k << "\n";
-        Scale(N,F(0.),V_p,1);
+        blas::scal(N,F(0.),V_p,1);
       } else {
-        Scale(N, 1./inner, V_p, 1);
+        blas::scal(N, 1./inner, V_p, 1);
         iOrtho++;
       }
     }
@@ -81,7 +81,7 @@ namespace ChronusQ {
     F* tInner = mem.template malloc<F>(M*M);
     matInner(M,M,V,LDV,V,LDV,tInner);
     for(auto k = 0ul; k < M; k++) tInner[k*(M+1)] -= 1.;
-    std::cerr << "Error after " << TwoNorm<double>(M*M,tInner,1) 
+    std::cerr << "Error after " << blas::nrm2(M*M,tInner,1) 
               << std::endl;
 
     mem.free(tInner);
@@ -100,10 +100,10 @@ namespace ChronusQ {
 
     return
     GramSchmidt(N,Mold,Mnew,V,LDV,
-      [&](F* Vc){ return std::sqrt(std::abs(InnerProd<F>(N,Vc,1,Vc,1))); },
+      [&](F* Vc){ return std::sqrt(std::abs(blas::dot(N,Vc,1,Vc,1))); },
       [&](size_t i, size_t j, F* Vi, size_t LDVi, F* Vj, size_t LDVj, 
         F* inner){
-        Gemm('C','N',i,j,N,F(1.),Vi,LDVi,Vj,LDVj,F(0.),inner,i);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,i,j,N,F(1.),Vi,LDVi,Vj,LDVj,F(0.),inner,i);
       },
       mem,NRe,eps);
 
@@ -126,8 +126,8 @@ namespace ChronusQ {
       F inner; matInner(1,1,VL,LDVL,VR,LDVR,&inner);
       if( std::abs(inner) < 1e-12 ) CErr("Zero Inner product incurred");
 
-      Scale(N, F(1.) / std::sqrt(std::abs(inner)), VL, 1);
-      Scale(N, F(1.) / std::sqrt(std::abs(inner)), VR, 1);
+      blas::scal(N, F(1.) / std::sqrt(std::abs(inner)), VL, 1);
+      blas::scal(N, F(1.) / std::sqrt(std::abs(inner)), VR, 1);
     }
 
     // Orthonormalize the rest of the matrix using GS
@@ -139,20 +139,20 @@ namespace ChronusQ {
       // Project out the inner products
       for(auto iRe = 0; iRe < (NRe+1); iRe++) {
         matInner(k,1,VR,LDVR,VL_c,LDVL,SCR);
-        Gemm('N','N',N,1,k,F(-1.),VL,LDVL,SCR,k,F(1.),VL_c,LDVL);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,1,k,F(-1.),VL,LDVL,SCR,k,F(1.),VL_c,LDVL);
       }
 
       for(auto iRe = 0; iRe < (NRe+1); iRe++) {
         matInner(k,1,VL,LDVL,VR_c,LDVR,SCR);
-        Gemm('N','N',N,1,k,F(-1.),VR,LDVR,SCR,k,F(1.),VR_c,LDVR);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,1,k,F(-1.),VR,LDVR,SCR,k,F(1.),VR_c,LDVR);
       }
 
       // Normalize the new vector
       F inner; matInner(1,1,VL_c,LDVL,VR_c,LDVR,&inner);
       if( std::abs(inner) < 1e-12 ) CErr("Zero Inner product incurred");
 
-      Scale(N, F(1.) / std::sqrt(std::abs(inner)), VR_c, 1);
-      Scale(N, F(1.) / std::sqrt(std::abs(inner)), VL_c, 1);
+      blas::scal(N, F(1.) / std::sqrt(std::abs(inner)), VR_c, 1);
+      blas::scal(N, F(1.) / std::sqrt(std::abs(inner)), VL_c, 1);
 
     }
 
@@ -165,7 +165,7 @@ namespace ChronusQ {
     F* tInner = mem.template malloc<F>(M*M);
     matInner(M,M,VL,LDVL,VR,LDVR,tInner);
     for(auto k = 0ul; k < M; k++) tInner[k*(M+1)] -= 1.;
-    std::cerr << "Error after " << TwoNorm<double>(M*M,tInner,1) 
+    std::cerr << "Error after " << blas::nrm2(M*M,tInner,1) 
               << std::endl;
 
     mem.free(tInner);

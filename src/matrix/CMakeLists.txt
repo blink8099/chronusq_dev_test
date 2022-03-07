@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,13 +23,14 @@
 add_library(matrix STATIC
 transform.cxx
 spatialtospinor.cxx
+components.cxx
 arithmetic/squarematrix.cxx
 arithmetic/paulispinormatrices.cxx
 arithmetic/scaledmatrix.cxx
 impl.cxx)
-target_link_libraries ( matrix PUBLIC ChronusQ::Libint2 )
+target_link_libraries ( matrix PUBLIC ChronusQ::DepHeaders )
 
-# Append electronintegrals to executable link
+# Append particleintegrals to executable link
 list(APPEND CQEX_LINK matrix)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
@@ -37,7 +38,7 @@ if(CQEX_DEP)
   add_dependencies(matrix ${CQEX_DEP})
 endif()
 
-if( TARGET openblas )
-  add_dependencies( matrix openblas ) 
+if( TARGET tiledarray )
+  add_dependencies( matrix tiledarray ) 
  
 endif()

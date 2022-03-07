@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #pragma once
 
 #include <itersolver.hpp>
+
+#include <util/timer.hpp>
 
 namespace ChronusQ {
 
@@ -54,7 +56,7 @@ namespace ChronusQ {
     // Compute norms of RHS
     for(auto iRHS = 0; iRHS < nRHS; iRHS++)
       rhsNorm_.emplace_back(
-        TwoNorm<double>(this->N_, RHS_ + iRHS*this->N_, 1)
+        blas::nrm2(this->N_, RHS_ + iRHS*this->N_, 1)
       );
 
     std::cout << "\n  * IterLinearSolver has recieved " << nRHS 
@@ -145,6 +147,8 @@ namespace ChronusQ {
     // Shift batch loop
     for(auto iOmega = 0, iBatch = 0; iOmega < nOmega; iOmega += shiftBS) {
 
+      ProgramTimer::tick("Omega");
+
       // Shift batch size information 
       size_t nOmegaDo = std::min(shiftBS, nOmega - iOmega);
       std::vector<_F> shiftBatch(nOmegaDo);
@@ -195,6 +199,8 @@ namespace ChronusQ {
 
     } // end RHS batch loop
 
+    ProgramTimer::tock("Omega");
+
     } // end Shift batch loop
 
   };
@@ -231,7 +237,7 @@ namespace ChronusQ {
     resNorm_.emplace_back(nShift * nRHS,0.);
     for(auto iDo = 0; iDo < nShift * nRHS; iDo++)
       resNorm_.back()[iDo] = 
-        TwoNorm<double>(this->N_, RES_ + iDo*this->N_, 1);
+        blas::nrm2(this->N_, RES_ + iDo*this->N_, 1);
 
     //prettyPrintSmart(std::cout,"R0",RES_,this->N_,1,this->N_);
 

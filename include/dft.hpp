@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -62,6 +62,8 @@ namespace ChronusQ {
 
   protected:
     bool isGGA_;
+
+    bool isEPC_ = false;
     
 
     xc_func_type functional_; ///< LibXC functional definition
@@ -75,6 +77,9 @@ namespace ChronusQ {
       xHFX = xc_hyb_exx_coef(&functional_);
       //std::cerr << "HYB " << xHFX << std::endl;
     };
+
+    // Constructor specifically for EPC functional
+    DFTFunctional(std::string epcName) { xHFX = 1.; };
 
     // TODO: Implement COPY / MOVE...
       
@@ -90,6 +95,14 @@ namespace ChronusQ {
       xc_gga_exc_vxc(&this->functional_,N,rho,sigma,eps,vrho,vsigma);
 
     };
+
+    virtual void evalEXC_VXC(size_t N, double *rho, double *aux_rho, double *eps, 
+                             double *vxc, bool electron) {}; 
+
+    virtual void evalEXC_VXC(size_t N, double *rho, double *aux_rho, double *sigma,
+                             double *aux_sigma, double *cross_sigma, double *eps,
+                             double *vrho, double *vsigma, double *vcsigma, 
+                             bool electron) {};
 
 
     void evalEXC_VXC_FXC(size_t N, double *rho, double *eps, double *vxc, double *fxc) {
@@ -115,10 +128,9 @@ namespace ChronusQ {
 
     bool isGGA() { return this->isGGA_; }
 
+    bool isEPC() { return this->isEPC_; }
+
   }; // class DFTFunctional
-
-
-
 
 
 
@@ -134,48 +146,6 @@ namespace ChronusQ {
 
 
 
-  class SlaterExchange : public LDA {
-
-  public:
-  
-    SlaterExchange() : LDA(XC_LDA_X) { }
-
-  }; // class SlaterExchage
-
-
-  class VWNIII : public LDA {
-
-  public:
-
-    //VWNIII() : LDA(XC_LDA_C_VWN_RPA) { }
-    VWNIII() : LDA(XC_LDA_C_VWN_3) { }
-
-
-  }; // class VWNIII
-
-
-  class VWNV : public LDA {
-
-  public:
-
-    VWNV() : LDA(XC_LDA_C_VWN_RPA) { }
-
-  }; // class VWNV
-
-
-
-  class VWNV_G : public LDA {
-
-  public:
-
-    VWNV_G() : LDA(XC_LDA_C_VWN) { }
-
-  }; // class VWNV_GAUSSIAN
-
-
-
-
-
   /**
    *  \brief Base class for all GGA functionals
    */ 
@@ -186,82 +156,7 @@ namespace ChronusQ {
     
   }; // class GGA
 
-
-  class BEightyEight : public GGA {
-
-  public:
-  
-    BEightyEight() : GGA(XC_GGA_X_B88) { }
-
-  }; // class B88
-
-  class PBEX : public GGA {
-
-  public:
-  
-    PBEX() : GGA(XC_GGA_X_PBE) { }
-
-  }; // class PBE exchange
-
-
-
-  class LYP : public GGA {
-
-  public:
-  
-    LYP() : GGA(XC_GGA_C_LYP) { }
-
-  }; // class B88
-
-  class PBEC : public GGA {
-
-  public:
-  
-    PBEC() : GGA(XC_GGA_C_PBE) { }
-
-  }; // class PBE correlation
-
-  class B3LYP : public GGA {
-
-  public:
-  
-    B3LYP() : GGA(XC_HYB_GGA_XC_B3LYP) { }
-
-  }; // class B3LYP hybrid
-
-  class B3PW91 : public GGA {
-
-  public:
-  
-    B3PW91() : GGA(XC_HYB_GGA_XC_B3PW91) { }
-
-  }; // class B3LYP hybrid
-
-  class PBE0 : public GGA {
-
-  public:
-  
-    PBE0() : GGA(XC_HYB_GGA_XC_PBEH) { }
-
-  }; // class PBE0 hybrid
-
-  class BHANDH : public GGA {
-
-  public:
-  
-    BHANDH() : GGA(XC_HYB_GGA_XC_BHANDH) { }
-
-  }; // class BHANDH hybrid
-
-  class BHANDHLYP : public GGA {
-
-  public:
-  
-    BHANDHLYP() : GGA(XC_HYB_GGA_XC_BHANDHLYP) { }
-
-  }; // class BHANDHLYP hybrid
-
-
 };
 
-
+#include <dft/libxc_wrappers.hpp>
+#include <dft/epc.hpp>

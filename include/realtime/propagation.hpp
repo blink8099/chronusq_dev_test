@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include <matrix.hpp>
 
 #include <util/matout.hpp>
+#include <util/timer.hpp>
 #include <unsupported/Eigen/MatrixFunctions>
 
 template <size_t N, typename T>
@@ -48,23 +49,33 @@ namespace ChronusQ {
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::doPropagation() {
 
-    printRTHeader();
+    ProgramTimer::tick("Real Time Total");
 
-    size_t NB = propagator_.nAlphaOrbital();
+    printRTHeader();
 
     if ( savFile.exists() )
       if ( restart )
         restoreState();
-      else
-        createRTDataSets();
+
+    // Upon entry to RT, assume only the orthonormal density is valid
+    for(auto idx = 0; idx < systems_.size(); idx++) {
+      systems_[idx]->computeOrtho();
+      systems_[idx]->ortho2aoDen();
+      systems_[idx]->ortho2aoMOs();
+    }
 
     bool Start(false); // Start the MMUT iterations
     bool FinMM(false); // Wrap up the MMUT iterations
 
-    for( curState.xTime = intScheme.restoreStep * intScheme.deltaT,
-         curState.iStep = intScheme.restoreStep; 
-         curState.xTime <= (intScheme.tMax + intScheme.deltaT/4); 
-         curState.xTime += intScheme.deltaT, curState.iStep++ ) {
+    size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/4)/intScheme.deltaT);
+
+    curState.xTime = intScheme.restoreStep * intScheme.deltaT;
+
+    for( curState.iStep = intScheme.restoreStep; 
+         curState.iStep <= maxStep;
+         curState.xTime += intScheme.deltaT, curState.iStep++) {
+
+      ProgramTimer::tick("Real Time Iter");
 
       // Perturbation for the current time
       EMPerturbation pert_t = pert.getPert(curState.xTime);
@@ -87,7 +98,8 @@ namespace ChronusQ {
           Start = Start or ( curState.iStep % intScheme.iRstrt == 0 );
 
         // "Finish" the MMUT if this is the last step
-        FinMM = ( curState.iStep == (intScheme.tMax / intScheme.deltaT) );
+        // NOTE: To compare to Gaussian, do NOT do this restart for Ehrenfest
+        FinMM = ( curState.iStep == maxStep );
 
         // TODO: "Finish" the MMUT if the field turns on or off
         FinMM = FinMM or pert.isFieldDiscontinuous(curState.xTime, intScheme.deltaT);
@@ -101,7 +113,8 @@ namespace ChronusQ {
         if( Start or FinMM ) curState.curStep = intScheme.rstStep;
         else                 curState.curStep = ModifiedMidpoint;
 
-        if( Start or FinMM ) std::cout << "  *** Restarting MMUT ***\n";
+        if( (Start or FinMM) && printLevel > 0 )
+          std::cout << "  *** Restarting MMUT ***\n";
 
       // For non leapfrog scheme, the step type is constant
       } else if ( intScheme.intAlg == ExpMagnus2 )
@@ -121,112 +134,130 @@ namespace ChronusQ {
 
 
 
-      // Handle density copies / swaps for the current step
-      //  + Determine the step size
-        
-      if( curState.curStep == ModifiedMidpoint ) {
-        // Swap the saved density with the SingleSlater density
+      for(auto idx = 0; idx < systems_.size(); idx++) {
+        // Handle density copies / swaps for the current step
+        //  + Determine the step size
           
-        // DOSav(k) = DO(k)
-        // DO(k)    = DO(k-1)
-        std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> tmp = DOSav;
-        DOSav = propagator_.onePDMOrtho;
-        propagator_.onePDMOrtho = tmp;
+        if( curState.curStep == ModifiedMidpoint ) {
+          // Swap the saved density with the SingleSlater density
+            
+          // DOSav(k) = DO(k)
+          // DO(k)    = DO(k-1)
+          std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> tmp = DOSav[idx];
+          DOSav[idx] = systems_[idx]->onePDMOrtho;
+          systems_[idx]->onePDMOrtho = tmp;
 
 
-        curState.stepSize = 2. * intScheme.deltaT;
+          curState.stepSize = 2. * intScheme.deltaT;
 
-      } else {
-        // Save a copy of the SingleSlater density in the saved density
-        // storage 
-          
-        // DOSav(k) = DO(k)
-        *DOSav = *propagator_.onePDMOrtho;
+        } else {
+          // Save a copy of the SingleSlater density in the saved density
+          // storage
 
+          // DOSav(k) = DO(k)
+          *DOSav[idx] = *systems_[idx]->onePDMOrtho;
      
-        curState.stepSize = intScheme.deltaT;
+          curState.stepSize = intScheme.deltaT;
 
+        }
       }
 
-
-
-
-
-     
       // Form the Fock matrix at the current time
-      formFock(false,curState.xTime);
+      for(auto idx = 0; idx < systems_.size(); idx++) {
+        this->formFock(false,curState.xTime,idx);
+      }
 
       // Compute properties for D(k) 
       propagator_.computeProperties(pert_t);
 
       // Save data
+      // TODO: Fix this when we have a stable definition of MD + electronic steps
       saveState(pert_t);
 
       // Save D(k) if doing Magnus 2
-      std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> den_k;
-      std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>> denOrtho_k;
-      if ( curState.curStep == ExplicitMagnus2 ) {
-        den_k = std::make_shared<PauliSpinorSquareMatrices<dcomplex>>(*propagator_.onePDM);
-        denOrtho_k = std::make_shared<PauliSpinorSquareMatrices<dcomplex>>(*propagator_.onePDMOrtho);
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>>> den_k;
+      std::vector<std::shared_ptr<PauliSpinorSquareMatrices<dcomplex>>> denOrtho_k;
+      for(auto idx = 0; idx < systems_.size(); idx++) {
+        if ( curState.curStep == ExplicitMagnus2 ) {
+          den_k.push_back(std::make_shared<PauliSpinorSquareMatrices<dcomplex>>(*systems_[idx]->onePDM));
+          denOrtho_k.push_back(std::make_shared<PauliSpinorSquareMatrices<dcomplex>>(*systems_[idx]->onePDMOrtho));
+        }
       }
 
 
       // Print progress line in the output file
       printRTStep();
+      if( this->orbitalPopFreq != 0 &&
+          curState.iStep % this->orbitalPopFreq == 0) {
+        orbitalPop();
+      }
 
 
 
 
-      // Orthonormalize the AO Fock matrix
-      // F(k) -> FO(k)
-      propagator_.ao2orthoFock();
+      for(auto idx = 0; idx < systems_.size(); idx++) {
+        // Orthonormalize the AO Fock matrix
+        // F(k) -> FO(k)
+        systems_[idx]->ao2orthoFock();
 
 
-      // Form the propagator from the orthonormal Fock matrix
-      // FO(k) -> U**H(k) = exp(- i * dt * FO(k) )
-      formPropagator();
+        // Form the propagator from the orthonormal Fock matrix
+        // FO(k) -> U**H(k) = exp(- i * dt * FO(k) )
+        formPropagator(idx);
 
-      // Propagator the orthonormal density matrix
-      // DO (in propagator_) will now store DO(k+1)
-      //
-      // DO(k+1) = U**H(k) * DO * U(k)
-      // - Where DO is what is currently stored in propagator_
-      //
-      // ***
-      // This function also transforms DO(k+1) to the AO
-      // basis ( DO(k+1) -> D(k+1) in propagator_ ) and
-      // computes the change in density from the previous 
-      // AO density ( delD = D(k+1) - D(k) ) 
-      // ***
-      propagateWFN();
+        // Propagator the orthonormal density matrix
+        // DO (in propagator_) will now store DO(k+1)
+        //
+        // DO(k+1) = U**H(k) * DO * U(k)
+        // - Where DO is what is currently stored in propagator_
+        //
+        // ***
+        // This function also transforms DO(k+1) to the AO
+        // basis ( DO(k+1) -> D(k+1) in propagator_ ) and
+        // computes the change in density from the previous 
+        // AO density ( delD = D(k+1) - D(k) ) 
+        // ***
+        propagateWFN(idx);
+      }
 
       //
       // Second order magnus
       //
       if ( curState.curStep == ExplicitMagnus2 ) {
 
-        // F(k)
-        PauliSpinorSquareMatrices<dcomplex> fock_k(*propagator_.fockMatrix);
-        
-        // F(k + 1)
-        formFock(false, curState.xTime + intScheme.deltaT);
+        for(auto idx = 0; idx < systems_.size(); idx++) {
+          // F(k)
+          PauliSpinorSquareMatrices<dcomplex> fock_k(*systems_[idx]->fockMatrix);
+          
+          // F(k + 1)
+          formFock(false, curState.xTime + intScheme.deltaT, idx);
 
-        // Store 0.5 * ( F(k) + F(k+1) ) in propagator_.fockMatrix
-        *propagator_.fockMatrix = 0.5 * (fock_k + *propagator_.fockMatrix);
+          // Store 0.5 * ( F(k) + F(k+1) ) in propagator_.fockMatrix
+          *systems_[idx]->fockMatrix = 0.5 * (fock_k + *systems_[idx]->fockMatrix);
+        }
 
 
-        // Restore old densities
-        *propagator_.onePDM = *den_k;
-        *propagator_.onePDMOrtho = *denOrtho_k;
+        for(auto idx = 0; idx < systems_.size(); idx++) {
+          // Restore old densities
+          *systems_[idx]->onePDM = *den_k[idx];
+          *systems_[idx]->onePDMOrtho = *denOrtho_k[idx];
+        }
 
         // Repeat formation of propagator and propagation
-        propagator_.ao2orthoFock();
-        formPropagator();
-        propagateWFN();
+        for(auto idx = 0; idx < systems_.size(); idx++) {
+          systems_[idx]->ao2orthoFock();
+          formPropagator(idx);
+          propagateWFN(idx);
+        }
 
       }  // End 2nd order magnus
 
+      ProgramTimer::tock("Real Time Iter");
+
     } // Time loop
+
+
+    ProgramTimer::tock("Real Time Total");
 
   //mathematicaPrint(std::cerr,"Dipole-X",&data.ElecDipole[0][0],
   //  curState.iStep,1,curState.iStep,3);
@@ -245,26 +276,28 @@ namespace ChronusQ {
    *  \f]
    */ 
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::formPropagator() {
+  void RealTime<_SSTyp,IntsT>::formPropagator(size_t idx) {
 
-    size_t NB = propagator_.nAlphaOrbital();
+    ProgramTimer::tick("Propagator Formation");
+
+    size_t NB = systems_[idx]->nAlphaOrbital();
 
     // Form U
 
     // Restricted
-    if( not UH->hasZ() ) {
+    if( not UH[idx]->hasZ() ) {
       // See docs for factor of 2
       MatExp('D',NB,dcomplex(0.,-curState.stepSize/2.),
-        propagator_.fockMatrixOrtho->S().pointer(),NB,UH->S().pointer(),NB,memManager_);
+        systems_[idx]->fockMatrixOrtho->S().pointer(),NB,UH[idx]->S().pointer(),NB,memManager_);
 
-      Scale(NB*NB,dcomplex(2.),UH->S().pointer(),1);
+      blas::scal(NB*NB,dcomplex(2.),UH[idx]->S().pointer(),1);
 
     // Unrestricted
-    } else if( not UH->hasXY() ) {
+    } else if( not UH[idx]->hasXY() ) {
 
       // Transform SCALAR / MZ -> ALPHA / BETA
       std::vector<SquareMatrix<dcomplex>> Fblocks =
-          propagator_.fockMatrixOrtho->template spinGatherToBlocks<dcomplex>(false);
+          systems_[idx]->fockMatrixOrtho->template spinGatherToBlocks<dcomplex>(false);
       std::vector<SquareMatrix<dcomplex>> UHblocks;
       UHblocks.reserve(2);
       UHblocks.emplace_back(memManager_, NB);
@@ -276,27 +309,28 @@ namespace ChronusQ {
         Fblocks[1].pointer(),NB,UHblocks[1].pointer(),NB,memManager_);
 
       // Transform ALPHA / BETA -> SCALAR / MZ
-      *UH = PauliSpinorSquareMatrices<dcomplex>::
+      *UH[idx] = PauliSpinorSquareMatrices<dcomplex>::
           spinBlockScatterBuild<dcomplex>(UHblocks[0],UHblocks[1]);
 
     // Generalized (2C)
     } else {
 
-      SquareMatrix<dcomplex> F2C(propagator_.fockMatrixOrtho->template spinGather<dcomplex>());
+      SquareMatrix<dcomplex> F2C(systems_[idx]->fockMatrixOrtho->template spinGather<dcomplex>());
       SquareMatrix<dcomplex> UH2C(memManager_, 2*NB);
 
       MatExp('D',2*NB,dcomplex(0.,-curState.stepSize),
              F2C.pointer(),2*NB,UH2C.pointer(),2*NB, memManager_);
 
-      *UH = UH2C.template spinScatter<dcomplex>();
+      *UH[idx] = UH2C.template spinScatter<dcomplex>();
 
     }
 
+    ProgramTimer::tock("Propagator Formation");
 #if 0
 
-    prettyPrintSmart(std::cout,"UH Scalar",UH->S().pointer(),NB,NB,NB);
-    if( UH->hasZ() )
-      prettyPrintSmart(std::cout,"UH MZ",UH->Z().pointer(),NB,NB,NB);
+    prettyPrintSmart(std::cout,"UH Scalar",UH[idx]->S().pointer(),NB,NB,NB);
+    if( UH[idx]->hasZ() )
+      prettyPrintSmart(std::cout,"UH MZ",UH[idx]->Z().pointer(),NB,NB,NB);
 
 #endif
     
@@ -306,25 +340,29 @@ namespace ChronusQ {
 
   
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::propagateWFN() {
+  void RealTime<_SSTyp,IntsT>::propagateWFN(size_t idx) {
 
-    size_t NB = propagator_.nAlphaOrbital();
-    size_t NC = propagator_.nC;
+    ProgramTimer::tick("Propagate WFN");
+
+    size_t NB = systems_[idx]->nAlphaOrbital();
+    size_t NC = systems_[idx]->nC;
     dcomplex *SCR  = memManager_.template malloc<dcomplex>(NC*NC*NB*NB);
     dcomplex *SCR1 = memManager_.template malloc<dcomplex>(NC*NC*NB*NB);
 
-    if( not UH->hasXY() ) {
+    if( not UH[idx]->hasXY() ) {
 
       // Create X(S) = (U**H * DO)(S) in SCR 
 
       // SCR = 0.5 * U(S)**H * DO(S)
-      Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH->S().pointer(),NB,
-        propagator_.onePDMOrtho->S().pointer(),NB,dcomplex(0.),SCR,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,dcomplex(0.5),UH[idx]->S().pointer(),NB,
+          systems_[idx]->onePDMOrtho->S().pointer(),NB,dcomplex(0.),SCR,NB);
 
       // SCR += 0.5 * U(Z)**H * DO(Z)
-      if( UH->hasZ() )
-        Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH->Z().pointer(),NB,
-          propagator_.onePDMOrtho->Z().pointer(),NB,dcomplex(1.),SCR,NB);
+      if( UH[idx]->hasZ() )
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,dcomplex(0.5),UH[idx]->Z().pointer(),NB,
+          systems_[idx]->onePDMOrtho->Z().pointer(),NB,dcomplex(1.),SCR,NB);
 
 
 
@@ -332,16 +370,16 @@ namespace ChronusQ {
 
       // Create X(Z) = (U**H * DO)(Z) in SCR1
         
-      if( propagator_.onePDMOrtho->hasZ() ) {
+      if( systems_[idx]->onePDMOrtho->hasZ() ) {
 
         // SCR1 = 0.5 * U(S)**H * DO(Z)
-        Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH->S().pointer(),NB,
-          propagator_.onePDMOrtho->Z().pointer(),NB,dcomplex(0.),SCR1,NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,dcomplex(0.5),UH[idx]->S().pointer(),NB,
+          systems_[idx]->onePDMOrtho->Z().pointer(),NB,dcomplex(0.),SCR1,NB);
 
         // SCR1 += 0.5 * U(Z)**H * DO(S)
-        if( UH->hasZ() )
-          Gemm('N','N',NB,NB,NB,dcomplex(0.5),UH->Z().pointer(),NB,
-            propagator_.onePDMOrtho->S().pointer(),NB,dcomplex(1.),SCR1,NB);
+        if( UH[idx]->hasZ() )
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,dcomplex(0.5),UH[idx]->Z().pointer(),NB,
+            systems_[idx]->onePDMOrtho->S().pointer(),NB,dcomplex(1.),SCR1,NB);
 
       }
 
@@ -354,74 +392,86 @@ namespace ChronusQ {
       //       = 0.5 * ( SCR  * U(S) + SCR1 * U(Z) )
 
       // DO(S) = 0.5 * SCR * U(S)
-      Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR,NB,UH->S().pointer(),NB,
-           dcomplex(0.),propagator_.onePDMOrtho->S().pointer(),NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR,NB,UH[idx]->S().pointer(),NB,
+           dcomplex(0.),systems_[idx]->onePDMOrtho->S().pointer(),NB);
  
       // DO(S) += 0.5 * SCR1 * U(Z)
-      if( UH->hasZ() )
-        Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR1,NB,UH->Z().pointer(),NB,
-             dcomplex(1.),propagator_.onePDMOrtho->S().pointer(),NB);
+      if( UH[idx]->hasZ() )
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR1,NB,UH[idx]->Z().pointer(),NB,
+             dcomplex(1.),systems_[idx]->onePDMOrtho->S().pointer(),NB);
 
 
-      if( UH->hasZ() ) {
+      if( UH[idx]->hasZ() ) {
 
         // DO(Z) = 0.5 * ( X(S) * U(Z) + X(Z) * U(S) )
         //       = 0.5 * ( SCR  * U(Z) + SCR1 * U(S) )
           
         // DO(Z) = 0.5 * SCR * U(Z)
-        Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR,NB,UH->Z().pointer(),NB,
-             dcomplex(0.),propagator_.onePDMOrtho->Z().pointer(),NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR,NB,UH[idx]->Z().pointer(),NB,
+             dcomplex(0.),systems_[idx]->onePDMOrtho->Z().pointer(),NB);
  
         // DO(Z) += 0.5 * SCR1 * U(S)
-        Gemm('N','C',NB,NB,NB,dcomplex(0.5),SCR1,NB,UH->S().pointer(),NB,
-             dcomplex(1.),propagator_.onePDMOrtho->Z().pointer(),NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,dcomplex(0.5),SCR1,NB,UH[idx]->S().pointer(),NB,
+             dcomplex(1.),systems_[idx]->onePDMOrtho->Z().pointer(),NB);
 
       }
 
     } else {
 
       // Gather DO
-      SquareMatrix<dcomplex> DO(propagator_.onePDMOrtho->template spinGather<dcomplex>());
+      SquareMatrix<dcomplex> DO(systems_[idx]->onePDMOrtho->template spinGather<dcomplex>());
 
       // Gather UH into SCR
-      SquareMatrix<dcomplex> UHblockForm(UH->template spinGather<dcomplex>());
+      SquareMatrix<dcomplex> UHblockForm(UH[idx]->template spinGather<dcomplex>());
 
       // SCR1 = U**H * DO
-      Gemm('N','N',2*NB,2*NB,2*NB,dcomplex(1.),UHblockForm.pointer(),2*NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,2*NB,2*NB,2*NB,dcomplex(1.),UHblockForm.pointer(),2*NB,
            DO.pointer(),2*NB,dcomplex(0.),SCR1,2*NB);
 
       // DO = SCR1 * U
-      Gemm('N','C',2*NB,2*NB,2*NB,dcomplex(1.),SCR1,2*NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,2*NB,2*NB,2*NB,dcomplex(1.),SCR1,2*NB,
            UHblockForm.pointer(),2*NB,dcomplex(0.),DO.pointer(),2*NB);
 
       // Scatter DO
-      *propagator_.onePDMOrtho = DO.template spinScatter<dcomplex>();
+      *systems_[idx]->onePDMOrtho = DO.template spinScatter<dcomplex>();
 
     }
 
 
-    propagator_.ortho2aoDen();
+    systems_[idx]->ortho2aoDen();
 
     memManager_.free(SCR,SCR1);
+
+    ProgramTimer::tock("Propagate WFN");
 
   }; // RealTime::propagatorWFN
 
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::createRTDataSets() {
+  void RealTime<_SSTyp,IntsT>::createRTDataSets(size_t maxPoints) {
 
-    hsize_t maxPoints = intScheme.tMax / intScheme.deltaT + 1;
+    if( restart ) return;
+
+    if( maxPoints == 0 )
+      maxPoints = intScheme.tMax / intScheme.deltaT + 1;
     
     savFile.createGroup("RT");
 
-    savFile.createDataSet<double>("RT/TIME",
-        {maxPoints});
-    savFile.createDataSet<double>("RT/ENERGY",
-        {maxPoints});
-    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE",
-        {maxPoints,3});
-    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE_FIELD",
-        {maxPoints,3});
+    savFile.createDataSet<double>("RT/TIME", {maxPoints});
+    savFile.createDataSet<double>("RT/ENERGY", {maxPoints});
+    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE", {maxPoints,3});
+    savFile.createDataSet<double>("RT/LEN_ELEC_DIPOLE_FIELD", {maxPoints,3});
+
+    if( this->orbitalPopFreq != 0 ) {
+      hsize_t nPop = (maxPoints / this->orbitalPopFreq);
+      if( this->orbitalPopFreq != 1 &&
+          (maxPoints-1) % this->orbitalPopFreq == 0 )
+        nPop += 1;
+      if( maxPoints == 1 )
+        nPop = 1;
+      hsize_t nOrbs = propagator_.nOrbital();
+      savFile.createDataSet<double>("RT/ORBITALPOPULATION", {nPop, nOrbs});
+    }
   }; // RealTime::createRTDataSets
 
 
@@ -450,9 +500,11 @@ namespace ChronusQ {
     );
     memManager_.free(timeData);
 
-    std::cout << "  *** Restoring from step " << restoreStep << " (";
-    std::cout << std::setprecision(4) << restoreStep * intScheme.deltaT;
-    std::cout << " AU) ***" << std::endl;
+    if( printLevel > 0 ) {
+      std::cout << "  *** Restoring from step " << restoreStep << " (";
+      std::cout << std::setprecision(4) << restoreStep * intScheme.deltaT;
+      std::cout << " AU) ***" << std::endl;
+    }
 
     intScheme.restoreStep = restoreStep;
 
@@ -461,8 +513,7 @@ namespace ChronusQ {
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
   void RealTime<_SSTyp,IntsT>::saveState(EMPerturbation& pert_t) {
-
-    size_t NB = propagator_.nAlphaOrbital();
+    
 
     data.Time.push_back(curState.xTime);
     data.Energy.push_back(propagator_.totalEnergy);
@@ -474,18 +525,20 @@ namespace ChronusQ {
     if( savFile.exists() ) {
 
       hsize_t nSteps = 0;
+      size_t maxStep = (size_t)((intScheme.tMax + intScheme.deltaT/4)/intScheme.deltaT);
 
       if (curState.iStep % intScheme.iSave == 0 
           and curState.iStep != intScheme.restoreStep)
-        nSteps = intScheme.iSave + 1;
-      else if ( curState.iStep == intScheme.tMax / intScheme.deltaT )
-        nSteps = curState.iStep % intScheme.iSave + 1;
+        nSteps = intScheme.iSave;
+      else if( curState.iStep == maxStep )
+        nSteps = (curState.iStep - intScheme.restoreStep) % intScheme.iSave + 1;
 
       hsize_t lastPos = curState.iStep - nSteps + 1;
-      hsize_t memLastPos = lastPos - intScheme.restoreStep;
+      hsize_t memLastPos = data.Time.size() - nSteps;
 
       if (nSteps != 0) {
-        std::cout << "  *** Saving data to binary file ***" << std::endl;
+        if( printLevel > 0 )
+          std::cout << "  *** Saving data to binary file ***" << std::endl;
         savFile.partialWriteData("RT/TIME", &data.Time[0], {lastPos},
             {nSteps}, {memLastPos}, {data.Time.size()});
         savFile.partialWriteData("RT/ENERGY", &data.Energy[0], {lastPos},
@@ -500,13 +553,221 @@ namespace ChronusQ {
 
         savFile.safeWriteData("RT/TD_1PDM", *propagator_.onePDM);
         if ( curState.curStep == ModifiedMidpoint )
-          savFile.safeWriteData("RT/TD_1PDM_ORTHO",*DOSav);
+          savFile.safeWriteData("RT/TD_1PDM_ORTHO",*DOSav[0]);
         else
           savFile.safeWriteData("RT/TD_1PDM_ORTHO",*propagator_.onePDMOrtho);
       }
     }
   }; // RealTime::saveState
 
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::orbitalPop() {
+
+    // Spin-Gather Ortho Density
+    std::vector<SquareMatrix<dcomplex>> orthoDen;
+    if( propagator_.nC == 1 ){
+       orthoDen = propagator_.onePDMOrtho->template spinGatherToBlocks<dcomplex>(false);
+    } else {
+       orthoDen.push_back(propagator_.onePDMOrtho->template spinGather<dcomplex>());
+    }
+
+    // Transform a copy of the MOs because
+    std::vector<SquareMatrix<dcomplex>> orthoMO = propagator_.mo;
+
+    propagator_.orthoAB->nonortho2orthoCoeffs(orthoMO);
+
+    // Transform alpha Density and compute populations
+    size_t NB = orthoMO[0].dimension();
+    std::vector<double> population;
+    std::vector<SquareMatrix<dcomplex>> moDen;
+    moDen.push_back( orthoDen[0].transform('N',orthoMO[0].pointer(),NB,NB) );
+    for( size_t i=0; i<NB; ++i)
+        population.push_back( std::real(moDen[0](i,i)) );
+
+    // UHF Beta populations
+    if( propagator_.nC == 1 and not propagator_.iCS ){
+      moDen.push_back( orthoDen[1].transform('N',orthoMO[1].pointer(),NB,NB) );
+      for( size_t i=0; i<NB; ++i)
+          population.push_back( std::real(moDen[1](i,i)) );
+    }
+          
+    if( savFile.exists() ) {
+      size_t fullDim  = population.size();
+      hsize_t location = curState.iStep / this->orbitalPopFreq;
+      savFile.partialWriteData("RT/ORBITALPOPULATION", population.data(),
+        {location, 0}, {1, fullDim}, {0, 0}, {1, fullDim});
+    }
+
+    // Printing 
+    if( this->printLevel > 1 ) {
+
+      size_t orbPerRow = 5;
+      auto printBlock = [&](std::string header, size_t& start, size_t n){
+        std::cout << header << std::endl;
+        std::cout << std::fixed << std::setprecision(11);
+        
+        for(auto idx = 0; idx < n; idx += orbPerRow) {
+
+          size_t end = idx + orbPerRow < n ? orbPerRow : n - idx;
+          for(auto idummy = idx; idummy < idx+end; idummy++) {
+            std::cout << std::setw(15) << population[start+idummy];
+          }
+          std::cout << '\n';
+        }
+        start += n;
+      };
+
+      if( this->printLevel > 3 ){
+        moDen[0].output(std::cout, "MO Density Matrix", true);
+        if( propagator_.nC == 1 and not propagator_.iCS ) 
+            moDen[1].output(std::cout, "MO Beta Density Matrix", true);
+      }
+
+      size_t start = 0;
+      if( propagator_.nC == 1 ) {
+        printBlock("Alpha occupied orbitals", start, propagator_.nOA);
+        printBlock("Alpha virtual orbitals", start, propagator_.nVA);
+        if( not propagator_.iCS ){
+          printBlock("Beta occupied orbitals", start, propagator_.nOB);
+          printBlock("Beta virtual orbitals", start, propagator_.nVB);
+        }
+      }
+      else if( propagator_.nC == 2 ){
+        printBlock("Occupied orbitals", start, propagator_.nO);
+        printBlock("Virtual orbitals", start, propagator_.nV);
+      } else if( propagator_.nC == 4 ){
+        start += NB/2;
+        printBlock("Positive Energy Occupied orbitals", start, propagator_.nO);
+        printBlock("Positive Energy Virtual orbitals", start, propagator_.nV);
+      }
+      std::cout << std::flush;
+    }
+
+  }; // RealTime :: orbitalPop
+
+  /*
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::orbitalPop() { 
+
+    bool unrestricted = (propagator_.mo.size() > 1);
+    bool twocomp = (propagator_.nC == 2);
+
+    // Gather the orthonormal density into the full spinor form
+    auto fullDen = propagator_.onePDMOrtho->template spinGather<dcomplex>();
+
+    if( propagator_.nC > 2 ) {
+      CErr("Real time orbital population not implemented for > 2c");
+    }
+
+    //
+    // Form the ortho to MO transform in the full spinor form
+    //
+    
+    // Allocation
+    size_t fullDim = fullDen.dimension();
+    SquareMatrix<dcomplex> orthoTrans(memManager_, fullDim); 
+    orthoTrans.clear();
+    auto& mos = propagator_.mo;
+
+    size_t moDim = mos[0].dimension();
+    auto bbOffset = 2*moDim*moDim + moDim;
+
+    // Transform AO MO to ortho MO
+    dcomplex* ortho = propagator_.ortho[1].pointer();
+    size_t orthoDim = propagator_.ortho[1].dimension();
+    std::vector<dcomplex*> moPointers;
+    std::vector<dcomplex*> outPointers;
+    for(auto i = 0; i < mos.size(); i++) {
+      moPointers.push_back(mos[i].pointer());
+      outPointers.push_back(orthoTrans.pointer() + i*bbOffset);
+    }
+    if(propagator_.iCS) {
+      moPointers.push_back(mos[0].pointer());
+      outPointers.push_back(orthoTrans.pointer() + bbOffset);
+    }
+
+    TransformLeft(orthoDim, moDim, orthoDim, moDim, dcomplex(1.), ortho, orthoDim,
+      moPointers, moDim, (dcomplex*)nullptr, outPointers, fullDim);
+
+    // Transform the orthonormal density into the MO basis
+    SquareMatrix<dcomplex> moDen = fullDen.transform('N', orthoTrans.pointer(),
+      fullDim, fullDim);
+
+    std::vector<double> population;
+    for(auto i = 0; i < fullDim; i++) {
+      population.push_back(std::real(moDen(i,i)));
+    }
+
+    if( savFile.exists() ) {
+      hsize_t location = curState.iStep / this->orbitalPopFreq;
+      savFile.partialWriteData("RT/ORBITALPOPULATION", population.data(),
+        {location, 0}, {1, fullDim}, {0, 0}, {1, fullDim});
+    }
+
+    // Printing 
+    if( this->printLevel > 1 ) {
+
+      size_t orbPerRow = 5;
+      auto printBlock = [&](std::string header, size_t& start, size_t n){
+        std::cout << header << std::endl;
+        std::cout << std::fixed << std::setprecision(11);
+        
+        for(auto idx = 0; idx < n; idx += orbPerRow) {
+
+          size_t end = idx + orbPerRow < n ? orbPerRow : n - idx;
+          for(auto idummy = idx; idummy < idx+end; idummy++) {
+            std::cout << std::setw(15) << population[start+idummy];
+          }
+          std::cout << '\n';
+        }
+        start += n;
+      };
+
+      if( this->printLevel > 3 )
+        moDen.output(std::cout, "MO Density Matrix", true);
+
+      size_t start = 0;
+      if( not twocomp ) {
+        printBlock("Alpha occupied orbitals", start, propagator_.nOA);
+        printBlock("Alpha virtual orbitals", start, propagator_.nVA);
+        printBlock("Beta occupied orbitals", start, propagator_.nOB);
+        printBlock("Beta virtual orbitals", start, propagator_.nVB);
+      }
+      else {
+        printBlock("Occupied orbitals", start, propagator_.nO);
+        printBlock("Virtual orbitals", start, propagator_.nV);
+      }
+      std::cout << std::flush;
+    }
+
+  };
+*/
+
+
+  template <template <typename, typename> class _SSTyp, typename IntsT>
+  void RealTime<_SSTyp,IntsT>::updateAOProperties(double currentTime) {
+    // Form AO density
+    //propagator_.computeOrtho();
+    //propagator_.ortho2aoDen();
+    for(auto idx = 0; idx < systems_.size(); idx++) {
+      systems_[idx]->computeOrtho();
+      systems_[idx]->ortho2aoDen();
+      systems_[idx]->ortho2aoMOs();
+    }
+
+
+    // Form fock matrix
+    for(auto idx = 0; idx < systems_.size(); idx++) {
+      this->formFock(false,currentTime,idx);
+    }
+    // Compute properties
+    EMPerturbation pert_t = pert.getPert(currentTime);
+    propagator_.computeProperties(pert_t);
+    // Print progress line in the output file
+    // printRTStep();
+
+
+  }; // RealTime::updateAOProperties
 
 }; // namespace ChronusQ
 

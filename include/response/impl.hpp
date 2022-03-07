@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you ca redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include <response/polarization/singleslater.hpp>
 #include <response/polarization/hartreefock.hpp>
 #include <response/polarization/kohnsham.hpp>
+#include <response/polarization/neoss.hpp>
 
 #include <response/particleparticle/singleslater.hpp>
 #include <response/particleparticle/hartreefock.hpp>

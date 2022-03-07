@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -81,13 +81,6 @@ TEST( RHF, Water_631Gd_FindBasis ) {
 TEST( RHF, Water_631Gd_InputBasis ) {
 
   CQSCFTEST( "scf/serial/rhf/water_6-31Gd_inBasis", "water_6-31Gd.bin.ref" );
- 
-};
-
-// Li 6-31G(d) input basis 
-TEST( UHF, Li_631Gd_InputBasis ) {
-
-  CQSCFTEST( "scf/serial/uhf/li_6-31Gd_inBasis", "li_6-31Gd.bin.ref" );
  
 };
 

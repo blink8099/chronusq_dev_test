@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ namespace ChronusQ {
    *  many-body wave function
    */ 
   template <typename MatsT, typename IntsT>
-  class HartreeFock : public SingleSlater<MatsT,IntsT>,
+  class HartreeFock : virtual public SingleSlater<MatsT,IntsT>,
     public std::enable_shared_from_this<HartreeFock<MatsT,IntsT>> {
 
     public:
@@ -48,7 +48,7 @@ namespace ChronusQ {
     HartreeFock(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
                 Integrals<IntsT> &aoi, Args... args) :
       SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...) {
 
       // Append HF tags to reference names
@@ -73,7 +73,7 @@ namespace ChronusQ {
                 CQMemManager &mem, Molecule &mol, BasisSet &basis,
                 Integrals<IntsT> &aoi, Args... args) :
       SingleSlater<MatsT,IntsT>(c,mem,mol,basis,aoi,args...),
-      WaveFunctionBase(c,mem,args...),
+      WaveFunctionBase(c,mem,mol,basis,args...),
       QuantumBase(c,mem,args...) {
 
       this->refLongName_  = rL;
@@ -113,8 +113,10 @@ namespace ChronusQ {
 
 
 
-    MatsT* getNRCoeffs();
+    //void getNRCoeffs(MatsT*);
+    void computeFullNRStep(MatsT*);
     std::pair<double,MatsT*> getStab();
+    void buildModifyOrbitals();
 
 
   }; // class HartreeFock

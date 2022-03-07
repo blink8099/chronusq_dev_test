@@ -13,9 +13,9 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CSLATER
+reference = 2CSLATER
 job = SCF
-x2ctype = scalar
+x2ctype = SpinFree
 
 [BASIS]
 basis = SAPPORO-DKH3-DZP-2012-SP 

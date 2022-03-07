@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ add_executable(functest ../ut.cxx contract.cxx ordqz.cxx gplhr.cxx davidson.cxx)
 target_compile_definitions(functest PUBLIC CQ_FUNC_TEST)
 target_include_directories(functest PUBLIC ${FUNC_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
-target_link_libraries(functest PUBLIC ${CQEX_LINK})
+target_link_libraries(functest PUBLIC ChronusQ::Dependencies ${CQEX_LINK})
 target_link_libraries(functest PUBLIC ChronusQ::gtest)
 
 
@@ -50,6 +50,7 @@ add_cq_test( DIRECT_CONTRACTION functest "DIRECT_CONTRACTION*" )
 add_cq_test( ORDQZ              functest "ORDQZ.*" )
 add_cq_test( GPLHR              functest "GPLHR.*" )
 add_cq_test( DAVIDSON           functest "DAVIDSON.*" )
+add_cq_test( CQMEMMANAGER       functest "CQMEM.*" )
 
 if( CQ_ENABLE_MPI )
   add_cq_mpi_test( GPLHR_MPI 2 functest "GPLHR.*" )

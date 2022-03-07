@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,8 +24,9 @@
 #include <cxxapi/options.hpp>
 #include <cerr.hpp>
 
-#include <util/threads.hpp>
 #include <util/mpi.hpp>
+#include <util/threads.hpp>
+#include <util/timer.hpp>
 
 namespace ChronusQ {
 
@@ -35,7 +36,10 @@ namespace ChronusQ {
     std::vector<std::string> allowedKeywords = {
       "MEM",
       "MEMBLK",
-      "NSMP"
+      "NSMP",
+      "TIMER",
+      "DEBUGTIMING",
+      "TIMERUNIT"
     };
 
     // Specified keywords
@@ -55,6 +59,35 @@ namespace ChronusQ {
 
     size_t mem     = 256e6; // Default 256 MB allocation
     size_t blkSize = 2048;  // Default 2KB block size
+
+    // Set max threads
+    OPTOPT(
+      SetNumThreads(input.getData<size_t>("MISC.NSMP"));
+    )
+
+    size_t nThreads = GetNumThreads();
+    ProgramTimer::initialize("Chronus Quantum", nThreads);
+
+    // Get timer options
+    TimerOpts topts;
+    OPTOPT( topts.doSummary = input.getData<bool>("MISC.TIMER"); )
+    OPTOPT( topts.dbgPrint = input.getData<size_t>("MISC.DEBUGTIMING"); )
+    std::string unit = "";
+    OPTOPT( unit = input.getData<std::string>("MISC.TIMERUNIT"); )
+    if (unit == "SECONDS" || unit == "SECOND" || unit == "S")
+      topts.unit = SECONDS;
+    else if ( unit == "MINUTES" || unit == "MINUTE" || unit == "MIN" ||
+              unit == "M" )
+      topts.unit = MINUTES;
+    else if ( unit == "MILLISECONDS" || unit == "MILLISECOND" ||
+              unit == "MILLI" || unit == "MS" )
+      topts.unit = MILLISECONDS;
+    else if ( unit != "" ) {
+      std::string err = "Unrecognized unit " + unit + " for MISC.TIMERUNIT";
+      CErr(err);
+    }
+
+    ProgramTimer::instance()->options = topts;
 
     // Determine if memory allocation was specified
     OPTOPT(
@@ -100,10 +133,6 @@ namespace ChronusQ {
 
 
 
-    OPTOPT(
-      SetNumThreads(input.getData<size_t>("MISC.NSMP"));
-    )
-
     out << "\n\n";
 
     out << "  *** Allocating " << memPrint << " " << postfix << "B *** \n";
@@ -113,7 +142,10 @@ namespace ChronusQ {
         << " MPI Processes ***\n\n";
     out << "\n\n";
 
-    return std::make_shared<CQMemManager>(mem,blkSize);
+    ProgramTimer::tick("Memory Allocation");
+    auto memManager = std::make_shared<CQMemManager>(mem,blkSize);
+    ProgramTimer::tock();
+    return memManager;
 
   }; // CQMiscOptions
 

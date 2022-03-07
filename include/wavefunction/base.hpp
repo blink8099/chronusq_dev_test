@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,6 +28,13 @@
 
 namespace ChronusQ {
 
+
+  // Type of spin
+  enum SpinType {
+    isAlpha= 0,  // default orbital manifold
+    isBeta = 1,  // beta manifold for unrestricted
+  };
+
   /**
    *  \brief The WaveFunctionBase class. The abstraction of information
    *  relating to the WaveFunction class which are independent of storage
@@ -42,6 +49,8 @@ namespace ChronusQ {
   public:
     // Member data
 
+    Molecule &molecule_; ///< A reference of the Molecule
+    BasisSet &basisSet_; ///< BasisSet for the GTO basis defintion
 
     size_t nO;  ///< Total number of occupied orbitals
     size_t nV;  ///< Total number of virtual orbitals
@@ -67,8 +76,15 @@ namespace ChronusQ {
      *  \param [in] _nC  Number of spin components (1 and 2 are supported)
      *  \param [in] iCS  Whether or not to treat as closed shell
      */ 
-    WaveFunctionBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool iCS) : 
-      QuantumBase(c, mem,_nC,iCS) { }; // WaveFunctionBase ctor 
+    WaveFunctionBase(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
+      size_t _nC, bool iCS, Particle p) : 
+      QuantumBase(c, mem,_nC,iCS,p), 
+      molecule_(mol), basisSet_(basis) 
+      { }; // WaveFunctionBase ctor 
+
+    // Member Functions
+    Molecule& molecule() { return molecule_; }
+    BasisSet& basisSet() { return basisSet_; }
 
     size_t nAlphaOrbital() const { return nOA + nVA; }
     size_t nBetaOrbital() const { return nOB + nVB; }
@@ -76,8 +92,14 @@ namespace ChronusQ {
     // Print Functions
     virtual void printMO(std::ostream&)  = 0;
     virtual void printEPS(std::ostream&) = 0;
+    virtual void printMOInfo(std::ostream&, size_t a = 0) = 0;
 
-    virtual void printMOInfo(std::ostream&) = 0;
+    // MO swap functions
+    virtual void swapMOs(std::vector<std::vector<std::pair<size_t, size_t>>>&, SpinType sp) = 0;
+
+    // Get geometric gradients
+    virtual std::vector<double> getGrad(EMPerturbation&, bool equil,
+      bool saveInts) = 0;
 
   }; // class WaveFunctionBase
 

@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,11 +31,13 @@ add_executable(resptest ../ut.cxx rres.cxx rfdr.cxx rmor.cxx
   rres_lda.cxx rres_gga.cxx rres_hgga.cxx rpp.cxx upp.cxx gpp.cxx
   ures_hf.cxx ures_lsda.cxx ures_gga.cxx ures_hgga.cxx 
   gres_hf.cxx gres_lsda.cxx gres_gga.cxx gres_hgga.cxx 
-  x2cres_hf.cxx x2cres_lsda.cxx x2cres_gga.cxx x2cres_hgga.cxx misc.cxx)
+  x2cres_hf.cxx x2cres_lsda.cxx x2cres_gga.cxx x2cres_hgga.cxx
+  neohf_res.cxx
+  misc.cxx)
 
 target_include_directories(resptest PUBLIC ${RESP_TEST_SOURCE_ROOT} 
   ${TEST_BINARY_ROOT})
-target_link_libraries(resptest PUBLIC ${CQEX_LINK})
+target_link_libraries(resptest PUBLIC ChronusQ::Dependencies ${CQEX_LINK})
 target_link_libraries(resptest PUBLIC ChronusQ::gtest)
 
 if(CQEX_DEP)
@@ -51,6 +53,7 @@ file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/gresp_hf)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/gresp_ks)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/x2cresp_hf)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/x2cresp_ks)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/neoresp_hf)
 
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/rresp)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/rresp_ks)
@@ -60,6 +63,7 @@ file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/gresp_hf)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/gresp_ks)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/x2cresp_hf)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/x2cresp_ks)
+file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/parallel/neoresp_hf)
 
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/rmor)
 file(MAKE_DIRECTORY ${RESP_TEST_BINARY_ROOT}/serial/rmor_ks)
@@ -99,6 +103,7 @@ add_cq_test( RHF_FDR           resptest "RHF_FDR.*"          )
 add_cq_test( RHF_DFDR          resptest "RHF_DFDR.*"         )
 add_cq_test( RHF_MOR           resptest "RHF_MOR.*"          )
 add_cq_test( MISC_RESP         resptest "MISC_RESP.*"        )
+add_cq_test( NEOHF_RESIDUE     resptest "NEOHF_RESIDUE.*"    )
 
 
 

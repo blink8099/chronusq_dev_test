@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include <cqlinalg/factorization.hpp>
 
 #include <util/threads.hpp>
+#include <util/timer.hpp>
 
 namespace ChronusQ {
 
@@ -46,7 +47,7 @@ namespace ChronusQ {
         "  * PERFORMING RESPONSE OPTION CONFIGURATION FOR SINGLE SLATER "
                 << "WAVE FUNCTION\n";
     }
-
+    SingleSlater<MatsT,IntsT>& ss =dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
     // Set the internal NSingleDim
     this->nSingleDim_ = getNSingleDim(this->genSettings.doTDA);
 
@@ -147,12 +148,12 @@ namespace ChronusQ {
       // Hermetian operators
       bool needsP = 
         std::any_of(this->genSettings.aOps.begin(),
-		    this->genSettings.aOps.end(), isHerOp);
+        this->genSettings.aOps.end(), isHerOp);
 
       // Anti-Hermetian operators
       bool needsQ = 
         std::any_of(this->genSettings.aOps.begin(),
-		    this->genSettings.aOps.end(), isAntiHerOp);
+        this->genSettings.aOps.end(), isAntiHerOp);
 
       this->fdrSettings.needP = needsP;
       this->fdrSettings.needQ = needsQ;
@@ -302,9 +303,9 @@ namespace ChronusQ {
       if( scaleOp )
       for(auto iO = 0; iO < freq.size(); iO++)
         if( noDamp ) 
-          Scale(N*nOp,MatsT(freq[iO]),this->fdrResults.SOL + (iO*nRHS + iOff)*N,1);
+          blas::scal(N*nOp,MatsT(freq[iO]),this->fdrResults.SOL + (iO*nRHS + iOff)*N,1);
         else
-          Scale(N*nOp,dcomplex(freq[iO],this->fdrSettings.dampFactor),
+          blas::scal(N*nOp,dcomplex(freq[iO],this->fdrSettings.dampFactor),
             this->dfdrResults.SOL + (iO*nRHS + iOff)*N,1);
 
       iOff += nOp;
@@ -367,6 +368,7 @@ namespace ChronusQ {
     std::ostream &out, size_t nRoots, double *W_print,
     std::vector<std::pair<std::string,double *>> data, U* VL, U* VR) {
 
+    SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
     this->nSingleDim_ = getNSingleDim(this->genSettings.doTDA);
 
     out << "\n\n\n* RESIDUE EIGENMODES\n\n\n";
@@ -401,7 +403,7 @@ namespace ChronusQ {
       decltype(xCont) yCont;
       if( not this->genSettings.doTDA ) 
         yCont = getMOContributions(VL+iRt*this->nSingleDim_,1e-1);
-
+      
       // MO contributions
       out << "    MO Contributions:\n";
       for(auto &c : xCont) {
@@ -477,11 +479,11 @@ namespace ChronusQ {
 
       for(auto k = 0; k < nRoots; k++) {
 
-        MatsT tnorm = TwoNorm<double>(N/2, V + k*N, 1);
+        MatsT tnorm = blas::nrm2(N/2, V + k*N, 1);
         if( std::abs(tnorm) < 1e-08 )
-          tnorm = TwoNorm<double>(N/2, V + k*N + N/2, 1);
+          tnorm = blas::nrm2(N/2, V + k*N + N/2, 1);
 
-        Scale(N,1./tnorm,V + k*N,1);
+        blas::scal(N,1./tnorm,V + k*N,1);
 
       }
 
@@ -497,21 +499,21 @@ namespace ChronusQ {
 
     std::function<MatsT(MatsT*)> tdInner = 
       [&](MatsT* Vc) { 
-        return std::sqrt(std::abs(InnerProd<MatsT>(N,Vc,1,Vc,1)));
+        return std::sqrt(std::abs(blas::dot(N,Vc,1,Vc,1)));
       };
 
 
     if( doAPB_AMB )
       tdInner = 
         [&](MatsT* Vc) { 
-          return std::sqrt(std::abs(InnerProd<MatsT>(N/2,Vc,1,Vc+N/2,1) + 
-                 InnerProd<MatsT>(N/2,Vc+N/2,1,Vc,1)));
+          return std::sqrt(std::abs(blas::dot(N/2,Vc,1,Vc+N/2,1) + 
+                 blas::dot(N/2,Vc+N/2,1,Vc,1)));
         };
     else 
       tdInner = 
         [&](MatsT* Vc) { 
-          return std::sqrt(std::abs(InnerProd<MatsT>(N/2,Vc,1,Vc,1) - 
-                 InnerProd<MatsT>(N/2,Vc+N/2,1,Vc+N/2,1)));
+          return std::sqrt(std::abs(blas::dot(N/2,Vc,1,Vc,1) - 
+                 blas::dot(N/2,Vc+N/2,1,Vc+N/2,1)));
         };
 
 
@@ -527,7 +529,7 @@ namespace ChronusQ {
       [&](size_t i, size_t j, MatsT* Vi, size_t LDVi, MatsT* Vj, size_t LDVj, 
         MatsT* inner){ 
 
-        Gemm('C','N',i,j,N,MatsT(1.),Vi,LDVi,Vj,LDVj,MatsT(0.),inner,i);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,i,j,N,MatsT(1.),Vi,LDVi,Vj,LDVj,MatsT(0.),inner,i);
 
       };
 
@@ -537,8 +539,8 @@ namespace ChronusQ {
         [&](size_t i, size_t j, MatsT* Vi, size_t LDVi,
           MatsT* Vj, size_t LDVj, MatsT* inner){ 
   
-          Gemm('C','N',i,j,N/2,MatsT(1.),Vi    ,LDVi,Vj+N/2,LDVj,MatsT(0.),inner,i);
-          Gemm('C','N',i,j,N/2,MatsT(1.),Vi+N/2,LDVi,Vj    ,LDVj,MatsT(1.),inner,i);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,i,j,N/2,MatsT(1.),Vi    ,LDVi,Vj+N/2,LDVj,MatsT(0.),inner,i);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,i,j,N/2,MatsT(1.),Vi+N/2,LDVi,Vj    ,LDVj,MatsT(1.),inner,i);
   
         };
     else
@@ -546,8 +548,8 @@ namespace ChronusQ {
         [&](size_t i, size_t j, MatsT* Vi, size_t LDVi,
           MatsT* Vj, size_t LDVj, MatsT* inner){ 
 
-          Gemm('C','N',i,j,N/2,MatsT(1.) ,Vi    ,LDVi,Vj    ,LDVj,MatsT(0.),inner,i);
-          Gemm('C','N',i,j,N/2,MatsT(-1.),Vi+N/2,LDVi,Vj+N/2,LDVj,MatsT(1.),inner,i);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,i,j,N/2,MatsT(1.) ,Vi    ,LDVi,Vj    ,LDVj,MatsT(0.),inner,i);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,i,j,N/2,MatsT(-1.),Vi+N/2,LDVi,Vj+N/2,LDVj,MatsT(1.),inner,i);
 
         };
 
@@ -575,10 +577,12 @@ namespace ChronusQ {
       MatsT* M = this->fullMatrix_;
       MatsT* K = this->fullMatrix_ + N;
       // Use BSEPACK's odd normalization scheme...
-      Gemm('N','N',N,N,N,MatsT(1.),M,2*N,this->resResults.VR,N,
-        MatsT(0.),this->resResults.VL,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,MatsT(1.),M,2*N,
+        this->resResults.VR,N,MatsT(0.),this->resResults.VL,N);
 
-      TriLinSolve('L','L','C','N',N,N,MatsT(1.),M,2*N,this->resResults.VR,N);
+      // Triangular linear solve
+      blas::trsm(blas::Layout::ColMajor,blas::Side::Left,blas::Uplo::Lower,blas::Op::ConjTrans,blas::Diag::NonUnit,
+        N,N,MatsT(1.),M,2*N,this->resResults.VR,N);
 
       for(auto k = 0; k < N; k++)
       for(auto j = 0; j < N; j++) {
@@ -736,20 +740,20 @@ namespace ChronusQ {
         if( mContract or kmContract ) 
 #ifdef CQ_ENABLE_MPI
           if( isDist )
-            Gemm('N','N',N,nVec,N,U(1.),FM,1,1,descMem,X,1,1,mat.DescX,
+            Gemm_MPI('N','N',N,nVec,N,U(1.),FM,1,1,descMem,X,1,1,mat.DescX,
               U(0.),AX,1,1,DescAX);
           else
 #endif
-            Gemm('N','N',N,nVec,N,U(1.),this->fullMatrix_,2*N,X,N,U(0.),AX,N);
+            blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nVec,N,U(1.),this->fullMatrix_,2*N,X,N,U(0.),AX,N);
 
         if( kContract or mkContract ) 
 #ifdef CQ_ENABLE_MPI
           if( isDist )
-            Gemm('N','N',N,nVec,N,U(1.),FM,N+1,1,descMem,X,1,1,mat.DescX,
+            Gemm_MPI('N','N',N,nVec,N,U(1.),FM,N+1,1,descMem,X,1,1,mat.DescX,
               U(0.),AX,1,1,DescAX);
           else
 #endif
-            Gemm('N','N',N,nVec,N,U(1.),this->fullMatrix_+N,2*N,X,N,
+            blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nVec,N,U(1.),this->fullMatrix_+N,2*N,X,N,
               U(0.),AX,N);
 
         AX     = mat.AX;
@@ -761,21 +765,21 @@ namespace ChronusQ {
         if( mkContract )
 #ifdef CQ_ENABLE_MPI
           if( isDist )
-            Gemm('N','N',N,nVec,N,U(1.),FM,1,1,descMem,SCR,1,1,descSCR,
+            Gemm_MPI('N','N',N,nVec,N,U(1.),FM,1,1,descMem,SCR,1,1,descSCR,
               U(0.),AX,1,1,DescAX);
           else
 #endif
-            Gemm('N','N',N,nVec,N,U(1.),this->fullMatrix_,2*N,SCR,N,
+            blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nVec,N,U(1.),this->fullMatrix_,2*N,SCR,N,
               U(0.),AX,N);
 
         if( kmContract )
 #ifdef CQ_ENABLE_MPI
           if( isDist )
-            Gemm('N','N',N,nVec,N,U(1.),FM,N+1,1,descMem,SCR,1,1,descSCR,
+            Gemm_MPI('N','N',N,nVec,N,U(1.),FM,N+1,1,descMem,SCR,1,1,descSCR,
               U(0.),AX,1,1,DescAX);
           else
 #endif
-            Gemm('N','N',N,nVec,N,U(1.),this->fullMatrix_+N,2*N,SCR,N,
+            blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nVec,N,U(1.),this->fullMatrix_+N,2*N,SCR,N,
               U(0.),AX,N);
 
       } else if( this->doAPB_AMB ) {
@@ -783,17 +787,17 @@ namespace ChronusQ {
         if( isDist ) {
 
 #ifdef CQ_ENABLE_MPI
-          Gemm('N','N',N/2,nVec,N/2,U(1.),FM,(N/2)+1,1,descMem,
+          Gemm_MPI('N','N',N/2,nVec,N/2,U(1.),FM,(N/2)+1,1,descMem,
             X,(N/2)+1,1,mat.DescX, U(0.),AX,1,1,DescAX);
-          Gemm('N','N',N/2,nVec,N/2,U(1.),FM,1,1,descMem,
+          Gemm_MPI('N','N',N/2,nVec,N/2,U(1.),FM,1,1,descMem,
             X,1,1,mat.DescX, U(0.),AX,(N/2)+1,1,DescAX);
 #endif
 
         } else {
 
-          Gemm('N','N',N/2,nVec,N/2,U(1.),this->fullMatrix_+(N/2),N,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N/2,nVec,N/2,U(1.),this->fullMatrix_+(N/2),N,
             X + (N/2),N, U(0.),AX,N);
-          Gemm('N','N',N/2,nVec,N/2,U(1.),this->fullMatrix_,N,X,N,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N/2,nVec,N/2,U(1.),this->fullMatrix_,N,X,N,
             U(0.),AX+(N/2),N);
 
         }
@@ -802,11 +806,11 @@ namespace ChronusQ {
 
 #ifdef CQ_ENABLE_MPI
         if( isDist )
-          Gemm('N','N',N,nVec,N,U(1.),FM,1,1,descMem,X,1,1,mat.DescX,
+          Gemm_MPI('N','N',N,nVec,N,U(1.),FM,1,1,descMem,X,1,1,mat.DescX,
             U(0.),AX,1,1,DescAX);
         else
 #endif
-          Gemm('N','N',N,nVec,N,U(1.),this->fullMatrix_,N,X,N,U(0.),AX,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nVec,N,U(1.),this->fullMatrix_,N,X,N,U(0.),AX,N);
 
         // Undo the metric scaling if need be if the matrix is
         // non hermetian and the incMet flag is turned off
@@ -867,7 +871,7 @@ namespace ChronusQ {
     
     if( isRoot ) std::cout << "\n  * FORMING FULL MATRIX\n";
     
-    auto topFull = tick();
+    ProgramTimer::tick("Full Hessian Form");
 
     this->nSingleDim_ = this->getNSingleDim(this->genSettings.doTDA);
     size_t N = this->nSingleDim_;
@@ -881,7 +885,6 @@ namespace ChronusQ {
     size_t nStore = (this->doAPB_AMB and not this->genSettings.doTDA) ? N/2 : N;
     size_t nFormP = nForm; // Persistant for matrix distribution
     size_t nStoreP = nStore; // Persistant for matrix distribution
-
     // Determine if we want to distribute the matrix at all
     bool isDist = this->genSettings.isDist(); 
 
@@ -965,49 +968,48 @@ namespace ChronusQ {
 
 
     // Perform contraction directly
-    auto topContract = tick();
     RC_coll<MatsT> cList(1);
     cList.back().nVec = nForm;
     cList.back().N    = N;
     cList.back().X    = V;
     cList.back().AX   = HV;
 
-    formLinearTrans_direct(matComm,cList,FULL);
-
-    auto durContract = tock(topContract);
+    ProgramTimer::timeOp("Hessian Contraction", [&](){
+      formLinearTrans_direct(matComm,cList,FULL);
+    });
 
 
     this->memManager_.free(V); // Free up some memory
 
-    auto topTrans = tick();
-    if( not this->genSettings.doTDA ) {
+    ProgramTimer::timeOp("Hessian Transform", [&](){
+      if( not this->genSettings.doTDA ) {
 
 
-      if( this->doAPB_AMB ) {
+        if( this->doAPB_AMB ) {
 
-        if( HV ) this->blockTransform(N/2 ,nForm, 1., HV, N, HV+N/2, N);
+          if( HV ) this->blockTransform(N/2 ,nForm, 1., HV, N, HV+N/2, N);
 
-      } else if( not this->genSettings.formMatDist  and isRootMatComm ) {
+        } else if( not this->genSettings.formMatDist  and isRootMatComm ) {
 
-        MatsT fact = incMet ? -1. : 1.;
-        // Place upper right "B"
-        SetMat('R',N/2,N/2,fact,HV + (N/2),N,HV + N*(N/2),N);
+          MatsT fact = incMet ? -1. : 1.;
+          // Place upper right "B"
+          SetMat('R',N/2,N/2,fact,HV + (N/2),N,HV + N*(N/2),N);
 
-        // Place lower right "-Conj(A)"
-        SetMat('R',N/2,N/2,fact,HV,N,HV + (N+1)*(N/2),N);
+          // Place lower right "-Conj(A)"
+          SetMat('R',N/2,N/2,fact,HV,N,HV + (N+1)*(N/2),N);
 
-        // Negate the bottom half
-        // SetMat('N',N/2,N,T(-1.),HV + (N/2),N,HV + (N/2),N);
+          // Negate the bottom half
+          // SetMat('N',N/2,N,T(-1.),HV + (N/2),N,HV + (N/2),N);
+
+        }
 
       }
 
-    }
-
-    double durTrans = tock(topTrans);
+    });
   
 
 
-    auto topDist = tick();
+    ProgramTimer::tick("Hessian Distribute");
 #ifdef CQ_ENABLE_MPI
     if( isDist ) {
 
@@ -1087,8 +1089,8 @@ namespace ChronusQ {
     } else 
 #endif
       this->fullMatrix_ = HV;
-
-    double durDist = tock(topDist);
+    
+		ProgramTimer::tock("Hessian Distribute");
 
     //if( isDist ) CErr();
 
@@ -1101,17 +1103,26 @@ namespace ChronusQ {
 
     }
 
-    double durFull =  tock(topFull);
+    ProgramTimer::tock("Full Hessian Form");
     if( isRoot ) {
 
+      CQSecond durFull = ProgramTimer::getDurationTotal<CQSecond>(
+        "Full Hessian Form");
+      CQSecond durContract = ProgramTimer::getDurationTotal<CQSecond>(
+        "Hessian Contraction");
+      CQSecond durTrans = ProgramTimer::getDurationTotal<CQSecond>(
+        "Hessian Transform");
+      CQSecond durDist = ProgramTimer::getDurationTotal<CQSecond>(
+        "Hessian Distribute");
+
       std::cout << "  * TIMINGS\n";
-      std::cout << "    * TOTAL     " << durFull << " s\n";
-      std::cout << "    * CONTRACT  " << durContract << " s\n";
+      std::cout << "    * TOTAL     " << durFull.count() << " s\n";
+      std::cout << "    * CONTRACT  " << durContract.count() << " s\n";
       if( not this->genSettings.doTDA )
-        std::cout << "    * TRANS     " << durTrans << " s\n";
+        std::cout << "    * TRANS     " << durTrans.count() << " s\n";
 #ifdef CQ_ENABLE_MPI
       if( isDist )
-        std::cout << "    * DIST      " << durDist << " s\n";
+        std::cout << "    * DIST      " << durDist.count() << " s\n";
 #endif
 
       std::cout << "\n";
@@ -1200,13 +1211,13 @@ namespace ChronusQ {
         if( this->genSettings.isDist() )
           CErr("Reduced Residue Response + ScaLAPACK NYI");
 
-        Cholesky('L',N,M,2*N); // Cholesky of M
+        lapack::potrf(lapack::Uplo::Lower,N,M,2*N); // Cholesky of M
         for(auto k = 0; k < N; k++)
         for(auto j = 0; j < k; j++)
           M[j + 2*k*N] = 0.;
 
-        Gemm('C','N',N,N,N,MatsT(1.),M   ,2*N,K,2*N,MatsT(0.),full,N  );
-        Gemm('N','N',N,N,N,MatsT(1.),full,N  ,M,2*N,MatsT(0.),K   ,2*N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,N,N,N,MatsT(1.),M   ,2*N,K,2*N,MatsT(0.),full,N  );
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,MatsT(1.),full,N  ,M,2*N,MatsT(0.),K   ,2*N);
 
         MatAdd('N','C',N,N,MatsT(0.5),K,2*N,MatsT(0.5),K,2*N,full,N);
 
@@ -1215,21 +1226,21 @@ namespace ChronusQ {
 
 #ifdef CQ_ENABLE_MPI
         if( isDist )
-          Gemm('N','N',N,N,N,MatsT(1.),FM,IK,JK,descMem,FM,IM,JM,descMem,
+          Gemm_MPI('N','N',N,N,N,MatsT(1.),FM,IK,JK,descMem,FM,IM,JM,descMem,
             MatsT(0.),full,1,1,descFull);
         else
 #endif
-          Gemm('N','N',N,N,N,MatsT(1.),K,2*N,M,2*N,MatsT(0.),full,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,MatsT(1.),K,2*N,M,2*N,MatsT(0.),full,N);
 
       } else {
 
 #ifdef CQ_ENABLE_MPI
         if( isDist )
-          Gemm('N','N',N,N,N,MatsT(1.),FM,IM,JM,descMem,FM,IK,JK,descMem,
+          Gemm_MPI('N','N',N,N,N,MatsT(1.),FM,IM,JM,descMem,FM,IK,JK,descMem,
             MatsT(0.),full,1,1,descFull);
         else
 #endif
-          Gemm('N','N',N,N,N,MatsT(1.),M,2*N,K,2*N,MatsT(0.),full,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,MatsT(1.),M,2*N,K,2*N,MatsT(0.),full,N);
 
       }
 
@@ -1379,7 +1390,6 @@ namespace ChronusQ {
   std::pair<size_t,MatsT*> 
     PolarizationPropagator<SingleSlater<MatsT, IntsT>>::formPropGrad(
       ResponseOperator op) {
-
     std::vector<IntsT*> opS;
     std::vector<MatsT*>      opT;
 
@@ -1460,7 +1470,6 @@ namespace ChronusQ {
     }
 
     for(auto iVec = 0; iVec < nVec; iVec++) {
-
       MatsT* CMO = this->ref_->mo[0].pointer();
       MatsT* CMOB = (ss.nC == 1) ? this->ref_->mo[1].pointer() : CMO + NB;
 
@@ -1468,18 +1477,18 @@ namespace ChronusQ {
 
       if( needTrans ) {
 
-        Gemm('N','N',NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMO,NBC,MatsT(0.),SCR   ,NB);
-        Gemm('C','N',NBC,NBC,NB,MatsT(1.),CMO     ,NBC,SCR,NB ,MatsT(0.),opT[0],NBC);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMO,NBC,MatsT(0.),SCR   ,NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NBC,NBC,NB,MatsT(1.),CMO     ,NBC,SCR,NB ,MatsT(0.),opT[0],NBC);
 
         if( ss.nC == 1 and not ss.iCS ) {
 
-          Gemm('N','N',NB,NB,NB,MatsT(1.),opS[iVec],NB,CMOB,NB,MatsT(0.),SCR ,NB);
-          Gemm('C','N',NB,NB,NB,MatsT(1.),CMOB     ,NB,SCR,NB,MatsT(0.),opT[1],NB);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),opS[iVec],NB,CMOB,NB,MatsT(0.),SCR ,NB);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),CMOB     ,NB,SCR,NB,MatsT(0.),opT[1],NB);
 
         } else if( ss.nC == 2 ) {
 
-          Gemm('N','N',NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMOB,NBC,MatsT(0.),SCR  ,NB);
-          Gemm('C','N',NBC,NBC,NB,MatsT(1.),CMOB    ,NBC,SCR,NB ,MatsT(1.),opT[0],NBC);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NBC,NB,MatsT(1.),opS[iVec],NB ,CMOB,NBC,MatsT(0.),SCR  ,NB);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NBC,NBC,NB,MatsT(1.),CMOB    ,NBC,SCR,NB ,MatsT(1.),opT[0],NBC);
 
         }
 
@@ -1606,7 +1615,7 @@ namespace ChronusQ {
     std::vector<ResponseOperator> ops = this->genSettings.bOps;
 
     size_t N      = this->nSingleDim_;
-
+    
     MatsT* g = nullptr; size_t nProp;
 
     if( this->fdrSettings.nRHS == 0 ) 
@@ -1700,7 +1709,7 @@ namespace ChronusQ {
       } else if( doAPB_AMB )
 
         for(auto j = 0ul; j < nProp; j++)
-          Swap(N/2,RHS + j*N,1,RHS + (N/2) + j*N,1);
+          blas::swap(N/2,RHS + j*N,1,RHS + (N/2) + j*N,1);
 
       else if( incMet )
 
@@ -1749,7 +1758,8 @@ namespace ChronusQ {
   template <typename U, typename... Args>
   std::vector<TwoBodyContraction<U>> 
     PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phTransitionVecMO2AO(
-      MPI_Comm c, bool scatter, size_t nVec, size_t N, Args... Vs) {
+      MPI_Comm c, bool scatter, size_t nVec, size_t N,
+      SingleSlater<MatsT,IntsT>& ss1, SingleSlater<MatsT,IntsT>& ss2, bool doExchange, Args... Vs) {
 
     static_assert(sizeof...(Vs) > 0 and sizeof...(Vs) < 3,
       "Vs must consist of 1 or 2 pointers");
@@ -1762,16 +1772,21 @@ namespace ChronusQ {
     bool isRoot = MPIRank(c) == 0;
     bool trans  = isRoot or not scatter;
 
+    //SingleSlater<MatsT, IntsT>& sshold = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
 
-    SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
-    const size_t NB   = ss.nAlphaOrbital();
+    const size_t NB   = ss1.nAlphaOrbital();
     const size_t NB2  = NB * NB;
-    const size_t NBC  = ss.nC * NB;
+    const size_t NBC  = ss1.nC * NB;
     const size_t NBC2 = NBC * NBC;
 
-    const size_t NO    = (ss.nC == 2) ? ss.nO : ss.nOA;
-    const size_t nOAVA = ss.nOA * ss.nVA;
-    const size_t nOBVB = ss.nOB * ss.nVB;
+    const size_t NO    = (ss1.nC == 2) ? ss1.nO : ss1.nOA;
+    const size_t nOAVA = ss1.nOA * ss1.nVA;
+    const size_t nOBVB = ss1.nOB * ss1.nVB;
+
+    const size_t NB_AX = ss2.nAlphaOrbital();
+    const size_t NB2_AX = NB_AX * NB_AX;
+    const size_t NBC_AX = ss2.nC * NB_AX;
+    const size_t NBC2_AX = NBC_AX * NBC_AX;
 
     U* MOT  = this->memManager_.template malloc<U>(NBC2);
     U* SCR  = trans ? this->memManager_.template malloc<U>(NBC2) : nullptr;
@@ -1780,13 +1795,17 @@ namespace ChronusQ {
     std::vector<TwoBodyContraction<U>> cList;
 
     auto MOTRANS = [&]( MatsT* CMO, U* X ) {
-      Gemm('N','N',NBC,NBC,NBC,U(1.0),CMO,NBC,X  ,NBC,U(0.0),SCR,NBC); 
-      Gemm('N','C',NBC,NBC,NBC,U(1.0),CMO,NBC,SCR,NBC,U(0.0),X  ,NBC);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,U(1.0),CMO,NBC,X  ,NBC,U(0.0),SCR,NBC); 
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NBC,NBC,NBC,U(1.0),CMO,NBC,SCR,NBC,U(0.0),X  ,NBC);
       IMatCopy('C',NBC,NBC,U(1.),X,NBC,NBC);
     };
 
-    size_t nMatPVec = 4 * ss.nC + 1;
-    size_t nAlloc = nVec * nMatPVec * NB2;;
+    size_t nAXMatPVec = 1;
+    if( doExchange )
+      nAXMatPVec += 2 * ss2.nC;
+    size_t nXMatPVec = 2 * ss1.nC;
+    size_t nSpacePVec = (nAXMatPVec * NB2_AX + nXMatPVec * NB2);
+    size_t nAlloc = nVec * nSpacePVec;
     //std::cerr << "MO2AO " << nAlloc*sizeof(MatsT) / 1e9 << std::endl;
 
     U * first = this->memManager_.template malloc<U>(nAlloc);
@@ -1797,8 +1816,7 @@ namespace ChronusQ {
       U* VY_c = nullptr; 
       if( nVs > 1 ) VY_c = V_arr[1] + iVec * N;
 
-      MatsT* CMO = ss.mo[0].pointer();
-
+      MatsT* CMO = ss1.mo[0].pointer();
 
       // Perform MO -> AO transformation
       if( trans ) {
@@ -1814,9 +1832,8 @@ namespace ChronusQ {
           MOT[i*NBC + a] = VX_c[ai];
           if( nVs > 1 ) MOT[a*NBC + i] = VY_c[ai];
         }
-
         // Transform Alpha (full) MOT -> AO basis
-        MOTRANS(CMO,MOT);
+        MOTRANS(CMO, MOT);
 
       }
 
@@ -1830,51 +1847,53 @@ namespace ChronusQ {
       // Allocate AO storage
 
       AOS = first;
-      AOZ = first + NB2;
+      AOZ = AOS + NB2;
 
-      if( ss.nC == 2 ) {
-        AOY = first + 5*NB2;
-        AOX = first + 6*NB2;
+      JAOS = AOZ + NB2;
+      std::fill_n(JAOS,NB2_AX,0.);
+
+
+      if( doExchange ) {
+        KAOS = JAOS + NB2_AX;
+        KAOZ = KAOS + NB2_AX;  // FIXME: not for SA
+
+        std::fill_n(KAOS,NB2_AX,0.);
+        std::fill_n(KAOZ,NB2_AX,0.);
+      }
+      
+      if( ss1.nC == 2 ) {
+
+        AOY = KAOZ + NB2_AX;
+        AOX = AOY + NB2;
+
       }
 
-      JAOS = first + 2*NB2;
+      if( ss2.nC == 2 ) {
+        if( doExchange ) {
+          KAOY = AOX + NB2;
+          KAOX = KAOY + NB2_AX;
 
-      KAOS = first + 3*NB2; 
-      KAOZ = first + 4*NB2;  // FIXME: not for SA
-
-
-      std::fill_n(JAOS,NB2,0.);
-      std::fill_n(KAOS,NB2,0.);
-      std::fill_n(KAOZ,NB2,0.);
-      
-      
-      if( ss.nC == 2 ) {
-        KAOY = first + 7*NB2;
-        KAOX = first + 8*NB2;
-
-        std::fill_n(KAOY,NB2,0.);
-        std::fill_n(KAOX,NB2,0.);
+          std::fill_n(KAOY,NB2_AX,0.);
+          std::fill_n(KAOX,NB2_AX,0.);
+        }
       }
 
-      first += nMatPVec * NB2;
-
+      first += nSpacePVec;
 
       cList.push_back( { AOS, JAOS, false, COULOMB  } );
-      cList.push_back( { AOS, KAOS, false, EXCHANGE } );
-      cList.push_back( { AOZ, KAOZ, false, EXCHANGE } );
+      if (doExchange){
+        cList.push_back( { AOS, KAOS, false, EXCHANGE } );
+        cList.push_back( { AOZ, KAOZ, false, EXCHANGE } );
         // FIXME: not for SA
-
-      if( ss.nC == 2 ) {
-        cList.push_back( { AOY, KAOY, false, EXCHANGE } );
-        cList.push_back( { AOX, KAOX, false, EXCHANGE } );
+  
+        if( ss1.nC == 2 && ss2.nC == 2 ) {
+          cList.push_back( { AOY, KAOY, false, EXCHANGE } );
+          cList.push_back( { AOX, KAOX, false, EXCHANGE } );
+        }
       }
 
-
-
-
-
-
-      if( ss.nC == 1 ) { // RHF / UHF case
+      // TODO: what if ss1.nC != ss2.nC?
+      if( ss1.nC == 1 && ss2.nC == 1 ) { // RHF / UHF case
 
         std::copy_n(MOT,NB2,AOS);
         std::copy_n(MOT,NB2,AOZ);
@@ -1884,20 +1903,18 @@ namespace ChronusQ {
 
           std::fill_n(MOT,NB2,0.);
 
-          double *eps = ss.iCS ? ss.eps1 : ss.eps2;
+          double *eps = ss1.iCS ? ss1.eps1 : ss1.eps2;
 
           // Beta for RHF / UHF FIXME: not for spin adapted
-          for(size_t i = 0, ai = nOAVA;  i < ss.nOB; i++) 
-          for(size_t a = ss.nOB; a < NB; a++, ai++) {
+          for(size_t i = 0, ai = nOAVA;  i < ss1.nOB; i++)
+          for(size_t a = ss1.nOB; a < NB; a++, ai++) {
             MOT[i*NB + a] = VX_c[ai];
             if( nVs > 1 ) MOT[a*NB + i] = VY_c[ai];
           }
 
-          CMO = ss.iCS ? ss.mo[0].pointer() : ss.mo[1].pointer();
-          
+          CMO = ss1.iCS ? ss1.mo[0].pointer() : ss1.mo[1].pointer();
           // Transform BETA (full) MOT -> AO basis
           MOTRANS(CMO,MOT);
-
         }
 
 
@@ -1930,7 +1947,7 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   template <typename U, typename... Args>
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phTransitionVecAO2MO(
-    size_t nVec, size_t N, std::vector<TwoBodyContraction<U>> &cList, 
+    size_t nVec, size_t N, std::vector<TwoBodyContraction<U>> &cList, SingleSlater<MatsT, IntsT>& ss,bool doExchange,
     Args... HVs) {
 
     constexpr size_t nHVs = sizeof...(HVs);
@@ -1938,7 +1955,7 @@ namespace ChronusQ {
     std::array<U*,nHVs> HV_arr = { HVs... };
 
 
-    SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
+   // SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
     const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
@@ -1954,8 +1971,8 @@ namespace ChronusQ {
     const size_t iOff = (ss.nC == 2) ? 5 : 3;
 
     auto MOTRANS = [&]( MatsT* CMO, U* X ) {
-      Gemm('C','N',NBC,NBC,NBC,U(1.0),CMO,NBC,X  ,NBC,U(0.0),SCR,NBC); 
-      Gemm('C','C',NBC,NBC,NBC,U(1.0),CMO,NBC,SCR,NBC,U(0.0),X  ,NBC);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NBC,NBC,NBC,U(1.0),CMO,NBC,X  ,NBC,U(0.0),SCR,NBC); 
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::ConjTrans,NBC,NBC,NBC,U(1.0),CMO,NBC,SCR,NBC,U(0.0),X  ,NBC);
       IMatCopy('C',NBC,NBC,U(1.),X,NBC,NBC);
     };
 
@@ -1969,62 +1986,70 @@ namespace ChronusQ {
       // Get the index of first G[T(iVec)]
 
       size_t indx = iOff * iVec; // FIXME: be careful for SA
+      U* J_S=nullptr, *K_S=nullptr, *K_Z=nullptr, *K_X=nullptr, *K_Y=nullptr;
+
+      if (doExchange){
+        J_S = cList[indx  ].AX;
+        K_S = cList[indx+1].AX;
+        K_Z = cList[indx+2].AX;
+  
+        if( ss.nC == 2 ) {
+          K_Y = cList[indx+3].AX;
+          K_X = cList[indx+4].AX;
+        }
+        // Form G(S) in K(S)
+        MatAdd('N','N',NB,NB,U(2.),J_S,NB,U(-1.),K_S,NB,K_S,NB);
+  
+        // Negate Ks for Z,Y and X
+        blas::scal(NB2,U(-1.),K_Z,1);
       
-      U* J_S = cList[indx  ].AX;
-      U* K_S = cList[indx+1].AX;
-      U* K_Z = cList[indx+2].AX;
-
-      U* K_Y, *K_X;
-      if(ss.nC == 2) {
-        K_Y = cList[indx+3].AX;
-        K_X = cList[indx+4].AX;
+        if( ss.nC == 2 ) {
+          blas::scal(NB2,U(-1.),K_Y,1);
+          blas::scal(NB2,U(-1.),K_X,1);
+        }
       }
-
-      // Form G(S) in K(S)
-      MatAdd('N','N',NB,NB,U(2.),J_S,NB,U(-1.),K_S,NB,K_S,NB);
-
-      // Negate Ks for Z,Y and X
-      Scale(NB2,U(-1.),K_Z,1);
-    
-      if( ss.nC == 2 ) {
-        Scale(NB2,U(-1.),K_Y,1);
-        Scale(NB2,U(-1.),K_X,1);
+      else{
+        J_S = cList[iVec].AX;
       }
-
-
-
       // Transform G[T] into MO basis and extract into HV
             
       // Alpha for RHF/ UHF, full for GHF
-      if( ss.nC == 1 ) 
-        MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(0.5),K_Z,NB,MOT,NB);
-      else          
-        SpinGather(NB,MOT,NBC,K_S,NB,K_Z,NB,K_Y,NB,K_X,NB);
-
+      if (doExchange){
+        if( ss.nC == 1 )
+          MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(0.5),K_Z,NB,MOT,NB);
+        else
+          SpinGather(NB,MOT,NBC,K_S,NB,K_Z,NB,K_Y,NB,K_X,NB);
+      }
+      else{
+        SetMat('N',NB,NB,U(1.),J_S,NB,MOT,NB);  
+      }
       MatsT* CMO = ss.mo[0].pointer();
-      
+
       // Transform -> AO basis
       MOTRANS(CMO,MOT);
-      
+
       for(size_t i = 0, ai = 0;  i < NO; i++) 
       for(size_t a = NO; a < NBC; a++, ai++) {
         HVX_c[ai] += MOT[i*NBC + a]; 
-        if( nHVs > 1 ) HVY_c[ai] += MOT[a*NBC + i]; 
+        if( nHVs > 1 ) HVY_c[ai] += MOT[a*NBC + i];
       }
 
       // Do Beta for RHF / UHF (FIXME: not for SA)
       if( ss.nC == 1 ) {
-
-        MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(-0.5),K_Z,NB,MOT,NB);
-
+        if (doExchange){
+          MatAdd('N','N',NB,NB,U(0.5),K_S,NB,U(-0.5),K_Z,NB,MOT,NB);
+        }
+        else{
+          SetMat('N',NB,NB,U(1.),J_S,NB,MOT,NB);
+        }
         CMO = ss.iCS ? ss.mo[0].pointer() : ss.mo[1].pointer();
-        
         // Transform -> AO basis
         MOTRANS(CMO,MOT);
         
-        for(size_t i = 0, ai = nOAVA;  i < ss.nOB; i++) 
+        for(size_t i = 0, ai = nOAVA;  i < ss.nOB; i++)
         for(size_t a = ss.nOB; a < NB; a++, ai++) {
-          HVX_c[ai] += MOT[i*NB + a]; 
+          HVX_c[ai] += MOT[i*NB + a];
+           
           if( nHVs > 1 ) HVY_c[ai] += MOT[a*NB + i]; 
         }
 
@@ -2042,9 +2067,9 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT>
   template <typename U>
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::phEpsilonScale(bool doInc, 
-    bool doInv, size_t nVec, size_t N, U* V, U* HV) {
+    bool doInv, size_t nVec, size_t N,SingleSlater<MatsT,IntsT>& ss, U* V, U* HV) {
+   // SingleSlater<MatsT,IntsT>& ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
 
-    SingleSlater<MatsT, IntsT> &ss = dynamic_cast<SingleSlater<MatsT, IntsT>&>(*this->ref_);
     const size_t NB   = ss.nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = ss.nC * NB;
@@ -2072,9 +2097,10 @@ namespace ChronusQ {
       double *eps = ss.eps1; 
 
       for(size_t i = 0, ai = 0;  i < NO; i++) 
-      for(size_t a = NO; a < NBC; a++, ai++) 
+      for(size_t a = NO; a < NBC; a++, ai++){ 
         HV_c[ai] = increment(HV_c[ai],
                              epsilonScale(eps[a] - eps[i]) * V_c[ai]);
+      }
 
       if( ss.nC == 1 ) { // RHF / UHF case
 
@@ -2088,6 +2114,7 @@ namespace ChronusQ {
       }
 
     }
+    
     else {
 
       dcomplex* FCMPLX = nullptr, *FBCMPLX = nullptr;
@@ -2128,9 +2155,9 @@ namespace ChronusQ {
 
 
         // HV(a,i) = \sum_b F(a,b) V(b,i)
-        Gemm('N','N',NV,NO,NV,U(1.) ,Fvv,NBC,V_c,NV,fact ,HV_c,NV);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NV,NO,NV,U(1.) ,Fvv,NBC,V_c,NV,fact ,HV_c,NV);
         // HV(a,i) -= \sum_j V(a,j) F(i,j)
-        Gemm('N','T',NV,NO,NO,U(-1.),V_c,NV,Foo,NBC,U(1.),HV_c,NV);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,NV,NO,NO,U(-1.),V_c,NV,Foo,NBC,U(1.),HV_c,NV);
 
 
         U* V_cb  = V_c  + nOAVA;
@@ -2140,17 +2167,17 @@ namespace ChronusQ {
         if( ss.iCS ) {
 
           // HV(a,i) = \sum_b F(a,b) V(b,i)
-          Gemm('N','N',NV,NO,NV,U(1.) ,Fvv,NB,V_cb,NV,fact ,HV_cb,NV);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NV,NO,NV,U(1.) ,Fvv,NB,V_cb,NV,fact ,HV_cb,NV);
           // HV(a,i) -= \sum_j V(a,j) F(i,j)
-          Gemm('N','T',NV,NO,NO,U(-1.),V_cb,NV,Foo,NB,U(1.),HV_cb,NV);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,NV,NO,NO,U(-1.),V_cb,NV,Foo,NB,U(1.),HV_cb,NV);
 
         } else {
 
           // HV(a,i) = \sum_b F(a,b) V(b,i)
-          Gemm('N','N',ss.nVB,ss.nOB,ss.nVB,U(1.),Fvvb,NB,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,ss.nVB,ss.nOB,ss.nVB,U(1.),Fvvb,NB,
             V_cb,ss.nVB,fact ,HV_cb,ss.nVB);
           // HV(a,i) -= \sum_j V(a,j) F(i,j)
-          Gemm('N','T',ss.nVB,ss.nOB,ss.nOB,U(-1.),V_cb,ss.nVB,
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::Trans,ss.nVB,ss.nOB,ss.nOB,U(-1.),V_cb,ss.nVB,
             Foob,NB,U(1.),HV_cb,ss.nVB);
 
         }
@@ -2171,13 +2198,12 @@ namespace ChronusQ {
   void PolarizationPropagator< SingleSlater<MatsT, IntsT> >::resGuess(
       size_t nGuess, MatsT *G, size_t LDG) {
 
+    SingleSlater<MatsT, IntsT>& ss = dynamic_cast<SingleSlater<MatsT,IntsT>&>(*this->ref_);
     size_t N = getNSingleDim(true);
 
     // Initialize an NOV index array
     std::vector<size_t> indx(N,0);
     std::iota(indx.begin(),indx.end(),0);
-
-    auto &ss = *this->ref_;
 
     size_t NO1 = (ss.nC == 1) ? ss.nOA : ss.nO;
     size_t NV1 = (ss.nC == 1) ? ss.nVA : ss.nV;
@@ -2243,7 +2269,95 @@ namespace ChronusQ {
   }
 
 
+  /**
+   * Get the diagonal double bar integral (ai||ai)
+   * - XSCR needs to be 2*nC*NB2
+   * - AXSCR needs to be (2*nC+1)*NB2
+   * - Both scratch must not contain NaNs
+   **/
+  template <typename MatsT, typename IntsT>
+  MatsT PolarizationPropagator< SingleSlater<MatsT, IntsT> >::getGDiag(
+    size_t i, size_t a, bool beta, SingleSlater<MatsT,IntsT>& ss,
+    MatsT* XSCR, MatsT* AXSCR) 
+  {
 
+    MatsT* mo = beta && !ss.iCS ? ss.mo[1].pointer() : ss.mo[0].pointer();
+    size_t NB = ss.nAlphaOrbital();
+    size_t NB2 = NB*NB;
+    size_t NBC = NB*ss.nC;
+    size_t NBC2 = NBC*NBC;
+
+    size_t NO = ss.nC == 2 ?  ss.nO : beta ?  ss.nOB : ss.nOA;
+
+    // D_{m,n} := C_{a,m} \otimes C_{i,n}^T
+    // Form in AXSCR, then scatter to XSCR
+    // TODO: Move this to blas::ger when this branch is updated
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NBC,NBC,1,MatsT(1.),mo+a*NBC,NBC,mo+i*NBC,NBC,
+         MatsT(0.),AXSCR,NBC);
+
+    // Put D into pauli spinor form
+    MatsT *AOS, *AOZ, *AOY, *AOX;
+    AOS = XSCR;
+    AOZ = XSCR + NB2;
+    if( ss.nC == 2 ) {
+      AOY = XSCR + 2*NB2;
+      AOZ = XSCR + 3*NB2;
+    }
+
+    if( ss.nC == 1 ) {
+      SetMat('N', NB, NB, MatsT(1.), AXSCR, NB, AOS, NB);
+      MatsT factor = beta ? MatsT(-1.) : MatsT(1.);
+      SetMat('N', NB, NB, factor, AXSCR, NB, AOZ, NB);
+    }
+    else {
+      SpinScatter(NB,AXSCR,NBC,AOS,NB,AOZ,NB,AOY,NB,AOX,NB);
+    }
+
+    // G[D] = Contract all ingredients with D
+    MatsT *JS, *KS, *KZ, *KY, *KX;
+
+    JS = AXSCR;
+    KS = AXSCR + NB2;
+    KZ = AXSCR + 2*NB2;
+    if( ss.nC == 2 ) {
+      KY = AXSCR + 3*NB2;
+      KX = AXSCR + 4*NB2;
+    }
+
+    std::vector<TwoBodyContraction<MatsT>> cList;
+    cList.push_back( { AOS, JS, false, COULOMB  } );
+    cList.push_back( { AOS, KS, false, EXCHANGE } );
+    cList.push_back( { AOZ, KZ, false, EXCHANGE } );
+    if( ss.nC == 2 ) {
+      cList.push_back( { AOY, KY, false, EXCHANGE } );
+      cList.push_back( { AOX, KX, false, EXCHANGE } );
+    }
+
+    ss.TPI->twoBodyContract(MPI_COMM_WORLD,cList);
+
+    // Put G into spin blocked form in XSCR
+    MatAdd('N', 'N', NB, NB, MatsT(2.), JS, NB, MatsT(-1.), KS, NB, KS, NB);
+    blas::scal(NB2,MatsT(-1.),KZ,1);
+    if( ss.nC == 2 ) {
+      blas::scal(NB2,MatsT(-1.),KY,1);
+      blas::scal(NB2,MatsT(-1.),KX,1);
+    }
+
+    if( ss.nC == 1 ) {
+      MatsT factor = beta ? -0.5 : 0.5;
+      MatAdd('N','N',NB,NB,MatsT(0.5),KS,NB,factor,KZ,NB,XSCR,NB);
+    }
+    else {
+      SpinGather(NB,XSCR,NBC,KS,NB,KZ,NB,KY,NB,KX,NB);
+    }
+
+    // Do the final AO->MO contraction
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,1,NBC,NBC,MatsT(1.),mo+a*NBC,NBC,XSCR,NBC,MatsT(0.),AXSCR,NBC);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,1,1,NBC,MatsT(1.),AXSCR,NBC,mo+i*NBC,NBC,MatsT(0.),XSCR,NBC);
+
+    return *XSCR;
+
+  }
 } // namespace ChronusQ
 
 

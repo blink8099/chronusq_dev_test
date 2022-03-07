@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,8 +24,14 @@
 #pragma once
 
 #include <cqlinalg/cqlinalg_config.hpp>
+#include <cqlinalg/blasext.hpp>
+#include <cqlinalg/factorization.hpp>
 
 namespace ChronusQ {
+
+  template <typename F, typename _F1, typename _F2>
+  void MatDiagFunc(const F &func, size_t N, _F1 *A, size_t LDA, _F2 *B,
+                   size_t LDB, CQMemManager &mem);
 
   template <typename _FExp, typename _F1, typename _F2>
   void MatExp(char ALG, size_t N, _FExp ALPHA, _F1 *A, size_t LDA, 
@@ -34,6 +40,15 @@ namespace ChronusQ {
   template <typename _F1, typename _F2, typename _FC>
   void MatSeries(size_t NC, size_t N, _F1 *A, size_t LDA, _F2 *B,
     size_t LDB, _FC *C);
+
+    /*
+     * Computes the unitary Matrix Exponential (ExpA) Using Taylor Expansion
+     * from an antisymmetric matrix (A)
+     */
+  template <typename MatsU>
+  void MatExp( size_t N, MatsU *A, size_t LDA,
+    MatsU *ExpA, size_t LDEXPA, CQMemManager &mem);
+
 
 }; // namespace ChronusQ
 

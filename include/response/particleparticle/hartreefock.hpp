@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ namespace ChronusQ {
     MatsT* MO = ss.mo[0].pointer();
 
     size_t indmo1 = NO;
-    Gemm('N','C',NB,NB,NB,MatsT(1.),MO + NO*NB,NB,MO + NO*NB,NB,MatsT(0.),MMat,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::ConjTrans,NB,NB,NB,MatsT(1.),MO + NO*NB,NB,MO + NO*NB,NB,MatsT(0.),MMat,NB);
 
     std::fill_n(JMMat,NB*NB,0.);
     std::fill_n(KMMat,NB*NB,0.);
@@ -76,18 +76,18 @@ namespace ChronusQ {
         { MMat,KMMat,true, EXCHANGE }
       };
 
-    ss.ERI->twoBodyContract(c,in);
+    ss.TPI->twoBodyContract(c,in);
 
     MatAdd('N','N',NB,NB,MatsT(1.),JMMat, NB, MatsT(-0.5), KMMat, NB, JMMat, NB);
 
-    Gemm('N','N',NB,NB,NB,MatsT(1.),JMMat,NB,MO   ,NB,MatsT(0.),KMMat,NB);
-    Gemm('C','N',NB,NB,NB,MatsT(1.),MO   ,NB,KMMat,NB,MatsT(0.),MMat ,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),JMMat,NB,MO   ,NB,MatsT(0.),KMMat,NB);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,MatsT(1.),MO   ,NB,KMMat,NB,MatsT(0.),MMat ,NB);
 
 /****************************/
 #endif
 
-    std::shared_ptr<ERIContractions<U,IntsT>> ERI =
-        ERIContractions<MatsT,IntsT>::template convert<U>(ss.ERI);
+    std::shared_ptr<TPIContractions<U,IntsT>> TPI =
+        TPIContractions<MatsT,IntsT>::template convert<U>(ss.TPI);
 
     for(auto &X : x) {
 
@@ -117,7 +117,7 @@ namespace ChronusQ {
           this->template ppTransitionVecMO2AO<U>(c,scatter,nDo,N,V_c,
             V_c + tdOffSet);
 
-        ERI->twoBodyContract(c,cList); // form G[V]
+        TPI->twoBodyContract(c,cList); // form G[V]
 
 
 

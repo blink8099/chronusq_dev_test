@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you ca redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,8 +52,8 @@ namespace ChronusQ {
     aoints(other.aoints),
     QuantumBase(dynamic_cast<const QuantumBase &>(other)),
     WaveFunctionBase(dynamic_cast<const WaveFunctionBase &>(other)),
-    Quantum<MatsT>(dynamic_cast<const Quantum<MatsU>&>(other)),
-    molecule_(other.molecule_) {
+    Quantum<MatsT>(dynamic_cast<const Quantum<MatsU>&>(other)) {
+    //molecule_(other.molecule_), basisSet_(other.basisSet_) {
 
     mo.reserve(2);
     for (const SquareMatrix<MatsU> &mat : other.mo)
@@ -84,8 +84,8 @@ namespace ChronusQ {
     aoints(other.aoints),
     QuantumBase(dynamic_cast<QuantumBase &&>(std::move(other))),
     WaveFunctionBase(dynamic_cast<WaveFunctionBase &&>(std::move(other))),
-    Quantum<MatsT>(dynamic_cast<Quantum<MatsU>&&>(std::move(other))),
-    molecule_(other.molecule_) {
+    Quantum<MatsT>(dynamic_cast<Quantum<MatsU>&&>(std::move(other))) {
+    //molecule_(other.molecule_), basisSet_(other.basisSet_) {
 
     mo.reserve(2);
     for (SquareMatrix<MatsU> &mat : other.mo)

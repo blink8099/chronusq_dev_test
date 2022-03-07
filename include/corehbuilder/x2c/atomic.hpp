@@ -1,7 +1,7 @@
 /*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,11 +26,6 @@
 #include <corehbuilder/x2c.hpp>
 
 namespace ChronusQ {
-
-  struct ATOMIC_X2C_TYPE {
-    bool isolateAtom;  ///< If atomic OEI feel only the basis origin nuclei potential
-    bool diagonalOnly; ///< If only diagonal blocks of Hamiltonian are X2C corrected
-  };
 
   /**
    *  \brief The AtomicX2C class. A class to compute X2C Core Hamiltonian.
@@ -69,9 +64,9 @@ namespace ChronusQ {
      */
     AtomicX2C(Integrals<IntsT> &aoints, CQMemManager &mem,
         const Molecule &mol, const BasisSet &basis,
-        AOIntsOptions aoiOptions, ATOMIC_X2C_TYPE type) :
-      X2C<MatsT,IntsT>(aoints, mem, mol, basis, aoiOptions),
-      type_(type) {}
+        SingleSlaterOptions ssOptions) :
+      X2C<MatsT,IntsT>(aoints, mem, mol, basis, ssOptions),
+      type_(ssOptions.hamiltonianOptions.AtomicX2CType) {}
 
     // Different type
     template <typename MatsU>
@@ -86,9 +81,9 @@ namespace ChronusQ {
     virtual void dealloc();
 
     // Compute core Hamitlonian
-    virtual void computeX2C(EMPerturbation&,
+    virtual void computeOneEX2C(EMPerturbation&,
         std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>);
-    virtual void computeU();
+    virtual void computeOneEX2C_Umatrix();
 
     // Compute the gradient
     virtual void getGrad() {

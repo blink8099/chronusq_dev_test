@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,8 +38,11 @@ namespace ChronusQ {
   constexpr double EVPerHartree  = 27.211396132;
   constexpr double NMPerHartree  = 45.56335;
   constexpr double SpeedOfLight  = 137.035999074;
-  constexpr double FSPerAUTime   = 2.41884326505e-2;
+  //constexpr double SpeedOfLight  = 137.03599967994; // PySCF
+  constexpr double FSPerAUTime   = 2.4188843265857e-2;
   constexpr double JPerHartree   = 4.35974434e-18;
+  constexpr double ProtMassPerE  = 1836.15267343;
+  constexpr double AUPerAMU      = 1822.888486217313;
 
   // Things in odd unit systems / derived
   constexpr double SpeedOfLight_CM = 2.99792458e+10; 

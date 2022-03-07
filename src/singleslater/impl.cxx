@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #include <singleslater/impl.hpp>
 #include <corehbuilder/impl.hpp>
 #include <fockbuilder/impl.hpp>
+#include <mointstransformer/impl.hpp>
+#include <singleslater/neoss/impl.hpp>
 
 namespace ChronusQ {
 
@@ -31,8 +33,16 @@ namespace ChronusQ {
   template class SingleSlater<dcomplex,double>;
   template class SingleSlater<dcomplex,dcomplex>;
 
+  // Handle MatsT on scr file
+  // TODO: implement IntsT=dcomplex
+  template void SingleSlater<double,double>::getScr1PDM<double>(SafeFile &);
+  template void SingleSlater<dcomplex,double>::getScr1PDM<double>(SafeFile &);
+  template void SingleSlater<dcomplex,double>::getScr1PDM<dcomplex>(SafeFile &);
+
+
   // Instantiate copy constructors
   template SingleSlater<dcomplex,double>::SingleSlater(const SingleSlater<double,double> &, int);
+  template SingleSlater<dcomplex,double>::SingleSlater(const SingleSlater<dcomplex,double> &, int);
   template SingleSlater<dcomplex,dcomplex>::SingleSlater(const SingleSlater<dcomplex,dcomplex> &, int);
 
   // Instantiate move ctors
@@ -59,5 +69,13 @@ namespace ChronusQ {
 
   template void KohnSham<dcomplex,double>::formFXC(MPI_Comm,std::vector<TwoBodyContraction<dcomplex>> &);
   template void KohnSham<dcomplex,dcomplex>::formFXC(MPI_Comm,std::vector<TwoBodyContraction<dcomplex>> &);
+
+  template class NEOSS<double,double>;
+  template class NEOSS<dcomplex,double>;
+  template class NEOSS<dcomplex,dcomplex>;
+  template NEOSS<dcomplex,double>::NEOSS(const NEOSS<double, double>&, int);
+  template NEOSS<dcomplex,dcomplex>::NEOSS(const NEOSS<dcomplex, dcomplex>&, int);
+  
+  template NEOSS<dcomplex,double>::NEOSS(NEOSS<double, double>&&, int);
 
 }; // namespace ChronusQ

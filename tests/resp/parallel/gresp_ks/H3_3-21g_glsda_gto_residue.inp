@@ -15,13 +15,8 @@ reference = GLSDA
 job = RESP
 
 [SCF]
-alg=skip
 guess=fchkmo
-
-[DFTINT]
-NRAD = 300
-NANG = 974
-NMACRO = 12
+damperror=0.0
 
 [RESPONSE]
 TYPE = RESIDUE

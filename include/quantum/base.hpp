@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,13 +25,16 @@
 
 #include <chronusq_sys.hpp>
 
-#include <util/typedefs.hpp>
 #include <util/mpi.hpp>
+#include <util/timer.hpp>
+#include <util/typedefs.hpp>
 
 #include <memmanager.hpp>
 #include <cqlinalg/blas1.hpp>
 
 #include <fields.hpp>
+
+#include <particleintegrals.hpp>
 
 namespace ChronusQ {
 
@@ -39,15 +42,13 @@ namespace ChronusQ {
     SCALAR=0,MZ=1,MY=2,MX=3
   }; ///< Enumerate the types of densities for contraction
 
+
   // Helper function for operator traces
-  // see src/quantum/properties.cxx for docs
-
-  template <typename RetTyp, typename Left, typename Right>
-  static inline RetTyp OperatorTrace(size_t N, const Left& op1 , 
+  template <typename Left, typename Right>
+  static inline double OperatorTrace(size_t N, const Left& op1 , 
     const Right& op2) {
-        
-    return InnerProd<RetTyp>(N,op1,1,op2,1);
-
+    
+    return std::real(blas::dot(N,op1,1,op2,1));
   } 
 
   /**
@@ -70,6 +71,7 @@ namespace ChronusQ {
 
     int   nC;   ///< Number of spin components
     bool  iCS;  ///< is closed shell?
+    Particle particle; ///< Particle Type
 
 
     // Property storage
@@ -86,7 +88,10 @@ namespace ChronusQ {
     // Energy expectation values
     double OBEnergy;   ///< 1-Body operator contribution to the energy
     double MBEnergy;   ///< Many(2)-Body operator contribution to the energy
+    double PPEnergy = 0.;   //<  Many(2)-Body proton-proton repulsion energy
+    double extraEnergy = 0;
     double totalEnergy;///< The total energy
+
 
 
 
@@ -107,8 +112,8 @@ namespace ChronusQ {
      *  \param [in] _iCS  Whether or not system is closed shell
      *                    (only used when _nC == 1)
      */ 
-    QuantumBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool _iCS): 
-      memManager(mem), nC(_nC), iCS(_iCS), comm(c),
+    QuantumBase(MPI_Comm c, CQMemManager &mem, size_t _nC, bool _iCS, Particle p): 
+      memManager(mem), nC(_nC), iCS(_iCS), particle(p), comm(c),
       elecDipole({0.,0.,0.}),
       elecQuadrupole{{{0.,0.,0.},{0.,0.,0.},{0.,0.,0.}}},
       elecOctupole{
@@ -164,6 +169,10 @@ namespace ChronusQ {
 
     };
 
+
+    virtual std::vector<double> getEnergySummary() {
+      return {totalEnergy, OBEnergy, MBEnergy};
+    }
    
     virtual void computeMultipole(EMPerturbation &) = 0;
     virtual void computeSpin() = 0;
@@ -175,10 +184,14 @@ namespace ChronusQ {
 
       ROOT_ONLY(comm);
 
-      computeMultipole(pert);
+      ProgramTimer::tick("Compute Properties");
+
+      if(nC != 4) computeMultipole(pert);
       computeEnergy(pert);
-      computeSpin();
+      if(nC != 4) computeSpin();
       methodSpecificProperties();
+
+      ProgramTimer::tock("Compute Properties");
 
     };
     

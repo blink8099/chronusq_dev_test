@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,14 +24,6 @@
 
 #include "scf.hpp"
 
-
-
-// Li 6-31G(d) test
-TEST( UHF, Li_631Gd ) {
-
-  CQSCFTEST( "scf/serial/uhf/li_6-31Gd", "li_6-31Gd.bin.ref" );
-
-};
 
 // O2 6-31G(d) test
 TEST( UHF, O2_631Gd ) {
@@ -57,25 +49,37 @@ TEST( UHF, RbHe_sto3G ) {
 // KCaKrK sto-3g test for fchk parsing
 TEST( UHF, KCaKrK_sto3G ) {
 
-  CQSCFFCHKTEST( "scf/serial/uhf/KCaKrK_sto-3G", "KCaKrK_sto-3G.bin.ref", "KCaKrK_sto-3G.fchk" );
+  CQSCFTEST( "scf/serial/uhf/KCaKrK_sto-3G", "KCaKrK_sto-3G.bin.ref", 1e-8,
+              true, true, true, true, true, true,
+              false, "KCaKrK_sto-3G.fchk");
 
 };
 
 // H atom 3-21g post-scf test
 TEST( UHF, H_321G ) {
 
-  CQSCFTEST( "scf/serial/uhf/H_3-21G", "H_3-21G.bin.ref" );
+  CQSCFTEST( "scf/serial/uhf/H_3-21G", "H_3-21G.bin.ref", 1e-7,
+              true, true, true, true, true, true);
+
+};
+
+// Ne(Z=10.5)He(Z=1.5)H(Z=0.5) sto-3g test
+TEST( UHF, NeHeH_fracZ_sto3G ) {
+
+  CQSCFTEST( "scf/serial/uhf/NeHeH_fracZ_uhf_sto-3G", "NeHeH_fracZ_uhf_sto-3G.bin.ref" );
+
+};
+
+// B sto-3g test for MO swapping
+TEST( UHF, B_swap_UHF_sto3G ) {
+
+  CQSCFTEST( "scf/serial/uhf/B_swap_UHF_sto-3g", "B_swap_UHF_sto-3g.bin.ref",
+    1e-8, true, true, true, true, true, true,
+    true );
 
 };
 
 #ifdef _CQ_DO_PARTESTS
-
-// SMP Li 6-31G(d) test
-TEST( UHF, PAR_Li_631Gd ) {
-
-  CQSCFTEST( "scf/parallel/uhf/li_6-31Gd", "li_6-31Gd.bin.ref" );
-
-};
 
 // SMP O2 6-31G(d) test
 TEST( UHF, PAR_O2_631Gd ) {

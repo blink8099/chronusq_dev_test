@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include <response/particleparticle.hpp>
 #include <response/particleparticle/singleslater_helper.hpp>
 
-#include <electronintegrals/twoeints.hpp>
+#include <particleintegrals/twopints.hpp>
 
 #include <cqlinalg/blas1.hpp>
 #include <cqlinalg/factorization.hpp>
@@ -51,8 +51,8 @@ namespace ChronusQ {
     const size_t N        = this->nSingleDim_ ;  
     const size_t chunk    = 600;
 
-    std::shared_ptr<ERIContractions<U,IntsT>> ERI =
-        ERIContractions<MatsT,IntsT>::template convert<U>(ss.ERI);
+    std::shared_ptr<TPIContractions<U,IntsT>> TPI =
+        TPIContractions<MatsT,IntsT>::template convert<U>(ss.TPI);
 
     for(auto &X : x) {
 
@@ -82,7 +82,7 @@ namespace ChronusQ {
           this->template ppTransitionVecMO2AO<U>(c,scatter,nDo,N,V_c,
             V_c + tdOffSet);
 
-        ERI->twoBodyContract(c,cList); // form G[V]
+        TPI->twoBodyContract(c,cList); // form G[V]
 
 
 

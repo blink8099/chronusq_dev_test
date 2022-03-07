@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,11 @@
 
 
 #include <cxxapi/boilerplate.hpp>
+// Workaround to intel compiler bug that breaks libint ERIs
+#if !LIBINT2_CONSTEXPR_STATICS
+  #include <libint2/statics_definition.h>
+#endif
+
 
 // GTest header
 #include <gtest/gtest.h>

@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,10 +25,10 @@
 
 #include <singleslater.hpp>
 #include <corehbuilder.hpp>
-#include <corehbuilder/x2c.hpp>
 #include <fockbuilder.hpp>
+#include <physcon.hpp>
 
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <cqlinalg/blasext.hpp>
 
 #include <cqlinalg.hpp>
@@ -69,26 +69,36 @@ namespace ChronusQ {
    *  \param [in] typ Which Hamiltonian to build
    */ 
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert) {
+  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert, bool save) {
 
     ROOT_ONLY(comm);
 
-    if( coreH != nullptr )
-      CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
+    ProgramTimer::tick("Form Core H");
 
     size_t NB = basisSet().nBasis;
+    if( nC == 4 ) NB = 2 * NB;
 
-    if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
-    else if(nC == 2)
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
-    else
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
+    if( coreH != nullptr ) {
+      coreH->clear();
 
+    } else {
+
+      if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
+      else if(nC == 2 or nC == 4)
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
+      else
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
+
+    }
+
+
+    // Make a copy of HamiltonianOptions
+    HamiltonianOptions hamiltonianOptions = coreHBuilder->getHamiltonianOptions();
 
     // Prepare one-electron integrals
     std::vector<std::pair<OPERATOR,size_t>> ops;
-    if (std::is_same<IntsT, double>::value)
+    if (hamiltonianOptions.basisType == REAL_GTO)
       ops = {{OVERLAP,0}, {KINETIC,0}, {NUCLEAR_POTENTIAL,0},
              {LEN_ELECTRIC_MULTIPOLE,3},
              {VEL_ELECTRIC_MULTIPOLE,3}, {MAGNETIC_MULTIPOLE,2}};
@@ -97,12 +107,20 @@ namespace ChronusQ {
              {LEN_ELECTRIC_MULTIPOLE,3},
              {MAGNETIC_MULTIPOLE,1}};
 
-    bool finiteNuclei = false;
-    if (std::dynamic_pointer_cast<X2C<MatsT,IntsT>>(coreHBuilder))
-      finiteNuclei = true;
-    this->aoints.computeAOOneE(memManager,this->molecule(),
-        basisSet(),emPert, ops,
-        {basisSet().basisType,finiteNuclei,false,false}); // compute the necessary 1e ints
+    // Multipole integrals NYI for 4C
+    if (nC == 4) ops.resize(3);
+
+    // In case of X2C coreHBuilder, here we only compute
+    // non-relativistic one electron integrals for contracted basis functions.
+    // Relativistic integrals will be computed for uncontracted basis functions
+    // in X2C CoreHBuilder.
+    if (hamiltonianOptions.x2cType != X2C_TYPE::OFF) {
+      hamiltonianOptions.OneEScalarRelativity = false;
+      hamiltonianOptions.OneESpinOrbit = false;
+    }
+
+    this->aoints.computeAOOneP(memManager,this->molecule(),
+        this->basisSet(),emPert, ops, hamiltonianOptions); // compute the necessary 1e ints
 
     // Compute core Hamiltonian
     coreHBuilder->computeCoreH(emPert,coreH);
@@ -113,7 +131,7 @@ namespace ChronusQ {
 
 
     // Save the Core Hamiltonian
-    if( savFile.exists() ) {
+    if( savFile.exists() && save) {
 
       const std::array<std::string,4> spinLabel =
         { "SCALAR", "MZ", "MY", "MX" };
@@ -125,8 +143,160 @@ namespace ChronusQ {
 
     }
 
+    ProgramTimer::tock("Form Core H");
 
   }; // SingleSlater<MatsT,IntsT>::computeCoreH
+
+
+  template <typename MatsT, typename IntsT>
+  std::vector<double> SingleSlater<MatsT,IntsT>::getGrad(EMPerturbation& pert,
+    bool equil, bool saveInts) {
+
+    // Get constants
+    size_t NB = basisSet().nBasis;
+    size_t nSQ  = NB*NB;
+
+    size_t nAtoms = this->molecule().nAtoms;
+    size_t nGrad = 3*nAtoms;
+
+    size_t nSp = fockMatrix->nComponent();
+    bool hasXY = fockMatrix->hasXY();
+    bool hasZ = fockMatrix->hasZ();
+
+
+    // Total gradient
+    std::vector<double> gradient(nGrad, 0.);
+
+    HamiltonianOptions opts = this->aoints.options_;
+
+    auto printGrad = [&](std::string name, std::vector<double>& vecgrad) {
+      std::cout << name << std::endl;
+      std::cout << std::setprecision(12);
+      for( auto iAt = 0; iAt < nAtoms; iAt++ ) {
+        std::cout << " Gradient@I = " << iAt << ":";
+        for( auto iCart = 0; iCart < 3; iCart++ ) {
+          std::cout << "  " << vecgrad[iAt*3 + iCart];
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+    };
+
+
+    // Core H contribution
+    this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
+      {{OVERLAP, 1},
+       {KINETIC, 1},
+       {NUCLEAR_POTENTIAL, 1}
+       },
+       opts
+    );
+
+
+    std::vector<double> coreGrad = coreHBuilder->getGrad(pert, *this);
+    // printGrad("Core H Gradient:", coreGrad);
+
+
+    // 2e contribution
+    this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
+      {{ELECTRON_REPULSION, 1}},
+      opts
+    );
+    std::vector<double> twoEGrad = fockBuilder->getGDGrad(*this, pert);
+    std::vector<double> pulayGrad;
+    std::vector<double> nucGrad;
+
+    // Pulay contribution
+    //
+    // NOTE: We may want to change these methods out to use just the energy
+    //   weighted density matrix - can probably get some speed up.
+    if( equil ) {
+      // TODO
+    }
+    else {
+
+      // S^{-1/2}
+      auto orthoForward = orthoAB->forwardPointer();
+
+      // Allocate
+      SquareMatrix<MatsT> vdv(memManager, NB);
+      SquareMatrix<MatsT> dvv(memManager, NB);
+      PauliSpinorSquareMatrices<MatsT> SCR(memManager, NB, hasXY, hasZ);
+
+      // XXX: This requires copying the overlap gradients, but it is for
+      //      copying to MatsT != IntsT
+      std::vector<SquareMatrix<MatsT>> gradOverlap;
+      gradOverlap.reserve(nGrad);
+      for( size_t iGrad = 0; iGrad < nGrad; iGrad++ ) {
+        gradOverlap.emplace_back((*this->aoints.gradOverlap)[iGrad]->matrix());
+      }
+
+      // Calculate dV
+      std::vector<SquareMatrix<MatsT>> gradOrtho;
+      gradOrtho.reserve(nGrad);
+      for( size_t iGrad = 0; iGrad < nGrad; iGrad++ ) {
+        gradOrtho.emplace_back(memManager, NB);
+      }
+      orthoAB->getOrthogonalizationGradients(gradOrtho, gradOverlap);
+
+      for( size_t iGrad = 0; iGrad < nGrad; iGrad++ ) {
+
+        // Form VdV and dVV
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,MatsT(1.),orthoForward->pointer(),NB,
+          gradOrtho[iGrad].pointer(),NB,MatsT(0.),vdv.pointer(),NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,MatsT(1.),gradOrtho[iGrad].pointer(),NB,
+          orthoForward->pointer(),NB,MatsT(0.),dvv.pointer(),NB);
+
+        // Form FVdV and dVVF
+        for( auto iSp = 0; iSp < nSp; iSp++ ) {
+          auto comp = static_cast<PAULI_SPINOR_COMPS>(iSp);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+            NB,NB,NB,MatsT(1.),(*fockMatrix)[comp].pointer(),NB,
+            vdv.pointer(),NB,MatsT(0.),SCR[comp].pointer(),NB);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+            NB,NB,NB,MatsT(1.),dvv.pointer(),NB,
+            (*fockMatrix)[comp].pointer(),NB,MatsT(1.),SCR[comp].pointer(),NB);
+        }
+
+        // Trace
+        double gradVal = this->template computeOBProperty<SCALAR>(
+          SCR.S().pointer()
+        );
+
+        if( hasZ )
+          gradVal += this->template computeOBProperty<MZ>(
+            SCR.Z().pointer()
+          );
+        if( hasXY ) {
+          gradVal += this->template computeOBProperty<MY>(
+            SCR.Y().pointer()
+          );
+          gradVal += this->template computeOBProperty<MX>(
+            SCR.X().pointer()
+          );
+        }
+
+        pulayGrad.push_back(-0.5*gradVal);
+        size_t iAt = iGrad/3;
+        size_t iXYZ = iGrad%3;
+        gradient[iGrad] = coreGrad[iGrad] + twoEGrad[iGrad] - 0.5*gradVal
+                          + this->molecule().nucRepForce[iAt][iXYZ];
+        nucGrad.push_back(this->molecule().nucRepForce[iAt][iXYZ]);
+      }
+
+    }
+
+    // printGrad("Nuclear Gradient:", nucGrad);
+    // printGrad("G Gradient:", twoEGrad);
+    // printGrad("Pulay Gradient:", pulayGrad);
+
+    // this->onePDM->output(std::cout, "OnePDM in Gradient Contractions", true);
+
+    return gradient;
+
+  };
 
 
   /**
@@ -139,188 +309,41 @@ namespace ChronusQ {
   template <typename MatsT, typename IntsT> 
   void SingleSlater<MatsT,IntsT>::computeOrtho() {
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
+    if( nC == 4 ) NB = 2 * NB;
     size_t nSQ  = NB*NB;
-
-    // Allocate orthogonalization matricies
-    ortho[0].clear();
-    ortho[1].clear();
+    size_t NBC = this->nC*basisSet().nBasis;
 
     // Allocate scratch
-    MatsT* SCR1 = memManager.malloc<MatsT>(nSQ);
+    SquareMatrix<MatsT> overlapSpinor(memManager, NB);
+    overlapSpinor.clear();
+    SquareMatrix<MatsT> overlapAB(memManager, NBC);
+    overlapAB.clear();
 
     // Copy the overlap over to scratch space
-    std::copy_n(this->aoints.overlap->pointer(),nSQ,SCR1);
-
-    if(orthoType == LOWDIN) {
-
-      // Allocate more scratch
-      MatsT* sE   = memManager.malloc<MatsT>(NB);
-      MatsT* SCR2 = memManager.malloc<MatsT>(nSQ);
-
-      
-      // Diagonalize the overlap in scratch S = V * s * V**T
-      HermetianEigen('V','U',NB,SCR1,NB,sE,memManager);
-
-
-      if( std::abs( sE[0] ) < 1e-10 )
-        CErr("Contracted Basis Set is Linearly Dependent!");
-
-      // Compute X = V * s^{-1/2} 
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++)
-        SCR2[i + j*NB] = 
-          SCR1[i + j*NB] / std::sqrt(sE[j]);
-
-      // Compute O1 = X * V**T
-      Gemm('N','C',NB,NB,NB,
-        static_cast<MatsT>(1.),SCR2,NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho[0].pointer(),NB);
-
-
-      // Compute X = V * s^{1/2} in place (by multiplying by s)
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++)
-        SCR2[i + j*NB] = 
-          SCR2[i + j*NB] * sE[j];
-
-      // Compute O2 = X * V**T
-      Gemm('N','C',NB,NB,NB,
-        static_cast<MatsT>(1.),SCR2,NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho[1].pointer(),NB);
-
-#ifdef _DEBUGORTHO
-      // Debug code to validate the Lowdin orthogonalization
-
-      std::cerr << "Debugging Lowdin Orthogonalization" << std::endl;
-      double maxDiff(-10000000);
-
-      // Check that ortho1 and ortho2 are inverses of eachother
-      Gemm('N','N',NB,NB,NB,
-        static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[1].pointer(),NB,
-        static_cast<MatsT>(0.),SCR1,NB);
-      
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++) {
-
-        if( i == j ) maxDiff = 
-          std::max(maxDiff, std::abs(1. - SCR1[i + j*NB]));
-        else maxDiff = 
-          std::max(maxDiff,std::abs(SCR1[i + j*NB])); 
-
-      }
-
-      std::cerr << "  Ortho1 * Ortho2 = I: " << maxDiff << std::endl;
-
-      // Check that ortho2 * ortho2 is the overlap
-      Gemm('N','N',NB,NB,NB,
-        static_cast<MatsT>(1.),ortho[1].pointer(),NB,ortho[1].pointer(),NB,
-        static_cast<MatsT>(0.),SCR1,NB);
-      
-      maxDiff = -100000;
-
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++) {
-
-          maxDiff = std::max(maxDiff,
-          std::abs(SCR1[i + j*NB] - 
-            this->aoints.overlap[i + j*NB])); 
-
-      }
-
-      std::cerr << "  Ortho2 * Ortho2 = S: " << maxDiff << std::endl;
-
-      // Check that ortho1 * ortho1 is the inverse of the overlap
-      Gemm('N','N',NB,NB,NB,
-        static_cast<MatsT>(1.),ortho[0].pointer(),NB,ortho[0].pointer(),NB,
-        static_cast<MatsT>(0.),SCR1,NB);
-      Gemm('N','N',NB,NB,NB,
-        static_cast<MatsT>(1.),SCR1,NB,reinterpret_cast<MatsT*>(this->aoints.overlap),NB,
-        static_cast<MatsT>(0.),SCR2,
-        NB);
-      
-      maxDiff = -10000;
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++) {
-
-        if( i == j ) maxDiff = 
-          std::max(maxDiff, std::abs(1. - SCR2[i + j*NB]));
-        else maxDiff = 
-          std::max(maxDiff,std::abs(SCR2[i + j*NB])); 
-
-      }
-
-      std::cerr << "  Ortho1 * Ortho1 * S = I: " << maxDiff << std::endl;
-
-#endif
-
-      // Free Scratch Space
-      memManager.free(sE,SCR2);
-
-    } else if(orthoType == CHOLESKY) {
-
-      std::cout << 
-      "*** WARNING: Cholesky orthogonalization has not yet been confirmed ***" 
-      << std::endl;
-
-      // Compute the Cholesky factorization of the overlap S = L * L**T
-      Cholesky('L',NB,SCR1,NB);
-
-      // Copy the lower triangle to ortho2 (O2 = L)
-      for(auto j = 0; j < NB; j++)
-      for(auto i = j; i < NB; i++)
-        ortho[1](i,j) = SCR1[i + j*NB];
-
-      // Compute the inverse of the overlap using the Cholesky factors
-      CholeskyInv('L',NB,SCR1,NB);
-
-      // O1 = O2**T * S^{-1}
-      Gemm('T','N',NB,NB,NB,
-        static_cast<MatsT>(1.),ortho[1].pointer(),NB,SCR1,NB,
-        static_cast<MatsT>(0.),ortho[0].pointer(),NB);
-
-      // Remove upper triangle junk from O1
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < j ; i++)
-        ortho[0](i,j) = 0.;
-
-#ifdef _DEBUGORTHO
-      // Debug code to validate the Lowdin orthogonalization
-
-      std::cerr << "Debugging Cholesky Orthogonalization" << std::endl;
-
-      // Debug code to validate the Cholesky orthogonalization
-      MatsT* SCR2 = memManager.malloc<MatsT>(nSQ);
-        
-      double maxDiff = -1000;
-      Gemm('T','N',NB,NB,NB,
-        static_cast<MatsT>(1.),ortho1,NB,reinterpret_cast<MatsT*>(this->aoints.overlap),NB,
-        static_cast<MatsT>(0.),SCR1,
-        NB);
-      Gemm('N','N',NB,NB,NB,
-        static_cast<MatsT>(1.),SCR1,NB,ortho1,NB,
-        static_cast<MatsT>(0.),SCR2,
-        NB);
-
-      for(auto j = 0; j < NB; j++)
-      for(auto i = 0; i < NB; i++) {
-
-        if( i == j ) maxDiff = 
-          std::max(maxDiff, std::abs(1. - SCR2[i + j*NB]));
-        else maxDiff = 
-          std::max(maxDiff,std::abs(SCR2[i + j*NB])); 
-
-      }
-
-      std::cerr << "Ortho1**T * S ** Ortho1 = I: " << maxDiff << std::endl;
-
-      memManager.free(SCR2); // Free SCR2
-#endif
-        
-
+    if ( nC != 4 ) {
+      std::copy_n(this->aoints.overlap->pointer(),nSQ,overlapSpinor.pointer());
+    } else if( nC == 4 ) {
+      // HBL 4C May need a Ints type check (SetMat) to capture GIAO.
+      SetMatRE('N',NB/2,NB/2,1.,
+               reinterpret_cast<double*>(this->aoints.overlap->pointer()),NB/2,
+               overlapSpinor.pointer(),NB);
+      SetMatRE('N',NB/2,NB/2,1./(2*SpeedOfLight*SpeedOfLight),
+               reinterpret_cast<double*>(this->aoints.kinetic->pointer()),NB/2,
+               overlapSpinor.pointer()+NB*NB/2+NB/2,NB);
+      //prettyPrintSmart(std::cout,"S Metric",SCR1,NB,NB,NB);
     }
+    orthoSpinor = std::make_shared<Orthogonalization<MatsT>>(overlapSpinor);
 
-    memManager.free(SCR1); // Free SCR1
+    // Copy to block diagonal for alpha/beta basis
+    if( nC > 1 ){
+      SetMat('N',NBC/2,NBC/2,MatsT(1.),overlapSpinor.pointer(), NBC/2, overlapAB.pointer(),NBC);
+      size_t disp = NBC/2 + NBC/2*NBC;
+      SetMat('N',NBC/2,NBC/2,MatsT(1.),overlapSpinor.pointer(), NBC/2, overlapAB.pointer()+disp,NBC);
+    } else {
+      overlapAB = overlapSpinor;
+    }
+    orthoAB = std::make_shared<Orthogonalization<MatsT>>(overlapAB);
 
   }; // computeOrtho
 

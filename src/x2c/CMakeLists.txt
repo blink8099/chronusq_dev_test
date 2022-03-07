@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 #
-# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #
 add_library(x2c STATIC impl.cxx x2c.cxx atomic.cxx)
 
-target_link_libraries( x2c PUBLIC ChronusQ::HDF5 ChronusQ::Libint2 )
+target_link_libraries( x2c PUBLIC ChronusQ::DepHeaders )
 
 # Append x2c to executable link
 list(APPEND CQEX_LINK x2c)

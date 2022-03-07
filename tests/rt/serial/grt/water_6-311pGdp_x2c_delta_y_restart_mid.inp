@@ -15,15 +15,16 @@ geom:
 #  Job Specification
 #
 [QM]
-reference = X2CHF
+reference = 2CHF
 job = RT
+x2ctype = OneE
 
 [BASIS]
 basis = 6-311+g(d,p)
 
 
 [RT]
-TMAX   = 2.
+TMAX   = 1.
 DELTAT = 0.05
 IRSTRT = 20
 FIELD:

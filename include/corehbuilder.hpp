@@ -1,7 +1,7 @@
 /*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,8 +39,8 @@ namespace ChronusQ {
     friend class CoreHBuilder;
 
   protected:
-    Integrals<IntsT> &aoints_;
-    AOIntsOptions     aoiOptions_; ///< One electron terms to be computed
+    Integrals<IntsT>  &aoints_;
+    HamiltonianOptions hamiltonianOptions_; ///< One electron terms to be computed
 
   public:
 
@@ -48,29 +48,33 @@ namespace ChronusQ {
 
     // Disable default constructor
     CoreHBuilder() = delete;
-    CoreHBuilder(Integrals<IntsT> &aoints, AOIntsOptions aoiOptions):
-      aoints_(aoints), aoiOptions_(aoiOptions) {}
+    CoreHBuilder(Integrals<IntsT> &aoints, HamiltonianOptions hamiltonianOptions):
+      aoints_(aoints), hamiltonianOptions_(hamiltonianOptions) {}
 
     // Same or Different type
     template <typename MatsU>
     CoreHBuilder(const CoreHBuilder<MatsU,IntsT> &other):
-      aoints_(other.aoints_), aoiOptions_(other.aoiOptions_) {}
+      aoints_(other.aoints_), hamiltonianOptions_(other.hamiltonianOptions_) {}
     template <typename MatsU>
     CoreHBuilder(CoreHBuilder<MatsU,IntsT> &&other):
-      aoints_(other.aoints_), aoiOptions_(other.aoiOptions_) {}
+      aoints_(other.aoints_), hamiltonianOptions_(other.hamiltonianOptions_) {}
 
     // Virtual destructor
     virtual ~CoreHBuilder() {}
 
 
     // Public member functions
+    const HamiltonianOptions& getHamiltonianOptions() const {
+      return hamiltonianOptions_;
+    }
 
     // Compute various core Hamitlonian
     virtual void computeCoreH(EMPerturbation&,
         std::shared_ptr<PauliSpinorSquareMatrices<MatsT>>) = 0;
 
     // Compute the gradient
-    virtual void getGrad() = 0;
+    virtual std::vector<double> getGrad(EMPerturbation&,
+      SingleSlater<MatsT,IntsT>&) = 0;
 
     // Pointer convertor
     template <typename MatsU>

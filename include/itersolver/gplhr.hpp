@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,11 +24,12 @@
 #pragma once
 
 #include <itersolver.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 #include <util/matout.hpp>
 #include <cqlinalg/factorization.hpp>
 #include <cqlinalg/blas3.hpp>
 #include <cqlinalg/eig.hpp>
+#include <cqlinalg.hpp>
 #include <cerr.hpp>
 
 namespace ChronusQ {
@@ -189,7 +190,7 @@ namespace ChronusQ {
 
       // Q <- AV - sig * V 
       std::copy_n(AV, NNR, Q);
-      AXPY( NNR, -sigma, V, 1, Q, 1 );
+      blas::axpy( NNR, -sigma, V, 1, Q, 1 );
 
       // Q <- QR(Q)
       QR(N,nR,Q,N,this->memManager_);
@@ -199,8 +200,8 @@ namespace ChronusQ {
 
       // PHI <- Q**H * AV
       // PSI <- Q**H * V
-      Gemm('C','N',nR,nR,N,_F(1.),Q,N,AV,N,_F(0.),PHI,nR);
-      Gemm('C','N',nR,nR,N,_F(1.),Q,N,V,N,_F(0.),PSI,nR);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nR,nR,N,_F(1.),Q,N,AV,N,_F(0.),PHI,nR);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nR,nR,N,_F(1.),Q,N,V,N,_F(0.),PSI,nR);
 
 
       // VSR, VSL, ALPHA, BETA <- ORDQZ(PHI,PSI,sigma)
@@ -240,23 +241,23 @@ namespace ChronusQ {
       // VR  <- VR  * VSR
       // VL  <- VL  * VSL
       // AVR <- AVR * VSR
-      Gemm('N','N',N,nR,nR,_F(1.),V,N,VSR,nR,_F(0.),VSCR,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.),V,N,VSR,nR,_F(0.),VSCR,N);
       std::copy_n(VSCR,NNR,V);
       
-      Gemm('N','N',N,nR,nR,_F(1.),Q,N,VSL,nR,_F(0.),VSCR,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.),Q,N,VSL,nR,_F(0.),VSCR,N);
       std::copy_n(VSCR,NNR,Q);
       
-      Gemm('N','N',N,nR,nR,_F(1.),AV,N,VSR,nR,_F(0.),VSCR,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.),AV,N,VSR,nR,_F(0.),VSCR,N);
       std::copy_n(VSCR,NNR,AV);
 
       // Form initial residuals in W
       // W = AV * MB - V * MA
-      Gemm('N','N',N,nR,nR,_F(1.) ,AV,N,MB,nR,_F(0.),W,N);
-      Gemm('N','N',N,nR,nR,_F(-1.),V ,N,MA,nR,_F(1.),W,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.) ,AV,N,MB,nR,_F(0.),W,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(-1.),V ,N,MA,nR,_F(1.),W,N);
 
 
       // Get Residual Norms
-      nrmA =  MatNorm<double>('F',N,nR,AV,N);
+      nrmA =  lapack::lange(lapack::Norm::Fro,N,nR,AV,N);
       getResidualNorms(N,nR,W,RelRes,this->eigVal_,nrmA);
 
 
@@ -306,9 +307,7 @@ namespace ChronusQ {
     // ****************************
     for( iter = 0; iter < this->maxMicroIter_; iter++ ) {
 
-
-      auto GPLHRSt = tick();
-
+      ProgramTimer::tick("Diagonalize Iter");
 
       if( isRoot ) {
 
@@ -318,7 +317,8 @@ namespace ChronusQ {
         QR(N,nR,V,N,RMAT,nR,this->memManager_);
 
         // AV <- X : [X * RMAT = AV]
-        TriLinSolve('R','U','N','N',N,nR,_F(1.),RMAT,nR,AV,N);
+        blas::trsm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Upper,blas::Op::NoTrans,blas::Diag::NonUnit,
+          N,nR,_F(1.),RMAT,nR,AV,N);
 
         // Q <- QR(Q)
         QR(N,nR,Q,N,this->memManager_);
@@ -372,8 +372,8 @@ namespace ChronusQ {
 
 
           // S(k) = AS(k-1) * MB - S(k-1) * MA
-          Gemm('N','N',N,nR,nR,_F(1.) ,ASprev,N,MB,nR,_F(0.),Scur,N);
-          Gemm('N','N',N,nR,nR,_F(-1.),Sprev ,N,MA,nR,_F(1.),Scur,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.) ,ASprev,N,MB,nR,_F(0.),Scur,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(-1.),Sprev ,N,MA,nR,_F(1.),Scur,N);
 
           // S(k) = (I - V * V**H) * T * (I - V * V**H) * S(k-1) 
           newSMatrix(N,nR,V,N,V,N,Scur,N,RMAT,nR);
@@ -434,7 +434,8 @@ namespace ChronusQ {
           QR(N,nR,P,N,RMAT,nR,this->memManager_);
 
           // AP <- X : [X * RMAT = AP]
-          TriLinSolve('R','U','N','N',N,nR,_F(1.),RMAT,nR,AP,N);
+          blas::trsm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Upper,blas::Op::NoTrans,blas::Diag::NonUnit,
+            N,nR,_F(1.),RMAT,nR,AP,N);
 
         }
 
@@ -442,7 +443,7 @@ namespace ChronusQ {
 
         // Q' = (A - sigma * I) [W, S, [P]]
         std::copy_n(AW,nQp * NNR, Qp);
-        AXPY( nQp * NNR, -sigma, W, 1, Qp, 1);
+        blas::axpy( nQp * NNR, -sigma, W, 1, Qp, 1);
 
 
 
@@ -475,8 +476,8 @@ namespace ChronusQ {
 
         // PHI <- Q**H * AV
         // PSI <- Q**H * V
-        Gemm('C','N',nQ*nR, nQ*nR, N, _F(1.), Q,N, AV,N, _F(0.), PHI, nQ*nR); 
-        Gemm('C','N',nQ*nR, nQ*nR, N, _F(1.), Q,N, V ,N, _F(0.), PSI, nQ*nR); 
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nQ*nR, nQ*nR, N, _F(1.), Q,N, AV,N, _F(0.), PHI, nQ*nR); 
+        blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nQ*nR, nQ*nR, N, _F(1.), Q,N, V ,N, _F(0.), PSI, nQ*nR); 
 
         // VSR, VSL, ALPHA, BETA <- ORDQZ(PHI,PSI,sigma)
         OrdQZ2('V','V',nQ*nR,PHI,nQ*nR,PSI,nQ*nR,ALPHA,BETA,hardLimD,sigmaD,
@@ -502,19 +503,19 @@ namespace ChronusQ {
         _F * VSRt_P = VSRt_S + M_NR;
 
         // VSCR = V * VSR_V + W * VSR_W + S * VSR_S + P * VSR_P
-        Gemm('N','N',N,nR,nR  ,_F(1.),V,N,VSR_V,nQ*nR,_F(0.),VSCR,N);
-        Gemm('N','N',N,nR,nR  ,_F(1.),W,N,VSR_W,nQ*nR,_F(1.),VSCR,N);
-        Gemm('N','N',N,nR,M_NR,_F(1.),S,N,VSR_S,nQ*nR,_F(1.),VSCR,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),V,N,VSR_V,nQ*nR,_F(0.),VSCR,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),W,N,VSR_W,nQ*nR,_F(1.),VSCR,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,M_NR,_F(1.),S,N,VSR_S,nQ*nR,_F(1.),VSCR,N);
         if( iter )
-          Gemm('N','N',N,nR,nR,_F(1.),P,N,VSR_P,nQ*nR,_F(1.),VSCR,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.),P,N,VSR_P,nQ*nR,_F(1.),VSCR,N);
 
 
         // VSCR2 = V * VSRt_V + W * VSRt_W + S * VSRt_S + P * VSRt_P
-        Gemm('N','N',N,nR,nR  ,_F(1.),V,N,VSRt_V,nQ*nR,_F(0.),VSCR2,N);
-        Gemm('N','N',N,nR,nR  ,_F(1.),W,N,VSRt_W,nQ*nR,_F(1.),VSCR2,N);
-        Gemm('N','N',N,nR,M_NR,_F(1.),S,N,VSRt_S,nQ*nR,_F(1.),VSCR2,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),V,N,VSRt_V,nQ*nR,_F(0.),VSCR2,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),W,N,VSRt_W,nQ*nR,_F(1.),VSCR2,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,M_NR,_F(1.),S,N,VSRt_S,nQ*nR,_F(1.),VSCR2,N);
         if( iter )                          
-          Gemm('N','N',N,nR,nR,_F(1.),P,N,VSRt_P,nQ*nR,_F(1.),VSCR2,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.),P,N,VSRt_P,nQ*nR,_F(1.),VSCR2,N);
 
         // V = VSCR
         // P = VSCR2
@@ -523,18 +524,18 @@ namespace ChronusQ {
 
 
         // VSCR = AV * VSR_V + AW * VSR_W + AS * VSR_S + AP * VSR_P
-        Gemm('N','N',N,nR,nR  ,_F(1.),AV,N,VSR_V,nQ*nR,_F(0.),VSCR,N);
-        Gemm('N','N',N,nR,nR  ,_F(1.),AW,N,VSR_W,nQ*nR,_F(1.),VSCR,N);
-        Gemm('N','N',N,nR,M_NR,_F(1.),AS,N,VSR_S,nQ*nR,_F(1.),VSCR,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),AV,N,VSR_V,nQ*nR,_F(0.),VSCR,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),AW,N,VSR_W,nQ*nR,_F(1.),VSCR,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,M_NR,_F(1.),AS,N,VSR_S,nQ*nR,_F(1.),VSCR,N);
         if( iter )
-          Gemm('N','N',N,nR,nR,_F(1.),AP,N,VSR_P,nQ*nR,_F(1.),VSCR,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.),AP,N,VSR_P,nQ*nR,_F(1.),VSCR,N);
 
         // VSCR2 = AV * VSRt_V + AW * VSRt_W + AS * VSRt_S + AP * VSRt_P
-        Gemm('N','N',N,nR,nR  ,_F(1.),AV,N,VSRt_V,nQ*nR,_F(0.),VSCR2,N);
-        Gemm('N','N',N,nR,nR  ,_F(1.),AW,N,VSRt_W,nQ*nR,_F(1.),VSCR2,N);
-        Gemm('N','N',N,nR,M_NR,_F(1.),AS,N,VSRt_S,nQ*nR,_F(1.),VSCR2,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),AV,N,VSRt_V,nQ*nR,_F(0.),VSCR2,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),AW,N,VSRt_W,nQ*nR,_F(1.),VSCR2,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,M_NR,_F(1.),AS,N,VSRt_S,nQ*nR,_F(1.),VSCR2,N);
         if( iter )                           
-          Gemm('N','N',N,nR,nR,_F(1.),AP,N,VSRt_P,nQ*nR,_F(1.),VSCR2,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.),AP,N,VSRt_P,nQ*nR,_F(1.),VSCR2,N);
 
 
         // AV = VSCR
@@ -543,11 +544,11 @@ namespace ChronusQ {
         std::copy_n(VSCR2,NNR,AP);
 
         // VSCR = Q * VSR_V + Q1 * VSR_W + Q2 * VSR_S + Q3 * VSR_P
-        Gemm('N','N',N,nR,nR  ,_F(1.),Q ,N,VSL_V,nQ*nR,_F(0.),VSCR,N);
-        Gemm('N','N',N,nR,nR  ,_F(1.),Q1,N,VSL_W,nQ*nR,_F(1.),VSCR,N);
-        Gemm('N','N',N,nR,M_NR,_F(1.),Q2,N,VSL_S,nQ*nR,_F(1.),VSCR,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),Q ,N,VSL_V,nQ*nR,_F(0.),VSCR,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR  ,_F(1.),Q1,N,VSL_W,nQ*nR,_F(1.),VSCR,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,M_NR,_F(1.),Q2,N,VSL_S,nQ*nR,_F(1.),VSCR,N);
         if( Q3 )
-          Gemm('N','N',N,nR,nR,_F(1.),Q3,N,VSL_P,nQ*nR,_F(1.),VSCR,N);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.),Q3,N,VSL_P,nQ*nR,_F(1.),VSCR,N);
 
         // Q = VSCR
         std::copy_n(VSCR,NNR,Q);
@@ -586,8 +587,8 @@ namespace ChronusQ {
         
 
         // W = AV * MB - V * MA
-        Gemm('N','N',N,nR,nR,_F(1.) ,AV,N,MB,nR,_F(0.),W,N);
-        Gemm('N','N',N,nR,nR,_F(-1.),V ,N,MA,nR,_F(1.),W,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.) ,AV,N,MB,nR,_F(0.),W,N);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(-1.),V ,N,MA,nR,_F(1.),W,N);
         
         /*
         // Adaptive sigma
@@ -643,9 +644,13 @@ namespace ChronusQ {
 
 
 
-      double GPLHRdur = tock(GPLHRSt);
+      ProgramTimer::tock("Diagonalize Iter");
+
 
       if( isRoot ) {
+
+        auto GPLHRdur = ProgramTimer::getDurationTotal<CQSecond>(
+          "Diagonalize Iter").count();
 
         double perLT = LTdur * 100 / GPLHRdur;
 
@@ -699,9 +704,9 @@ namespace ChronusQ {
     if( isRoot ) {
 
       // Reconstruct Eigen vectors
-      Gemm('C','N',nR,nR,N,_F(1.),V,N,AV,N,_F(0.),PSI,nR);
-      GeneralEigen('N','V',nR,PSI,nR,ALPHA,VSL,nR,VSR,nR,this->memManager_);
-      Gemm('N','N',N,nR,nR,_F(1.),V,N,VSR,nR,_F(0.),this->VR_,N);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nR,nR,N,_F(1.),V,N,AV,N,_F(0.),PSI,nR);
+      GeneralEigenSymm('N','V',nR,PSI,nR,ALPHA,VSL,nR,VSR,nR);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nR,nR,_F(1.),V,N,VSR,nR,_F(0.),this->VR_,N);
 
     }
 
@@ -755,7 +760,7 @@ namespace ChronusQ {
 
     for (auto i = 0; i < nR; i++) {
 
-      double nrmI = TwoNorm<double>(N,WMAT + i*N,1);
+      double nrmI = blas::nrm2(N,WMAT + i*N,1);
       RelRes[i] = nrmI / (nrmA + std::abs(LAMBDA[i]));
 
     }
@@ -784,20 +789,21 @@ namespace ChronusQ {
 
     // G(TRIUB) = TRIUA * CA + TRIUB * CB
     for(auto i = 0ul; i < N; i++){ 
-      Scale(N,CB[i*(N+1)],                TRIUB + i*ldm,1);
-      AXPY( N,CA[i*(N+1)],TRIUA + i*ldm,1,TRIUB + i*ldm,1);
+      blas::scal(N,CB[i*(N+1)],                TRIUB + i*ldm,1);
+      blas::axpy( N,CA[i*(N+1)],TRIUA + i*ldm,1,TRIUB + i*ldm,1);
     }
 
     // TRIUA = inv(TRIUB) * TRIUA
-    TriLinSolve('L','U','N','N',N,N,_F(1.),TRIUB,ldm,TRIUA,ldm);
+    blas::trsm(blas::Layout::ColMajor,blas::Side::Left,blas::Uplo::Upper,blas::Op::NoTrans,blas::Diag::NonUnit,
+      N,N,_F(1.),TRIUB,ldm,TRIUA,ldm);
 
     //for(auto i = 0ul; i < N; i++){ 
 
     //  std::copy_n(TRIUA + i*ldm, N, MA + i*N);
     //  std::copy_n(TRIUA + i*ldm, N, MB + i*N);
 
-    //  Scale(N, CB[i*(N+1)],MA + i*N,1);
-    //  Scale(N,-CA[i*(N+1)],MB + i*N,1);
+    //  blas::scal(N, CB[i*(N+1)],MA + i*N,1);
+    //  blas::scal(N,-CA[i*(N+1)],MB + i*N,1);
 
     //  MB[ i*(N + 1) ] += 1.;
 
@@ -830,17 +836,19 @@ namespace ChronusQ {
     }
 
     // Form G
-    Gemm('N','N',N,N,N,_F(1.),TRIUA,LDTRIUA,CA,N,_F(0.),G,N);  
-    Gemm('N','N',N,N,N,_F(1.),TRIUB,LDTRIUB,CB,N,_F(1.),G,N);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,_F(1.),TRIUA,LDTRIUA,CA,N,_F(0.),G,N);  
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,_F(1.),TRIUB,LDTRIUB,CB,N,_F(1.),G,N);
     
     // Form MA
-    TriLinSolve('R','U','N','N',N,N,_F(1.),G,N,CB,N);
-    Gemm('N','N',N,N,N,_F(1.),CB,N,TRIUA,LDTRIUA,_F(0.),MA,LDMA);
+    blas::trsm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Upper,blas::Op::NoTrans,blas::Diag::NonUnit,
+      N,N,_F(1.),G,N,CB,N);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,_F(1.),CB,N,TRIUA,LDTRIUA,_F(0.),MA,LDMA);
 
     // Form MB   
-    TriLinSolve('R','U','N','N',N,N,_F(1.),G,N,CA,N);
-    Gemm('N','N',N,N,N,_F(1.),CA,N,TRIUA,LDTRIUA,_F(0.),MB,LDMB);
-    AXPY(N*N,_F(-1.),MB,1,Ident,1);
+    blas::trsm(blas::Layout::ColMajor,blas::Side::Right,blas::Uplo::Upper,blas::Op::NoTrans,blas::Diag::NonUnit,
+      N,N,_F(1.),G,N,CA,N);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,N,_F(1.),CA,N,TRIUA,LDTRIUA,_F(0.),MB,LDMB);
+    blas::axpy(N*N,_F(-1.),MB,1,Ident,1);
     std::copy_n(Ident, N*N, MB);
 
 
@@ -874,10 +882,10 @@ namespace ChronusQ {
     ROOT_ONLY(this->comm_);
 
     // SCR = V**H * S
-    Gemm('C','N',nV,nS,N,_F(1.) ,V,LDV,S  ,LDS  ,_F(0.) ,SCR,LDSCR);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nV,nS,N,_F(1.) ,V,LDV,S  ,LDS  ,_F(0.) ,SCR,LDSCR);
 
     // S = S - V * SCR
-    Gemm('N','N',N,nS,nV, _F(-1.),V,LDV,SCR,LDSCR,_F(1.),S,  LDS  );
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nS,nV, _F(-1.),V,LDV,SCR,LDSCR,_F(1.),S,  LDS  );
 
   }
 
@@ -898,13 +906,13 @@ namespace ChronusQ {
     ROOT_ONLY(this->comm_);
 
     // SCR = V**H * S
-    Gemm('C','N',nV,nS,N,_F(1.) ,V,LDV,S  ,LDS  ,_F(0.) ,SCR,LDSCR);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nV,nS,N,_F(1.) ,V,LDV,S  ,LDS  ,_F(0.) ,SCR,LDSCR);
 
     // S = S - V * SCR
-    Gemm('N','N',N,nS,nV, _F(-1.),V,LDV,SCR,LDSCR,_F(1.),S,  LDS  );
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nS,nV, _F(-1.),V,LDV,SCR,LDSCR,_F(1.),S,  LDS  );
 
     // AS = AS - AV * SCR
-    Gemm('N','N',N,nS,nV, _F(-1.),AV,LDAV,SCR,LDSCR,_F(1.),AS,LDAS  );
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,nS,nV, _F(-1.),AV,LDAV,SCR,LDSCR,_F(1.),AS,LDAS  );
 
   }
 

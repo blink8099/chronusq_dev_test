@@ -1,228 +1,93 @@
-/* 
+/*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
- *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
- *  
+ *
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
- *  
+ *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *  
+ *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *  
+ *
  *  Contact the Developers:
  *    E-Mail: xsli@uw.edu
- *  
+ *
  */
 #pragma once
 
-#include <singleslater.hpp>
-#include <util/matout.hpp>
-#include <util/math.hpp>
 #include <cqlinalg/blas1.hpp>
 #include <cqlinalg/blasutil.hpp>
 #include <cqlinalg/matfunc.hpp>
-
-// SCF definitions for SingleSlaterBase
-#include <singleslater/base/scf.hpp> 
-
+#include <singleslater.hpp>
+#include <util/math.hpp>
+#include <util/matout.hpp>
 
 namespace ChronusQ {
 
-  /**
-   *  \brief Saves the current state of wave function
-   *
-   *  Saves a copy of the current AO 1PDM and orthonormal Fock
-   */ 
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::saveCurrentState() {
+/**
+ *  \brief Saves the current state of wave function
+ *
+ *  Saves a copy of the current AO 1PDM and orthonormal Fock
+ */
+template<typename MatsT, typename IntsT>
+void SingleSlater<MatsT, IntsT>::saveCurrentState() {
 
-    ROOT_ONLY(comm); 
+  ROOT_ONLY(comm);
 
+  // Checkpoint if file exists
+  if( savFile.exists() ) {
 
-    // Checkpoint if file exists
-    if( savFile.exists() ) {
+    size_t NB  = this->nAlphaOrbital();
+    size_t NBC = this->nC * NB;
 
-      size_t NB = this->nAlphaOrbital();
-      size_t NBC = this->nC * NB;
+    size_t t_hash = std::is_same<MatsT, double>::value ? 1 : 2;
 
-      size_t t_hash = typeid(MatsT).hash_code();
+    // Save Field type
+    std::string prefix = "SCF/";
+    if( this->particle.charge == 1.0 ) prefix = "PROT_" + prefix;
 
-      // Save Field type
-      savFile.safeWriteData("SCF/FIELD_TYPE",&t_hash,{1});
+    savFile.safeWriteData(prefix + "FIELD_TYPE", &t_hash, {1});
 
-      savFile.safeWriteData("SCF/1PDM", *this->onePDM);
+    savFile.safeWriteData(prefix + "1PDM", *this->onePDM);
 
-      savFile.safeWriteData("SCF/FOCK", *fockMatrix);
+    savFile.safeWriteData(prefix + "FOCK", *fockMatrix);
 
-      savFile.safeWriteData("SCF/1PDM_ORTHO", *onePDMOrtho);
+    savFile.safeWriteData(prefix + "1PDM_ORTHO", *onePDMOrtho);
 
-      savFile.safeWriteData("SCF/FOCK_ORTHO", *fockMatrixOrtho);
+    savFile.safeWriteData(prefix + "FOCK_ORTHO", *fockMatrixOrtho);
 
-      // Save MOs
-      savFile.safeWriteData("SCF/MO1", this->mo[0].pointer(), {NBC,NBC});
-      if( this->nC == 1 and not this->iCS )
-        savFile.safeWriteData("SCF/MO2", this->mo[1].pointer(), {NBC,NBC});
+    savFile.safeWriteData("SCF/ORTHO", orthoSpinor->forwardPointer()->pointer(), {NB, NB});
 
-      // Save Energies
-      savFile.safeWriteData("SCF/TOTAL_ENERGY",&this->totalEnergy,
-        {1});
-      savFile.safeWriteData("SCF/ONE_BODY_ENERGY",&this->OBEnergy,
-        {1});
-      savFile.safeWriteData("SCF/MANY_BODY_ENERGY",&this->MBEnergy,
-        {1});
+    savFile.safeWriteData("SCF/ORTHO_INV", orthoSpinor->backwardPointer()->pointer(), {NB, NB});
 
-      // Save Multipoles
-      savFile.safeWriteData("SCF/LEN_ELECTRIC_DIPOLE",&this->elecDipole[0],
-        {3});
-      savFile.safeWriteData("SCF/LEN_ELECTRIC_QUADRUPOLE",
-        &this->elecQuadrupole[0][0], {3,3});
-      savFile.safeWriteData("SCF/LEN_ELECTRIC_OCTUPOLE",
-        &this->elecOctupole[0][0][0], {3,3,3});
+    // Save MOs
+    savFile.safeWriteData(prefix + "MO1", this->mo[0].pointer(), {NBC, NBC});
+    if( this->nC == 1 and not this->iCS ) savFile.safeWriteData(prefix + "MO2", this->mo[1].pointer(), {NBC, NBC});
 
-      // Save Spin
-      savFile.safeWriteData("SCF/S_EXPECT",&this->SExpect[0],{3});
-      savFile.safeWriteData("SCF/S_SQUARED",&this->SSq,{1});
-      
+    // Save Energies
+    savFile.safeWriteData(prefix + "TOTAL_ENERGY", &this->totalEnergy, {1});
+    savFile.safeWriteData(prefix + "ONE_BODY_ENERGY", &this->OBEnergy, {1});
+    savFile.safeWriteData(prefix + "MANY_BODY_ENERGY", &this->MBEnergy, {1});
 
-    // If file doesnt exist, checkpoint important bits in core
-    } else {
+    // Save Multipoles
+    savFile.safeWriteData(prefix + "LEN_ELECTRIC_DIPOLE", &this->elecDipole[0], {3});
+    savFile.safeWriteData(prefix + "LEN_ELECTRIC_QUADRUPOLE", &this->elecQuadrupole[0][0], {3, 3});
+    savFile.safeWriteData(prefix + "LEN_ELECTRIC_OCTUPOLE", &this->elecOctupole[0][0][0], {3, 3, 3});
 
-      // Copy over current AO density matrix
-      *curOnePDM = *this->onePDM;
-
-      // Copy the previous orthonormal Fock matrix for damping. It's the 
-      // previous Fock since saveCurrentState is called at the beginning 
-      // of the SCF loop. 
-      if ( scfControls.doExtrap and scfControls.doDamp) {
-          
-        // Avoid saving the guess Fock for extrapolation
-        if (scfConv.nSCFIter > 0) {
-          prevFock = fockMatrixOrtho;
-        }
-      }
-
-    }
-
-  }; // SingleSlater<MatsT>::saveCurrentState()
-
-
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT, IntsT>::ConventionalSCF(bool modF) {
-
-    // Transform AO fock into the orthonormal basis (on root MPI process)
-    ao2orthoFock();
-
-    // Modify fock matrix if requested (on root MPI process)
-    if( modF ) modifyFock();
-
-    // Diagonalize the orthonormal fock Matrix (on root MPI process)
-    diagOrthoFock();
-
-    // Form the orthonormal density (in the AO storage, 
-    // updates all MPI processes)
-    formDensity();
-
-    // Copy the AO storage to orthonormal storage and back transform
-    // the density into the AO basis. This is because ortho2aoDen
-    // requires the onePDMOrtho storage is populated.
-    //
-    // *** Replicated on all MPI processes ***
-    *onePDMOrtho = *this->onePDM;
-
-    // Transform the orthonormal density to the AO basis 
-    // (on root MPI process)
-    ortho2aoDen();
-
-    ortho2aoMOs();
-
+    // Save Spin
+    savFile.safeWriteData(prefix + "S_EXPECT", &this->SExpect[0], {3});
+    savFile.safeWriteData(prefix + "S_SQUARED", &this->SSq, {1});
   }
 
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::NewtonRaphsonSCF() {
-
-    MatsT* C = getNRCoeffs();
-
-    // MO(:,i) = MO(:,i) + \sum_a C(a,i) MO(:,a)
-    const size_t NB   = this->nAlphaOrbital();
-    const size_t NB2  = NB * NB;
-    const size_t NBC  = nC * NB;
-    const size_t NBC2 = NBC * NBC;
-
-    const size_t NO    = (nC == 2) ? this->nO : this->nOA;
-    const size_t NV    = (nC == 2) ? this->nV : this->nVA;
-    const size_t nOAVA = this->nOA * this->nVA;
-    const size_t nOBVB = this->nOB * this->nVB;
-
-    for(auto i = 0ul, ai = 0ul; i < NO;  i++)
-    for(auto a = NO           ; a < NBC; a++, ai++) 
-      AXPY(NBC,-C[ai],this->mo[0].pointer() + a*NBC,1,this->mo[0].pointer() + i*NBC,1);
-
-    if( nC == 1 and not iCS )
-      for(auto i = 0ul, ai = 0ul; i < this->nOB;  i++)
-      for(auto a = this->nOB   ; a < NB; a++, ai++) 
-        AXPY(NB,-C[ai + nOAVA],this->mo[1].pointer() + a*NB,1,this->mo[1].pointer() + i*NB,1);
-
-    this->memManager.free(C);
-
-
-    orthoAOMO();
-    formDensity();
-
-  }
-
-
-
-  /**
-   *  \brief Obtain a new set of orbitals given a Fock matrix.
-   *
-   *  Currently implements the fixed-point SCF procedure.
-   */ 
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::getNewOrbitals(EMPerturbation &pert, 
-      bool frmFock) {
-
-    bool increment = scfControls.doIncFock and 
-                     scfConv.nSCFIter % scfControls.nIncFock != 0 and
-                     scfControls.guess != RANDOM;
-
-    // Form the Fock matrix D(k) -> F(k)
-    if( frmFock ) {
-      formFock(pert,increment);
-      //if( MPIRank(comm) == 0 )
-      //  printFockTimings(std::cout);
-    }
-
-    if( scfControls.scfAlg == _NEWTON_RAPHSON_SCF and scfConv.nSCFIter > 0 ) {
-      if(std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr)
-        CErr("Newton Raphson SCF not implemented for ROHF",std::cout);
-      else scfControls.scfStep = _NEWTON_RAPHSON_STEP;
-    }
-
-    if( scfControls.scfStep == _CONVENTIONAL_SCF_STEP )
-      ConventionalSCF(scfControls.doExtrap and frmFock);
-    else
-      NewtonRaphsonSCF();
-
-#ifdef CQ_ENABLE_MPI
-    // Broadcast the AO 1PDM to all MPI processes
-    if( MPISize(comm) > 1 ) {
-      std::cerr  << "  *** Scattering the 1PDM ***\n";
-      for(auto mat : this->onePDM->SZYXPointers())
-        MPIBCast(mat,memManager.template getSize(mat),0,comm);
-    }
-#endif
-
-  }; // SingleSlater<T>::getNewOrbitals
-
-
+};   // SingleSlater<MatsT>::saveCurrentState()
 
   template <typename MatsT, typename IntsT>
   bool SingleSlater<MatsT, IntsT>::checkStability() {
@@ -275,7 +140,7 @@ namespace ChronusQ {
     // Taylor
     MatsT s = 1.;
     std::copy_n(ROT,NBC2,EXPROT); // n = 1
-    Scale(NBC2,-s,EXPROT,1);
+    blas::scal(NBC2,-s,EXPROT,1);
     for(auto j = 0; j < NBC; j++) EXPROT[j*(NBC+1)] += 1.; // n = 0
 
     MatsT* SCR  = this->memManager.template malloc<MatsT>(NBC2);
@@ -287,10 +152,10 @@ namespace ChronusQ {
 
       MatsT* M = nullptr;
       if( n % 2 ) {
-        Gemm('N','N',NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR2,NBC,MatsT(0.),SCR,NBC);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR2,NBC,MatsT(0.),SCR,NBC);
         M = SCR;
       } else {
-        Gemm('N','N',NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,MatsT(1.),ROT,NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
         M = SCR2;
       }
 
@@ -301,7 +166,7 @@ namespace ChronusQ {
     }
 
     /*
-    Gemm('C','N',NBC,NBC,NBC,T(1.),EXPROT,NBC,EXPROT,NBC,T(0.),SCR,NBC);
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NBC,NBC,NBC,T(1.),EXPROT,NBC,EXPROT,NBC,T(0.),SCR,NBC);
    // prettyPrintSmart(std::cerr,"ROT",ROT,NBC,NBC,NBC);
    // prettyPrintSmart(std::cerr,"EXPROT",EXPROT,NBC,NBC,NBC);
     prettyPrintSmart(std::cout,"SCR",SCR,NBC,NBC,NBC);
@@ -310,7 +175,7 @@ namespace ChronusQ {
 
 
     // MO1 = MO1 * EXPROT
-    Gemm('N','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,EXPROT,NBC,MatsT(0.),
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,EXPROT,NBC,MatsT(0.),
       ROT,NBC);
     std::copy_n(ROT,NBC2,this->mo[0].pointer());
 
@@ -319,163 +184,11 @@ namespace ChronusQ {
 
     orthoAOMO();
     this->formDensity();
-    this->formDelta();
     this->memManager.free(J,ROT,EXPROT);
 
     return false;
 
   }
-
-
-
-
-
-  /**
-   *  \brief Evaluate SCF convergence based on various criteria.
-   *
-   *  Checks the norm of [F,D], if converged -> SCF converged.
-   *
-   *  Checks change in energy and density between SCF iterations,
-   *    if *both* converged -> SCF converged.
-   */ 
-  template <typename MatsT, typename IntsT>
-  bool SingleSlater<MatsT, IntsT>::evalConver(EMPerturbation &pert) {
-
-    bool isConverged;
-
-    formDelta(); // Get change in density on all MPI processes
-
-    // Compute all SCF convergence information on root process
-    if( MPIRank(comm) == 0 ) {
-      
-      // Check energy convergence
-        
-      // Save copy of old Energy
-      double oldEnergy = this->totalEnergy;
-
-      // Compute new energy (with new Density)
-      this->computeProperties(pert);
-      scfConv.deltaEnergy = this->totalEnergy - oldEnergy;
-
-      bool energyConv = std::abs(scfConv.deltaEnergy) < 
-                        scfControls.eneConvTol;
-
-      /*
-      bool energySuperConv = std::abs(scfConv.deltaEnergy) < 
-                             1e-2 * scfControls.eneConvTol;
-                             */
-      bool energySuperConv = false;
-
-
-
-      // Check density convergence
-
-      size_t NB    = basisSet().nBasis;
-      size_t DSize = NB*NB;
-      scfConv.RMSDenScalar = 
-        TwoNorm<double>(DSize,deltaOnePDM->S().pointer(),1) / NB;
-      scfConv.RMSDenMag = 0.;
-      for(auto i = 1; i < deltaOnePDM->nComponent(); i++)
-        scfConv.RMSDenMag += std::pow(TwoNorm<double>(DSize,
-            (*deltaOnePDM)[static_cast<PAULI_SPINOR_COMPS>(i)].pointer(),1),2.);
- 
-      scfConv.RMSDenMag = std::sqrt(scfConv.RMSDenMag) / NB;
-      
- 
-      bool denConv = scfConv.RMSDenScalar < scfControls.denConvTol;
- 
-      // Check FP convergence
-      bool FDConv(false);
- 
-      isConverged = FDConv or (energyConv and denConv) or energySuperConv;
- 
-      // Toggle damping based on energy difference
-      if( scfControls.doExtrap ) {
-        // TODO: should enable print statements only when print flag is high 
-        // enough 
-        bool largeEDiff = 
-          std::abs(scfConv.deltaEnergy) > scfControls.dampError;
- 
-        if( scfControls.doDamp and not largeEDiff and 
-            scfControls.dampParam > 0.) {
- 
-          if( printLevel > 0 )
-            std::cout << 
-              "    *** Damping Disabled - Energy Difference Fell Below " <<
-              scfControls.dampError << " ***" << std::endl;
- 
-          scfControls.dampParam = 0.;
- 
-        } else if( scfControls.doDamp and largeEDiff and 
-                   scfControls.dampParam <= 0.) {
- 
-          if( printLevel > 0 )
-            std::cout << "    *** Damping Enabled Due to "<<
-              scfControls.dampError << " Oscillation in Energy ***" << std::endl;
- 
-          scfControls.dampParam = scfControls.dampStartParam;
- 
-        }
-      }
-
-    }
-
-
-    // If converged and NR, check for saddle point and poke along
-    // that direction ala https://doi.org/10.1063/1.4918561
-    if( scfControls.scfAlg == _NEWTON_RAPHSON_SCF and isConverged )
-      isConverged = checkStability();
-
-
-#ifdef CQ_ENABLE_MPI
-    // Broadcast whether or not we're converged to ensure that all
-    // MPI processes exit the SCF simultaneously
-    if( MPISize(comm) > 1 ) MPIBCast(isConverged,0,comm);
-#endif
-
-    return isConverged;
-
-  }; // SingleSlater<MatsT>::evalConver
-
-
-
-
-
-  /**
-   *  \brief Computes the change in the current wave function
-   *
-   *  Saves onePDM - curOnePDM in deltaOnePDM
-   */ 
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::formDelta() {
-
-    size_t NB = basisSet().nBasis;
-
-    // Compute difference on root MPI process
-    if( MPIRank(comm) == 0 ) {
-      if( not savFile.exists() )
-        *deltaOnePDM = *this->onePDM - *curOnePDM;
-      else {
-
-        PauliSpinorSquareMatrices<MatsT> DENSCR(this->memManager, NB,
-            this->onePDM->hasXY(), this->onePDM->hasZ());
-
-        savFile.readData("/SCF/1PDM",DENSCR);
-
-        *deltaOnePDM = *this->onePDM - DENSCR;
-
-      }
-    }
-
-#ifdef CQ_ENABLE_MPI
-    // Broadcast the change in the 1PDM
-    if( MPISize(comm) > 1 ) 
-      for(auto &X : deltaOnePDM->SZYXPointers()) {
-        MPIBCast(X,NB*NB,0,comm);
-      }
-#endif
-
-  }; // SingleSlater<MatsT>:formDelta
 
   
 
@@ -497,6 +210,7 @@ namespace ChronusQ {
     size_t NB2 = NB*NB;
     bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT,IntsT>>(fockBuilder) != nullptr);
 
+
     // Copy over the fockMatrixOrtho into MO storage
     if(nC == 1 and iCS) 
       this->mo = fockMatrixOrtho->template spinGatherToBlocks<MatsT>(false,false);
@@ -504,8 +218,9 @@ namespace ChronusQ {
       this->mo[0] = fockMatrixOrtho->S();
     else if(nC == 1)
       this->mo = fockMatrixOrtho->template spinGatherToBlocks<MatsT>(false);
-    else
+    else {
       this->mo[0] = fockMatrixOrtho->template spinGather<MatsT>();
+    }
 
     // Diagonalize the Fock Matrix
     int INFO = HermetianEigen('V', 'L', NB, this->mo[0].pointer(), NB, this->eps1,
@@ -525,126 +240,155 @@ namespace ChronusQ {
     printMO(std::cout);
 #endif
 
-  }; // SingleSlater<MatsT>::diagOrthoFock
+};   // SingleSlater<MatsT>::diagOrthoFock
 
+/**
+ *  \brief Diagonalize the AO fock matrix
+ *
+ *  General purpose routine which diagonalizes the orthonormal
+ *  fock matrix and stores a set of orthonormal MO coefficients
+ *  (in WaveFunction::mo1 and possibly WaveFunction::mo2) and
+ *  orbital energies. General for both 1 and 2 spin components
+ */
+template<typename MatsT, typename IntsT>
+void SingleSlater<MatsT, IntsT>::diagAOFock() {
 
-  /**
-   *  \brief Transforms all of the spin components of the AO fock
-   *  matrix to the orthonormal basis.
-   *
-   *  Populates / overwrites fockMatrixOrtho storage
-   */ 
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::ao2orthoFock() {
+  ROOT_ONLY(comm);
+  size_t NB  = this->nAlphaOrbital() * nC;
+  size_t NB2 = NB * NB;
+  bool iRO   = (std::dynamic_pointer_cast<ROFock<MatsT, IntsT>>(fockBuilder) != nullptr);
 
-    ROOT_ONLY(comm);
+  // Copy over the fockMatrix into MO storage
+  if( nC == 1 and iCS )
+    this->mo = fockMatrix->template spinGatherToBlocks<MatsT>(false, false);
+  else if( iRO )
+    this->mo[0] = fockMatrix->S();
+  else if( nC == 1 )
+    this->mo = fockMatrix->template spinGatherToBlocks<MatsT>(false);
+  else {
+    this->mo[0] = fockMatrix->template spinGather<MatsT>();
 
-    size_t NB = ortho[0].dimension();
-    *fockMatrixOrtho = fockMatrix->transform(
-          'N', ortho[0].pointer(), NB, NB);
+    prettyPrintSmart(std::cout, "AO Fock", this->mo[0].pointer(), NB, NB, NB);
+  }
 
-  }; // SingleSlater<MatsT>::ao2orthoFock
+  // Diagonalize the Fock Matrix
+  int INFO = HermetianEigen('V', 'L', NB, this->mo[0].pointer(), NB, this->eps1, memManager);
+  if( INFO != 0 ) CErr("HermetianEigen failed in Fock1", std::cout);
 
+  if( iRO ) {
+    this->mo[1] = this->mo[0];   // for ROHF
+    std::copy_n(this->eps1, NB, this->eps2);
+  } else if( nC == 1 and not iCS ) {
+    INFO = HermetianEigen('V', 'L', NB, this->mo[1].pointer(), NB, this->eps2, memManager);
+    if( INFO != 0 ) CErr("HermetianEigen failed in Fock2", std::cout);
+  }
 
+#if 0
+    printMO(std::cout);
+#endif
 
-  /**
-   *  \brief Transforms all of the spin compoenents of the orthonormal
-   *  1PDM to the AO basis.
-   *
-   *  Populates / overwrites onePDM storage
-   */ 
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::ortho2aoDen() {
+};   // SingleSlater<MatsT>::diagOrthoFock
 
-    ROOT_ONLY(comm);
+/**
+ *  \brief Transforms all of the spin components of the AO fock
+ *  matrix to the orthonormal basis.
+ *
+ *  Populates / overwrites fockMatrixOrtho storage
+ */
+template<typename MatsT, typename IntsT>
+void SingleSlater<MatsT, IntsT>::ao2orthoFock() {
 
-    size_t NB = ortho[0].dimension();
-    *this->onePDM = onePDMOrtho->transform(
-          'C', ortho[0].pointer(), NB, NB);
+  ROOT_ONLY(comm);
+
+  *fockMatrixOrtho = orthoSpinor->nonortho2ortho(*fockMatrix);
+
+};   // SingleSlater<MatsT>::ao2orthoFock
+
+/**
+ *  \brief Transforms all of the spin components of the AO density
+ *  matrix to the orthonormal basis.
+ *
+ *  Populates / overwrites onePDMOrtho storage
+ */
+template<typename MatsT, typename IntsT>
+void SingleSlater<MatsT, IntsT>::ao2orthoDen() {
+
+  ROOT_ONLY(comm);
+
+  // NOTE: Density transforms the opposite way as operators, same as the coeffs
+  *onePDMOrtho = orthoSpinor->ortho2nonortho(*this->onePDM);
+
+};   // SingleSlater<MatsT>::ao2orthoFock
+
+/**
+ *  \brief Transforms all of the spin compoenents of the orthonormal
+ *  1PDM to the AO basis.
+ *
+ *  Populates / overwrites onePDM storage
+ */
+template<typename MatsT, typename IntsT>
+void SingleSlater<MatsT, IntsT>::ortho2aoDen() {
+
+  ROOT_ONLY(comm);
+
+  // NOTE: Density transforms the opposite way as operators, same as the coeffs
+  *this->onePDM = orthoSpinor->nonortho2ortho(*onePDMOrtho);
 
 #if 0
     print1PDMOrtho(std::cout);
 #endif
 
-  }; // SingleSlater<MatsT>::ao2orthoFock
+};   // SingleSlater<MatsT>::ao2orthoFock
 
-  
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::ortho2aoMOs() {
+template<typename MatsT, typename IntsT>
+void SingleSlater<MatsT, IntsT>::ortho2aoMOs() {
 
-    size_t NB = this->nAlphaOrbital();
-
-    // Transform MOs on MPI root as slave processes do not have
-    // updated MO coefficients
-    if( MPIRank(comm) == 0 ) {
-      MatsT* SCR = this->memManager.template malloc<MatsT>(this->nC*NB*NB);
-
-      // Transform the (top half) of MO1
-      Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-          this->mo[0].pointer(),this->nC*NB,MatsT(0.),SCR,NB);
-      SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer(),this->nC*NB);
-      
-      if( this->nC == 2 ) {
-
-        // Transform the bottom half of MO1
-        Gemm('N','N',NB,this->nC*NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-            this->mo[0].pointer() + NB,this->nC*NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,this->nC*NB,MatsT(1.),SCR,NB,this->mo[0].pointer() + NB,this->nC*NB);
-
-      } else if( not this->iCS ) {
-
-        // Transform MO2
-        Gemm('N','N',NB,NB,NB,MatsT(1.),this->ortho[0].pointer(),NB,
-            this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
-        SetMat('N',NB,NB,MatsT(1.),SCR,NB,this->mo[1].pointer(),NB);
-
-      }
-
-      this->memManager.free(SCR);
-
-    }
+  if( MPIRank(comm) == 0 )
+    orthoAB->ortho2nonorthoCoeffs(this->mo);
 
 #ifdef CQ_ENABLE_MPI
 
-
-    // Broadcast the updated MOs to all MPI processes
-    if( MPISize(comm) > 1 ) {
+  // Broadcast the updated MOs to all MPI processes
+  if( MPISize(comm) > 1 ) {
 
       std::cerr  << "  *** Scattering the AO-MOs ***\n";
-      MPIBCast(this->mo[0].pointer(),nC*nC*NB*NB,0,comm);
+      size_t Nmo = this->mo[0].dimension();
+      MPIBCast(this->mo[0].pointer(),Nmo*Nmo,0,comm);
       if( nC == 1 and not iCS )
-        MPIBCast(this->mo[1].pointer(),nC*nC*NB*NB,0,comm);
+        MPIBCast(this->mo[1].pointer(),Nmo*Nmo,0,comm);
 
       std::cerr  << "  *** Scattering EPS ***\n";
-      MPIBCast(this->eps1,nC*NB,0,comm);
+      MPIBCast(this->eps1,Nmo,0,comm);
       if( nC == 1 and not iCS )
-        MPIBCast(this->eps2,nC*NB,0,comm);
+        MPIBCast(this->eps2,Nmo,0,comm);
 
       std::cerr  << "  *** Scattering FOCK ***\n";
+      size_t fockDim = fockMatrix->dimension();
       for(MatsT *mat : fockMatrix->SZYXPointers())
-        MPIBCast(mat,NB*NB,0,comm);
+        MPIBCast(mat,fockDim*fockDim,0,comm);
 
     }
 
 #endif
 
-    MOFOCK(); // Form the MO fock matrix
+  MOFOCK();   // Form the MO fock matrix
 
 #if 0
     // Check proper orthonormalized wrt overlap
 
-    T* SCR2 = this->memManager.template malloc<T>(this->nC*this->nC*NB*NB);
-    T* SCR3 = this->memManager.template malloc<T>(this->nC*this->nC*NB*NB);
+    size_t NB = basisSet().nBasis;
+    MatsT* SCR2 = this->memManager.template malloc<MatsT>(this->nC*this->nC*NB*NB);
+    MatsT* SCR3 = this->memManager.template malloc<MatsT>(this->nC*this->nC*NB*NB);
 
 
     // MO1 inner product
-    Gemm('N','N',NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
+    blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
       this->mo[0].pointer(),this->nC*NB,T(0.),SCR2,this->nC*NB);
     if(this->nC == 2)
-      Gemm('N','N',NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,this->nC*NB,NB,T(1.),this->aoints.overlap,NB,
         this->mo[0].pointer()+NB,this->nC*NB,T(0.),SCR2+NB,this->nC*NB);
    
-    Gemm('C','N',this->nC*NB,this->nC*NB,this->nC*NB,T(1.),this->mo[0].pointer(),
+    blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,this->nC*NB,this->nC*NB,this->nC*NB,T(1.),this->mo[0].pointer(),
       this->nC*NB,SCR2,this->nC*NB,T(0.),SCR3,this->nC*NB);
 
     for(auto i = 0; i < this->nC*NB; i++)
@@ -652,114 +396,356 @@ namespace ChronusQ {
 
 
     std::cerr << "Error in orthonormazation of MO1 = " 
-      << MatNorm<double>('F',this->nC*NB,this->nC*NB,SCR3,this->nC*NB)
+      << lapack::lange(lapack::Norm::Fro,this->nC*NB,this->nC*NB,SCR3,this->nC*NB)
       << std::endl;
              
 
 
     if(this->nC == 1 and not this->iCS) {
-      Gemm('N','N',NB,NB,NB,T(1.),this->aoints.overlap,NB,this->mo[1].pointer(),NB,T(0.),SCR2,NB);
-      Gemm('C','N',NB,NB,NB,T(1.),this->mo[1].pointer(),NB,SCR2,NB,T(0.),SCR3,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB,NB,NB,T(1.),this->aoints.overlap,NB,this->mo[1].pointer(),NB,T(0.),SCR2,NB);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB,NB,NB,T(1.),this->mo[1].pointer(),NB,SCR2,NB,T(0.),SCR3,NB);
 
       for(auto i = 0; i < this->nC*NB; i++)
         SCR3[i*(this->nC*NB + 1)] -= 1.;
 
       std::cerr << "Error in orthonormazation of MO2 = " 
-        << MatNorm<double>('F',NB,NB,SCR3,NB) << std::endl;
+        << lapack::lange(lapack::Norm::Fro,NB,NB,SCR3,NB) << std::endl;
     }
 
     this->memManager.free(SCR2,SCR3);
 
 #endif
 
-  }; // SingleSlater<MatsT>::ortho2aoMOs
+};   // SingleSlater<MatsT>::ortho2aoMOs
 
+template<typename MatsT, typename IntsT>
+std::vector<NRRotOptions> SingleSlater<MatsT,IntsT>::buildRotOpt(){
 
-  /**
-   *  \brief Initializes the environment for the SCF caluclation.
-   *
-   *  Allocate memory for extrapolation and compute the energy
-   */ 
+    // Generate NRRotationOptions
+    std::vector<NRRotOptions> rotOpt;
+    size_t NB = this->nC*this->basisSet().nBasis;
+    if( this->nC == 1 and this->iCS ){
+      rotOpt.emplace_back();
+      rotOpt[0].spaceIndex = 0;
+      rotOpt[0].rotIndices = ssNRRotIndices(this->nOA, NB);
+    } else if( this->nC == 1 ) {
+      rotOpt.emplace_back();
+      rotOpt[0].spaceIndex = 0;
+      rotOpt[0].rotIndices = ssNRRotIndices(this->nOA, NB);
+      rotOpt.emplace_back();
+      rotOpt[1].spaceIndex = 1;
+      rotOpt[1].rotIndices = ssNRRotIndices(this->nOB, NB);
+    } else if( this->nC == 2 ){
+      rotOpt.emplace_back();
+      rotOpt[0].spaceIndex = 0;
+      rotOpt[0].rotIndices = ssNRRotIndices(this->nO, NB);
+    } else if( this->nC == 4 ){
+      size_t N = NB/2;
+      rotOpt.emplace_back();
+      rotOpt[0].spaceIndex = 0;
+      rotOpt[0].rotIndices = ssNRRotIndices(this->nO, N, N); // only rotate the positive energy orbitals
+    }
+    return rotOpt;
+}
+
+template<typename MatsT, typename IntsT>
+void SingleSlater<MatsT, IntsT>::runModifyOrbitals(EMPerturbation& pert) {
+
+  bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT, IntsT>>(this->fockBuilder) != nullptr);
+
+  // Initialize properties
+  getNewOrbitals();
+  this->computeProperties(pert);
+
+  // Setup MO reference vector
+  std::vector<std::reference_wrapper<SquareMatrix<MatsT>>> moRefs;
+  if( iRO ) {
+    moRefs.emplace_back(this->mo[0]);
+  } else {
+    for( auto& m : this->mo )
+      moRefs.emplace_back(m);
+  }
+
+  // Setup Eigenvalue vector
+  std::vector<double*> epsVec;
+  if( this->nC == 1 and not(iCS or iRO) ) {
+    epsVec = {this->eps1, this->eps2};
+  } else {
+    epsVec = {this->eps1};
+  }
+
+  // Run modify orbitals
+  this->modifyOrbitals->runModifyOrbitals(pert, moRefs, epsVec);
+
+  // Orthogonalize MO's for NewtonRaphsonSCF and check Stability
+  if( std::dynamic_pointer_cast<NewtonRaphsonSCF<MatsT>>(this->modifyOrbitals) ){
+    this->orthoAOMO();
+    if( this->scfControls.nrAlg == FULL_NR ){
+      bool converged = this->checkStability();
+      if( not converged ) {
+        this->modifyOrbitals->runModifyOrbitals(pert, moRefs, epsVec);
+        this->orthoAOMO();
+        converged = this->checkStability();
+        if( not converged ) CErr("Newton-Raphson SCF failed to converge to a minimum");
+      }
+    }
+  }
+
+  this->ao2orthoFock();   // SCF Does not update the fockMatrixOrtho
+  this->MOFOCK();
+  saveCurrentState();
+
+#ifdef CQ_ENABLE_MPI
+
+  // Broadcast the updated MOs to all MPI processes
+  if( MPISize(comm) > 1 ) {
+
+      std::cerr  << "  *** Scattering the AO-MOs ***\n";
+      size_t Nmo = this->mo[0].dimension();
+      MPIBCast(this->mo[0].pointer(),Nmo*Nmo,0,comm);
+      if( nC == 1 and not iCS )
+        MPIBCast(this->mo[1].pointer(),Nmo*Nmo,0,comm);
+
+      std::cerr  << "  *** Scattering EPS ***\n";
+      MPIBCast(this->eps1,Nmo,0,comm);
+      if( nC == 1 and not iCS )
+        MPIBCast(this->eps2,Nmo,0,comm);
+
+      std::cerr  << "  *** Scattering FOCK ***\n";
+      size_t fockDim = fockMatrix->dimension();
+      for(MatsT *mat : fockMatrix->SZYXPointers())
+        MPIBCast(mat,fockDim*fockDim,0,comm);
+
+      std::cerr  << "  *** Scattering the 1PDM ***\n";
+      size_t denDim = this->onePDM->dimension();
+      for(auto p : this->onePDM->SZYXPointers())
+        MPIBCast(p,denDim*denDim,0,comm);
+    }
+
+#endif
+};   // SingleSlater<MatsT,IntsT> :: runModifyOrbitals
+
+/*
+ *     Brief: Function to generate shared pointers to Fock Matrix for modify orbitals
+ *            Here, the ModifyOrbitals object cannot modify the fockMatrix in SingleSlater
+ *            since they are temporary objects. Additionally, the interface assumes the
+ *            matrices are spin gathered.
+ */
+template<typename MatsT, typename IntsT>
+std::vector<std::shared_ptr<SquareMatrix<MatsT>>> SingleSlater<MatsT, IntsT>::getFock() {
+
+  bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT, IntsT>>(fockBuilder) != nullptr);
+  if( this->nC == 1 and iCS ) {
+    return {std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5) * fockMatrix->S())};
+  } else if( this->nC == 1 and iRO ) {
+    return {std::make_shared<SquareMatrix<MatsT>>(MatsT(1.) * fockMatrix->S())};
+  } else if( this->nC == 1 ) {
+    std::shared_ptr<SquareMatrix<MatsT>> fA = std::make_shared<SquareMatrix<MatsT>>(
+                    MatsT(0.5) * fockMatrix->S() + MatsT(0.5) * fockMatrix->Z()
+                );
+    std::shared_ptr<SquareMatrix<MatsT>> fB = std::make_shared<SquareMatrix<MatsT>>(
+                    MatsT(0.5) * fockMatrix->S() - MatsT(0.5) * fockMatrix->Z()
+                );
+    return {fA, fB};
+  } else {
+    return {std::make_shared<SquareMatrix<MatsT>>(fockMatrix->template spinGather<MatsT>())};
+  }
+};   // SingleSlater<MatsT,IntsT> :: getFock
+
+/*
+ *     Brief: Function to generate shared pointers to Fock Matrix for modify orbitals
+ *            Here, the ModifyOrbitals object cannot modify the fockMatrix in SingleSlater
+ *            since they are copies of the objects. Additionally, the interface assumes the
+ *            matrices are spin gathered.
+ */
+template<typename MatsT, typename IntsT>
+std::vector<std::shared_ptr<SquareMatrix<MatsT>>> SingleSlater<MatsT, IntsT>::getOnePDM() {
+
+  bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT, IntsT>>(fockBuilder) != nullptr);
+  if( this->nC == 1 and iCS ) {
+    return {std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5) * this->onePDM->S())};
+  } else if( this->nC == 1 and iRO ) {
+    return {std::make_shared<SquareMatrix<MatsT>>(MatsT(0.5) * this->onePDM->S() + MatsT(0.5)*this->onePDM->Z())};
+  } else if( this->nC == 1 ) {
+    std::shared_ptr<SquareMatrix<MatsT>> dA = std::make_shared<SquareMatrix<MatsT>>(
+            MatsT(0.5) * this->onePDM->S() + MatsT(0.5) * this->onePDM->Z()
+         );
+    std::shared_ptr<SquareMatrix<MatsT>> dB = std::make_shared<SquareMatrix<MatsT>>(
+            MatsT(0.5) * this->onePDM->S() - MatsT(0.5) * this->onePDM->Z()
+         );
+    return {dA, dB};
+  } else {
+    return {std::make_shared<SquareMatrix<MatsT>>(this->onePDM->template spinGather<MatsT>())};
+  }
+};   // SingleSlater<MatsT,IntsT> :: getOnePDM
+
+/*
+ *     Brief: Function to return the orthogonalization pointers for SCF
+ *
+ */
+template<typename MatsT, typename IntsT>
+std::vector<std::shared_ptr<Orthogonalization<MatsT>>> SingleSlater<MatsT, IntsT>::getOrtho() {
+
+  bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT, IntsT>>(fockBuilder) != nullptr);
+  if( this->nC == 1 and not(iCS or iRO) ) {
+    return {orthoAB, orthoAB};
+  } else {
+    return {orthoAB};
+  }
+};   // SingleSlater<MatsT,INtsT> :: getOrtho
+
+template<typename MatsT, typename IntsT>
+void SingleSlater<MatsT, IntsT>::printProperties() {
+  printMOInfo(std::cout);
+  this->printMultipoles(std::cout);
+  this->printSpin(std::cout);
+  printMiscProperties(std::cout);
+}
+
+#ifdef TEST_MOINTSTRANSFORMER
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::SCFInit() {
+  void SingleSlater<MatsT,IntsT>::MOIntsTransformationTest(EMPerturbation &pert) {
+   
+    // test on MO integral transfromations
+    // MOIntsTransformer<MatsT, IntsT> N5TF(memManager, *this, INCORE_N5);
+    MOIntsTransformer<MatsT, IntsT> N6TF(memManager, *this, INCORE_N6);  
 
-    // Allocate additional storage if doing some type of 
-    // extrapolation during the SCF procedure
-    if ( scfControls.doExtrap ) allocExtrapStorage();
+    std::cout << "\n --------- Test on MO Ints Transformation----- \n" << std::endl;
+    
+    size_t NB  = this->nAlphaOrbital() * nC;
+    size_t nMO = (this->nC == 4) ? NB / 2: NB;
+    size_t nOcc = (this->nC == 1) ? this->nO/2: this->nO; 
 
-  }; // SingleSlater<MatsT>::SCFInit
+    InCore4indexTPI<MatsT> N6MOERI(memManager, nOcc); 
+    // InCore4indexTPI<MatsT> N5MOERI(memManager, nMO); 
+    OnePInts<MatsT> hCore(memManager, nOcc); 
 
+#if 1
+    std::cout << "---- Test: Reconstruct SCF Energy" << std::endl; 
+    N6TF.transformHCore(pert, hCore.pointer(), "ij");
+    auto timeIdN6 = tick();
+    N6TF.transformTPI(pert, N6MOERI.pointer(), "ijkl", false, false);
+    auto timeDur = tock(timeIdN6);
+    
+    MatsT SCFEnergy = MatsT(0.);
+    if(this->nC > 1) {
+      for (auto i = 0; i < this->nO; i++) {
+        SCFEnergy += hCore(i, i);
+        for (auto j = 0; j < this->nO; j++)
+          SCFEnergy += 0.5 * (N6MOERI(i, i, j, j) - N6MOERI(i, j, j, i)); 
+      }
+    } else {
+      for (auto i = 0; i < this->nO/2; i++) {
+        SCFEnergy += hCore(i, i);
+        for (auto j = 0; j < this->nO/2; j++)
+          SCFEnergy += N6MOERI(i, i, j, j) - 0.5 * N6MOERI(i, j, j, i); 
+      }
+      SCFEnergy *= 2.0;
+    }
 
+    std::cout << "SSFOCK_N6 SCF Energy:" << std::setprecision(16) << SCFEnergy << std::endl;
+    // N6MOERI.output(std::cout, "SSFOCK_N6 ERI", true);
 
+    std::cout << " - Time (N6) for transforming ijkl " <<  " = " << timeDur << " s\n"; 
 
+    MatsT * h1e_ii  = this->memManager.template malloc<MatsT>(nOcc);
+    MatsT * GDjj_ii = this->memManager.template malloc<MatsT>(nOcc);
+
+    double fc1C = (this->nC == 1) ? 2.0 : 1.0;
+
+    N6TF.transformHCore(pert, h1e_ii, "ii", true);
+    N6TF.transformGD(pert, 'i', GDjj_ii, "jj", true, true, "WithInactive-i");  
+
+    MatsT ECore = 0.;
+    // compute core enenrgy
+    for (auto i = 0ul; i < nOcc; i++) {
+      ECore += h1e_ii[i] + 0.5 * GDjj_ii[i];
+    }
+    
+    SCFEnergy = ECore * fc1C;
+
+    std::cout << "SSFOCK_N6 SCF Energy using formFock exchange:" << std::setprecision(16) << SCFEnergy << std::endl;
+#else     
+    
+    std::vector<std::string> testcases = {"ijkl", "abcd", "pqia", "ipab", "ijab", "pqrs"};
+    for (auto & moType: testcases) {
+      N6MOERI.clear();
+      N5MOERI.clear();
+
+      std::cout << "---- Test: " << moType << std::endl; 
+      auto timeIdN6 = tick();
+      N6TF.transformTPI(pert, N6MOERI.pointer(), moType, true, false);
+      auto timeDur = tock(timeIdN6);
+      
+      std::cout << " - Time (N6) for transforming " << moType  <<  " = " << timeDur << " s\n"; 
+
+      if (this->aoints.TPITransAlg == TPI_TRANSFORMATION_ALG::INCORE_N6) {
+        auto timeIdN5 = tick();
+        N5TF.transformTPI(pert, N5MOERI.pointer(), moType, true, false);
+        auto timeDur = tock(timeIdN5);
+        std::cout << " - Time (N5) for transforming " << moType  <<  " = " << timeDur << " s\n"; 
+#pragma omp parallel for schedule(static) collapse(4) default(shared)       
+        for (auto i = 0; i < nMO; i++) 
+        for (auto j = 0; j < nMO; j++) 
+        for (auto k = 0; k < nMO; k++) 
+        for (auto l = 0; l < nMO; l++) 
+          N6MOERI(i, j, k, l) -= N5MOERI(i, j, k, l);
+        
+        N6TF.printOffSizes(N6TF.parseMOType(moType));
+        N6MOERI.output(std::cout, "INCORE_N6 ERI - INCORE_N5 ERI", true);
+      }
+    }
+
+#endif
+
+    std::cout << "\n --------- End of the Test (on MO Ints Transformation)----- \n" << std::endl;
+  }; // SingleSlater<MatsT>::MOIntsTransformationTest
+  
+#endif    
+  
   /**
-   *  \brief Finalizes the environment for the SCF caluclation.
-   *
-   *  Deallocate the memory allocated for extrapolation.
-   */ 
-  template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::SCFFin() {
-
-    // Deallocate extrapolation storage
-    if ( scfControls.doExtrap ) deallocExtrapStorage();
-
-  }; // SingleSlater<MatsT>::SCFFin
-
-
-
-
-  /**
-   *  \brief Reorthogonalize the MOs wrt overlap
+   *  \brief generate MOIntsTranformer using this singleslater as reference
    */
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT, IntsT>::orthoAOMO() {
+  std::shared_ptr<MOIntsTransformer<MatsT, IntsT>> 
+    SingleSlater<MatsT, IntsT>::generateMOIntsTransformer() {
+      return std::make_shared<MOIntsTransformer<MatsT, IntsT>>(memManager, *this, this->aoints.TPITransAlg);
+  }
+
+/**
+ *  \brief Reorthogonalize the MOs wrt overlap
+ */
+template<typename MatsT, typename IntsT>
+void SingleSlater<MatsT, IntsT>::orthoAOMO() {
 
     const size_t NB   = this->nAlphaOrbital();
     const size_t NB2  = NB * NB;
     const size_t NBC  = this->nC * NB;
     const size_t NBC2 = NBC * NBC;
 
-    // Reorthogonalize MOs wrt S
-    MatsT* SCR  = this->memManager.template malloc<MatsT>(NBC*NBC);
-    MatsT* SCR2 = this->memManager.template malloc<MatsT>(NBC*NBC);
-
-    // SCR2 = C**H S C
-    Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-         this->mo[0].pointer(),NBC,MatsT(0.),SCR,NBC);
-    if( this->nC == 2 )
-      Gemm('N','N',NB,NBC,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-           this->mo[0].pointer()+NB,NBC,MatsT(0.),SCR+NB,NBC);
-
-    Gemm('C','N',NBC,NBC,NBC,MatsT(1.),this->mo[0].pointer(),NBC,SCR,NBC,MatsT(0.),SCR2,NBC);
-
-    // SCR2 = L L**H -> L
-    int INFO = Cholesky('L',NBC,SCR2,NBC);
-
-    // SCR2 = L^-1
-    INFO = TriInv('L','N',NBC,SCR2,NBC);
-
-    // MO1 = MO1 * L^-H
-    Trmm('R','L','C','N',NBC,NBC,MatsT(1.),SCR2,NBC,this->mo[0].pointer(),NBC);
-
-    // Reorthogonalize MOB
-    if( this->nC == 1 and not this->iCS ) {
-      Gemm('N','N',NB,NB,NB,MatsT(1.),this->aoints.overlap->pointer(),NB,
-           this->mo[1].pointer(),NB,MatsT(0.),SCR,NB);
-      Gemm('C','N',NB,NB,NB,MatsT(1.),this->mo[1].pointer(),NBC,SCR,NB,MatsT(0.),SCR2,NB);
-
-      // SCR2 = L L**H -> L
-      INFO = Cholesky('L',NB,SCR2,NB);
-
-      // SCR2 = L^-1
-      INFO = TriInv('L','N',NB,SCR2,NB);
-
-      // MO2 = MO2 * L^-H
-      Trmm('R','L','C','N',NB,NB,MatsT(1.),SCR2,NB,this->mo[1].pointer(),NB);
-
+    // Compute MO orthogonalization on Root process then broadcast
+    if( MPIRank(comm) == 0 ){
+      if( this->nC > 1 or this->iCS ){
+        size_t nOcc = this->nC == 1 ? nOA : nO;
+        size_t disp = this->nC==4 ? NBC/2 : 0;  // displace to positive energy states
+        orthoAB->orthogonalizeStates(this->mo[0], nOcc, disp);
+      } else {
+        orthoAB->orthogonalizeStates(this->mo[0], nOA);
+        orthoAB->orthogonalizeStates(this->mo[1], nOB);
+      }
     }
 
-    this->memManager.free(SCR,SCR2);
+#ifdef CQ_ENABLE_MPI
+
+  // Broadcast the updated MOs to all MPI processes
+  if( MPISize(comm) > 1 ) {
+
+    std::cerr << "  *** Scattering the AO-MOs ***\n";
+    MPIBCast(this->mo[0].pointer(), nC * nC * NB * NB, 0, comm);
+    if( nC == 1 and not iCS ) MPIBCast(this->mo[1].pointer(), nC * nC * NB * NB, 0, comm);
   }
 
-}; // namespace ChronusQ
+#endif
+}
 
+};   // namespace ChronusQ

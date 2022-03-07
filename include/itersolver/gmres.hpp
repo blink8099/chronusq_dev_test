@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,8 +24,7 @@
 #pragma once
 
 #include <itersolver.hpp>
-
-#include <util/time.hpp>
+#include <util/timer.hpp>
 
 namespace ChronusQ {
 
@@ -120,6 +119,8 @@ namespace ChronusQ {
 
     for(iMicro = 0; iMicro < maxMicroIter; iMicro++) {
 
+      ProgramTimer::tick("Lin Solve Iter");
+
       auto topMicro = tick();
 
       for(auto iDo = 0; iDo < nRHS * nShift; iDo++)
@@ -143,7 +144,7 @@ namespace ChronusQ {
         _F * curHHR = HHR_     + iDo*this->N_;
 
         std::copy_n(curHHR,this->N_,curV);
-        Scale(this->N_, -2. * SmartConj(curHHR[iMicro]), curV, 1);
+        blas::scal(this->N_, -2. * SmartConj(curHHR[iMicro]), curV, 1);
         curV[iMicro] += 1.; 
 
         if( iMicro > 0 )
@@ -151,8 +152,8 @@ namespace ChronusQ {
 
           _F * curU = U_ + (k+iDo*this->mSS_)*this->N_;
 
-          _F inner = InnerProd<_F>(this->N_, curU, 1, curV, 1);
-          AXPY(this->N_, -2.*inner, curU, 1, curV, 1);
+          _F inner = blas::dot(this->N_, curU, 1, curV, 1);
+          blas::axpy(this->N_, -2.*inner, curU, 1, curV, 1);
 
         }
 
@@ -240,8 +241,8 @@ namespace ChronusQ {
 
           _F * curU = U_ + (k+iDo*this->mSS_)*this->N_;
 
-          _F inner = InnerProd<_F>(this->N_, curU, 1, curV, 1);
-          AXPY(this->N_, -2.*inner, curU, 1, curV, 1);
+          _F inner = blas::dot(this->N_, curU, 1, curV, 1);
+          blas::axpy(this->N_, -2.*inner, curU, 1, curV, 1);
 
         }
 
@@ -254,9 +255,10 @@ namespace ChronusQ {
           std::copy_n(curV,this->N_,curHHR);
           std::fill_n(curHHR,iMicro+1,0.);
 
-          _F alpha = TwoNorm<double>(this->N_,curHHR,1);
+          _F alpha = blas::nrm2(this->N_,curHHR,1);
           if( std::abs(alpha) > 1e-10 ) {
 
+            if (std::abs(curV[iMicro+1]) > 0)
             alpha *= curV[iMicro+1] / std::abs(curV[iMicro+1]);
 
             curHHR[iMicro+1] += alpha;
@@ -288,7 +290,7 @@ namespace ChronusQ {
 
         if( iMicro < maxMicroIter - 1 ) {
 
-          double rho = TwoNorm<double>(2,curV + iMicro,1);
+          double rho = blas::nrm2(2,curV + iMicro,1);
 
           curJ[2*iMicro]   = curV[iMicro]   / rho;
           curJ[2*iMicro+1] = curV[iMicro+1] / rho;
@@ -377,6 +379,8 @@ namespace ChronusQ {
       // Broadcast the convergence result to all the mpi processes
       if(MPISize(this->comm_) > 1) MPIBCast(isConverged,0,this->comm_);
 
+      ProgramTimer::tock("Lin Solve Iter");
+
     } // Micro iterations
 
 
@@ -403,20 +407,23 @@ namespace ChronusQ {
 
       int nMicro = mDim[iDo];
 
-      LinSolve(nMicro,1,curR,this->mSS_,curW,this->mSS_+1,this->memManager_);
+      // Linear Solve
+      int64_t* IPIV = this->memManager_.template malloc<int64_t>(nMicro);
+      lapack::gesv(nMicro,1,curR,this->mSS_,IPIV,curW,this->mSS_+1);
+      this->memManager_.free(IPIV);
 
       std::copy_n(curU + (nMicro-1)*this->N_, this->N_, curHHR);
 
       _F fact = curW[nMicro-1] * SmartConj(curU[(nMicro-1)*(this->N_+1)]);
-      Scale(this->N_,-2.*fact,curHHR,1);
+      blas::scal(this->N_,-2.*fact,curHHR,1);
       curHHR[nMicro-1] += curW[nMicro-1];
 
       if( nMicro > 1 )
       for(int k = nMicro - 2; k >= 0; k--) {
 
         curHHR[k] += curW[k];
-        _F inner = InnerProd<_F>(this->N_,curU + k*this->N_,1,curHHR,1);
-        AXPY(this->N_,-2.*inner,curU + k*this->N_,1,curHHR,1);
+        _F inner = blas::dot(this->N_,curU + k*this->N_,1,curHHR,1);
+        blas::axpy(this->N_,-2.*inner,curU + k*this->N_,1,curHHR,1);
 
       }
 

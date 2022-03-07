@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,9 @@
 # Contact the Developers:
 #   E-Mail: xsli@uw.edu
 #
+
 add_library(grid STATIC gausscheb.cxx gausslegendre.cxx eulermac.cxx lebedev.cxx)
+target_link_libraries( grid PUBLIC ChronusQ::DepHeaders )
 
 # Append grid to executable link
 list(APPEND CQEX_LINK grid)

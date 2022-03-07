@@ -1,7 +1,7 @@
 /*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ namespace ChronusQ {
   enum class PAULI_SPINOR_COMPS : size_t {
     S = 0, Z = 1, Y = 2, X = 3
   };
-
+  
   /**
    *  \brief Templated class to handle the storage of
    *  one-electron two-spinor integral matrices
@@ -216,7 +216,7 @@ namespace ChronusQ {
         return { S().pointer(), Z().pointer() };
       return { S().pointer() };
     }
-
+    
     PauliSpinorSquareMatrices<double> real_part() {
       PauliSpinorSquareMatrices<double> realMats(S().real_part(), false, false);
       realMats.components_.reserve(components_.size());
@@ -286,7 +286,34 @@ namespace ChronusQ {
     spinBlockScatterBuild(const SquareMatrix<MatsU> &AA, const SquareMatrix<MatsU> &AB,
                           const SquareMatrix<MatsU> &BA, const SquareMatrix<MatsU> &BB,
                           bool hasXY = true, bool hasZ = true);
+    
+    template <typename MatsU>
+    void componentScatter(PauliSpinorSquareMatrices<MatsU> & LL, 
+                          PauliSpinorSquareMatrices<MatsU> & LS,
+                          PauliSpinorSquareMatrices<MatsU> & SL,
+                          PauliSpinorSquareMatrices<MatsU> & SS,
+                          bool increment = false) const; 
+    
+    template <typename MatsU>
+    void componentGather(const PauliSpinorSquareMatrices<MatsU> & LL, 
+                         const PauliSpinorSquareMatrices<MatsU> & LS,
+                         const PauliSpinorSquareMatrices<MatsU> & SL,
+                         const PauliSpinorSquareMatrices<MatsU> & SS,
+                         bool increment = false); 
 
+    template <typename MatsU>
+    static PauliSpinorSquareMatrices<MatsT> 
+    componentGatherBuild(const PauliSpinorSquareMatrices<MatsU> & LL, 
+                         const PauliSpinorSquareMatrices<MatsU> & LS,
+                         const PauliSpinorSquareMatrices<MatsU> & SL,
+                         const PauliSpinorSquareMatrices<MatsU> & SS); 
+    
+    template <typename MatsU>
+    void componentAdd(const char TRANS, MatsU scale, const std::string & comp,
+      const PauliSpinorSquareMatrices<MatsU> & pauli);
+
+    void symmetrizeLSSL(char TRANS, bool get_SL_from_LS = true);
+    
     template <typename TransT>
     PauliSpinorSquareMatrices<typename std::conditional<
     (std::is_same<MatsT, dcomplex>::value or

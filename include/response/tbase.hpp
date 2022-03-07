@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 
 #include <cerr.hpp>
 #include <util/mpi.hpp>
-#include <util/time.hpp>
+#include <util/timer.hpp>
 
 
 namespace ChronusQ {
@@ -239,6 +239,8 @@ namespace ChronusQ {
 
       if( alreadyRan_ ) CErr("RESPONSE module only designed to be run once!");
 
+      ProgramTimer::tick("Response Total");
+
       genSettings.matIsHer = genSettings.doTDA; // TDA always implies hermetian matrix
       configOptions();
 
@@ -275,6 +277,8 @@ namespace ChronusQ {
       // Synchronize MPI processes
       MPI_Barrier(comm_);
       alreadyRan_ = true;
+
+      ProgramTimer::tock("Response Total");
 
     };
 
@@ -430,9 +434,10 @@ namespace ChronusQ {
       // of the properties
       //genSettings.aOps = AllOps;
 
-
-      residueTMoments();
-      residueObservables();
+      ProgramTimer::timeOp("Property Eval", [&](){
+        residueTMoments();
+        residueObservables();
+      });
     }
 
     void residueTMoments();

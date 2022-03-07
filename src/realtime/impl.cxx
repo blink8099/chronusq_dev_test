@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,5 +30,18 @@ namespace ChronusQ {
   template class RealTime<HartreeFock,dcomplex>;
   template class RealTime<KohnSham,double>;
   template class RealTime<KohnSham,dcomplex>;
+  template class RealTime<NEOSS,double>;
+  template class RealTime<NEOSS,dcomplex>;
+
+  template void RealTime<HartreeFock,double>::alloc<double>();
+  template void RealTime<HartreeFock,double>::alloc<dcomplex>();
+  template void RealTime<HartreeFock,dcomplex>::alloc<dcomplex>();
+  template void RealTime<KohnSham,double>::alloc<double>();
+  template void RealTime<KohnSham,double>::alloc<dcomplex>();
+  template void RealTime<KohnSham,dcomplex>::alloc<dcomplex>();
+
+  template void RealTime<NEOSS,double>::alloc<double>();
+  template void RealTime<NEOSS,double>::alloc<dcomplex>();
+  template void RealTime<NEOSS,dcomplex>::alloc<dcomplex>();
 
 }; // namespace ChronusQ

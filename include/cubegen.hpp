@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -135,10 +135,10 @@ namespace ChronusQ {
 
         evalShellSet(ref_->memManager,NOGRAD,shells,&pt[0],1,&BASIS[0],false);
 
-        Gemm('T','N',1,NB,NB,T(1.),&BASIS[0],NB,ref_->onePDM->S().pointer(),NB,
+        blas::gemm(blas::Layout::ColMajor,'T',blas::Op::NoTrans,1,NB,NB,T(1.),&BASIS[0],NB,ref_->onePDM->S().pointer(),NB,
             T(0.),&SCR[0],1);
 
-        double val = InnerProd<double>(NB,&SCR[0],1,&BASIS[0],1);
+        double val = blas::dot(NB,&SCR[0],1,&BASIS[0],1);
 
         *cubeFile << std::right << std::setw(15) << std::setprecision(5)
           << std::scientific << val;
@@ -177,11 +177,11 @@ namespace ChronusQ {
           evalShellSet(ref_->memManager,NOGRAD,shells,&pt[0],1,&BASIS[0],false);
 
           for(size_t i = 1; i < ref_->onePDM->nComponent(); i++) {
-            Gemm('T','N',1,NB,NB,T(1.),&BASIS[0],NB,
+            blas::gemm(blas::Layout::ColMajor,'T',blas::Op::NoTrans,1,NB,NB,T(1.),&BASIS[0],NB,
                 (*ref_->onePDM)[static_cast<PAULI_SPINOR_COMPS>(i)].pointer()],NB,
                 T(0.),&SCR[0],1);
   
-            double tmp = InnerProd<double>(NB,&SCR[0],1,&BASIS[0],1);
+            double tmp = blas::dot(NB,&SCR[0],1,&BASIS[0],1);
             val += tmp*tmp;
           }
 
@@ -266,7 +266,7 @@ namespace ChronusQ {
         HerMat('L',NB,&SCR[0],NB);
         prettyPrintSmart(std::cout,"V",&SCR[0],NB,NB,NB);
 
-        double val = InnerProd<double>(NB*NB,&SCR[0],1,ref_->onePDM->S().pointer(),1);
+        double val = blas::dot(NB*NB,&SCR[0],1,ref_->onePDM->S().pointer(),1);
 
         for( auto &atom : ref_->molecule().atoms ) {
 

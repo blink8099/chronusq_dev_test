@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -67,8 +67,29 @@ namespace ChronusQ {
       const _F2 *AZ, size_t LDAZ, const _F2 *AY, size_t LDAY, const _F2 *AX, size_t LDAX,
       bool zeroXY = false, bool zeroZ = false);
 
+  // Component Scatter a matrix 
+  template <typename _F1, typename _F2>
+  void ComponentScatter(size_t NL, size_t NS, const _F1 *A, size_t LDA, 
+      _F2 ScaleLL, _F2 *ALL, size_t LDALL, _F2 ScaleLS, _F2 *ALS, size_t LDALS, 
+      _F2 ScaleSL, _F2 *ASL, size_t LDASL, _F2 ScaleSS, _F2 *ASS, size_t LDASS, 
+      bool increment = false);
+  
+  // Component Scatter a matrix 
+  template <typename _F1, typename _F2>
+  void ComponentScatter(size_t NL, size_t NS, const _F1 *A, size_t LDA, _F2 *ALL, size_t LDALL,
+      _F2 *ALS, size_t LDALS, _F2 *ASL, size_t LDASL, _F2 *ASS, size_t LDASS, bool increment = false);
 
+  // Component Gatter a matrix 
+  template <typename _F1, typename _F2>
+  void ComponentGather(size_t NL, size_t NS, _F1 *A, size_t LDA, 
+      char TransLL, _F2 ScaleLL, const _F2 *ALL, size_t LDALL, char TransLS, const _F2 ScaleLS, _F2 *ALS, size_t LDALS, 
+      char TransSL, _F2 ScaleSL, const _F2 *ASL, size_t LDASL, char TransSS, const _F2 ScaleSS, _F2 *ASS, size_t LDASS, 
+      bool increment = false);
 
+  // Component Gatter a matrix 
+  template <typename _F1, typename _F2>
+  void ComponentGather(size_t NL, size_t NS, _F1 *A, size_t LDA, const _F2 *ALL, size_t LDALL,
+      const _F2 *ALS, size_t LDALS, const _F2 *ASL, size_t LDASL, const _F2 *ASS, size_t LDASS, bool increment = false);
 
 
   // B = ALPHA * OP(A)
@@ -228,6 +249,88 @@ namespace ChronusQ {
   void IncBySubMat(size_t M, size_t N, size_t MSub, size_t NSub, _F1 *ABig, 
     size_t LDAB, _F2 *ASmall, size_t LDAS, 
     std::vector<std::pair<size_t,size_t>> &SubMatCut);
+
+  /**
+   * \brief Multiply a series of matrices on the right with a given matrix
+   *
+   * C_i = \alpha AB_i for all B_i in V
+   *
+   * If the matrices are of different dimension, the A matrix is assumed to
+   * be tensored with the appropriate identity matrix to give the dimension of
+   * the A matrix.
+   *
+   * e.g.
+   *
+   * B = | a b |  A = | e |  -->  C = | ea eb |
+   *     | c d |                      | ec ed |
+   *
+   * \param[in] M      Number of rows in A
+   * \param[in] N      Numer of columns in B
+   * \param[in] KA     Number of columns in A
+   * \param[in] KB     Number of rows in B. Must be a multiple of KA.
+   * \param[in] alpha  Scalar in multiplication
+   * \param[in] A      Pointer to A
+   * \param[in] LDA    Leading dimension of A
+   * \param[in] V      Vector of pointers to B matrices
+   * \param[in] LDB    Leading dimension of B
+   * \param[in] SCR    Scratch space, at least M*N. Only referenced if any B_i
+   *                   is the same as any C_i
+   * \param[out] U     Vector of pointers to C matrices. Can be the same as V.
+   * \param[out] LDC   Leading dimension of C
+   */
+   template <typename Apha, typename ATyp, typename BTyp, typename CTyp>
+   void TransformLeft(size_t M, size_t N, size_t KA, size_t KB, Apha alpha,
+     ATyp* A, size_t LDA, std::vector<BTyp*> V, size_t LDB, CTyp* SCR,
+     std::vector<CTyp*> U, size_t LDC);
+
+  /**
+   * \brief Transform tensor A with transformation matrix T1 and T2 in pair 
+   *        (first two dim of A)
+   *
+   * B(K, L, M) = T1(I, K+OffK)^H A(I, J, M) @ T2(J, L+OffL) 
+   *
+   * \param [in]  TRANSA    Whether transpose/adjoint A as A(IJ, M) before transformation
+   * \param [in]  DI        Dimension of index I in A
+   * \param [in]  DJ        Dimension of index J in A
+   * \param [in]  DM        Dimension of index M in A
+   * \param [in]  A         Tensor before transformation
+   *
+   * \param [in]  TRANST    Whether transpose/adjoint T1 and T2 
+   * \param [in]  T1        Transformation matrix T1
+   * \param [in]  LDT1      Leading dimension of T1
+   * \param [in]  OffK      offset in index K
+   * \param [in]  T2        Transformation matrix T2
+   * \param [in]  LDT2      Leading dimension of T2
+   * \param [in]  OffL      offset in index L 
+   *
+   * \param [in]  TRANSB    Whether transpose/adjoint B as B(KL, M) after transformation
+   * \param [in]  DK        Dimension of index K in B
+   * \param [in]  DL        Dimension of index L in B
+   * \param [out] B         Tensor after transformation, can be same as A
+   *
+   * \param[in]   ASCR      Scratch space for A at least NI*NJ*NM of ATyp. 
+   *                        Only reference when TRANSA != 'N'
+   * \param[in]   SCR       Scratch space for intermediates, at least NJ*NM*NK of BTyp. 
+   *
+   * \param [in]  increment  Perform B += result if true
+   *
+   */
+
+  template <typename ATyp, typename TTyp, typename BTyp>
+  void PairTransformation(char TRANST, const TTyp * T1, size_t LDT1, size_t OffK, 
+    const TTyp * T2, size_t LDT2, size_t OffL,
+    char TRANSA, const ATyp * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, BTyp * B, size_t NK, size_t NL, ATyp * ASCR, BTyp * SCR, bool increment);
+  
+  template <typename ATyp, typename TTyp, typename BTyp>
+  void PairTransformation(char TRANST, const TTyp * T, size_t LDT, size_t OffK, size_t OffL,
+    char TRANSA, const ATyp * A, size_t NI, size_t NJ, size_t NM, 
+    char TRANSB, BTyp * B, size_t NK, size_t NL, ATyp * ASCR, BTyp * SCR, bool increment) {
+      
+    PairTransformation(TRANST, T, LDT, OffK, T, LDT, OffL, TRANSA, 
+      A, NI, NJ, NM, TRANSB, B, NK, NL, ASCR, SCR, increment);
+    
+  };
 
 }; // namespace ChronusQ
 

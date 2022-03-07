@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ namespace ChronusQ {
       opMap[op] = memManager_.template malloc<U>(nProp*nVec);
 
       // Evaluate the property (ensures proper behaviour for mixed type)
-      Gemm('C','N',nProp,nVec,N,U(1.),g,N,V,N,U(0.),opMap[op],nProp);
+      blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,nProp,nVec,N,U(1.),g,N,V,N,U(0.),opMap[op],nProp);
       IMatCopy('C',nProp,nVec,U(1.),opMap[op],nProp,nVec);
 
 
@@ -239,7 +239,6 @@ namespace ChronusQ {
       for(auto iO = 0; iO < nRoots; iO++) {
 
         double omega = W[iO];
-
         T* tDipole = resResults.tLenElecDipole_ge + 3*iO;
 
         double tDipoleX = std::abs(tDipole[0]);

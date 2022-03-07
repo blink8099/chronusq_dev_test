@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,14 +21,14 @@
 #   E-Mail: xsli@uw.edu
 #
 add_library(quantum STATIC impl.cxx)
-target_link_libraries ( quantum PUBLIC ChronusQ::Libint2 )
+target_link_libraries ( quantum PUBLIC ChronusQ::DepHeaders )
 
 # Append aointegrals to executable link
 list(APPEND CQEX_LINK quantum)
 set(CQEX_LINK ${CQEX_LINK} PARENT_SCOPE)
 
-if( TARGET openblas )
-  add_dependencies( quantum openblas ) 
+if( TARGET tiledarray )
+  add_dependencies( quantum tiledarray ) 
 endif()
 
 if(CQEX_DEP)

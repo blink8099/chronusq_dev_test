@@ -1,7 +1,7 @@
 #
 # This file is part of the Chronus Quantum (ChronusQ) software package
 # 
-# Copyright (C) 2014-2020 Li Research Group (University of Washington)
+# Copyright (C) 2014-2022 Li Research Group (University of Washington)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ else()
   download_project(
     PROJ                googletest
     GIT_REPOSITORY      https://github.com/google/googletest.git
-    GIT_TAG             master
+    GIT_TAG             main
     UPDATE_DISCONNECTED 1
   )
 

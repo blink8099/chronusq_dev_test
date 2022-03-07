@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include <realtime.hpp>
 #include <response.hpp>
 #include <coupledcluster.hpp>
+#include <mcscf.hpp>
 
 
 
@@ -42,6 +43,48 @@
 
 namespace ChronusQ {
 
+  // Type of Job
+  enum JobType {
+    SCF,
+    RT,
+    RESP,
+    CC,
+    MR,
+    BOMD,
+    EHRENFEST
+  };
+
+  // Tedious, but there isn't an easier way to do this
+  inline JobType parseJob(std::string jobStr) {
+    JobType job;
+    if( jobStr == "SCF" ) {
+      job = SCF;
+    }
+    else if( jobStr == "RT" ) {
+      job = RT;
+    }
+    else if( jobStr == "RESP" ) {
+      job = RESP;
+    }
+    else if( jobStr == "CC" ) {
+      job = CC;
+    }
+    else if( jobStr == "BOMD" ) {
+      job = BOMD;
+    }
+    else if( jobStr == "EHRENFEST" ) {
+      job = EHRENFEST;
+    }
+    else if( jobStr == "MCSCF" ) {
+      job = MR;
+    }
+    else {
+      jobStr = "Unrecognized job type \"" + jobStr + "\"!";
+      CErr(jobStr);
+    }
+    return job;
+  };
+
   // Function definitions ofr option parsing. 
   // See src/cxxapi/input/*opts.cxx for documentation
 
@@ -50,9 +93,22 @@ namespace ChronusQ {
 
   void CQMOLECULE_VALID(std::ostream&, CQInputFile &);
 
-  void parseGeomInp(Molecule &, std::string &, std::ostream &);
+  void parseGeomInp(Molecule &, std::string &, std::ostream &, bool);
 
   void parseGeomFchk(Molecule &, std::string &, std::ostream &);
+
+  RefOptions parseRef(std::ostream &, Molecule &, std::vector<std::string> &);
+
+  void buildFunclist(std::vector<std::shared_ptr<DFTFunctional>> &,
+    std::string);
+
+  void parseIntParam(std::ostream &, CQInputFile &, IntegrationParam &);
+
+  void parseHamiltonianOptions(std::ostream &, CQInputFile &, 
+    BasisSet &basis, std::shared_ptr<IntegralsBase> aoints,
+    RefOptions &refOptions, HamiltonianOptions &hamiltonianOptions, std::string);
+
+  bool parseAtomicType(std::ostream &, CQInputFile &, ATOMIC_X2C_TYPE &, std::string);
 
   // Parse the options relating to the BasisSet
   std::shared_ptr<BasisSet> CQBasisSetOptions(std::ostream &, CQInputFile &,
@@ -60,12 +116,19 @@ namespace ChronusQ {
 
   void CQBASIS_VALID(std::ostream&, CQInputFile &, std::string);
 
-  // Parse the options relating to the SingleSlater 
-  // (and variants)
-  std::shared_ptr<SingleSlaterBase> CQSingleSlaterOptions(
+  // Parse the options relating to the SingleSlaterOptions
+  SingleSlaterOptions CQSingleSlaterOptions(
+      std::ostream &, CQInputFile &, Molecule &, BasisSet &,
+      std::shared_ptr<IntegralsBase>);
+
+  // Parse the options relating to NEOSS
+  std::pair<std::shared_ptr<SingleSlaterBase>, SingleSlaterOptions> CQNEOSSOptions(
       std::ostream &, CQInputFile &,
-      CQMemManager &mem, Molecule &mol, BasisSet &basis,
-      std::shared_ptr<IntegralsBase> );
+      CQMemManager &mem, Molecule &mol,
+      BasisSet &ebasis, BasisSet &pbasis,
+      std::shared_ptr<IntegralsBase> eaoints,
+      std::shared_ptr<IntegralsBase> paoints,
+      std::shared_ptr<IntegralsBase> epaoints);
 
   void CQQM_VALID(std::ostream&, CQInputFile &);
   void CQDFTINT_VALID(std::ostream&, CQInputFile &);
@@ -88,14 +151,16 @@ namespace ChronusQ {
 
   // Parse integral options
   std::shared_ptr<IntegralsBase> CQIntsOptions(std::ostream &, 
-    CQInputFile &, CQMemManager &,
-    std::shared_ptr<BasisSet>, std::shared_ptr<BasisSet>);
+    CQInputFile &, CQMemManager &, Molecule &,
+    std::shared_ptr<BasisSet>, std::shared_ptr<BasisSet>,
+    std::shared_ptr<BasisSet>, std::string int_sec = "INTS");
 
   void CQINTS_VALID(std::ostream&, CQInputFile &);
 
   // Parse the SCF options
-  void CQSCFOptions(std::ostream&, CQInputFile&,
-    SingleSlaterBase &, EMPerturbation &);
+  SCFControls CQSCFOptions(std::ostream&, CQInputFile&, EMPerturbation &);
+
+  void HandleOrbitalSwaps(std::ostream&, CQInputFile&, SingleSlaterBase&);
 
   void CQSCF_VALID(std::ostream&, CQInputFile &);
 
@@ -106,8 +171,24 @@ namespace ChronusQ {
 #endif  
   void CQCC_VALID(std::ostream &, CQInputFile &);
 
+  // Parse geometry modifier options
+  JobType CQGeometryOptions(std::ostream& out, CQInputFile& input, 
+    JobType job, Molecule& mol, std::shared_ptr<SingleSlaterBase> ss,
+    std::shared_ptr<RealTimeBase>& rt, std::shared_ptr<IntegralsBase> epints,
+    EMPerturbation& emPert);
 
+  JobType CQDynamicsOptions(std::ostream& out, CQInputFile& input, 
+    JobType job, Molecule& mol, std::shared_ptr<SingleSlaterBase> ss,
+    std::shared_ptr<RealTimeBase>& rt, std::shared_ptr<IntegralsBase> epints,
+    EMPerturbation& emPert);
 
+  void CQDYNAMICS_VALID( std::ostream& out, CQInputFile& input );
+
+  // Parse MCSCF options
+  std::shared_ptr<MCWaveFunctionBase> CQMCSCFOptions(std::ostream &, 
+     CQInputFile &, std::shared_ptr<SingleSlaterBase> &);
+  
+  void CQMCSCF_VALID(std::ostream &, CQInputFile &);
 
   std::shared_ptr<CQMemManager> CQMiscOptions(std::ostream &,
     CQInputFile &);
@@ -129,6 +210,8 @@ namespace ChronusQ {
     CQMOR_VALID(out,input);
     CQMISC_VALID(out,input);
     CQCC_VALID(out,input);
+    CQDYNAMICS_VALID(out,input);
+    CQMCSCF_VALID(out,input);
 
   }
 

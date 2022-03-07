@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -228,8 +228,9 @@ namespace ChronusQ {
         
         Eigen::Map< Eigen::Matrix<_F,
             Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor> > AMap1(A,LDB,M);
-      
-        AMap1 = ANew;
+        
+        if( TRANS == 'C' or TRANS == 'T' )
+          AMap1 = ANew;
 
       }
 

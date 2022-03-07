@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,18 @@
 // KCaKrK sto-3g test for fchk parsing
 TEST( GHF, KCaKr_sto3G ) {
 
-  CQSCFFCHKTEST( "scf/serial/ghf/KCaKr_sto-3G", "KCaKr_sto-3G.bin.ref", "KCaKr_sto-3G.fchk" );
+  CQSCFTEST( "scf/serial/ghf/KCaKr_sto-3G", "KCaKr_sto-3G.bin.ref", 2e-8,
+      true, true, true, true, true, true,
+      false, "KCaKr_sto-3G.fchk" );
+
+};
+
+// B sto-3g test for MO swapping
+TEST( GHF, B_swap_GHF_sto3G ) {
+
+  CQSCFTEST( "scf/serial/ghf/B_swap_GHF_sto-3g", "B_swap_GHF_sto-3g.bin.ref",
+    2e-8, true, true, true, true, true, true,
+    true );
 
 };
 

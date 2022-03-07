@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -114,7 +114,9 @@ namespace ChronusQ {
     size_t nShell;      ///< Number of CGTO basis shells
     size_t maxPrim;     ///< Max primitive dimension of basis
     size_t maxL;        ///< Max angular momentum of basis
-    
+
+    bool nucBasis;      ///< Whether this basis is for nuclear
+
     BASIS_FUNCTION_TYPE basisType = REAL_GTO; ///< Type of basis function
 
     cartvec_t centers; ///< A list of centers that comprise the BasisSet
@@ -141,7 +143,8 @@ namespace ChronusQ {
     BasisSet(std::string _basisName, std::string _basisDef,
       bool stringDef, const Molecule &mol, 
       BASIS_FUNCTION_TYPE _basisType, 
-      bool _forceCart = false, bool doPrint = true);
+      bool _forceCart = false, bool doPrint = true, 
+      bool _nucBasis = false);
        
     /**
      *  Copy constructor.
@@ -182,15 +185,21 @@ namespace ChronusQ {
     // Misc functions
       
     void uncontractShells();
-    void makeMapPrim2Cont(double*, double*, CQMemManager&);
+    void makeMapPrim2Cont(const double*, double*, CQMemManager&) const;
 
 
-    BasisSet uncontractBasis();
+    BasisSet uncontractBasis() const;
+    BasisSet groupGeneralContractionBasis() const;
+    size_t getLibcintEnvLength(const Molecule &mol) const;
+    void setLibcintEnv(const Molecule &mol, int *atm, int *bas, double *env,
+                       bool finiteWidthNuc = false) const;
 
 
     // Update BasisSet object member data (nBasis, etc).
     // See src/basisset/basisset.cxx for documentation
-    void update();
+    void update(bool computeShellPairs = true);
+
+    void updateNuclearCoordinates(const Molecule &mol);
 
   }; // BasisSet struct
 
@@ -220,6 +229,12 @@ namespace ChronusQ {
     {  "CC-PVQZ"        , "cc-pvqz.gbs"                              },
     {  "CC-PV5Z"        , "cc-pv5z.gbs"                              },
     {  "CC-PV6Z"        , "cc-pv6z.gbs"                              },
+    {  "CC-PVDZ-DK3"    , "cc-pvdz-dk3.gbs"                          },
+    {  "CC-PVTZ-DK3"    , "cc-pvtz-dk3.gbs"                          },
+    {  "CC-PVQZ-DK3"    , "cc-pvqz-dk3.gbs"                          },
+    {  "CC-PVDZ-X2C"    , "cc-pvdz-x2c.gbs"                          },
+    {  "CC-PVTZ-X2C"    , "cc-pvtz-x2c.gbs"                          },
+    {  "CC-PVQZ-X2C"    , "cc-pvqz-x2c.gbs"                          },
     {  "DEF2-SVP"                  , "def2-svp.gbs"                  },
     {  "DEF2-SVPD"                 , "def2-svpd.gbs"                 },
     {  "DEF2-TZVP"                 , "def2-tzvp.gbs"                 },
@@ -295,7 +310,13 @@ namespace ChronusQ {
     {  "SARC2-QZV-ZORA-JKFIT"      , "sarc2-qzv-zora-jkfit.gbs"      },
     {  "SARC2-QZVP-DKH2-JKFIT"     , "sarc2-qzvp-dkh2-jkfit.gbs"     },
     {  "SARC2-QZVP-ZORA-JKFIT"     , "sarc2-qzvp-zora-jkfit.gbs"     },
-    {  "X2C-JFIT"                  , "x2c-jfit.gbs"                  }
+    {  "X2C-JFIT"                  , "x2c-jfit.gbs"                  },
+    {  "PROT-SP"                   , "prot-sp.gbs"                   },
+    {  "PROT-PB4-D"                , "prot-pb4-d.gbs"                },
+    {  "PROT-PB4-F1"               , "prot-pb4-f1.gbs"               },
+    {  "PROT-PB4-F2"               , "prot-pb4-f2.gbs"               },
+    {  "PROT-PB5-G"                , "prot-pb5-g.gbs"                },
+    {  "PROT-PB6-G"                , "prot-pb6-g.gbs"                }
   };
 
 

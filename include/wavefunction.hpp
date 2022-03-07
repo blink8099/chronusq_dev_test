@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -58,8 +58,6 @@ namespace ChronusQ {
     typedef MatsT*               oper_t;
     typedef std::vector<oper_t>  oper_t_coll;
 
-    Molecule &molecule_; ///< A reference of the Molecule
-
   public:
 
     Integrals<IntsT> &aoints; ///< AOIntegrals for the storage of integrals
@@ -68,6 +66,9 @@ namespace ChronusQ {
 
     ///< mo[0] : Full (nC > 1) / ALPHA (nC == 1) MO coefficient matrix
     ///< mo[1] : BETA (nC == 1) MO coefficient matrix
+    /// The order of AO Basis in mo[0]:
+    ///    * 2C: [Alpha, Beta]
+    ///    * 4C: [Alpha Large, Alpha Small, Beta Large, Beta Small]
     std::vector<SquareMatrix<MatsT>> mo;
     double* eps1; ///< Full (nC > 1) / ALPHA (nC == 1) Fock eigenvalues
     double* eps2; ///< BETA (nC == 1) Fock eigenvalues
@@ -84,27 +85,46 @@ namespace ChronusQ {
      *  \param [in] _nC  Number of spin components (1 and 2 are supported)
      *  \param [in] iCS  Whether or not to treat as closed shell
      */ 
-    WaveFunction(MPI_Comm c, CQMemManager &mem, Molecule &mol, size_t nBasis,
-                 Integrals<IntsT> &aoi, size_t _nC, bool iCS) :
-      QuantumBase(c, mem,_nC,iCS),
-      WaveFunctionBase(c, mem,_nC,iCS),
-      Quantum<MatsT>(c, mem,_nC,iCS,nBasis),
-      molecule_(mol), eps1(nullptr), eps2(nullptr), aoints(aoi) {
+    WaveFunction(MPI_Comm c, CQMemManager &mem, Molecule &mol, BasisSet &basis,
+                 Integrals<IntsT> &aoi, size_t _nC, bool iCS, Particle p = {-1.0,1.0}) :
+      QuantumBase(c, mem,_nC,iCS,p),
+      WaveFunctionBase(c, mem, mol, basis,_nC,iCS,p),
+      Quantum<MatsT>(c, mem,_nC,iCS,p,basis.nBasis),
+      //molecule_(mol), basisSet_(basis), 
+      eps1(nullptr), eps2(nullptr), aoints(aoi) {
 
       // Compute meta data
+      size_t nBasis = basis.nBasis;
 
-      this->nO = molecule_.nTotalE;
-      this->nV = 2*nBasis - nO;
+      if (p.charge < 0.) {
+        this->nO = molecule_.nTotalE;
+        this->nV = 2*nBasis - nO;
 
-      if( this->iCS ) {
-        this->nOA = this->nO / 2; this->nOB = this->nO / 2;
-        this->nVA = this->nV / 2; this->nVB = this->nV / 2;
+        if( this->iCS ) {
+          this->nOA = this->nO / 2; this->nOB = this->nO / 2;
+          this->nVA = this->nV / 2; this->nVB = this->nV / 2;
+        } else {
+          size_t nSingleE = molecule_.multip - 1;
+          this->nOB = (this->nO - nSingleE) / 2;
+          this->nOA = this->nOB + nSingleE;
+          this->nVA = nBasis - this->nOA;
+          this->nVB = nBasis - this->nOB;
+        }
       } else {
-        size_t nSingleE = molecule_.multip - 1;
-        this->nOB = (this->nO - nSingleE) / 2;
-        this->nOA = this->nOB + nSingleE;
-        this->nVA = nBasis - this->nOA;
-        this->nVB = nBasis - this->nOB;
+         this->nO = molecule_.nTotalP;
+         this->nV = 2*nBasis - nO;
+ 
+         if( this->iCS ) {
+           this->nOA = this->nO / 2; this->nOB = this->nO / 2;
+           this->nVA = this->nV / 2; this->nVB = this->nV / 2;
+         } else {
+           size_t nSingleP = molecule_.multip_proton - 1;
+           this->nOB = (this->nO - nSingleP) / 2;
+           this->nOA = this->nOB + nSingleP;
+           this->nVA = nBasis - this->nOA;
+           this->nVB = nBasis - this->nOB;
+         }
+
       }
 
       // Allocate internal memory
@@ -132,16 +152,17 @@ namespace ChronusQ {
     ~WaveFunction(){ dealloc(); }
 
 
-    // Member functions
-    Molecule& molecule() { return molecule_; }
-
     // Deallocation (see include/wavefunction/impl.hpp for docs)
     void alloc();
     void dealloc();
 
     // Print Functions
     void printMO(std::ostream&) ;
-    void printEPS(std::ostream&);
+    virtual void printEPS(std::ostream&);
+    virtual void printMOInfo(std::ostream&, size_t a = 0);
+
+    // Swap Function
+    void swapMOs(std::vector<std::vector<std::pair<size_t, size_t>>>&, SpinType sp);
 
   }; // class WaveFunction
 

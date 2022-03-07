@@ -33,4 +33,4 @@ REFINE = TRUE
 basis = 6-31G(D)
 
 [MISC]
-MEM = 512MB
+MEM = 1024MB

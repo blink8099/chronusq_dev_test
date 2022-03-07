@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -58,6 +58,7 @@ namespace ChronusQ {
     std::ifstream  basisFile_; ///< File object for basis file
   
     bool forceCart_;  ///< Whether or not to force cartesian basis functions
+    bool nucBasis_;   ///< Whether or not this basis is solely for nuclear
   
     // Functions to digest the basis set file
     // See src/basisset/reference.cxx for documentation
@@ -90,8 +91,8 @@ namespace ChronusQ {
      *  \param [in] forceCart Whether or not to force cartesian GTOs
      */ 
     ReferenceBasisSet(const std::string &path, const std::string &def,
-      bool doDef, bool forceCart = false, bool doPrint = true) :
-      basisPath_(path), basisDef_(def), forceCart_(forceCart) {
+      bool doDef, bool forceCart = false, bool doPrint = true, bool nucBasis = false) :
+      basisPath_(path), basisDef_(def), forceCart_(forceCart), nucBasis_(nucBasis) {
   
       if ( not doDef ) {
         findBasisFile(doPrint);

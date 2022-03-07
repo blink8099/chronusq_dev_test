@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you ca redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,9 +27,9 @@
 #include <util/preprocessor.hpp>
 #include <quantum/preprocessor.hpp>
 #include <corehbuilder/impl.hpp>
-#include <electronintegrals/squarematrix/impl.hpp>
-#include <electronintegrals/twoeints/impl.hpp>
+#include <particleintegrals/twopints/impl.hpp>
 #include <fockbuilder/rofock.hpp>
+#include <fockbuilder/fourcompfock.hpp>
 
 namespace ChronusQ {
 
@@ -49,30 +49,30 @@ namespace ChronusQ {
     WaveFunctionBase(dynamic_cast<const WaveFunctionBase&>(other)),
     SingleSlaterBase(dynamic_cast<const SingleSlaterBase&>(other)),
     WaveFunction<MatsT,IntsT>(dynamic_cast<const WaveFunction<MatsU,IntsT>&>(other)),
-    basisSet_(other.basisSet_),
+    //basisSet_(other.basisSet_),
     fockMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.fockMatrix)),
     fockMatrixOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.fockMatrixOrtho)),
     coulombMatrix(std::make_shared<SquareMatrix<MatsT>>(*other.coulombMatrix)),
     exchangeMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.exchangeMatrix)),
     twoeH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.twoeH)),
     onePDMOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.onePDMOrtho)),
-    curOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.curOnePDM)),
     deltaOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.deltaOnePDM)),
-    coreH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.coreH)),
+    //coreH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.coreH)),
+    coreH(other.coreH ? std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.coreH) : nullptr),
     coreHPerturbed(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(*other.coreHPerturbed)),
-    ERI(ERIContractions<MatsU,IntsT>::template convert<MatsT>(other.ERI)),
+    TPI(TPIContractions<MatsU,IntsT>::template convert<MatsT>(other.TPI)),
     coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
     fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)) {
-
-    ortho.reserve(2);
-    for (const SquareMatrix<MatsU> &mat : other.ortho)
-      ortho.emplace_back(mat);
 
 #ifdef _SingleSlaterDebug
     std::cout << "SingleSlater<MatsT>::SingleSlater(const SingleSlater<U>&) "
               << "(this = " << this << ", other = " << &other << ")" 
               << std::endl;
 #endif
+    if( other.orthoSpinor )
+      orthoSpinor = std::make_shared<Orthogonalization<MatsT>>(*other.orthoSpinor);
+    if( other.orthoAB )
+      orthoAB = std::make_shared<Orthogonalization<MatsT>>(*other.orthoAB);
 
   }; // SingleSlater<MatsT>::SingleSlater(const SingleSlater<U> &)
 
@@ -96,30 +96,30 @@ namespace ChronusQ {
     WaveFunctionBase(dynamic_cast<WaveFunctionBase&&>(std::move(other))),
     SingleSlaterBase(dynamic_cast<SingleSlaterBase&&>(std::move(other))),
     WaveFunction<MatsT,IntsT>(dynamic_cast<WaveFunction<MatsU,IntsT>&&>(std::move(other))),
-    basisSet_(other.basisSet_),
+    //basisSet_(other.basisSet_),
     fockMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.fockMatrix))),
     fockMatrixOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.fockMatrixOrtho))),
     coulombMatrix(std::make_shared<SquareMatrix<MatsT>>(std::move(*other.coulombMatrix))),
     exchangeMatrix(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.exchangeMatrix))),
     twoeH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.twoeH))),
     onePDMOrtho(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.onePDMOrtho))),
-    curOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.curOnePDM))),
     deltaOnePDM(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.deltaOnePDM))),
     coreH(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.coreH))),
     coreHPerturbed(std::make_shared<PauliSpinorSquareMatrices<MatsT>>(std::move(*other.coreHPerturbed))),
-    ERI(ERIContractions<MatsU,IntsT>::template convert<MatsT>(other.ERI)),
+    TPI(TPIContractions<MatsU,IntsT>::template convert<MatsT>(other.TPI)),
     coreHBuilder(CoreHBuilder<MatsU,IntsT>::template convert<MatsT>(other.coreHBuilder)),
     fockBuilder(FockBuilder<MatsU,IntsT>::template convert<MatsT>(other.fockBuilder)) {
-
-    ortho.reserve(2);
-    for (SquareMatrix<MatsU> &mat : other.ortho)
-      ortho.emplace_back(std::move(mat));
 
 #ifdef _SingleSlaterDebug
     std::cout << "SingleSlater<MatsT>::SingleSlater(SingleSlater<U>&&) "
               << "(this = " << this << ", other = " << &other << ")" 
               << std::endl;
 #endif
+
+    if( other.orthoSpinor )
+      orthoSpinor = std::make_shared<Orthogonalization<MatsT>>(std::move(*other.orthoSpinor));
+    if( other.orthoAB )
+      orthoAB = std::make_shared<Orthogonalization<MatsT>>(std::move(*other.orthoAB));
 
   }; // SingleSlater<MatsT>::SingleSlater(SingleSlater<U> &&)
 
@@ -143,24 +143,34 @@ namespace ChronusQ {
     std::cout << "SingleSlater::alloc (this = " << this << ")" << std::endl;
 #endif
 
-    size_t NB = basisSet().nBasis;
+    size_t NB = this->basisSet().nBasis;
+    moPairs.resize(2, {});
+    
+    if( nC != 4 ) {
+      SPIN_OPERATOR_ALLOC(NB,fockMatrix);
+      SPIN_OPERATOR_ALLOC(NB,fockMatrixOrtho);
+      SPIN_OPERATOR_ALLOC(NB,onePDMOrtho);
+      SPIN_OPERATOR_ALLOC(NB,deltaOnePDM);
+      SPIN_OPERATOR_ALLOC(NB,coreHPerturbed);
 
-    SPIN_OPERATOR_ALLOC(NB,fockMatrix);
-    SPIN_OPERATOR_ALLOC(NB,fockMatrixOrtho);
-    SPIN_OPERATOR_ALLOC(NB,onePDMOrtho);
-    SPIN_OPERATOR_ALLOC(NB,coreHPerturbed);
 
-    ortho.reserve(2);
-    ortho.emplace_back(memManager, NB);
-    ortho.emplace_back(memManager, NB);
+      SPIN_OPERATOR_ALLOC(NB,exchangeMatrix);
+      SPIN_OPERATOR_ALLOC(NB,twoeH);
 
-    SPIN_OPERATOR_ALLOC(NB,exchangeMatrix);
-    SPIN_OPERATOR_ALLOC(NB,twoeH);
+      coulombMatrix = std::make_shared<SquareMatrix<MatsT>>(memManager, NB);
+    } else {
 
-    coulombMatrix = std::make_shared<SquareMatrix<MatsT>>(memManager, NB);
+      SPIN_OPERATOR_ALLOC(2*NB,fockMatrix);
+      SPIN_OPERATOR_ALLOC(2*NB,fockMatrixOrtho);
+      SPIN_OPERATOR_ALLOC(2*NB,onePDMOrtho);
+      SPIN_OPERATOR_ALLOC(2*NB,deltaOnePDM);
+      SPIN_OPERATOR_ALLOC(2*NB,coreHPerturbed);
 
-    SPIN_OPERATOR_ALLOC(NB,curOnePDM);
-    SPIN_OPERATOR_ALLOC(NB,deltaOnePDM);
+      SPIN_OPERATOR_ALLOC(2*NB,exchangeMatrix);
+      SPIN_OPERATOR_ALLOC(2*NB,twoeH);
+
+      coulombMatrix = std::make_shared<SquareMatrix<MatsT>>(memManager, 2*NB);
+    }
 
   }; // SingleSlater<MatsT>::alloc
 
@@ -180,18 +190,13 @@ namespace ChronusQ {
     onePDMOrtho = nullptr;
     coreHPerturbed = nullptr;
 
-    ortho.clear();
-
     exchangeMatrix = nullptr;
     twoeH = nullptr;
 
-    coulombMatrix = nullptr;
-
-    curOnePDM = nullptr;
-    deltaOnePDM = nullptr;
+   coulombMatrix = nullptr;
 
   }; // SingleSlater<MatsT>::dealloc
-
+ 
 }; // namespace ChronusQ
 
 
@@ -200,15 +205,15 @@ namespace ChronusQ {
 #include <singleslater/fock.hpp>      // Fock matrix header
 #include <singleslater/guess.hpp>     // Guess header
 #include <singleslater/scf.hpp>       // SCF header
-#include <singleslater/extrap.hpp>    // Extrapolate header
 #include <singleslater/print.hpp>     // Print header
 #include <singleslater/pop.hpp>       // Population analysis
 #include <singleslater/fchk.hpp>      // Fchk-specific header
 
+
 #include <singleslater/kohnsham/impl.hpp> // KS headers
 #include <singleslater/kohnsham/fxc.hpp> // KS headers
+#include <singleslater/kohnsham/scf.hpp> // Newton-Raphson functions
 
-#include <singleslater/hartreefock/scf.hpp> 
-#include <singleslater/kohnsham/scf.hpp>  
+#include <singleslater/hartreefock/scf.hpp> // Newton-Raphson Functions
 
-
+#include <modifyorbitals/impl.hpp> // ModifyOrbitals Implementation headers

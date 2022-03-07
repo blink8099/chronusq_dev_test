@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -344,9 +344,17 @@ namespace ChronusQ {
   bool CQInputFile::getData(std::string query) {
   
     query = getData<std::string>(query);
-    bool b = (not query.compare("TRUE") or not query.compare("ON")); 
-    return b;
+    if (not query.compare("TRUE") or not query.compare("ON")){
+      return true;
+    }
+      
+    if (not query.compare("FALSE") or not query.compare("OFF")){
+      return false;
+    }
   
+    CErr("Invalid Input For Boolean-Type Keyword!");
+
+    return false;
   }; // CQInputFile::getData<bool>
   
   /**

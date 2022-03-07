@@ -1,7 +1,7 @@
 /* 
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *  
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *  
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include <itersolver.hpp>
 
 #include <util/matout.hpp>
+#include <util/timer.hpp>
 
 namespace ChronusQ {
 
@@ -50,6 +51,8 @@ namespace ChronusQ {
     //std::cerr << "Top of runFullResidue\n";
     char JOBVR = resSettings.needVR ? 'V' : 'N';
     char JOBVL = resSettings.needVL ? 'V' : 'N';
+
+    ProgramTimer::tick("Full Diagonalize");
 
     if( genSettings.matIsHer ) {
 
@@ -73,9 +76,8 @@ namespace ChronusQ {
       dcomplex *W = 
         memManager_.template malloc<dcomplex>(nSingleDim_);
 
-      GeneralEigen(JOBVL,JOBVR,nSingleDim_,fMatUse,nSingleDim_,
-        W, resResults.VL, nSingleDim_, resResults.VR, nSingleDim_,
-        memManager_);
+      GeneralEigenSymm(JOBVL,JOBVR,nSingleDim_,fMatUse,nSingleDim_,
+        W, resResults.VL, nSingleDim_, resResults.VR, nSingleDim_);
       
       for(auto k = 0; k < nSingleDim_; k++)
         resResults.W[k] = std::real(W[k]);
@@ -84,8 +86,9 @@ namespace ChronusQ {
 
       //CErr();
 
-
     }
+
+    ProgramTimer::tock("Full Diagonalize");
 
 
     /*
@@ -127,6 +130,7 @@ namespace ChronusQ {
 
     };
 
+    ProgramTimer::tick("Iter Diagonalize");
 
 
     typename GPLHR<T>::Shift_t pc =
@@ -155,7 +159,7 @@ namespace ChronusQ {
 
     if( hasResGuess_ )
       gplhr.setGuess(resSettings.nRoots,
-          [&](size_t nG, T* G, size_t LDG){ resGuess(nG,G,LDG); });
+          [&](size_t nG, T* G, size_t LDG){ this->resGuess(nG,G,LDG); });
 
 
 
@@ -171,6 +175,8 @@ namespace ChronusQ {
           resResults.VR);
   
     }
+
+    ProgramTimer::tock("Iter Diagonalize");
 
   };
 

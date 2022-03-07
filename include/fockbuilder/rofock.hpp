@@ -1,7 +1,7 @@
 /*
  *  This file is part of the Chronus Quantum (ChronusQ) software package
  *
- *  Copyright (C) 2014-2020 Li Research Group (University of Washington)
+ *  Copyright (C) 2014-2022 Li Research Group (University of Washington)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,13 +36,17 @@ namespace ChronusQ {
   public:
 
     // Constructors
-    ROFock() = default;
+    ROFock() = delete;
+    ROFock(HamiltonianOptions hamiltonianOptions):
+        FockBuilder<MatsT,IntsT>(hamiltonianOptions) {}
 
     // Different type
     template <typename MatsU>
-    ROFock(const ROFock<MatsU,IntsT> &) : FockBuilder<MatsT,IntsT>(){}
+    ROFock(const ROFock<MatsU,IntsT> &other):
+        FockBuilder<MatsT,IntsT>(other){}
     template <typename MatsU>
-    ROFock(ROFock<MatsU,IntsT> &&) : FockBuilder<MatsT,IntsT>(){}
+    ROFock(ROFock<MatsU,IntsT> &&other):
+        FockBuilder<MatsT,IntsT>(other){}
 
     // Virtual destructor
     virtual ~ROFock() {}
