@@ -956,9 +956,6 @@ namespace ChronusQ {
 
     } else CErr("Could not determine type of scratch bin file");
 
-    EMPerturbation pert; // Dummy EM perturbation
-    this->formFock(pert,false);
-    getNewOrbitals();
 
   } // SingleSlater<T>::readDiffTypeDenBin()
 
