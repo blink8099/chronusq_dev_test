@@ -109,32 +109,31 @@ namespace ChronusQ {
 
 #ifdef CQ_ENABLE_MPI
   // Broadcast the updated MOs to all MPI processes
-  if( MPISize(comm) > 1 ) {
-
-      applyToEach([](SubSSPtr& ss) {
+    applyToEach([&](SubSSPtr& ss) {
+      if( MPISize(ss->comm) > 1 ) {
         std::cerr  << "  *** Scattering the AO-MOs ***\n";
         size_t Nmo = ss->mo[0].dimension();
-        MPIBCast(ss->mo[0].pointer(),Nmo*Nmo,0,comm);
-        if( nC == 1 and not iCS )
-          MPIBCast(ss->mo[1].pointer(),Nmo*Nmo,0,comm);
+        MPIBCast(ss->mo[0].pointer(),Nmo*Nmo,0,ss->comm);
+        if( ss->nC == 1 and not ss->iCS )
+          MPIBCast(ss->mo[1].pointer(),Nmo*Nmo,0,ss->comm);
 
         std::cerr  << "  *** Scattering EPS ***\n";
-        MPIBCast(ss->eps1,Nmo,0,comm);
-        if( nC == 1 and not iCS )
-          MPIBCast(ss->eps2,Nmo,0,comm);
+        MPIBCast(ss->eps1,Nmo,0,ss->comm);
+        if( ss->nC == 1 and not ss->iCS )
+          MPIBCast(ss->eps2,Nmo,0,ss->comm);
 
         std::cerr  << "  *** Scattering FOCK ***\n";
         size_t fockDim = ss->fockMatrix->dimension();
         for(MatsT *mat : ss->fockMatrix->SZYXPointers())
-          MPIBCast(mat,fockDim*fockDim,0,comm);
+          MPIBCast(mat,fockDim*fockDim,0,ss->comm);
 
         std::cerr  << "  *** Scattering the 1PDM ***\n";
         size_t denDim = ss->onePDM->dimension();
         for(auto p : ss->onePDM->SZYXPointers())
-          MPIBCast(p,denDim*denDim,0,comm);
-      });
+          MPIBCast(p,denDim*denDim,0,ss->comm);
+      }
+    });
 
-    }
 #endif
 
   };
