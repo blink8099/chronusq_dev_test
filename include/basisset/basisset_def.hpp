@@ -199,6 +199,8 @@ namespace ChronusQ {
     // See src/basisset/basisset.cxx for documentation
     void update(bool computeShellPairs = true);
 
+    void updateNuclearCoordinates(const Molecule &mol);
+
   }; // BasisSet struct
 
 

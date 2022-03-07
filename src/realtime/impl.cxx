@@ -30,5 +30,18 @@ namespace ChronusQ {
   template class RealTime<HartreeFock,dcomplex>;
   template class RealTime<KohnSham,double>;
   template class RealTime<KohnSham,dcomplex>;
+  template class RealTime<NEOSS,double>;
+  template class RealTime<NEOSS,dcomplex>;
+
+  template void RealTime<HartreeFock,double>::alloc<double>();
+  template void RealTime<HartreeFock,double>::alloc<dcomplex>();
+  template void RealTime<HartreeFock,dcomplex>::alloc<dcomplex>();
+  template void RealTime<KohnSham,double>::alloc<double>();
+  template void RealTime<KohnSham,double>::alloc<dcomplex>();
+  template void RealTime<KohnSham,dcomplex>::alloc<dcomplex>();
+
+  template void RealTime<NEOSS,double>::alloc<double>();
+  template void RealTime<NEOSS,double>::alloc<dcomplex>();
+  template void RealTime<NEOSS,dcomplex>::alloc<dcomplex>();
 
 }; // namespace ChronusQ

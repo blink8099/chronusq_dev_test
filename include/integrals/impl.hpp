@@ -22,6 +22,7 @@
  *
  */
 #pragma once
+
 #include <integrals.hpp>
 #include <particleintegrals/twopints/incore4indextpi.hpp>
 #include <particleintegrals/twopints/incoreritpi.hpp>
@@ -63,6 +64,24 @@ namespace ChronusQ {
     bool electron = (options.particle.charge < 0.);
 
     std::string prefix = electron ? "INTS/" : "PINTS/";
+
+#if 0
+      std::cout << std::endl<<"Molecular Geometry in ComputeOneP: (Bohr)"<<std::endl;
+      size_t i = 0;
+      for( Atom& atom : mol.atoms ) {
+
+        std::cout << std::right <<"AtomicNumber = " << std::setw(4) << atom.atomicNumber 
+                  << std::right <<"  X= "<< std::setw(16) << atom.coord[0]
+                  << std::right <<"  Y= "<< std::setw(16) << atom.coord[1]
+                  << std::right <<"  Z= "<< std::setw(16) << atom.coord[2] <<std::endl;
+        i += 3;
+ 
+      }
+
+      for(auto& shell: basis.shells)
+        for(i = 0; i < 3; i++)
+          std::cout << shell.O[i] << std::endl;
+#endif
 
     for (const std::pair<OPERATOR,size_t> &op : ops)
       switch (op.first) {
@@ -164,5 +183,67 @@ namespace ChronusQ {
       }
 
   }; // AOIntegrals<IntsT>::computeAOOneP
+
+
+
+  // Computes the integrals necessary for the gradients
+  template <typename IntsT>
+  void Integrals<IntsT>::computeGradInts(CQMemManager &mem,
+    Molecule &mol, BasisSet &basis, EMPerturbation &emPert,
+    const std::vector<std::pair<OPERATOR,size_t>> &ops,
+    const HamiltonianOptions &options) {
+
+    size_t NB = basis.nBasis;
+    size_t NAt = mol.nAtoms;
+
+    auto computeOneE = [&](std::shared_ptr<GradInts<OnePInts,IntsT>>& p, OPERATOR o) {
+      if (p == nullptr)
+        p = std::make_shared<GradInts<OnePInts,IntsT>>(mem, NB, NAt);
+      else
+        p->clear();
+
+      p->computeAOInts(basis, mol, emPert, o, options);
+    };
+
+    for ( auto& op: ops ) {
+
+
+      switch (op.first) {
+
+        case OVERLAP:
+          computeOneE(gradOverlap, op.first);
+          break;
+
+        case KINETIC:
+          computeOneE(gradKinetic, op.first);
+          break;
+
+        case NUCLEAR_POTENTIAL:
+          if ( options.OneEScalarRelativity )
+            CErr("Relativistic gradients not yet implemented!");
+          computeOneE(gradPotential, op.first);
+          break;
+
+        case MAGNETIC_MULTIPOLE:
+        case LEN_ELECTRIC_MULTIPOLE:
+        case VEL_ELECTRIC_MULTIPOLE:
+          CErr("Gradients of multipoles are not yet implemented");
+          break;
+
+        case ELECTRON_REPULSION:
+          if ( gradERI == nullptr )
+            CErr("ERI gradients must be allocated outside of computeGradInts!");
+
+          gradERI->computeAOInts(basis, mol, emPert, op.first, options);
+          break;
+      }
+
+      // TODO: Write code to save gradient integrals to binary file. Should be
+      //   toggleable with default off to keep binary file to reasonable size.
+
+    }
+
+  }; // AOIntegrals<IntsT>::computeGradInts
+
 
 }; // namespace ChronusQ

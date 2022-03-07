@@ -185,6 +185,8 @@ namespace ChronusQ {
         scfControls.guess = CORE;
       else if( not guessString.compare("SAD") )
         scfControls.guess = SAD;
+      else if( not guessString.compare("TIGHT") )
+        scfControls.guess = TIGHT;
       else if( not guessString.compare("RANDOM") )
         scfControls.guess = RANDOM;
       else if( not guessString.compare("READMO") )
@@ -386,7 +388,6 @@ namespace ChronusQ {
 
 
     return scfControls;
-
 
   }; // CQSCFOptions
 

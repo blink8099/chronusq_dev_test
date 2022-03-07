@@ -35,7 +35,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 
-#include <particleintegrals/onepints/aoonepints.hpp>
+#include <integrals/impl.hpp>
 #include <libcint.hpp>
 
 // Debug directives
@@ -85,15 +85,17 @@ namespace ChronusQ {
    */ 
   template <>
   void OnePInts<dcomplex>::OnePDriverLibint(libint2::Operator op,
-      Molecule &mol, shell_set& shells, std::vector<dcomplex*> mats,
-      Particle p) {
+      Molecule &mol, BasisSet& basis, std::vector<dcomplex*> mats,
+      Particle p, size_t deriv) {
     CErr("Only real GTOs are allowed",std::cout);
   };
 
   template <>
   void OnePInts<double>::OnePDriverLibint(libint2::Operator op,
-      Molecule &mol, shell_set& shells, std::vector<double*> mats, 
-      Particle p) {
+      Molecule &mol, BasisSet& basis, std::vector<double*> mats, 
+      Particle p, size_t deriv) {
+
+    shell_set& shells = basis.shells;
 
     // Determine the number of basis functions for the passed shell set
     size_t NB = std::accumulate(shells.begin(),shells.end(),0,
@@ -126,7 +128,7 @@ namespace ChronusQ {
     std::vector<libint2::Engine> engines(nthreads);
 
     // Initialize the first engine for the integral evaluation
-    engines[0] = libint2::Engine(op,maxPrim,maxL,0);
+    engines[0] = libint2::Engine(op,maxPrim,maxL,deriv);
     engines[0].set_precision(0.0);
 
     // If engine is K, prescale it by 1/m
@@ -167,13 +169,15 @@ namespace ChronusQ {
       int thread_id = GetThreadID();
 
       const auto& buf_vec = engines[thread_id].results();
-      size_t n1,n2;
+      size_t n1,n2,atom1,atom2;
 
       // Loop over unique shell pairs
       for(size_t s1(0), bf1_s(0), s12(0); s1 < shells.size(); bf1_s+=n1, s1++){ 
         n1 = shells[s1].size(); // Size of Shell 1
+        atom1 = basis.mapSh2Cen[s1]; // Index of atom for Shell 1
       for(size_t s2(0), bf2_s(0); s2 <= s1; bf2_s+=n2, s2++, s12++) {
         n2 = shells[s2].size(); // Size of Shell 2
+        atom2 = basis.mapSh2Cen[s2]; // Index of atom for Shell 2
 
         // Round Robbin work distribution
         #ifdef _OPENMP
@@ -183,18 +187,101 @@ namespace ChronusQ {
         // Compute the integrals       
         engines[thread_id].compute(shells[s1],shells[s2]);
 
-        // If the integrals were screened, move on to the next batch
-        if(buf_vec[0] == nullptr) continue;
+        // adds the iOp result of the engine to the iMat matrix 
+        //   For non-gradients, iOp and iMat should be the same
+        //   For gradients, they can differ
+        auto add_shellset_to_mat = [&](size_t iOp, size_t iMat) {
+
+
+          // If the integrals were screened, do nothing
+          if(buf_vec[iOp] == nullptr) return;
+
+          // std::cout << "iOp: " << iOp << " iMat: " << iMat << std::endl;
+          Eigen::Map<
+            const Eigen::Matrix<
+              double,
+              Eigen::Dynamic,
+              Eigen::Dynamic,
+              Eigen::RowMajor
+            >
+          > bufMat(buf_vec[iOp],n1,n2);
+
+          size_t _idx = 0;
+          for ( auto r_idx = 0; r_idx < n1; r_idx++) {
+            for (auto c_idx = 0; c_idx < n2; c_idx++, _idx++) {
+              // std::cout << buf_vec[iOp][_idx] << " ";
+            }
+            // std::cout << std::endl;
+          }
+
+          matMaps[iMat].block(bf1_s, bf2_s, n1, n2) += bufMat;
+
+        };
 
         // Place integral blocks into their respective matricies
-        for(auto iMat = 0; iMat < buf_vec.size(); iMat++){
-          Eigen::Map<
-            const Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,
-              Eigen::RowMajor>>
-            bufMat(buf_vec[iMat],n1,n2);
+        switch (deriv) {
 
-          matMaps[iMat].block(bf1_s,bf2_s,n1,n2) = bufMat.template cast<double>();
-        }
+          case 0:
+            for(auto iMat = 0; iMat < buf_vec.size(); iMat++){
+              add_shellset_to_mat(iMat, iMat);
+            }
+            break; // case deriv == 0
+
+          case 1:
+            // For gradients, libint returns first the gradients of the
+            //   bra/ket, and then the gradients of the operator. We handle
+            //   these separately.
+            // e.g.
+            //   For the (O1s|V|H1s) nuclear attraction gradients in H2O with
+            //   atom indices: O:0, H:1, H:2, libint will return 15 derivative
+            //   integrals.
+            //   (3 cartesian indices * (2 shell centers + 3 nuclear centers))
+            //   There are only 9 gradient integrals
+            //   (3 cartesian indices * 3 nuclear centers)
+            //
+            //   The results will be mapped to their respective gradient
+            //   integrals by:
+            //
+            //   | ======================================================== |
+            //   |   Engine result    | Gradient integral |  iOps   | iMats |
+            //   | ------------------ + ----------------- + ------- + ----- |
+            //   | (d/dR0 O1s|V| H1s) | d/dR0 (O1s|V|H1s) | [0,2]   | [0,2] |
+            //   | (O1s|V| d/dR1 H1s) | d/dR1 (O1s|V|H1s) | [3,5]   | [3,5] |
+            //   | (O1s|d/dR0 V| H1s) | d/dR0 (O1s|V|H1s) | [6,8]   | [0,2] |
+            //   | (O1s|d/dR1 V| H1s) | d/dR1 (O1s|V|H1s) | [9,11]  | [3,5] |
+            //   | (O1s|d/dR2 V| H1s) | d/dR2 (O1s|V|H1s) | [12,14] | [6,8] |
+            //   | ======================================================== |
+            //
+            // For geometry independent operators, libint will only return 6
+            //   derivative integrals. (bra then ket)
+            // std::cout << "(" << s1 << "," << s2 << ")" << std::endl;
+            // for (auto& x: buf_vec) {
+            //   std::cout << "**************************************" << std::endl;
+            //   for ( auto i = 0 ; i < n1*n2 ; i++ ) {
+            //     std::cout << i << ": " << x[i] << std::endl;
+            //   }
+            // }
+
+            size_t result_idx = 0;
+            
+            // First the bra and ket
+            for (auto xyz = 0; xyz < 3; xyz++, result_idx++)
+              add_shellset_to_mat(result_idx, 3*atom1 + xyz);
+
+            for (auto xyz = 0; xyz < 3; xyz++, result_idx++)
+              add_shellset_to_mat(result_idx, 3*atom2 + xyz);
+
+            // Gradient of operator
+            if (op == libint2::Operator::nuclear) {
+              auto nAtoms = mol.atomsC.size();
+              for (auto iAt = 0; iAt < nAtoms; iAt++) {
+                for ( auto xyz = 0; xyz < 3; xyz++, result_idx++) {
+                  add_shellset_to_mat(result_idx, 3*mol.atomsC[iAt]+ xyz);
+                }
+              }
+            }
+            break; // case deriv == 1
+        } // switch deriv
 
       } // Loop over s2 <= s1
       } // Loop over s1
@@ -653,10 +740,10 @@ namespace ChronusQ {
 
     switch (op) {
     case OVERLAP:
-      OnePDriverLibint(libint2::Operator::overlap,mol,basis.shells,tmp,options.particle);
+      OnePDriverLibint(libint2::Operator::overlap,mol,basis,tmp,options.particle);
       break;
     case KINETIC:
-      OnePDriverLibint(libint2::Operator::kinetic,mol,basis.shells,tmp,options.particle);
+      OnePDriverLibint(libint2::Operator::kinetic,mol,basis,tmp,options.particle);
       //output(std::cout,"",true);
       break;
     case NUCLEAR_POTENTIAL:
@@ -669,7 +756,7 @@ namespace ChronusQ {
               }, basis.shells,tmp);
       }
       else
-        OnePDriverLibint(libint2::Operator::nuclear,mol,basis.shells,tmp,options.particle);
+        OnePDriverLibint(libint2::Operator::nuclear,mol,basis,tmp,options.particle);
       break;
     case ELECTRON_REPULSION:
       CErr("Electron repulsion integrals are not implemented in OnePInts,"
@@ -811,7 +898,7 @@ namespace ChronusQ {
             CErr("Requested operator is NYI in MultipoleInts.",std::cout);
         }
       }
-      OnePInts<double>::OnePDriverLibint(libOp,mol,basis.shells,_multipole,options.particle);
+      OnePInts<double>::OnePDriverLibint(libOp,mol,basis,_multipole,options.particle);
       memManager().free(_multipole[0]);
       break;
     case VEL_ELECTRIC_MULTIPOLE:
@@ -850,7 +937,7 @@ namespace ChronusQ {
                 pair,sh1,sh2,mol);
             }, basis.shells,_potential);
     else
-      OnePDriverLibint(libint2::Operator::nuclear,mol,basis.shells,_potential,options.particle);
+      OnePDriverLibint(libint2::Operator::nuclear,mol,basis,_potential,options.particle);
 
     // Point nuclei is used when chargeDist is empty
     const std::vector<libint2::Shell> &chargeDist = options.finiteWidthNuc ?
@@ -879,7 +966,91 @@ namespace ChronusQ {
 
   };
 
+  template<>
+  void GradInts<OnePInts,double>::computeAOInts(BasisSet& basis,
+    Molecule& mol, EMPerturbation&, OPERATOR op, const HamiltonianOptions& options)
+  {
+
+    std::vector<double*> gradPtrs(3*nAtoms_, nullptr);
+
+    for (auto i = 0; i < 3*nAtoms_; i++) {
+      gradPtrs[i] = components_[i]->pointer();
+    }
+
+
+    switch (op) {
+    case OVERLAP:
+      OnePInts<double>::OnePDriverLibint(
+        libint2::Operator::overlap, mol, basis, gradPtrs, options.particle, 1
+      );
+      break;
+    case KINETIC:
+      OnePInts<double>::OnePDriverLibint(
+        libint2::Operator::kinetic, mol, basis, gradPtrs, options.particle, 1
+      );
+      break;
+    case NUCLEAR_POTENTIAL:
+      if (options.finiteWidthNuc)
+        CErr("Finite width nuclei potential gradients not yet implemented!");
+      else
+        OnePInts<double>::OnePDriverLibint(
+          libint2::Operator::nuclear, mol, basis, gradPtrs, options.particle, 1
+        );
+      break;
+    case ELECTRON_REPULSION:
+      CErr("Electron repulsion integrals are not implemented in OnePInts,"
+           " they are implemented in TwoEInts",std::cout);
+      break;
+    case LEN_ELECTRIC_MULTIPOLE:
+    case VEL_ELECTRIC_MULTIPOLE:
+    case MAGNETIC_MULTIPOLE:
+      CErr("Requested operator is not implemented in OnePInts,"
+           " it is implemented in MultipoleInts",std::cout);
+      break;
+    }
+
+
+  };
+
+  template<>
+  void GradInts<MultipoleInts, double>::computeAOInts(BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+
+    CErr("Gradient integrals for multipole operators not yet implemented!");
+
+  };
+
+  template<>
+  void GradInts<OnePRelInts, double>::computeAOInts(BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+
+    CErr("Gradient integrals for relativistic operators not yet implemented!");
+
+  };
+
+  template <>
+  void GradInts<OnePInts, double>::computeAOInts(BasisSet&, BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+    CErr("Two basis gradients not implemented for OnePInts");
+  };
+  template <>
+  void GradInts<MultipoleInts, double>::computeAOInts(BasisSet&, BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+    CErr("Two basis gradients not implemented for MultipoleInts");
+  };
+  template <>
+  void GradInts<OnePRelInts, double>::computeAOInts(BasisSet&, BasisSet&,
+    Molecule&, EMPerturbation&, OPERATOR, const HamiltonianOptions&) {
+    CErr("Two basis gradients not implemented for OnePRelInts");
+  };
+
+
   template void Integrals<double>::computeAOOneP(
+      CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,
+      const std::vector<std::pair<OPERATOR,size_t>>&,
+      const HamiltonianOptions&);
+
+  template void Integrals<double>::computeGradInts(
       CQMemManager&, Molecule&, BasisSet&, EMPerturbation&,
       const std::vector<std::pair<OPERATOR,size_t>>&,
       const HamiltonianOptions&);

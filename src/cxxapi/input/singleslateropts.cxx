@@ -39,6 +39,8 @@
 #include <particleintegrals/twopints/incore4indexreleri.hpp>
 #include <particleintegrals/twopints/gtodirectreleri.hpp>
 
+#include <singleslater/neoss.hpp>
+
 namespace ChronusQ {
 
   /**
@@ -131,10 +133,15 @@ namespace ChronusQ {
       "B3PW91",
       "PBE0",
       "BHANDHLYP",
-      "BHANDH",
+      "BHANDH"
+    };
+
+    std::vector<std::string> EPCRefs {
       "EPC17",
       "EPC19"
     };
+
+    KSRefs.insert(KSRefs.begin(), EPCRefs.begin(), EPCRefs.end());
 
     // All reference keywords
     std::vector<std::string> rawRefs(KSRefs);
@@ -193,6 +200,9 @@ namespace ChronusQ {
 
     if( ref.isKSRef )
       ref.funcName = refString;
+
+    ref.isEPCRef =
+      std::find(EPCRefs.begin(),EPCRefs.end(),refString) != EPCRefs.end();
 
     // Raw reference
     if( ref.refType == isRawRef ) {
@@ -427,7 +437,7 @@ namespace ChronusQ {
    */
   void parseHamiltonianOptions(std::ostream &out, CQInputFile &input, 
     BasisSet &basis, std::shared_ptr<IntegralsBase> aoints,
-    RefOptions &refOptions, HamiltonianOptions &hamiltonianOptions) {
+    RefOptions &refOptions, HamiltonianOptions &hamiltonianOptions, std::string section) {
 
     // Parse hamiltonianOptions
     hamiltonianOptions.basisType = basis.basisType;
@@ -437,7 +447,7 @@ namespace ChronusQ {
     // Parse X2C option
     // X2CType = off (default), spinfree, onee, twoe
     X = "DEFAULT";
-    OPTOPT( X = input.getData<std::string>("QM.X2CTYPE")  );
+    OPTOPT( X = input.getData<std::string>(section + ".X2CTYPE")  );
     trim(X);
     if( not X.compare("SPINFREE") ) {
 
@@ -490,7 +500,7 @@ namespace ChronusQ {
 
     } else  {
 
-      CErr(X + " not a valid QM.X2CTYPE",out);
+      CErr(X + " not a valid " + section + ".X2CTYPE",out);
 
     }
 
@@ -499,7 +509,7 @@ namespace ChronusQ {
     // Parse one-electron spin-orbie scaling option
     // SpinOrbitScaling  = noscaling, boettger (dafault), atomicmeanfield (amfi)
     X = "DEFAULT"; // Unspecified value
-    OPTOPT( X = input.getData<std::string>("QM.SPINORBITSCALING")  );
+    OPTOPT( X = input.getData<std::string>(section + ".SPINORBITSCALING")  );
     trim(X);
     if( not X.compare("NOSCALING") ) {
 
@@ -538,12 +548,12 @@ namespace ChronusQ {
 
     } else {
 
-      CErr(X + " not a valid QM.X2CTYPE",out);
+      CErr(X + " not a valid " + section + ".X2CTYPE",out);
 
     }
 
     // Parse Atomic X2C
-    hamiltonianOptions.AtomicX2C = parseAtomicType(out,input,hamiltonianOptions.AtomicX2CType);
+    hamiltonianOptions.AtomicX2C = parseAtomicType(out,input,hamiltonianOptions.AtomicX2CType,section);
 
 
     // Parse Finite Width Nuclei
@@ -619,13 +629,13 @@ namespace ChronusQ {
    *
    */
   bool parseAtomicType(std::ostream &out, CQInputFile &input, 
-    ATOMIC_X2C_TYPE &atomicX2CType) {
+    ATOMIC_X2C_TYPE &atomicX2CType, std::string section) {
 
     // Parse Atomic X2C option
     // AtomicX2C  = ALH, ALU, DLH, DLU, OFF (default)
     bool atomic = false;
     std::string X = "OFF";
-    OPTOPT( X = input.getData<std::string>("QM.ATOMICX2C")  );
+    OPTOPT( X = input.getData<std::string>(section + ".ATOMICX2C")  );
     trim(X);
     if( not X.compare("ALH") ) {
       atomic = true;
@@ -642,7 +652,7 @@ namespace ChronusQ {
     } else if( not X.compare("OFF") ){
       atomic = false;
     } else {
-      CErr(X + " not a valid QM.ATOMICX2C",out);
+      CErr(X + " not a valid " + section + ".ATOMICX2C",out);
     }
 
     return atomic;
@@ -663,21 +673,22 @@ namespace ChronusQ {
    *    constructed from the input options.
    *
    */
-  SingleSlaterOptions CQSingleSlaterOptions(
+  SingleSlaterOptions getSingleSlaterOptions(
       std::ostream &out, CQInputFile &input,
       Molecule &mol, BasisSet &basis,
-      std::shared_ptr<IntegralsBase> aoints) {
+      std::shared_ptr<IntegralsBase> aoints,
+      Particle p, std::string section) {
 
-    out << "  *** Parsing QM.REFERENCE options ***\n";
+    out << "  *** Parsing " << section << ".REFERENCE options ***\n";
 
     SingleSlaterOptions options;
 
     // Attempt to find reference
     std::string reference;
-    try {
-      reference = input.getData<std::string>("QM.REFERENCE");
+    try { 
+      reference = input.getData<std::string>(section + ".REFERENCE");
     } catch(...) {
-      CErr("QM.REFERENCE Keyword not found!",out);
+      CErr(section + ".REFERENCE Keyword not found!",out);
     }
 
     // Digest reference string
@@ -702,7 +713,9 @@ namespace ChronusQ {
 
     // Parse hamiltonianOptions
     parseHamiltonianOptions(out,input,basis,aoints,
-        options.refOptions,options.hamiltonianOptions);
+        options.refOptions,options.hamiltonianOptions,section);
+
+    options.hamiltonianOptions.particle = p;
 
     out << options.hamiltonianOptions << std::endl;
 
@@ -752,16 +765,19 @@ namespace ChronusQ {
 
     // Override core hamiltoninan type for X2C
 
+    Particle p = hamiltonianOptions.particle;
 
-  // default particle (electron)
-  Particle p = {-1.0, 1.0};
+    if( p.charge < 0 && refOptions.isEPCRef )
+      CErr("EPC functionals only valid on proton references!");
+
+    if( p.charge >= 0 && refOptions.isKSRef && !refOptions.isEPCRef )
+      CErr("Proton Kohn Sham references require EPC functionals");
 
   #define KS_LIST(T) \
     refOptions.funcName,funcList,MPI_COMM_WORLD,intParam,mem,mol,basis,dynamic_cast<Integrals<T>&>(*aoints),refOptions.nC,refOptions.iCS,p
 
   #define HF_LIST(T) \
     MPI_COMM_WORLD,mem,mol,basis,dynamic_cast<Integrals<T>&>(*aoints),refOptions.nC,refOptions.iCS,p
-
 
     // Construct the SS object
     std::shared_ptr<SingleSlaterBase> ss;
@@ -1079,430 +1095,6 @@ namespace ChronusQ {
   }; // SingleSlaterOptions::buildSingleSlater
 
 
-  /**
-   *  \brief Construct a NEOSingleSlater object using the input 
-   *  file.
-   *
-   *  \param [in] out         Output device for data / error output.
-   *  \param [in] input       Input file datastructure
-   *  \param [in] elec_aoints AOIntegrals object for NEOSingleSlater
-   *                          construction (electrons)
-   *  \param [in] prot_aoints AOIntegrals object for NEOSingleSlater
-   *                          construction (protons)
-   *  \param [in] ep_aoints   AOIntegrals object for NEOSingleSlater
-   *                          construction (electron-proton)
-   *
-   *
-   *  \returns shared_ptr to a NEOSingleSlater object
-   *    constructed from the input options.
-   *
-   */ 
-  std::vector<std::shared_ptr<SingleSlaterBase>> CQNEOSingleSlaterOptions(
-    std::ostream &out, CQInputFile &input,
-    CQMemManager &mem, Molecule &mol,
-    BasisSet &ebasis, BasisSet &pbasis,
-    std::shared_ptr<IntegralsBase> eaoints, 
-    std::shared_ptr<IntegralsBase> paoints,
-    std::shared_ptr<IntegralsBase> epaoints) {
-
-    // Initialize electron ReferenceOptions
-    RefOptions elec_refOptions;
-
-    // Initialize ReferenceOptions
-    RefOptions prot_refOptions;
-
-    out << "  *** Parsing QM.REFERENCE options ***\n";
-
-    // Attempt to find reference
-    std::string reference;
-    try { 
-      reference = input.getData<std::string>("QM.REFERENCE");
-    } catch(...) {
-      CErr("QM.REFERENCE Keyword not found!",out);
-    }
-
-    out << "  *** Parsing QM.NUCREFERENCE options ***\n";
-
-    // Attempt to find proton reference 
-    std::string preference;
-    try {
-      preference = input.getData<std::string>("QM.NUCREFERENCE");
-    } catch(...) {
-      CErr("QM.NUCREFERENCE Keyword not found in NEO calculation!",out);
-    }
-
-    // Digest reference string
-    // Trim Spaces
-    trim(reference);
-
-    // Split into tokens
-    std::vector<std::string> tokens;
-    split(tokens,reference);
-    for(auto &X : tokens) trim(X);
-
-    // Trim Spaces for proton
-    trim(preference);
-
-    // Split into tokens
-    std::vector<std::string> ptokens;
-    split(ptokens,preference);
-    for(auto &X : ptokens) trim(X);
-
-    // Parse electron reference information
-    elec_refOptions = parseRef(out,mol,tokens);
-
-    // Parse proton reference information
-    prot_refOptions = parseRef(out,mol,ptokens);
-
-    // Throw an error if not a valid reference keyword
-    if( elec_refOptions.refType != isRawRef and elec_refOptions.refType != isRRef and elec_refOptions.refType != isURef )
-      CErr(tokens.back() + " is not a valid QM.REFERENCE for NEO",out);
-
-    // Throw an error if not a valid proton reference keyword
-    if( prot_refOptions.refType != isRawRef and prot_refOptions.refType != isURef )
-      CErr(ptokens.back() + " is not a valid QM.NUCREFERENCE for NEO",out);
-
-    if ( (not elec_refOptions.isKSRef and prot_refOptions.isKSRef) 
-         or (elec_refOptions.isKSRef and not prot_refOptions.isKSRef) )
-      CErr("Mixing DFT with HF is not allowed",out);
-
-    // Sanity check for electron functional names
-    std::vector<std::shared_ptr<DFTFunctional>> funcList;
-    if( elec_refOptions.isKSRef )
-      if (not elec_refOptions.funcName.compare("EPC17") or not elec_refOptions.funcName.compare("EPC19"))
-        CErr("Find invalid KS functional",out);
-      else
-        buildFunclist(funcList, elec_refOptions.funcName);
-        
-
-    // Sanity check for epc functional names
-    std::vector<std::shared_ptr<DFTFunctional>> epc_funcList;
-    if( prot_refOptions.isKSRef )
-      if (prot_refOptions.funcName.compare("EPC17") and prot_refOptions.funcName.compare("EPC19"))
-        CErr("Find invalid EPC functional",out);
-      else
-         buildFunclist(epc_funcList, prot_refOptions.funcName);       
-
-    // Manually set proton reference
-    prot_refOptions.iCS = false;
-    prot_refOptions.nC = 1;
-    if (prot_refOptions.refType == isRawRef)
-      prot_refOptions.refType == isURef;
-    
-    // Sanity Checks
-    bool eisGIAO = ebasis.basisType == COMPLEX_GIAO;
-    bool pisGIAO = pbasis.basisType == COMPLEX_GIAO;
-
-    if( eisGIAO or pisGIAO )
-      CErr("GIAO is not supported by NEO",out);
-
-
-    // Override core hamiltoninan type for X2C
-      
-
-    // FIXME: Should put this somewhere else
-    // Parse KS integration
-
-    IntegrationParam intParam;
-
-    if( elec_refOptions.isKSRef )
-     parseIntParam(out, input, intParam);
-
-  // electron 
-  Particle elec = {-1.0, 1.0};
-
-  // proton
-  Particle prot = {1.0, ProtMassPerE};
-
-
-  #define eKS_LIST(T) \
-    prot_refOptions.funcName,epc_funcList,elec_refOptions.funcName,funcList,MPI_COMM_WORLD,intParam,mem,mol,ebasis,dynamic_cast<Integrals<T>&>(*eaoints),elec_refOptions.nC,elec_refOptions.iCS,elec
-
-  #define eHF_LIST(T) \
-    MPI_COMM_WORLD,mem,mol,ebasis,dynamic_cast<Integrals<T>&>(*eaoints),elec_refOptions.nC,elec_refOptions.iCS,elec
-
-  #define pKS_LIST(T) \
-    prot_refOptions.funcName,epc_funcList,prot_refOptions.funcName,epc_funcList,MPI_COMM_WORLD,intParam,mem,mol,pbasis,dynamic_cast<Integrals<T>&>(*paoints),1,false,prot
-
-  #define pHF_LIST(T) \
-    MPI_COMM_WORLD,mem,mol,pbasis,dynamic_cast<Integrals<T>&>(*paoints),1,false,prot
-
-
-    // Construct the electron SS object
-    std::shared_ptr<SingleSlaterBase> elec_ss;
-
-    // Construct the proton SS object
-    std::shared_ptr<SingleSlaterBase> prot_ss;
-
-    if( not elec_refOptions.RCflag.compare("REAL") )
-      if(  elec_refOptions.isKSRef ) {
-        
-        // NEO Kohn-Sham object for electron
-        auto neo_ess = std::make_shared<NEOKohnSham<double,double>>( eKS_LIST(double) );
-
-        // neo single slater object for proton
-        auto neo_pss = std::make_shared<NEOKohnSham<double,double>>( pKS_LIST(double) );
-
-        // connects electron and proton
-        neo_ess->getAux(neo_pss);
-        neo_pss->getAux(neo_ess);
-
-        // cast to singleslater base class
-        elec_ss = std::dynamic_pointer_cast<SingleSlaterBase>(neo_ess);
-        prot_ss = std::dynamic_pointer_cast<SingleSlaterBase>(neo_pss);
-
-      }
-      else {
-
-        // neo single slater object for electron
-        auto neo_ess = std::make_shared<NEOHartreeFock<double,double>>( eHF_LIST(double) );
-
-        // neo single slater object for proton
-        auto neo_pss = std::make_shared<NEOHartreeFock<double,double>>( pHF_LIST(double) );
-
-        // connects electron and proton
-        neo_ess->getAux(neo_pss);
-        neo_pss->getAux(neo_ess);
-
-        // cast to singleslater base class
-        elec_ss = std::dynamic_pointer_cast<SingleSlaterBase>(neo_ess);
-        prot_ss = std::dynamic_pointer_cast<SingleSlaterBase>(neo_pss);
-      }
-
-    else if( not  elec_refOptions.RCflag.compare("COMPLEX") and not eisGIAO and not pisGIAO)
-      if(  elec_refOptions.isKSRef ) {
-        // single slater object for electron
-        auto neo_ess = std::make_shared<NEOKohnSham<dcomplex,double>> ( eKS_LIST(double) );
-
-        // single slater object for proton
-        auto neo_pss = std::make_shared<NEOKohnSham<dcomplex,double>> ( pKS_LIST(double) );
-
-        // connects electron and proton
-        neo_ess->getAux(neo_pss);
-        neo_pss->getAux(neo_ess);
-
-        // cast to singleslater base class
-        elec_ss = std::dynamic_pointer_cast<SingleSlaterBase>(neo_ess);
-        prot_ss = std::dynamic_pointer_cast<SingleSlaterBase>(neo_pss);
-
-      }
-      else {
-        // single slater object for electron
-        auto neo_ess = std::make_shared<NEOHartreeFock<dcomplex,double>> ( eHF_LIST(double) );
-
-        // single slater object for proton
-        auto neo_pss = std::make_shared<NEOHartreeFock<dcomplex,double>> ( pHF_LIST(double) );
-
-        // connects electron and proton
-        neo_ess->getAux(neo_pss);
-        neo_pss->getAux(neo_ess);
-
-        // cast to singleslater base class
-        elec_ss = std::dynamic_pointer_cast<SingleSlaterBase>(neo_ess);
-        prot_ss = std::dynamic_pointer_cast<SingleSlaterBase>(neo_pss);
-      }
-    else
-      CErr("GIAO is not supported by NEO", out);
-
-    // overall Hamiltonian options
-    HamiltonianOptions hamiltonianOptions;
-
-    // Parse hamiltonianOptions
-    hamiltonianOptions.basisType = ebasis.basisType;
-
-    std::string X;
-
-    // Parse X2C option
-    hamiltonianOptions.OneEScalarRelativity = false;
-    hamiltonianOptions.OneESpinOrbit = false;
-    hamiltonianOptions.Boettger = false;
-    hamiltonianOptions.AtomicMeanField = false;
-
-
-
-    // Parse one-electron spin-orbie scaling option
-    // SpinOrbitScaling  = noscaling, boettger (dafault), atomicmeanfield (amfi)
-    hamiltonianOptions.Boettger = false;
-    hamiltonianOptions.AtomicMeanField = false;
-
-
-    // Parse Atomic X2C option
-    // AtomicX2C  = ALH, ALU, DLH, DLU, OFF (default)
-    bool atomic = false;
-    ATOMIC_X2C_TYPE atomicX2CType = {false,false};
-    X = "OFF";
-    OPTOPT( X = input.getData<std::string>("QM.ATOMICX2C")  );
-    trim(X);
-    if( not X.compare("ALH") ) {
-      atomic = true;
-      atomicX2CType = {true,true};
-    } else if( not X.compare("ALU") ) {
-      atomic = true;
-      atomicX2CType = {true,false};
-    } else if( not X.compare("DLH") ) {
-      atomic = true;
-      atomicX2CType = {false,true};
-    } else if( not X.compare("DLU") ) {
-      atomic = true;
-      atomicX2CType = {false,false};
-    } else if( not X.compare("OFF") ){
-      atomic = false;
-    } else {
-      CErr(X + " not a valid QM.ATOMICX2C",out);
-    }
-
-
-    // Parse Finite Width Nuclei
-    hamiltonianOptions.finiteWidthNuc = false;
-
-    // Parse Integral library
-    OPTOPT( hamiltonianOptions.Libcint = input.getData<bool>("INTS.LIBCINT") )
-
-    // Parse 4C options
-    hamiltonianOptions.BareCoulomb = false;
-    hamiltonianOptions.DiracCoulomb = false;
-    hamiltonianOptions.DiracCoulombSSSS = false;
-    hamiltonianOptions.Gaunt = false;
-    hamiltonianOptions.Gauge = false;
-
-
-    // electron and proton HamiltonianOptions
-    HamiltonianOptions elec_aoiOptions = hamiltonianOptions;
-    HamiltonianOptions prot_aoiOptions = hamiltonianOptions;
-
-    elec_aoiOptions.particle = elec;
-    prot_aoiOptions.particle = prot;
-
-    // Construct CoreHBuilder
-    if(auto p = std::dynamic_pointer_cast<NEOSingleSlater<double,double>>(elec_ss)) {
-      p->coreHBuilder = std::make_shared<NRCoreH<double,double>>(
-          *std::dynamic_pointer_cast<Integrals<double>>(eaoints), elec_aoiOptions);
-      p->fockBuilder = std::make_shared<FockBuilder<double,double>>(elec_aoiOptions);
-      if (auto q = std::dynamic_pointer_cast<NEOSingleSlater<double,double>>(prot_ss)) {
-        q->coreHBuilder = std::make_shared<NRCoreH<double,double>>(
-            *std::dynamic_pointer_cast<Integrals<double>>(paoints), prot_aoiOptions);
-        q->fockBuilder = std::make_shared<FockBuilder<double,double>>(prot_aoiOptions);
-      }
-    } else if(auto p = std::dynamic_pointer_cast<NEOSingleSlater<dcomplex,double>>(elec_ss)) {
-      p->coreHBuilder = std::make_shared<NRCoreH<dcomplex,double>>(
-          *std::dynamic_pointer_cast<Integrals<double>>(eaoints), elec_aoiOptions);
-      p->fockBuilder = std::make_shared<FockBuilder<dcomplex,double>>(elec_aoiOptions);
-      if (auto q = std::dynamic_pointer_cast<NEOSingleSlater<dcomplex,double>>(prot_ss)) {
-        q->coreHBuilder = std::make_shared<NRCoreH<dcomplex,double>>(
-            *std::dynamic_pointer_cast<Integrals<double>>(paoints), prot_aoiOptions);
-        q->fockBuilder = std::make_shared<FockBuilder<dcomplex,double>>(prot_aoiOptions);
-      }
-    } else {
-      CErr("Complex INT is not a valid option for NEO",std::cout);
-    }
-
-
-
-    // Construct ERIContractions
-    if(auto p = std::dynamic_pointer_cast<NEOSingleSlater<double,double>>(elec_ss)) {
-
-      auto q = std::dynamic_pointer_cast<NEOSingleSlater<double,double>>(prot_ss);
-      std::shared_ptr<TwoPInts<double>> ERI =
-          std::dynamic_pointer_cast<Integrals<double>>(eaoints)->TPI;
-      std::shared_ptr<TwoPInts<double>> PRI =
-          std::dynamic_pointer_cast<Integrals<double>>(paoints)->TPI;
-      std::shared_ptr<TwoPInts<double>> EPAI =
-          std::dynamic_pointer_cast<Integrals<double>>(epaoints)->TPI;
-
-      // electron 2-particle
-      if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(ERI)) {
-        p->TPI = std::make_shared<GTODirectTPIContraction<double,double>>(*eri_typed);
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCoreRITPI<double>>(ERI)) {
-        p->TPI = std::make_shared<InCoreRITPIContraction<double,double>>(*eri_typed);
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(ERI)) {
-        p->TPI = std::make_shared<InCore4indexTPIContraction<double,double>>(*eri_typed);
-      } else {
-        CErr("Invalid ERInts type for Wavefunction<double,double>",std::cout);
-      }
-
-      // proton 2-particle
-      if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(PRI)) {
-        q->TPI = std::make_shared<GTODirectTPIContraction<double,double>>(*eri_typed);
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCoreRITPI<double>>(PRI)) {
-        q->TPI = std::make_shared<InCoreRITPIContraction<double,double>>(*eri_typed);
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(PRI)) {
-        q->TPI = std::make_shared<InCore4indexTPIContraction<double,double>>(*eri_typed);
-      } else {
-        CErr("Invalid ERInts type for Wavefunction<double,double>",std::cout);
-      }
-
-      // electron-proton 2-particle
-      if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(EPAI)) {
-        p->EPAI = std::make_shared<GTODirectTPIContraction<double,double>>(*eri_typed);
-        q->EPAI = std::make_shared<GTODirectTPIContraction<double,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(EPAI)) {
-        p->EPAI = std::make_shared<InCore4indexTPIContraction<double,double>>(*eri_typed);
-        q->EPAI = std::make_shared<InCore4indexTPIContraction<double,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
-      } else {
-        CErr("Invalid ERInts type for Wavefunction<double,double>",std::cout);
-      }
-    } else if(auto p = std::dynamic_pointer_cast<NEOSingleSlater<dcomplex,double>>(elec_ss)) {
-      auto q = std::dynamic_pointer_cast<NEOSingleSlater<dcomplex,double>>(prot_ss);
-      std::shared_ptr<TwoPInts<double>> ERI =
-          std::dynamic_pointer_cast<Integrals<double>>(eaoints)->TPI;
-      std::shared_ptr<TwoPInts<double>> PRI =
-          std::dynamic_pointer_cast<Integrals<double>>(paoints)->TPI;
-      std::shared_ptr<TwoPInts<double>> EPAI =
-          std::dynamic_pointer_cast<Integrals<double>>(epaoints)->TPI;
-      
-      // electron 2-particle
-      if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(ERI)) {
-        p->TPI = std::make_shared<GTODirectTPIContraction<dcomplex,double>>(*eri_typed);
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCoreRITPI<double>>(ERI)) {
-        p->TPI = std::make_shared<InCoreRITPIContraction<dcomplex,double>>(*eri_typed);
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(ERI)) {
-        p->TPI = std::make_shared<InCore4indexTPIContraction<dcomplex,double>>(*eri_typed);
-      } else {
-        CErr("Invalid ERInts type for Wavefunction<dcomplex,double>",std::cout);
-      }
-
-      // proton 2-particle
-      if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(PRI)) {
-        q->TPI = std::make_shared<GTODirectTPIContraction<dcomplex,double>>(*eri_typed);
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCoreRITPI<double>>(PRI)) {
-        q->TPI = std::make_shared<InCoreRITPIContraction<dcomplex,double>>(*eri_typed);
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(PRI)) {
-        q->TPI = std::make_shared<InCore4indexTPIContraction<dcomplex,double>>(*eri_typed);
-      } else {
-        CErr("Invalid ERInts type for Wavefunction<dcomplex,double>",std::cout);
-      }
-
-      // elctron-proton 2-particle
-      if (auto eri_typed = std::dynamic_pointer_cast<DirectTPI<double>>(EPAI)) {
-        p->EPAI = std::make_shared<GTODirectTPIContraction<dcomplex,double>>(*eri_typed);
-        q->EPAI = std::make_shared<GTODirectTPIContraction<dcomplex,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
-      } else if (auto eri_typed = std::dynamic_pointer_cast<InCore4indexTPI<double>>(EPAI)) {
-        p->EPAI = std::make_shared<InCore4indexTPIContraction<dcomplex,double>>(*eri_typed);
-        q->EPAI = std::make_shared<InCore4indexTPIContraction<dcomplex,double>>(*eri_typed);
-        q->EPAI->auxContract = true;
-      } else {
-        CErr("Invalid ERInts type for Wavefunction<dcomplex,double>",std::cout);
-      }
-    } else {
-      CErr("Complex INT is not a valid option for NEO",std::cout);
-    }
-
-
-
-
-
-
-
-
-
-
-
-    return {elec_ss, prot_ss};
-
-  };
 
 
 
@@ -1591,5 +1183,89 @@ namespace ChronusQ {
     return out; // Return std::ostream reference
 
   }
+
+
+  // Regular SingleSlater wrapper
+  SingleSlaterOptions CQSingleSlaterOptions(
+    std::ostream &out, CQInputFile &input,
+    Molecule &mol, BasisSet &basis,
+    std::shared_ptr<IntegralsBase> aoints) {
+
+    return getSingleSlaterOptions(out, input, mol, basis, aoints, {-1., 1.}, "QM");
+
+  }
+
+
+  // NEO SingleSlater wrapper
+  std::pair<std::shared_ptr<SingleSlaterBase>, SingleSlaterOptions> CQNEOSSOptions(
+    std::ostream &out, CQInputFile &input,
+    CQMemManager &mem, Molecule &mol,
+    BasisSet &ebasis, BasisSet &pbasis,
+    std::shared_ptr<IntegralsBase> eaoints, 
+    std::shared_ptr<IntegralsBase> paoints,
+    std::shared_ptr<IntegralsBase> epaoints) {
+
+    Particle p{-1., 1.};
+#define NEO_LIST(T) \
+    MPI_COMM_WORLD,mem,mol,ebasis,dynamic_cast<Integrals<T>&>(*epaoints),1,false,p
+
+    auto essopt = getSingleSlaterOptions(out, input, mol, ebasis, eaoints, {-1., 1.}, "QM");
+    auto pssopt = getSingleSlaterOptions(out, input, mol, pbasis, paoints, {1., ProtMassPerE}, "PROTQM");
+
+    auto ess = essopt.buildSingleSlater(out, mem, mol, ebasis, eaoints);
+    auto pss = pssopt.buildSingleSlater(out, mem, mol, pbasis, paoints);
+
+    std::shared_ptr<SingleSlaterBase> neoss;
+
+    if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<double,double>>(ess)) {
+      if(auto pss_t = std::dynamic_pointer_cast<SingleSlater<double,double>>(pss)) {
+        auto neoss_t = std::make_shared<NEOSS<double,double>>(NEO_LIST(double));
+        auto epaoints_t = std::dynamic_pointer_cast<Integrals<double>>(epaoints);
+        neoss_t->addSubsystem("Electronic", ess_t, {});
+        neoss_t->addSubsystem("Protonic", pss_t, {{"Electronic", {true, epaoints_t->TPI}}});
+        neoss_t->setOrder({"Protonic", "Electronic"});
+        neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
+
+        // Handle the fact that VXC will be formed by the NEOKohnShamBuilder
+        if( pssopt.refOptions.isEPCRef ) {
+          auto pks_t = std::dynamic_pointer_cast<KohnSham<double,double>>(pss_t);
+          pks_t->doVXC_ = false;
+          if( auto eks_t = std::dynamic_pointer_cast<KohnSham<double,double>>(ess_t) ) {
+            eks_t->doVXC_ = false;
+          }
+        }
+      }
+      else
+        CErr("Electrons and protons must use the same field (real/real) or (complex/complex)");
+    }
+    else if(auto ess_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(ess)) {
+      if(auto pss_t = std::dynamic_pointer_cast<SingleSlater<dcomplex,double>>(pss)) {
+        auto neoss_t = std::make_shared<NEOSS<dcomplex,double>>(NEO_LIST(double));
+        auto epaoints_t = std::dynamic_pointer_cast<Integrals<double>>(epaoints);
+        neoss_t->addSubsystem("Electronic", ess_t, {});
+        neoss_t->addSubsystem("Protonic", pss_t, {{"Electronic", {true, epaoints_t->TPI}}});
+        neoss_t->setOrder({"Protonic", "Electronic"});
+        neoss = std::dynamic_pointer_cast<SingleSlaterBase>(neoss_t);
+
+        // Handle the fact that VXC will be formed by the NEOKohnShamBuilder
+        if( pssopt.refOptions.isEPCRef ) {
+          auto pks_t = std::dynamic_pointer_cast<KohnSham<dcomplex,double>>(pss_t);
+          pks_t->doVXC_ = false;
+          if( auto eks_t = std::dynamic_pointer_cast<KohnSham<dcomplex,double>>(ess_t) ) {
+            eks_t->doVXC_ = false;
+          }
+        }
+      }
+      else
+        CErr("Electrons and protons must use the same field (real/real) or (complex/complex)");
+    }
+    else {
+      CErr("NEO + GIAO NYI!");
+    }
+
+    return {neoss, essopt};
+
+  }
+
 
 }; // namespace ChronusQ

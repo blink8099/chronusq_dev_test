@@ -38,6 +38,7 @@
 
 #include <particleintegrals/twopints/gtodirecttpi.hpp>
 #include <particleintegrals/twopints/giaodirecteri.hpp>
+#include <particleintegrals/gradints/direct.hpp>
 
 #define _FULL_DIRECT
 //#define _SUB_TIMINGS
@@ -1044,10 +1045,6 @@ namespace ChronusQ {
         size_t s4_max =  s3;
 #endif
 
-#if 0
-      auto sigPair34_it = basisSet_.shellData.shData.at(s3).begin();
-      for( const size_t& s4 : basisSet_.shellData.sigShellPair[s3] ) {
-#endif 
       for ( int s4 = 0 ; s4 <=s4_max ; s4++ ){     
         if (s4 > s4_max)
           break;  // for each s3, s4 are stored in monotonically increasing
@@ -1412,8 +1409,8 @@ namespace ChronusQ {
     DirectTPI<IntsT> &tpi =
         dynamic_cast<DirectTPI<IntsT>&>(this->ints_);
     CQMemManager& memManager_ = tpi.memManager();
-    BasisSet& basisSet_  = this->auxContract ? tpi.basisSet2() : tpi.basisSet();
-    BasisSet& basisSet2_ = this->auxContract ? tpi.basisSet()  : tpi.basisSet2();
+    BasisSet& basisSet_  = this->contractSecond ? tpi.basisSet2() : tpi.basisSet();
+    BasisSet& basisSet2_ = this->contractSecond ? tpi.basisSet()  : tpi.basisSet2();
 
     size_t nThreads  = GetNumThreads();
     size_t LAThreads = GetLAThreads();
@@ -1440,8 +1437,8 @@ namespace ChronusQ {
     if(tpi.schwarz() == nullptr or tpi.schwarz2() == nullptr) 
       tpi.computeSchwarz();
 
-    double * schwarz1 = this->auxContract ? tpi.schwarz2() : tpi.schwarz();
-    double * schwarz2 = this->auxContract ? tpi.schwarz()  : tpi.schwarz2();
+    double * schwarz1 = this->contractSecond ? tpi.schwarz2() : tpi.schwarz();
+    double * schwarz2 = this->contractSecond ? tpi.schwarz()  : tpi.schwarz2();
 
     if (sameBasisSet12) schwarz2 = schwarz1;
 #endif
@@ -2122,8 +2119,8 @@ namespace ChronusQ {
     
     // SCR needed for integrals
     DirectTPI<IntsT> &tpi = dynamic_cast<DirectTPI<IntsT>&>(this->ints_);
-    BasisSet& basisSet_  = this->auxContract ? tpi.basisSet2() : tpi.basisSet();
-    BasisSet& basisSet2_ = this->auxContract ? tpi.basisSet()  : tpi.basisSet2();
+    BasisSet& basisSet_  = this->contractSecond ? tpi.basisSet2() : tpi.basisSet();
+    BasisSet& basisSet2_ = this->contractSecond ? tpi.basisSet()  : tpi.basisSet2();
     
     const size_t nBasis   = basisSet_.nBasis;
     const size_t snBasis  = basisSet2_.nBasis;
@@ -2184,6 +2181,393 @@ namespace ChronusQ {
     } else {
       directScaffoldNew(c, screen, list);
     }
+  }
+
+
+  template <typename MatsT, typename IntsT>
+  void DirectGradContraction<MatsT,IntsT>::directScaffoldGrad(
+      MPI_Comm comm,
+      const bool screen,
+      std::vector<std::vector<TwoBodyContraction<MatsT>>>& cList) const {
+
+    // This method has no screening right now
+    // Screening should be done according to 10.1002/jcc.540120903
+    //
+    // TODO: MPI is also likely broken for this
+    //
+
+    DirectTPI<IntsT> &tpi =
+        dynamic_cast<DirectTPI<IntsT>&>(*this->grad_[0]);
+    CQMemManager& memManager_ = tpi.memManager();
+    BasisSet& basisSet_  = this->contractSecond ? tpi.basisSet2() : tpi.basisSet();
+    BasisSet& basisSet2_ = this->contractSecond ? tpi.basisSet()  : tpi.basisSet2();
+
+    size_t nThreads  = GetNumThreads();
+    size_t LAThreads = GetLAThreads();
+    size_t mpiRank   = MPIRank(comm);
+    size_t mpiSize   = MPISize(comm);
+
+    SetLAThreads(1); // Turn off parallelism in LA functions
+
+    const size_t nBasis   = basisSet_.nBasis;
+    const size_t snBasis  = basisSet2_.nBasis;
+    const size_t nShell   = basisSet_.nShell;
+    const size_t snShell  = basisSet2_.nShell;
+    const size_t nTotGrad = cList.size();
+    const size_t nMat     = cList[0].size();
+
+    bool NonHermitian = false;
+    for (auto& gradComp: cList)
+      for (auto& x: gradComp)
+        NonHermitian |= not x.HER;
+
+    std::vector<libint2::Engine> engines(nThreads);
+
+    // Construct engine for master thread
+    engines[0] = libint2::Engine(libint2::Operator::coulomb,
+      std::max(basisSet_.maxPrim, basisSet2_.maxPrim), 
+      std::max(basisSet_.maxL, basisSet2_.maxL),1);
+
+    // Allocate scratch for raw integral batches
+    size_t maxShellSize = 
+      std::max_element(basisSet_.shells.begin(),basisSet_.shells.end(),
+        [](libint2::Shell &sh1, libint2::Shell &sh2) {
+          return sh1.size() < sh2.size();
+        })->size();
+
+    size_t maxShellSize2 = 
+      std::max_element(basisSet2_.shells.begin(),basisSet2_.shells.end(),
+        [](libint2::Shell &sh1, libint2::Shell &sh2) {
+          return sh1.size() < sh2.size();
+        })->size();
+
+    // lenIntBuffer is allocated to be able to store ERI's of the shell with
+    // the highest angular momentum
+    size_t lenIntBuffer = 
+      maxShellSize * maxShellSize * maxShellSize2 * maxShellSize2; 
+
+    lenIntBuffer *= sizeof(MatsT) / sizeof(double);
+
+    size_t nBuffer = 2;
+
+    // 12 derivatives per integral (3 xyz * 4 shells) 
+    size_t nGrad = 12;
+
+    
+    double * intBuffer = 
+      memManager_.malloc<double>(nGrad*nBuffer*lenIntBuffer*nThreads);
+   
+    double *intBuffer2 = intBuffer + nGrad*nThreads*lenIntBuffer;
+
+    // Allocate thread local storage to store integral contractions
+    // Threads, Gradients, Matrices, Basis, Basis
+    std::vector<std::vector<std::vector<MatsT*>>> AXthreads;
+    MatsT *AXRaw = nullptr;
+    if(nThreads != 1) {
+      AXRaw = memManager_.malloc<MatsT>(nTotGrad*nThreads*nMat*nBasis*nBasis);    
+      memset(AXRaw,0,nTotGrad*nThreads*nMat*nBasis*nBasis*sizeof(MatsT));
+    }
+
+    if(nThreads == 1) {
+      AXthreads.emplace_back();
+      for(auto& gradComp: cList) {
+        AXthreads.back().emplace_back();
+        for(auto& mat: gradComp) {
+          AXthreads.back().back().push_back(mat.AX);
+        }
+      }
+    } else {
+      for(auto iThread = 0; iThread < nThreads; iThread++) {
+        AXthreads.emplace_back();
+        for(auto iGrad = 0; iGrad < nTotGrad; iGrad++) {
+          AXthreads.back().emplace_back();
+          for(auto iMat = 0; iMat < nMat; iMat++)
+            AXthreads.back().back().push_back(
+              AXRaw +
+              iThread*nMat*nBasis*nBasis*nTotGrad +
+              iGrad*nMat*nBasis*nBasis +
+              iMat*nBasis*nBasis
+            );
+        }
+      }
+    }
+
+    // Set Linbint precision
+    engines[0].set_precision(std::numeric_limits<double>::epsilon());
+
+    // Copy master thread engine to other threads
+    for(size_t i = 1; i < nThreads; i++) engines[i] = engines[0];
+
+    // Keeping track of number of integrals skipped
+    std::vector<size_t> nSkip(nThreads,0);
+
+
+    //
+    // Parallel region - start work
+    //
+    #pragma omp parallel
+    {
+
+    // Set up thread local storage
+
+    // SMP info
+    size_t thread_id = GetThreadID();
+
+    auto &engine = engines[thread_id];
+    const auto& buf_vec = engine.results();
+    
+    auto &AX_loc = AXthreads[thread_id];
+
+
+    double * intBuffer_loc  = intBuffer  + thread_id*nGrad*lenIntBuffer;
+    double * intBuffer2_loc = intBuffer2 + thread_id*nGrad*lenIntBuffer;
+
+    size_t n1,n2;
+    size_t shell_atoms[4];
+
+    // Always Loop over s2 <= s1
+    for(size_t s1(0ul), bf1_s(0ul), s12(0ul); s1 < nShell; bf1_s+=n1, s1++) { 
+
+      n1 = basisSet_.shells[s1].size(); // Size of Shell 1
+      shell_atoms[0] = basisSet_.mapSh2Cen[s1]; // Atomic center of shell 1
+
+    auto sigPair12_it = basisSet_.shellData.shData.at(s1).begin();
+    for( const size_t& s2 : basisSet_.shellData.sigShellPair[s1] ) {
+      size_t bf2_s = basisSet_.mapSh2Bf[s2];
+
+      n2 = basisSet_.shells[s2].size(); // Size of Shell 2
+      shell_atoms[1] = basisSet_.mapSh2Cen[s2]; // Atomic center of shell 2
+
+      const auto * sigPair12 = sigPair12_it->get();
+      sigPair12_it++;
+
+      // Round-Robin work distribution
+      if( (s12++) % nThreads != thread_id ) continue;
+
+
+#ifdef _FULL_DIRECT
+      // Deneneracy factor for s1,s2 pair
+      double s12_deg = (s1 == s2) ? 1.0 : 2.0;
+#endif
+
+// The upper bound of s3 is s1 for the 8-fold symmetry and
+// nShell for 4-fold.
+#ifdef _USE_EIGHT_FOLD
+  #define S3_MAX s1
+#elif defined(_USE_FOUR_FOLD)
+  // the "-" is for the <= in the loop
+  #define S3_MAX nShell - 1
+#endif
+
+
+      size_t n3,n4;
+      size_t s3_max = (&basisSet_ == &basisSet2_) ? S3_MAX : snShell - 1;
+
+      for(size_t s3(0ul), bf3_s(0ul), s34(0ul); s3 <= s3_max; s3++, bf3_s += n3) { 
+
+        n3 = basisSet2_.shells[s3].size(); // Size of Shell 3
+        shell_atoms[2] = basisSet2_.mapSh2Cen[s3]; // Atomic center of shell 3
+
+
+// The upper bound of s4 is either s2 or s3 based on s1 and s3 for
+// the 8-fold symmetry and s3 for the 4-fold symmetry
+#ifdef _USE_EIGHT_FOLD
+        size_t s4_max = (s1 == s3) ? s2 : s3;
+#elif defined(_USE_FOUR_FOLD)
+        size_t s4_max =  s3;
+#endif
+      if (&basisSet_ != &basisSet2_)
+        s4_max =  s3;
+
+      auto sigPair34_it = basisSet2_.shellData.shData.at(s3).begin();
+      for( const size_t& s4 : basisSet2_.shellData.sigShellPair[s3] ) {
+
+        if (s4 > s4_max)
+          break;  // for each s3, s4 are stored in monotonically increasing
+                  // order
+
+        const auto * sigPair34 = sigPair34_it->get();
+        sigPair34_it++;
+                    
+        size_t bf4_s = basisSet2_.mapSh2Bf[s4];
+
+        n4 = basisSet2_.shells[s4].size(); // Size of Shell 4
+        shell_atoms[3] = basisSet2_.mapSh2Cen[s4]; // Atomic center of shell 4
+
+#ifdef _FULL_DIRECT
+
+        // Degeneracy factor for s3,s4 pair
+        double s34_deg = (s3 == s4) ? 1.0 : 2.0;
+
+        // Degeneracy factor for s1, s2, s3, s4 quartet
+        double s12_34_deg = 2.0;
+        if (&basisSet_ == &basisSet2_)
+          s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
+
+        // Total degeneracy factor
+        double s1234_deg = s12_deg * s34_deg * s12_34_deg;
+
+#endif
+
+        engine.compute2<
+          libint2::Operator::coulomb, libint2::BraKet::xx_xx, 1>(
+          basisSet_.shells[s1],
+          basisSet_.shells[s2],
+          basisSet2_.shells[s3],
+          basisSet2_.shells[s4]);
+
+        // Scale the buffer by the degeneracy factor and store
+        // in infBuffer
+        for(size_t d = 0; d < buf_vec.size(); d++) {
+          if (buf_vec[d] == nullptr) continue;
+          std::transform(
+            buf_vec[d],
+            buf_vec[d] + n1*n2*n3*n4,
+            intBuffer_loc+d*lenIntBuffer,
+            std::bind1st(std::multiplies<double>(),0.5*s1234_deg)
+          );
+        }
+
+        size_t b1,b2,b3,b4;
+        double *Xp1, *Xp2;
+        double X1,X2;
+        MatsT  T1,T2,T3,T4;
+        MatsT  *Tp1,*Tp2;
+
+        // Loop over gradient components
+        for ( auto iGrad = 0; iGrad < nGrad; iGrad++ ) {
+
+        // Libint internal screening (for each gradient component)
+        const double* buff = buf_vec[iGrad];
+        if ( buff == nullptr ) continue;
+
+        const size_t xyz = iGrad % 3; // Cartesian component of gradient
+        const size_t iSh = iGrad / 3; // Shell on which the gradient is taken
+
+        // Gradient component that is relevant for this contraction
+        std::vector<TwoBodyContraction<MatsT>>& gradList =
+          cList[shell_atoms[iSh]*3 + xyz];
+
+        // Thread local storage for this contraction
+        auto& AX_Grad_loc = AX_loc[shell_atoms[iSh]*3 + xyz];
+
+        // Portion of the integral buffer for this gradient
+        double* intBuffer_Grad_loc = intBuffer_loc + iGrad*lenIntBuffer;
+
+        // loop over matrices in contraction
+        for(auto iMat = 0; iMat < nMat; iMat++) {
+
+          // Hermetian contraction
+          if( gradList[iMat].HER ) { 
+            if ( gradList[iMat].contType == COULOMB ) {
+            // loop over basis functions in the shell quartet
+            for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)
+            for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++) {
+              // Cache i,j variables
+              b1 = bf1 + nBasis*bf2;
+              X1 = *reinterpret_cast<double*>(gradList[iMat].X  + b1);
+              Xp1 = reinterpret_cast<double*>(AX_Grad_loc[iMat] + b1);
+            for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++)
+            for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) {
+
+              // J(1,2) += I * X(4,3)
+              *Xp1 += *GetRealPtr(gradList[iMat].X,bf4,bf3,snBasis) * intBuffer_Grad_loc[ijkl];
+
+              // J(4,3) += I * X(1,2)
+              if (&basisSet_ == &basisSet2_)
+                *GetRealPtr(AX_Grad_loc[iMat],bf4,bf3,nBasis) +=  X1 * intBuffer_Grad_loc[ijkl];
+
+              // J(2,1) and J(3,4) are handled on symmetrization after
+              // contraction
+            } // kl loop
+            } // ij loop
+
+            } else if( gradList[iMat].contType == EXCHANGE ) {
+              if (&basisSet_ != &basisSet2_)
+                CErr("No exchange contraction between two different basis!", std::cout);
+              for(auto i = 0ul, bf1 = bf1_s, ijkl(0ul); i < n1; i++, bf1++)      
+              for(auto j = 0ul, bf2 = bf2_s; j < n2; j++, bf2++)       
+              for(auto k = 0ul, bf3 = bf3_s; k < n3; k++, bf3++) {
+
+                // Cache i,j,k variables
+                b1 = bf1 + bf3*nBasis;
+                b2 = bf2 + bf3*nBasis;
+
+                T1 = 0.5 * SmartConj(gradList[iMat].X[b1]);
+                T2 = 0.5 * SmartConj(gradList[iMat].X[b2]);
+
+              for(auto l = 0ul, bf4 = bf4_s; l < n4; l++, bf4++, ijkl++) { 
+
+                // Indicies are swapped here to loop over contiguous memory
+                  
+                // K(1,3) += 0.5 * I * X(2,4) = 0.5 * I * CONJ(X(4,2)) (**HER**)
+                AX_Grad_loc[iMat][b1]           += 0.5 * SmartConj(gradList[iMat].X[bf4+nBasis*bf2]) * intBuffer_Grad_loc[ijkl];
+
+                // K(4,2) += 0.5 * I * X(3,1) = 0.5 * I * CONJ(X(1,3)) (**HER**)
+                AX_Grad_loc[iMat][bf4 + bf2*nBasis] += T1 * intBuffer_Grad_loc[ijkl];
+
+                // K(4,1) += 0.5 * I * X(3,2) = 0.5 * I * CONJ(X(2,3)) (**HER**)
+                AX_Grad_loc[iMat][bf4 + bf1*nBasis] += T2 * intBuffer_Grad_loc[ijkl];
+
+                // K(2,3) += 0.5 * I * X(1,4) = 0.5 * I * CONJ(X(4,1)) (**HER**)
+                AX_Grad_loc[iMat][b2]           += 0.5 * SmartConj(gradList[iMat].X[bf4+nBasis*bf1]) * intBuffer_Grad_loc[ijkl];
+
+              } // l loop
+              } // ijk
+            } // EXCHANGE
+
+          // Nonhermitian
+          } else {
+            CErr("Nonhermetian NYI!");
+
+          } // Symmetry
+
+        } // Matrices
+
+
+        } // Gradient components
+
+      } // s4
+      } // s3
+
+    } // s2
+    } // s1
+    
+    } // omp parallel
+
+    MatsT* SCR = memManager_.malloc<MatsT>(nBasis * nBasis);
+    for( auto iGrad = 0; iGrad < nTotGrad; iGrad++ )
+    for( auto iMat = 0; iMat < nMat;  iMat++ ) 
+    for( auto iTh  = 0; iTh < nThreads; iTh++) {
+
+      if( cList[iGrad][iMat].HER ) {
+
+        MatAdd('N','C',nBasis,nBasis,MatsT(0.5),AXthreads[iTh][iGrad][iMat],
+          nBasis,MatsT(0.5),AXthreads[iTh][iGrad][iMat],nBasis,SCR,nBasis);
+
+        if( nThreads != 1 )
+          MatAdd('N','N',nBasis,nBasis,MatsT(1.),SCR,nBasis,MatsT(1.), cList[iGrad][iMat].AX,nBasis,cList[iGrad][iMat].AX,nBasis);
+        else
+          SetMat('N',nBasis,nBasis,MatsT(1.),SCR,nBasis,cList[iGrad][iMat].AX,nBasis);
+
+      } else {
+
+        if( nThreads != 1 )
+          MatAdd('N','N',nBasis,nBasis,MatsT(0.5),AXthreads[iTh][iGrad][iMat],nBasis,
+            MatsT(1.), cList[iGrad][iMat].AX,nBasis,cList[iGrad][iMat].AX,nBasis);
+        else 
+          blas::scal(nBasis*nBasis,MatsT(0.5),cList[iGrad][iMat].AX,1);
+
+      }
+
+    };
+    memManager_.free(SCR);
+
+    memManager_.free(intBuffer);
+    if(AXRaw != nullptr) memManager_.free(AXRaw);
+    // Turn threads for LA back on
+    SetLAThreads(LAThreads);
+
   }
 
 }; // namespace ChronusQ

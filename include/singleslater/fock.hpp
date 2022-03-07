@@ -69,24 +69,28 @@ namespace ChronusQ {
    *  \param [in] typ Which Hamiltonian to build
    */ 
   template <typename MatsT, typename IntsT>
-  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert) {
+  void SingleSlater<MatsT,IntsT>::formCoreH(EMPerturbation& emPert, bool save) {
 
     ROOT_ONLY(comm);
 
     ProgramTimer::tick("Form Core H");
 
-    if( coreH != nullptr )
-      CErr("Recomputing the CoreH is not well-defined behaviour",std::cout);
-
-    size_t NB = this->basisSet().nBasis;
+    size_t NB = basisSet().nBasis;
     if( nC == 4 ) NB = 2 * NB;
 
-    if(not iCS and nC == 1 and this->basisSet().basisType == COMPLEX_GIAO)
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
-    else if(nC == 2 or nC == 4)
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
-    else
-      coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
+    if( coreH != nullptr ) {
+      coreH->clear();
+
+    } else {
+
+      if(not iCS and nC == 1 and basisSet().basisType == COMPLEX_GIAO)
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false);
+      else if(nC == 2 or nC == 4)
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, true);
+      else
+        coreH = std::make_shared<PauliSpinorSquareMatrices<MatsT>>(memManager, NB, false, false);
+
+    }
 
 
     // Make a copy of HamiltonianOptions
@@ -127,7 +131,7 @@ namespace ChronusQ {
 
 
     // Save the Core Hamiltonian
-    if( savFile.exists() ) {
+    if( savFile.exists() && save) {
 
       const std::array<std::string,4> spinLabel =
         { "SCALAR", "MZ", "MY", "MX" };
@@ -142,6 +146,157 @@ namespace ChronusQ {
     ProgramTimer::tock("Form Core H");
 
   }; // SingleSlater<MatsT,IntsT>::computeCoreH
+
+
+  template <typename MatsT, typename IntsT>
+  std::vector<double> SingleSlater<MatsT,IntsT>::getGrad(EMPerturbation& pert,
+    bool equil, bool saveInts) {
+
+    // Get constants
+    size_t NB = basisSet().nBasis;
+    size_t nSQ  = NB*NB;
+
+    size_t nAtoms = this->molecule().nAtoms;
+    size_t nGrad = 3*nAtoms;
+
+    size_t nSp = fockMatrix->nComponent();
+    bool hasXY = fockMatrix->hasXY();
+    bool hasZ = fockMatrix->hasZ();
+
+
+    // Total gradient
+    std::vector<double> gradient(nGrad, 0.);
+
+    HamiltonianOptions opts = this->aoints.options_;
+
+    auto printGrad = [&](std::string name, std::vector<double>& vecgrad) {
+      std::cout << name << std::endl;
+      std::cout << std::setprecision(12);
+      for( auto iAt = 0; iAt < nAtoms; iAt++ ) {
+        std::cout << " Gradient@I = " << iAt << ":";
+        for( auto iCart = 0; iCart < 3; iCart++ ) {
+          std::cout << "  " << vecgrad[iAt*3 + iCart];
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+    };
+
+
+    // Core H contribution
+    this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
+      {{OVERLAP, 1},
+       {KINETIC, 1},
+       {NUCLEAR_POTENTIAL, 1}
+       },
+       opts
+    );
+
+
+    std::vector<double> coreGrad = coreHBuilder->getGrad(pert, *this);
+    // printGrad("Core H Gradient:", coreGrad);
+
+
+    // 2e contribution
+    this->aoints.computeGradInts(memManager, this->molecule_, basisSet_, pert,
+      {{ELECTRON_REPULSION, 1}},
+      opts
+    );
+    std::vector<double> twoEGrad = fockBuilder->getGDGrad(*this, pert);
+    std::vector<double> pulayGrad;
+    std::vector<double> nucGrad;
+
+    // Pulay contribution
+    //
+    // NOTE: We may want to change these methods out to use just the energy
+    //   weighted density matrix - can probably get some speed up.
+    if( equil ) {
+      // TODO
+    }
+    else {
+
+      // S^{-1/2}
+      auto orthoForward = orthoAB->forwardPointer();
+
+      // Allocate
+      SquareMatrix<MatsT> vdv(memManager, NB);
+      SquareMatrix<MatsT> dvv(memManager, NB);
+      PauliSpinorSquareMatrices<MatsT> SCR(memManager, NB, hasXY, hasZ);
+
+      // XXX: This requires copying the overlap gradients, but it is for
+      //      copying to MatsT != IntsT
+      std::vector<SquareMatrix<MatsT>> gradOverlap;
+      gradOverlap.reserve(nGrad);
+      for( size_t iGrad = 0; iGrad < nGrad; iGrad++ ) {
+        gradOverlap.emplace_back((*this->aoints.gradOverlap)[iGrad]->matrix());
+      }
+
+      // Calculate dV
+      std::vector<SquareMatrix<MatsT>> gradOrtho;
+      gradOrtho.reserve(nGrad);
+      for( size_t iGrad = 0; iGrad < nGrad; iGrad++ ) {
+        gradOrtho.emplace_back(memManager, NB);
+      }
+      orthoAB->getOrthogonalizationGradients(gradOrtho, gradOverlap);
+
+      for( size_t iGrad = 0; iGrad < nGrad; iGrad++ ) {
+
+        // Form VdV and dVV
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,MatsT(1.),orthoForward->pointer(),NB,
+          gradOrtho[iGrad].pointer(),NB,MatsT(0.),vdv.pointer(),NB);
+        blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+          NB,NB,NB,MatsT(1.),gradOrtho[iGrad].pointer(),NB,
+          orthoForward->pointer(),NB,MatsT(0.),dvv.pointer(),NB);
+
+        // Form FVdV and dVVF
+        for( auto iSp = 0; iSp < nSp; iSp++ ) {
+          auto comp = static_cast<PAULI_SPINOR_COMPS>(iSp);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+            NB,NB,NB,MatsT(1.),(*fockMatrix)[comp].pointer(),NB,
+            vdv.pointer(),NB,MatsT(0.),SCR[comp].pointer(),NB);
+          blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,
+            NB,NB,NB,MatsT(1.),dvv.pointer(),NB,
+            (*fockMatrix)[comp].pointer(),NB,MatsT(1.),SCR[comp].pointer(),NB);
+        }
+
+        // Trace
+        double gradVal = this->template computeOBProperty<SCALAR>(
+          SCR.S().pointer()
+        );
+
+        if( hasZ )
+          gradVal += this->template computeOBProperty<MZ>(
+            SCR.Z().pointer()
+          );
+        if( hasXY ) {
+          gradVal += this->template computeOBProperty<MY>(
+            SCR.Y().pointer()
+          );
+          gradVal += this->template computeOBProperty<MX>(
+            SCR.X().pointer()
+          );
+        }
+
+        pulayGrad.push_back(-0.5*gradVal);
+        size_t iAt = iGrad/3;
+        size_t iXYZ = iGrad%3;
+        gradient[iGrad] = coreGrad[iGrad] + twoEGrad[iGrad] - 0.5*gradVal
+                          + this->molecule().nucRepForce[iAt][iXYZ];
+        nucGrad.push_back(this->molecule().nucRepForce[iAt][iXYZ]);
+      }
+
+    }
+
+    // printGrad("Nuclear Gradient:", nucGrad);
+    // printGrad("G Gradient:", twoEGrad);
+    // printGrad("Pulay Gradient:", pulayGrad);
+
+    // this->onePDM->output(std::cout, "OnePDM in Gradient Contractions", true);
+
+    return gradient;
+
+  };
 
 
   /**

@@ -97,6 +97,10 @@ namespace ChronusQ {
     // MO swap functions
     virtual void swapMOs(std::vector<std::vector<std::pair<size_t, size_t>>>&, SpinType sp) = 0;
 
+    // Get geometric gradients
+    virtual std::vector<double> getGrad(EMPerturbation&, bool equil,
+      bool saveInts) = 0;
+
   }; // class WaveFunctionBase
 
 }; // namespace ChronusQ

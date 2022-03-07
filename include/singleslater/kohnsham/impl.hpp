@@ -41,7 +41,8 @@ namespace ChronusQ {
     SingleSlater<MatsT,IntsT>(dynamic_cast<const SingleSlater<MatsU,IntsT>&>(other),dummy),
     QuantumBase(dynamic_cast<const QuantumBase&>(other)),
     WaveFunctionBase(dynamic_cast<const WaveFunctionBase&>(other)),
-    VXC(std::make_shared<PauliSpinorSquareMatrices<double>>(*other.VXC))
+    VXC(std::make_shared<PauliSpinorSquareMatrices<double>>(*other.VXC)),
+    doVXC_(other.doVXC_)
     { 
       KOHNSHAM_COLLECTIVE_OP(COPY_OTHER_MEMBER,COPY_OTHER_MEMBER_VEC_OP);
     };
@@ -52,7 +53,7 @@ namespace ChronusQ {
     SingleSlater<MatsT,IntsT>(dynamic_cast<SingleSlater<MatsU,IntsT>&&>(std::move(other)),dummy),
     QuantumBase(dynamic_cast<QuantumBase&&>(std::move(other))),
     WaveFunctionBase(dynamic_cast<WaveFunctionBase&&>(std::move(other))),
-    VXC(other.VXC)
+    VXC(std::move(other.VXC)), doVXC_(std::move(other.doVXC_))
     { 
       KOHNSHAM_COLLECTIVE_OP(MOVE_OTHER_MEMBER,MOVE_OTHER_MEMBER_VEC_OP);
     };

@@ -589,7 +589,7 @@ namespace ChronusQ {
     SingleSlater<MatsT,IntsT> &fourCompSS = *ptr;
 
     // Compute 4C core Hamiltonian
-    fourCompSS.formCoreH(emPert);
+    fourCompSS.formCoreH(emPert, true);
     uncontractedInts_ = fourCompSS.aoints;
 
     if (ssOptions_.hamiltonianOptions.x2cType == X2C_TYPE::ONEE) {

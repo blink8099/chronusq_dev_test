@@ -133,8 +133,9 @@ namespace ChronusQ {
         *this->onePDM += extrap.coeffs[j] * diisOnePDM[j];
       }
     } else {
-      std::cout << "\n    *** WARNING: DIIS Inversion Failed -- "
-                << " Defaulting to Fixed-Point step ***\n" << std::endl;
+      if( printLevel > 0 )
+        std::cout << "\n    *** WARNING: DIIS Inversion Failed -- "
+                  << " Defaulting to Fixed-Point step ***\n" << std::endl;
     }
 
     // Transform AO fock into the orthonormal basis

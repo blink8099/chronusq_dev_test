@@ -64,8 +64,9 @@ namespace ChronusQ {
       std::copy_n(other.TPI, NB2*sNB2, TPI);
     }
     InCore4indexTPI( InCore4indexTPI &&other ): TwoPInts<IntsT>(std::move(other)),
-        NB2(other.NB2), sNB2(other.sNB2), NB3(other.NB3), 
-        TPI(other.TPI) { other.TPI = nullptr; }
+      NB2(other.NB2), sNB2(other.sNB2), NB3(other.NB3), TPI(other.TPI) {
+      other.TPI = nullptr;
+    }
 
     InCore4indexTPI& operator=( const InCore4indexTPI &other ) {
       if (this != &other) { // self-assignment check expected
@@ -229,17 +230,25 @@ namespace ChronusQ {
 
     template <typename MatsU>
     InCore4indexTPIContraction(
-        const InCore4indexTPIContraction<MatsU,IntsT> &other, int dummy = 0 ):
-      InCore4indexTPIContraction(other.ints_) {}
+      const InCore4indexTPIContraction<MatsU,IntsT> &other, int dummy = 0 ):
+      InCore4indexTPIContraction(other.ints_) {
+      this->contractSecond = other.contractSecond;
+    }
     template <typename MatsU>
     InCore4indexTPIContraction(
-        InCore4indexTPIContraction<MatsU,IntsT> &&other, int dummy = 0 ):
-      InCore4indexTPIContraction(other.ints_) {}
+      InCore4indexTPIContraction<MatsU,IntsT> &&other, int dummy = 0 ):
+      InCore4indexTPIContraction(other.ints_) {
+      this->contractSecond = other.contractSecond;
+    }
 
     InCore4indexTPIContraction( const InCore4indexTPIContraction &other ):
-      InCore4indexTPIContraction(other, 0) {}
+      InCore4indexTPIContraction(other, 0) {
+      this->contractSecond = other.contractSecond;
+    }
     InCore4indexTPIContraction( InCore4indexTPIContraction &&other ):
-      InCore4indexTPIContraction(std::move(other), 0) {}
+      InCore4indexTPIContraction(std::move(other), 0) {
+      this->contractSecond = other.contractSecond;
+    }
 
     // Computation interfaces
     virtual void twoBodyContract(

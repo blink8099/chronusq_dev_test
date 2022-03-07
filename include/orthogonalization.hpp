@@ -124,6 +124,9 @@ public:
   void orthogonalizeStates(SquareMatrix<MatsT>& mo, size_t nStates, size_t disp=0) const;
     // nStates = number of States to orthogonalize
     // disp    = number of vectors to shift by e.g. NBC/2 to get to the positive energy states for 4C
+
+  void getOrthogonalizationGradients(std::vector<SquareMatrix<MatsT>>&,
+    std::vector<SquareMatrix<MatsT>>&);
 };
 
 };  // namespace ChronusQ

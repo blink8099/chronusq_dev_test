@@ -46,7 +46,7 @@ namespace ChronusQ {
   };
 
   template <template <typename, typename> class _SSTyp, typename IntsT>
-  void RealTime<_SSTyp,IntsT>::formFock(bool increment, double t) {
+  void RealTime<_SSTyp,IntsT>::formFock(bool increment, double t, size_t idx) {
 
     ProgramTimer::timeOp("Form Fock", [&]() {
 
@@ -58,7 +58,7 @@ namespace ChronusQ {
         for( auto& field : scfPert.fields )
           pert_t.addField( field );
 
-      propagator_.formFock(pert_t,increment);
+      systems_[idx]->formFock(pert_t,increment);
 
     });
 

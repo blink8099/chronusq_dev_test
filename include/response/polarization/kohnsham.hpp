@@ -44,7 +44,7 @@ namespace ChronusQ {
 
     KohnSham<MatsT, IntsT> &ks = dynamic_cast<KohnSham<MatsT, IntsT>&>(*this->ref_);
 
-    const size_t N        = this->nSingleDim_ * (this->doReduced ? 2 : 1);  
+    const size_t N        = this->getNSingleDim(this->genSettings.doTDA) * (this->doReduced ? 2 : 1);  
     const size_t tdOffSet = N / 2;
     const size_t chunk    = 600;
 
@@ -78,8 +78,8 @@ namespace ChronusQ {
 
         // Transform ph vector MO -> AO
         auto cList = 
-          this->template phTransitionVecMO2AO<U>(c,scatter,nDo,N,V_c,
-              V_c + tdOffSet);
+          this->template phTransitionVecMO2AO<U>(c, scatter, nDo, N, ks, ks,
+            true, V_c, V_c + tdOffSet);
 
         TPI->twoBodyContract(c,cList); // form G[V]
         ks.formFXC(c,cList); // Fxc contraction
@@ -89,11 +89,11 @@ namespace ChronusQ {
         if( MPIRank(c) == 0 ) {
 
           // Transform ph vector AO -> MO
-          this->phTransitionVecAO2MO(nDo,N,cList,HV_c,HV_c + tdOffSet);
+          this->phTransitionVecAO2MO(nDo,N,cList,ks,true,HV_c,HV_c + tdOffSet);
 
           // Scale by diagonals
-          this->phEpsilonScale(true,false,nDo,N,V_c,HV_c);
-          this->phEpsilonScale(true,false,nDo,N,V_c+tdOffSet,
+          this->phEpsilonScale(true,false,nDo,N,ks,V_c,HV_c);
+          this->phEpsilonScale(true,false,nDo,N,ks,V_c+tdOffSet,
             HV_c+tdOffSet);
 
         }

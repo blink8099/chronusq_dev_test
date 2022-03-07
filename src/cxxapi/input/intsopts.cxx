@@ -49,6 +49,7 @@ namespace ChronusQ {
     // Allowed keywords
     std::vector<std::string> allowedKeywords = {
       "ALG",          // Direct or Incore?
+      "GRADALG",      // Direct or Incore for gradients?
       "TPITRANSALG",   // N5 or N6
       "SCHWARZ",     // double
       "RI",           // AUXBASIS or CHOLESKY or False

@@ -49,7 +49,6 @@ extern "C" {
 //
 
 /* Plain ERI (ij|kl) */
-CQ_CINT_INT2E_WRAPPER(int2e_spinor);
 CQ_INT_WRAPPER(int2e_cart);
 CQ_INT_WRAPPER(int2e_sph);
 

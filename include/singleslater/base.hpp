@@ -53,6 +53,7 @@ namespace ChronusQ {
     RefType refType = isRRef;    // R/U/G/2c/X2C/4c
 
     bool isKSRef = false;        // HF or DFT
+    bool isEPCRef = false;       // NEO-KS or not
 
     size_t nC = 1;               // number of component
     bool iCS = true;             // closed shell or not
@@ -79,6 +80,7 @@ namespace ChronusQ {
   enum SS_GUESS {
     CORE,
     SAD,
+    TIGHT,
     RANDOM,
     READMO,
     READDEN,
@@ -251,7 +253,7 @@ namespace ChronusQ {
     virtual void formGuess(const SingleSlaterOptions&) = 0;
 
     //   Form the core Hamiltonian
-    virtual void formCoreH(EMPerturbation&) = 0;
+    virtual void formCoreH(EMPerturbation&, bool) = 0;
 
     //   Save the current state of the wave function
     virtual void saveCurrentState() = 0;

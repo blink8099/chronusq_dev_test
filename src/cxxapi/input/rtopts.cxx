@@ -35,7 +35,9 @@ namespace ChronusQ {
 
     // Allowed keywords
     std::vector<std::string> allowedKeywords = {
-      "TMAX",
+      "TYPE",          // Type of dynamics: BOMD (Default), Ehrenfest, RT
+      "TMAX",          // The total time for the whole dynamics: 100 fs (Default)
+      "UNITS",         // The units of time: FS (Default), AU
       "DELTAT",
       "IRSTRT",
       "FIELD",
@@ -104,6 +106,9 @@ namespace ChronusQ {
 
 
     // Construct RT object
+    CONSTRUCT_RT( NEOSS, double, double     );
+    CONSTRUCT_RT( NEOSS, dcomplex, double   );
+    CONSTRUCT_RT( NEOSS, dcomplex, dcomplex );
 
     CONSTRUCT_RT( HartreeFock, double, double     );
     CONSTRUCT_RT( HartreeFock, dcomplex, double   );
@@ -113,8 +118,7 @@ namespace ChronusQ {
     CONSTRUCT_RT( KohnSham, dcomplex, double   );
   //CONSTRUCT_RT( KohnSham, dcomplex, dcomplex );
 
-
-    // Parse Options
+     // Parse Options
 
     try {
       rt->intScheme.tMax = input.getData<double>("RT.TMAX");

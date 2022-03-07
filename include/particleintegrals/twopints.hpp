@@ -176,15 +176,23 @@ namespace ChronusQ {
     TPIContractions(TwoPInts<IntsT> &tpi): ints_(tpi) {}
     template <typename MatsU>
     TPIContractions( const TPIContractions<MatsU,IntsT> &other, int dummy = 0 ):
-      TPIContractions(other.ints_) {}
+      TPIContractions(other.ints_) {
+      contractSecond = other.contractSecond;
+    }
     template <typename MatsU>
     TPIContractions( TPIContractions<MatsU,IntsT> &&other, int dummy = 0 ):
-      TPIContractions(other.ints_) {}
+      TPIContractions(other.ints_) {
+      contractSecond = other.contractSecond;
+    }
 
     TPIContractions( const TPIContractions &other ):
-      TPIContractions(other, 0) {}
+      TPIContractions(other, 0) {
+      contractSecond = other.contractSecond;
+    }
     TPIContractions( TPIContractions &&other ):
-      TPIContractions(std::move(other), 0) {}
+      TPIContractions(std::move(other), 0) {
+      contractSecond = other.contractSecond;
+    }
 
     TwoPInts<IntsT>& ints() { return ints_; }
     const TwoPInts<IntsT>& ints() const { return ints_; }
@@ -234,8 +242,8 @@ namespace ChronusQ {
     static std::shared_ptr<TPIContractions<MatsU,IntsT>>
     convert(const std::shared_ptr<TPIContractions<MatsT,IntsT>>&);
 
-    // Whether the contraction is done in the 
-    bool auxContract = false;
+    // Whether the contraction is done in the first or second basis
+    bool contractSecond = false;
 
   }; // class TPIContractions
 

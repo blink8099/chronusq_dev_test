@@ -32,6 +32,7 @@
 #include <particleintegrals/twopints/incore4indextpi.hpp>
 #include <particleintegrals/twopints/incoreritpi.hpp>
 #include <particleintegrals/twopints/incore4indexreleri.hpp>
+#include <particleintegrals/gradints/incore.hpp>
 
 // Use stupid but bullet proof incore contraction for debug
 //#define _BULLET_PROOF_INCORE
@@ -121,7 +122,7 @@ namespace ChronusQ {
     size_t sNB2 = sNB*sNB;
 
     // need to swap NB and sNB if contraction is done in aux
-    if (this->auxContract) {
+    if (this->contractSecond) {
       std::swap(NB,sNB);
       std::swap(NB2,sNB2);
     }
@@ -145,10 +146,9 @@ namespace ChronusQ {
 
       if( extractRealPartX ) {
 
-        size_t Xdim = this->auxContract ? sNB2 : NB2;
-        X = memManager_.malloc<IntsT>(Xdim);
-        for(auto k = 0ul; k < Xdim; k++) X[k] = std::real(C.X[k]);
-      }
+      X = memManager_.malloc<IntsT>(sNB2);
+      for(auto k = 0ul; k < sNB2; k++) X[k] = std::real(C.X[k]);
+    }
 
       if( allocAXScratch ) {
 
@@ -160,20 +160,21 @@ namespace ChronusQ {
 
       #ifdef _BULLET_PROOF_INCORE
 
-      size_t NB3 = sNB * NB2;
-      for(auto i = 0; i < NB; ++i)
-      for(auto j = 0; j < NB; ++j)
-      for(auto k = 0; k < sNB; ++k)
-      for(auto l = 0; l < sNB; ++l)
+    size_t NB3 = NB * NB2;
+    #pragma omp parallel for
+    for(auto i = 0; i < NB; ++i)
+    for(auto j = 0; j < NB; ++j)
+    for(auto k = 0; k < sNB; ++k)
+    for(auto l = 0; l < sNB; ++l)
 
-        C.AX[i + j*NB] += tpi4I(i, j, l, k) * C.X[k + l*NB];
+      AX[i + j*NB] += tpi4I.pointer()[i+j*NB+k*NB2+l*NB3] * X[l + k*NB];
 
       #else
 
     if( std::is_same<IntsT,dcomplex>::value )
       blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
     else 
-      if (not this->auxContract)
+      if (not this->contractSecond)
         blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),NB2,X,sNB2,IntsT(0.),AX,NB2);
       else
         blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB2,1,sNB2,IntsT(1.),tpi4I.pointer(),sNB2,X,sNB2,IntsT(0.),AX,NB2);
@@ -202,7 +203,7 @@ namespace ChronusQ {
     
     // for non-hermiatin and MatsT = dcomplex, IntsT = double
     } else {
-      if (not this->auxContract)
+      if (not this->contractSecond)
         blas::gemm(blas::Layout::ColMajor,blas::Op::NoTrans,blas::Op::NoTrans,NB2,1,sNB2,MatsT(1.),tpi4I.pointer(),NB2,C.X,sNB2,MatsT(0.),C.AX,NB2);
       else
         blas::gemm(blas::Layout::ColMajor,blas::Op::ConjTrans,blas::Op::NoTrans,NB2,1,sNB2,MatsT(1.),tpi4I.pointer(),sNB2,C.X,sNB2,MatsT(0.),C.AX,NB2);
@@ -225,13 +226,17 @@ namespace ChronusQ {
     size_t NB2 = NB*NB;
     size_t NB3 = NB * NB2;
 
-    #ifdef _BULLET_PROOF_INCORE
+    //#ifdef _BULLET_PROOF_INCORE
+    #if 0
 
+    std::fill_n(C.AX,NB2,0.);
+
+    #pragma omp parallel for
     for(auto i = 0; i < NB; ++i)
     for(auto j = 0; j < NB; ++j)
     for(auto k = 0; k < NB; ++k)
     for(auto l = 0; l < NB; ++l) {
-      C.AX[i + j*NB] += tpi4I(i, k, l, j) * C.X[k + l*NB];
+      C.AX[i + j*NB] += tpi4I.pointer()[i+l*NB+k*NB2+j*NB3] * C.X[l + k*NB];
     }
 
     #else
@@ -609,6 +614,27 @@ namespace ChronusQ {
 
   }; // InCoreRIERIContraction::KCoefContract
 
+
+  // Contraction into separate storages
+  template <typename MatsT, typename IntsT>
+  void InCore4indexGradContraction<MatsT,IntsT>::gradTwoBodyContract(
+    MPI_Comm comm,
+    const bool screen,
+    std::vector<std::vector<TwoBodyContraction<MatsT>>>& list,
+    EMPerturbation& pert) const {
+
+    // Contract over each 3N gradient component
+    size_t nGrad = this->grad_.size();
+    assert(nGrad == list.size());
+
+    for (auto i = 0; i < nGrad; i++) {
+      auto casted = std::dynamic_pointer_cast<InCore4indexTPI<IntsT>>(this->grad_[i]);
+      InCore4indexTPIContraction<MatsT,IntsT> contraction(*casted);
+      contraction.contractSecond = this->contractSecond;
+      contraction.twoBodyContract(comm, screen, list[i], pert);
+    }
+
+  }; // InCore4indexGradContraction::gradTwoBodyContract
+
+
 }; // namespace ChronusQ
-
-

@@ -27,6 +27,7 @@
 #include <util/typedefs.hpp>
 #include <atom.hpp>
 #include <cerr.hpp>
+#include <geometrymodifier.hpp>
 
 #include <libint2/shell.h>
 
@@ -48,6 +49,7 @@ namespace ChronusQ {
     int  charge;   ///< Overall charge of the Molecule (atomic units)
 
     double   nucRepEnergy; ///< Nuclear-Nuclear repulsion energy
+    double   nucKinEnergy = 0;
     
     cart_t    COM; ///< Center-of-mass of the Molecule
     cart_t    COC; ///< Center-of-charge of the Molecule
@@ -63,6 +65,7 @@ namespace ChronusQ {
 
     std::vector<libint2::Shell> chargeDist;
 
+    std::shared_ptr<GeometryModifier> geometryModifier; ///< Opt or MD
 
 
     /**
@@ -139,7 +142,9 @@ namespace ChronusQ {
           new_atoms.emplace_back(atoms[i]);
       
       // construct the molecule object
-      Molecule new_mole(0, 0, new_atoms);
+      // XXX: This needs to be updated
+      auto multi = new_atoms.size()%2+1;
+      Molecule new_mole(0, multi, new_atoms);
 
       // return it
       return new_mole;
@@ -156,6 +161,60 @@ namespace ChronusQ {
                           }) != atoms.end();
     }
 
+    /**
+     *  \brief Update Molecule member data
+     *
+     *  Populates or repopulates the member data for a Molecule
+     *  object.
+     */ 
+    inline void update() {
+
+      // Compute the total number of 
+      nTotalE = std::accumulate(atoms.begin(),atoms.end(),-charge,
+                  [&](int c, const Atom &a){ return a.atomicNumber + c; }
+                );
+      
+      if(not ((nTotalE % 2) != 0 xor (multip % 2) != 0) or 
+         multip > nTotalE + 1) {
+        std::stringstream ss;
+        ss << "Multiplicity = " << multip << " is not compatible with "
+           << "total electrons = " << nTotalE;
+        CErr(ss.str(),std::cout);
+      }
+
+      // Compute the total number of quantum protons 
+      atomsQ.clear();
+      atomsC.clear();
+
+      nTotalP = 0;
+      size_t ind = 0;
+      for ( Atom& atom : atoms ) {
+        if ( atom.quantum ) {
+          // return an error if not hydrogen
+          if ( atom.atomicNumber != 1 )
+            CErr("Non-Hydrogen quantum nuclei NYI.");
+
+          nTotalP += 1;
+          atomsQ.push_back(ind);
+        }
+        else 
+          atomsC.push_back(ind);
+        ind += 1;
+      }
+
+      // assume high-spin open-shell for protons 
+      multip_proton = (size_t)(2 * nTotalP * 0.5 + 1);
+
+      computeRIJ();
+      computeNNRep();
+      computeNNX();
+      computeCOM();
+      computeCOC();
+      computeMOI();
+      computeCDist();
+  
+    }
+
 
     private:
 
@@ -169,59 +228,6 @@ namespace ChronusQ {
       void computeMOI();
       void computeCDist();
 
-      /**
-       *  \brief Update Molecule member data
-       *
-       *  Populates or repopulates the member data for a Molecule
-       *  object.
-       */ 
-      inline void update() {
-
-        // Compute the total number of 
-        nTotalE = std::accumulate(atoms.begin(),atoms.end(),-charge,
-                    [&](int c, const Atom &a){ return a.atomicNumber + c; }
-                  );
-        
-        if(not ((nTotalE % 2) != 0 xor (multip % 2) != 0) or 
-           multip > nTotalE + 1) {
-          std::stringstream ss;
-          ss << "Multiplicity = " << multip << " is not compatible with "
-             << "total electrons = " << nTotalE;
-          CErr(ss.str(),std::cout);
-        }
-
-        // Compute the total number of quantum protons 
-        nTotalP = 0;
-        size_t ind = 0;
-        for ( Atom& atom : atoms ) {
-          if ( atom.quantum ) {
-            // return an error if not hydrogen
-            if ( atom.atomicNumber != 1 )
-              CErr("Non-Hydrogen quantum nuclei NYI.");
-
-            nTotalP += 1;
-            atomsQ.push_back(ind);
-          }
-          else 
-            atomsC.push_back(ind);
-          ind += 1;
-        }
-
-        if (nTotalP > 1)
-          CErr("NEO with multiple quantum protons NYI.");
-
-        // assume high-spin open-shell for protons 
-        multip_proton = (size_t)(2 * nTotalP * 0.5 + 1);
-
-        computeRIJ();
-        computeNNRep();
-        computeNNX();
-        computeCOM();
-        computeCOC();
-        computeMOI();
-        computeCDist();
-
-      }
   }; // Molecule struct
 
 }; // namespace ChronusQ

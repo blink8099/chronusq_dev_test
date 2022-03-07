@@ -190,6 +190,38 @@ namespace ChronusQ {
 
   }; // BasisSet::update
 
+  /**
+   *  Updates the member data of a BasisSet object assuming one or more nuclei
+   *  have been moved
+   *
+   */
+  void BasisSet::updateNuclearCoordinates(const Molecule &mol) {
+
+    // Early return if this basis set doesn't actually contain anything
+    if( basisName == "" and basisDef == "" and shells.size() == 0 )
+      return;
+
+    // Generate the reference basis set of that keyword
+    ReferenceBasisSet ref(basisName, basisDef, inputDef, forceCart, false, nucBasis);
+
+    // update appropriate shell set and coefficients for the Molecule
+    // object
+    std::tie(shells,unNormCont) = std::move(ref.generateShellSet(mol));
+
+    // clear the old list of centers
+    centers.clear();
+
+    // Update the copy of the basis centers
+    std::for_each(mol.atoms.begin(),mol.atoms.end(),
+                  [&]( const Atom &at ){
+                    centers.emplace_back(at.coord);
+                  }
+    );
+
+    // Update the BasisSet member data
+    update();
+
+  };
 
 
   /**

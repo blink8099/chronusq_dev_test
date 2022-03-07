@@ -43,6 +43,48 @@
 
 namespace ChronusQ {
 
+  // Type of Job
+  enum JobType {
+    SCF,
+    RT,
+    RESP,
+    CC,
+    MR,
+    BOMD,
+    EHRENFEST
+  };
+
+  // Tedious, but there isn't an easier way to do this
+  inline JobType parseJob(std::string jobStr) {
+    JobType job;
+    if( jobStr == "SCF" ) {
+      job = SCF;
+    }
+    else if( jobStr == "RT" ) {
+      job = RT;
+    }
+    else if( jobStr == "RESP" ) {
+      job = RESP;
+    }
+    else if( jobStr == "CC" ) {
+      job = CC;
+    }
+    else if( jobStr == "BOMD" ) {
+      job = BOMD;
+    }
+    else if( jobStr == "EHRENFEST" ) {
+      job = EHRENFEST;
+    }
+    else if( jobStr == "MCSCF" ) {
+      job = MR;
+    }
+    else {
+      jobStr = "Unrecognized job type \"" + jobStr + "\"!";
+      CErr(jobStr);
+    }
+    return job;
+  };
+
   // Function definitions ofr option parsing. 
   // See src/cxxapi/input/*opts.cxx for documentation
 
@@ -64,9 +106,9 @@ namespace ChronusQ {
 
   void parseHamiltonianOptions(std::ostream &, CQInputFile &, 
     BasisSet &basis, std::shared_ptr<IntegralsBase> aoints,
-    RefOptions &refOptions, HamiltonianOptions &hamiltonianOptions);
+    RefOptions &refOptions, HamiltonianOptions &hamiltonianOptions, std::string);
 
-  bool parseAtomicType(std::ostream &, CQInputFile &, ATOMIC_X2C_TYPE &);
+  bool parseAtomicType(std::ostream &, CQInputFile &, ATOMIC_X2C_TYPE &, std::string);
 
   // Parse the options relating to the BasisSet
   std::shared_ptr<BasisSet> CQBasisSetOptions(std::ostream &, CQInputFile &,
@@ -79,9 +121,8 @@ namespace ChronusQ {
       std::ostream &, CQInputFile &, Molecule &, BasisSet &,
       std::shared_ptr<IntegralsBase>);
 
-  // Parse the options relating to the NEOSingleSlater
-  // (and variants)
-  std::vector<std::shared_ptr<SingleSlaterBase>> CQNEOSingleSlaterOptions(
+  // Parse the options relating to NEOSS
+  std::pair<std::shared_ptr<SingleSlaterBase>, SingleSlaterOptions> CQNEOSSOptions(
       std::ostream &, CQInputFile &,
       CQMemManager &mem, Molecule &mol,
       BasisSet &ebasis, BasisSet &pbasis,
@@ -130,12 +171,24 @@ namespace ChronusQ {
 #endif  
   void CQCC_VALID(std::ostream &, CQInputFile &);
 
+  // Parse geometry modifier options
+  JobType CQGeometryOptions(std::ostream& out, CQInputFile& input, 
+    JobType job, Molecule& mol, std::shared_ptr<SingleSlaterBase> ss,
+    std::shared_ptr<RealTimeBase>& rt, std::shared_ptr<IntegralsBase> epints,
+    EMPerturbation& emPert);
+
+  JobType CQDynamicsOptions(std::ostream& out, CQInputFile& input, 
+    JobType job, Molecule& mol, std::shared_ptr<SingleSlaterBase> ss,
+    std::shared_ptr<RealTimeBase>& rt, std::shared_ptr<IntegralsBase> epints,
+    EMPerturbation& emPert);
+
+  void CQDYNAMICS_VALID( std::ostream& out, CQInputFile& input );
+
   // Parse MCSCF options
   std::shared_ptr<MCWaveFunctionBase> CQMCSCFOptions(std::ostream &, 
      CQInputFile &, std::shared_ptr<SingleSlaterBase> &);
   
   void CQMCSCF_VALID(std::ostream &, CQInputFile &);
-
 
   std::shared_ptr<CQMemManager> CQMiscOptions(std::ostream &,
     CQInputFile &);
@@ -157,6 +210,7 @@ namespace ChronusQ {
     CQMOR_VALID(out,input);
     CQMISC_VALID(out,input);
     CQCC_VALID(out,input);
+    CQDYNAMICS_VALID(out,input);
     CQMCSCF_VALID(out,input);
 
   }

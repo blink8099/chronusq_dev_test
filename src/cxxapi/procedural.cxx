@@ -47,29 +47,38 @@
 #include <mcwavefunction.hpp>
 #include <mcscf.hpp>
 
+#include <findiff/geomgrad.hpp>
+#include <particleintegrals/gradints.hpp>
+#include <particleintegrals/twopints/incore4indextpi.hpp>
+#include <particleintegrals/twopints/gtodirecttpi.hpp>
+#include <particleintegrals/gradints/incore.hpp>
+#include <particleintegrals/gradints/direct.hpp>
+
 #include <cqlinalg/blasext.hpp>
 #include <cqlinalg/eig.hpp>
 
+#include <geometrymodifier.hpp>
+#include <geometrymodifier/moleculardynamics.hpp>
+#include <geometrymodifier/singlepoint.hpp>
 #include <physcon.hpp>
 
 #include <corehbuilder/x2c.hpp>
 #include <corehbuilder/nonrel.hpp>
 #include <fockbuilder/matrixfock.hpp>
 
+#include <fockbuilder/neofock.hpp>
 
 //#include <cubegen.hpp>
 
 namespace ChronusQ {
 
+  template class NEOKohnShamBuilder<double,double>;
+  template class NEOKohnShamBuilder<dcomplex,double>;
+  template class NEOKohnShamBuilder<dcomplex,dcomplex>;
+
 #ifdef ENABLE_BCAST_COUNTER
   int bcastCounter = 0;
 #endif
-
-  template <typename MatsT>
-  void GatherUSpin(const SquareMatrix<MatsT> &UL, const SquareMatrix<MatsT> &US, MatsT *U);
-
-  template <typename MatsT>
-  void ReOrganizeMOSpin(const SquareMatrix<MatsT> &moSpin, SquareMatrix<MatsT> &mo);
 
   void RunChronusQ(std::string inFileName,
     std::string outFileName, std::string rstFileName,
@@ -141,18 +150,27 @@ namespace ChronusQ {
     }
 
 
+    // TEMPORARY
+    bool doTemp = true;
 
     // Determine JOB type
-    std::string jobType;
+    JobType jobType;
     
     try {
-      jobType = input.getData<std::string>("QM.JOB");
+      jobType = parseJob(input.getData<std::string>("QM.JOB"));
     } catch (...) {
       CErr("Must Specify QM.JOB",output);
     }
 
+    // Break into sequence of individual jobs
+    std::vector<JobType> jobs;
+    if( jobType != SCF ) {
+      jobs.push_back(SCF);
+    }
+    jobs.push_back(jobType);
+
+    // Check if we're doing NEO
     bool doNEO = false;
-    
     if ( input.containsSection("SCF") ) {
       try {
         doNEO = input.getData<bool>("SCF.NEO");
@@ -180,36 +198,22 @@ namespace ChronusQ {
       doNEO? CQIntsOptions(output,input,*memManager,mol,basis,dfbasis,prot_basis,"EPINTS") : nullptr;
 
     std::shared_ptr<SingleSlaterBase> ss  = nullptr;
-    std::shared_ptr<SingleSlaterBase> pss = nullptr;
 
     SingleSlaterOptions ssOptions;
-
-    // NEO calculation
-    if (doNEO) {
-      
-      // construct the neo single slater objects for electron and proton
-      std::vector<std::shared_ptr<SingleSlaterBase>> neo_vec = 
-        CQNEOSingleSlaterOptions(output,input,*memManager,mol,
-                                 *basis,*prot_basis,
-                                 aoints, prot_aoints,
-                                 ep_aoints);
-
-      ss  = neo_vec[0]; // electron
-      pss = neo_vec[1]; // proton
-
-    }
 
     // EM Perturbation for SCF
     EMPerturbation emPert;
 
-    // SCF options for electrons
+    // SCF options
     SCFControls scfControls = CQSCFOptions(output,input,emPert);
 
-    // SCF options for protons
+    // Create the SingleSlater object
     if (doNEO) {
+      std::tie(ss, ssOptions) = CQNEOSSOptions(output,input,*memManager,mol,
+                                              *basis,*prot_basis,
+                                               aoints, prot_aoints,
+                                               ep_aoints);
       ss->scfControls = scfControls;
-      pss->scfControls = scfControls;
-
       // For NEO only one ModifyOrbitals needs to be made since it is a
       // driver for both the NEOSingleSlater and the aux_neoss
       ss->buildModifyOrbitals();
@@ -224,27 +228,22 @@ namespace ChronusQ {
     }
 
     bool rstExists = false;
-    if( ss->scfControls.guess == READMO or 
-        ss->scfControls.guess == READDEN and
-        scrFileName.empty() )
+    if( (ss->scfControls.guess == READMO or 
+         ss->scfControls.guess == READDEN or
+         ss->scfControls.prot_guess == READMO or
+         ss->scfControls.prot_guess == READDEN)
+        and scrFileName.empty())
       rstExists = true;
-    else if( ss->scfControls.guess == READDEN
-        and not scrFileName.empty() )
+    else if( (ss->scfControls.guess == READDEN or
+              ss->scfControls.prot_guess == READDEN)
+             and not scrFileName.empty() )
       ss->scrBinFileName = scrFileName;
-    if( ss->scfControls.guess == FCHKMO )
+    else if( ss->scfControls.guess == FCHKMO or
+             ss->scfControls.prot_guess == FCHKMO )
       ss->fchkFileName = scrFileName;
-
-    if (doNEO) {
-      if( pss->scfControls.guess == READMO or 
-          pss->scfControls.guess == READDEN ) 
-        rstExists = true;
-      if( pss->scfControls.guess == FCHKMO )
-        pss->fchkFileName = scrFileName;
-    }
 
     // Create the restart and scratch files
     SafeFile rstFile(rstFileName, rstExists);
-    //SafeFile scrFile(scrFileName);
 
     if( not rstExists and rank == 0 ) rstFile.createFile();
 
@@ -253,105 +252,136 @@ namespace ChronusQ {
       ss->savFile     = rstFile;
       aoints->savFile = rstFile;
       if (doNEO) { 
-        pss->savFile         = rstFile;
         prot_aoints->savFile = rstFile;
         ep_aoints->savFile   = rstFile;
       }
     }
 
+    // If doing NEO, propagate setup to subsystems
+    if(auto neoss = std::dynamic_pointer_cast<NEOBase>(ss)) {
+      neoss->setSubSetup();
+    }
 
-    if( not jobType.compare("SCF") or not jobType.compare("RT") or 
-        not jobType.compare("RESP") or not jobType.compare("CC") or 
-        not jobType.compare("MCSCF") ) {
+    // Done setting up
+    //
+    // START OF REAL PROCEDURAL SECTION
+
+    for( auto& job: jobs ) {
+
+      bool firstStep = true;
+      std::shared_ptr<RealTimeBase> rt = nullptr;
 
       if (ssOptions.hamiltonianOptions.x2cType != X2C_TYPE::OFF) {
-
         compute_X2C_CoreH_Fock(*memManager, mol, *basis, aoints, emPert, ss, ssOptions);
-
       }
 
-      ss->formCoreH(emPert);
+      JobType elecJob = CQGeometryOptions(output, input, job, mol, ss, rt,
+        ep_aoints, emPert);
 
-      // If INCORE, compute and store the ERIs
-      aoints->computeAOTwoE(*basis, mol, emPert);
+      // Loop over various structures
+      while( mol.geometryModifier->hasNext() ) {
 
-      if (doNEO) { 
+        // Update geometry
+        mol.geometryModifier->electronicPotentialEnergy = ss->totalEnergy;
+        mol.geometryModifier->update(true, mol, firstStep);
+        // Update basis to the new geometry
+        basis->updateNuclearCoordinates(mol);
+        if( dfbasis != nullptr ) dfbasis->updateNuclearCoordinates(mol);
 
-        if(auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
-          prot_aoints->computeAOTwoE(*prot_basis, mol, emPert);
-        else
-          CErr("NEO with complex integrals NYI!",output);
+        if( doNEO ) {
+          prot_basis->updateNuclearCoordinates(mol);
+        }
 
-        if(auto p = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints))
-          ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert); 
+        // Update integrals
+        // TODO: Time dependent field?
+        aoints->computeAOTwoE(*basis, mol, emPert);
 
-      }
+        if (doNEO) { 
+          if(auto p = std::dynamic_pointer_cast<Integrals<double>>(prot_aoints))
+            prot_aoints->computeAOTwoE(*prot_basis, mol, emPert);
+          else
+            CErr("NEO with complex integrals NYI!",output);
+          if(auto p = std::dynamic_pointer_cast<Integrals<double>>(ep_aoints))
+            ep_aoints->computeAOTwoE(*basis, *prot_basis, mol, emPert); 
+        }
 
-      // Note, these guessSSOptions does not apply to NEO guess
-      SingleSlaterOptions guessSSOptions(ssOptions);
-      guessSSOptions.refOptions.isKSRef = false;
-      guessSSOptions.refOptions.nC = 1;
-      guessSSOptions.hamiltonianOptions.OneEScalarRelativity = false;
-      guessSSOptions.hamiltonianOptions.OneESpinOrbit = false;
+        // Note, these guessSSOptions does not apply to NEO guess
+        SingleSlaterOptions guessSSOptions(ssOptions);
+        guessSSOptions.refOptions.isKSRef = false;
+        guessSSOptions.refOptions.nC = 1;
+        guessSSOptions.hamiltonianOptions.OneEScalarRelativity = false;
+        guessSSOptions.hamiltonianOptions.OneESpinOrbit = false;
 
-      ss->formGuess(guessSSOptions);
-      // Form initial fock from guess density
-      ss->formFock(emPert, false);
-      ss->runModifyOrbitals(emPert);
-    }
+        // Run SCF job
+        if( elecJob == SCF ) {
+          ss->formCoreH(emPert, true);
+          if(firstStep) {
+            ss->formGuess(guessSSOptions);
+            ss->formFock(emPert, false);
+          }
+          ss->runModifyOrbitals(emPert);
+        }
+
+        // Run RT job
+        if( elecJob == RT ) {
+
+          // Initialize core hamiltonian
+          rt->formCoreH(emPert);
+
+          // Get correct time length
+          if( !firstStep ) {
+            rt->intScheme.restoreStep = rt->curState.iStep;
+            rt->intScheme.tMax = rt->intScheme.tMax + rt->intScheme.nSteps*rt->intScheme.deltaT;
+          }
+
+          if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
+
+          rt->doPropagation();
+
+        }
 
 
-    if( not jobType.compare("RT") ) {
+        if( elecJob == RESP ) {
 
-      // FIXME: Need to implement RT-NEO
-      if (doNEO)
-        CErr("RT-NEO NYI!",output);
 
-      if( MPISize() > 1 ) CErr("RT + MPI NYI!",output);
+          if( ss->scfControls.scfAlg == _SKIP_SCF and ss->scfControls.guess == READDEN )
+            CErr("READDEN + SKIP + RESPONSE disabled. Use READMO instead.");
 
-      auto rt = CQRealTimeOptions(output,input,ss,emPert);
-      rt->savFile = rstFile;
-      rt->doPropagation();
+          auto resp = CQResponseOptions(output,input,ss);
+          resp->savFile = rstFile;
+          resp->run();
 
-    }
+          if( MPIRank(MPI_COMM_WORLD) == 0 ) resp->printResults(output);
+          MPI_Barrier(MPI_COMM_WORLD);
 
-    if( not jobType.compare("RESP") ) {
+        }
 
-      // FIXME: Need to implement TD-NEO
-      if (doNEO)
-        CErr("RESP-NEO NYI!",output);
+        
+        if( elecJob == CC ){
 
-      if( ss->scfControls.scfAlg == _SKIP_SCF and ss->scfControls.guess == READDEN )
-        CErr("READDEN + SKIP + RESPONSE disabled. Use READMO instead.");
+          // FIXME: Need to implement NEO-CC
+          if (doNEO)
+            CErr("NEO-CC NYI!",output);
 
-      auto resp = CQResponseOptions(output,input,ss);
-      resp->savFile = rstFile;
-      resp->run();
+          #ifdef CQ_HAS_TA
+            auto cc = CQCCOptions(output, input, ss);
+            cc->run(); 
+          #else
+            CErr("TiledArray must be compiled to use Coupled-Cluster code!");
+          #endif
+        }
 
-      if( MPIRank(MPI_COMM_WORLD) == 0 ) resp->printResults(output);
-      MPI_Barrier(MPI_COMM_WORLD);
+        if ( elecJob == MR ) {
+          auto mcscf = CQMCSCFOptions(output,input,ss);
+          mcscf->savFile = rstFile;
+          mcscf->run(emPert);
+        }
 
-    }
-    
-    if( not jobType.compare("CC")){  
+        firstStep = false;
 
-      // FIXME: Need to implement NEO-CC
-      if (doNEO)
-        CErr("NEO-CC NYI!",output);
+      } // Loop over geometries
+    } // Loop over different jobs
 
-      #ifdef CQ_HAS_TA
-        auto cc = CQCCOptions(output, input, ss);
-        cc->run(); 
-      #else
-        CErr("TiledArray must be compiled to use Coupled-Cluster code!");
-      #endif
-    }
-
-    if ( not jobType.compare("MCSCF") ) {
-      auto mcscf = CQMCSCFOptions(output,input,ss);
-      mcscf->savFile = rstFile;
-      mcscf->run(emPert);
-    }
     
     ProgramTimer::tock("Chronus Quantum");
     printTimerSummary(std::cout);

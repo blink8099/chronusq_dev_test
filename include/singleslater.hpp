@@ -191,10 +191,12 @@ namespace ChronusQ {
     void computeEnergy();
     void computeMultipole(EMPerturbation &);
     void computeSpin();
+    virtual std::vector<double> getEnergySummary();
 
     // Compute various core Hamitlonian
-    void formCoreH(EMPerturbation&); // Compute the CH
+    void formCoreH(EMPerturbation&, bool); // Compute the CH
     void computeOrtho();  // Evaluate orthonormalization transformations
+    void computeOrthoGrad(); // Evaluate gradient of orthonormalization
 
     // Method specific properties
     void populationAnalysis();
@@ -206,11 +208,16 @@ namespace ChronusQ {
     virtual void formFock(EMPerturbation &, bool increment = false, double xHFX = 1.);
     void formFock(EMPerturbation& pert) { formFock(pert,false,1.);};
 
+    // Get the total gradient
+    virtual std::vector<double> getGrad(EMPerturbation&, bool equil,
+      bool saveInts);
+
     // Form initial guess orbitals
     // see include/singleslater/guess.hpp for docs)
     void formGuess(const SingleSlaterOptions&);
     void CoreGuess();
     void SADGuess(const SingleSlaterOptions&);
+    void TightGuess();
     void RandomGuess();
     void ReadGuessMO();
     void ReadGuess1PDM();
@@ -289,5 +296,4 @@ namespace ChronusQ {
 // Include headers for specializations of SingleSlater
 #include <singleslater/hartreefock.hpp> // HF specialization
 #include <singleslater/kohnsham.hpp>    // KS specialization
-#include <singleslater/neo_singleslater.hpp>  // NEO specialization
 

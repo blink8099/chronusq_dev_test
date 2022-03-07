@@ -1680,7 +1680,7 @@ namespace ChronusQ {
       }
 
       // V -> U variables for evaluating the kernel derivatives.
-      mkAuxVar(isGGA,epsScreen,NPts,
+      mkAuxVar(this->onePDM,isGGA,epsScreen,NPts,
         DenS_loc,DenZ_loc,DenY_loc,DenX_loc,
         GDenS_loc,GDenS_loc + NPts,GDenS_loc + 2*NPts,
         GDenZ_loc,GDenZ_loc + NPts,GDenZ_loc + 2*NPts,
