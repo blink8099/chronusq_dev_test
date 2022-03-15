@@ -43,6 +43,7 @@ public:
 
     // Form the Fock matrix D(k) -> F(k)
     ProgramTimer::timeOp("Form Fock", [&]() { this->modOrbOpt.formFock(pert); });
+    this->computeEigenvalues(mo,eps);
 
     // Compute initial properties
     this->modOrbOpt.computeProperties(pert);

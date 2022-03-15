@@ -454,7 +454,7 @@ void SingleSlater<MatsT, IntsT>::runModifyOrbitals(EMPerturbation& pert) {
   bool iRO = (std::dynamic_pointer_cast<ROFock<MatsT, IntsT>>(this->fockBuilder) != nullptr);
 
   // Initialize properties
-  getNewOrbitals();
+  if( not std::dynamic_pointer_cast<SkipSCF<MatsT>>(this->modifyOrbitals) ) getNewOrbitals();
   this->computeProperties(pert);
 
   // Setup MO reference vector
