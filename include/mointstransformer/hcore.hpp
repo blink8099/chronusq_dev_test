@@ -40,11 +40,15 @@ namespace ChronusQ {
       auto off_size = parseMOType(coreIndex);
       size_t ioff = off_size.first;
       size_t ni   = off_size.second;
-
-      blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
-        nAO, nAO, ni, MatsT(1.), ss_.mo[0].pointer() + ioff*nAO, nAO,
-        ss_.mo[0].pointer() + ioff*nAO, nAO, MatsT(0.), Den->pointer(), nAO);
       
+      if (ni != 0) {
+        blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::ConjTrans, 
+          nAO, nAO, ni, MatsT(1.), ss_.mo[0].pointer() + ioff*nAO, nAO,
+          ss_.mo[0].pointer() + ioff*nAO, nAO, MatsT(0.), Den->pointer(), nAO);
+      } else {
+        Den->clear();
+      }
+
       return Den;
 
   }; // form inactive core density

@@ -167,6 +167,7 @@ namespace ChronusQ {
     
     size_t counter = 0;
     for (auto & size: off_size) {
+      if (size.second == 0) continue; 
       counter ++;
       std::cout << "Index " << counter << ": from " << std::setw(5)
                 << size.first + 1 << " to " << std::setw(5)
@@ -184,6 +185,7 @@ namespace ChronusQ {
     std::cout << "  * Summary of MO ranges and symbols in MOIntsTransformer: " << std::endl;
     
     for (auto i = 0ul; i < mo_ranges_.size(); i++) {
+      if (mo_ranges_[i].second == 0) continue; 
       std::cout << "    - MO Ranges " << std::setw(5) << mo_ranges_[i].first + 1 << " ~ "  
                 << std::setw(5)  << mo_ranges_[i].first + mo_ranges_[i].second 
                 << ", labeled as: ";
