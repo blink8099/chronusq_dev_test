@@ -1134,7 +1134,7 @@ namespace ChronusQ {
     // Reorder spin components
     if( this->nC == 2 ) reorderSpinMO();
 
-    // MO coefficients from AO to othonormalized basis
+    // Orthogonalize MOs
     orthoAOMO();
 
     // Form density from MOs

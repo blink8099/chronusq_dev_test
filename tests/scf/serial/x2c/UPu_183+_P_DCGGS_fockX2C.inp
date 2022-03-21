@@ -16,6 +16,7 @@ x2ctype = Fock
 [SCF]
 guess = core
 damp = false
+diisAlg = cdiis
 
 [INTS]
 alg = incore
