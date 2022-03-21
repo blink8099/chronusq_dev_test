@@ -66,6 +66,15 @@ TEST(FourC_CASSCF_FULLMATRIX, Al_631G ) {
  
 };
 
+#ifndef _CQ_GENERATE_TESTS
+// Al readmo tests
+TEST(CASCI_READMO_SKIPSCF, Al_631G) {
+  CQMCSCFREFTEST("mcscf/serial/cas/al_6-31G_1c_casci_readmo_skipscf", "al_6-31G_1c_casscf.bin.ref"); 
+  CQMCSCFREFTEST("mcscf/serial/cas/al_6-31G_2c_casci_readmo_skipscf", "al_6-31G_x2c_casscf.bin.ref"); 
+  CQMCSCFREFTEST("mcscf/serial/cas/al_6-31G_4c_casci_readmo_skipscf", "al_6-31G_4c_dcb_casscf.bin.ref"); 
+}
+#endif
+
 // Be swap test
 TEST(OneC_CAS_SWAP, Be_1c_SWAP_sto3G ) {
 
@@ -135,6 +144,13 @@ TEST(FourC_CASSCF_FULLMATRIX, PAR_Al_631G ) {
   CQMCSCFTEST( "mcscf/parallel/cas/al_6-31G_4c_dcb_casscf_full_direct_n6", "al_6-31G_4c_dcb_casscf.bin.ref",1e-7);
  
 };
+
+// Al readmo tests
+TEST(CASCI_READMO_SKIPSCF, PAR_Al_631G) {
+  CQMCSCFREFTEST("mcscf/parallel/cas/al_6-31G_1c_casci_readmo_skipscf", "al_6-31G_1c_casscf.bin.ref"); 
+  CQMCSCFREFTEST("mcscf/parallel/cas/al_6-31G_2c_casci_readmo_skipscf", "al_6-31G_x2c_casscf.bin.ref"); 
+  CQMCSCFREFTEST("mcscf/parallel/cas/al_6-31G_4c_casci_readmo_skipscf", "al_6-31G_4c_dcb_casscf.bin.ref"); 
+}
 
 TEST(CASCI_DAVIDSON, PAR_Al_631G) {
 

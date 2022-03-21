@@ -115,7 +115,6 @@ public:
   void gradDescentStep();
 
   // Common Functions
-  void computeEigenvalues(VecMORef<MatsT>&, VecEPtr&);
   void computeGradient(VecMORef<MatsT>&);
   void computeDiagHess(VecEPtr&);
   void rotateMOs(VecMORef<MatsT>&);

@@ -80,5 +80,8 @@ class OptimizeOrbitals : public ModifyOrbitals<MatsT> {
     void printRunHeader(std::ostream& out, EMPerturbation&) const;
     void printHeaderFinal(std::ostream& out) const;
     void printIteration(std::ostream& out = std::cout, bool printDiff = true) const;
+
+    // Common SCF Functions
+    void computeEigenvalues(VecMORef<MatsT>&, VecEPtr&);
 };
 };   // namespace ChronusQ

@@ -50,7 +50,7 @@ void NewtonRaphsonSCF<MatsT>::getNewOrbitals(EMPerturbation& pert, VecMORef<Mats
   rotateMOs(mo);
 
   // Compute new Eigenvalues
-  computeEigenvalues(mo, eps);
+  this->computeEigenvalues(mo, eps);
 
   this->modOrbOpt.formDensity();
 }
@@ -95,22 +95,6 @@ void NewtonRaphsonSCF<MatsT>::gradDescentStep(){
 
 }
 
-/*
- *  Brief: Computes the orbital energies from a set of MO's
- */
-template<typename MatsT>
-void NewtonRaphsonSCF<MatsT>::computeEigenvalues(VecMORef<MatsT>& mo, VecEPtr& eps) {
-
-  VecShrdPtrMat<MatsT> fock = this->modOrbOpt.getFock();
-
-  for( size_t i = 0; i < mo.size(); i++ ) {
-    size_t NB = fock[i]->dimension();
-
-    SquareMatrix<MatsT> moFock = fock[i]->transform('N', mo[i].get().pointer(), NB, NB);
-    for( size_t a = 0; a < NB; a++ )
-      eps[i][a] = std::real(moFock(a, a));
-  }
-};
 
 /*
  *  Brief: Computes the gradient convergence criteria for optimization
