@@ -13,7 +13,7 @@ time-dependent and post-SCF quantum mechanical methods.
 * [Documentation](../../wikis/home)
 * [Installation](#installation)
 
-
+This is current in development for use in GitHub with CI-enabled maintenance.
 
 Installation
 ------------
