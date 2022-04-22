@@ -39,5 +39,3 @@ jobs:
       -
         name: after_script
         run: docker logout
-      -
-
