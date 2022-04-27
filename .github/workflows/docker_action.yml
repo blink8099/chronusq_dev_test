@@ -25,23 +25,12 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       -
-        name: Get_CQ_Version
-        run: export CQ_VERSION=$(grep "project(ChronusQ" -A 7 CMakeLists.txt | grep "VERSION" | sed 's/ \+VERSION //')
-      -
-        name: Check_CQ_Version
-        run: echo $CQ_VERSION
-      -
-        name: Build_docker
-        run: docker build -t uwligroup/chronusq:$CQ_VERSION .
-      -
-        name: Push_image
-        run: docker push uwligroup/chronusq:$CQ_VERSION
-      -
-        name: Update_tag
-        run: docker tag uwligroup/chronusq:$CQ_VERSION uwligroup/chronusq:latest
-      -
-        name: Push_to_tag
-        run: docker push uwligroup/chronusq:latest
+        name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
       -
         name: after_script
         run: docker logout
