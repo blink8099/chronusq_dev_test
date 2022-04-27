@@ -28,6 +28,9 @@ jobs:
         name: Get_CQ_Version
         run: export CQ_VERSION=$(grep "project(ChronusQ" -A 7 CMakeLists.txt | grep "VERSION" | sed 's/ \+VERSION //')
       -
+        name: Check_CQ_Version
+        run: echo $CQ_VERSION
+      -
         name: Build_docker
         run: docker build -t uwligroup/chronusq:$CQ_VERSION .
       -
