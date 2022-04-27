@@ -25,19 +25,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       -
-        name: export_version
+        name: Running_Script
         run: export CQ_VERSION=$(grep "project(ChronusQ" -A 7 CMakeLists.txt | grep "VERSION" | sed 's/ \+VERSION //')
-      -
-        name: docker_build
         run: docker build -t uwligroup/chronusq:$CQ_VERSION .
-      -
-        name: docker_push
         run: docker push uwligroup/chronusq:$CQ_VERSION
-      -
-        name: docker_tag
         run: docker tag uwligroup/chronusq:$CQ_VERSION uwligroup/chronusq:latest
-      -
-        name: docker_push_latest
         run: docker push uwligroup/chronusq:latest
       -
         name: after_script
