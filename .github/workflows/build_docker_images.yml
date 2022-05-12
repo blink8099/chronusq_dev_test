@@ -25,7 +25,7 @@ jobs:
                     password: ${{ secrets.DOCKER_PASSWORD }}
                 -
                   name: Test Building Docker Image
-                   run: |
+                  run: |
                      export CQ_VERSION=$(grep "project(ChronusQ" -A 7 CMakeLists.txt | grep "VERSION" | sed 's/ \+VERSION //')
                      docker build -t uwligroup/chronusq:$CQ_VERSION .
                      docker push uwligroup/chronusq:$CQ_VERSION
