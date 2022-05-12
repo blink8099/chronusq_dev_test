@@ -25,12 +25,12 @@ jobs:
                     password: ${{ secrets.DOCKER_PASSWORD }}
                 -
                   name: Test Building Docker Image
-                   run:  |
-                         export CQ_VERSION=$(grep "project(ChronusQ" -A 7 CMakeLists.txt | grep "VERSION" | sed 's/ \+VERSION //')
-                         docker build -t uwligroup/chronusq:$CQ_VERSION .
-                         docker push uwligroup/chronusq:$CQ_VERSION
-                         docker tag uwligroup/chronusq:$CQ_VERSION uwligroup/chronusq:latest
-                         docker push uwligroup/chronusq:latest
+                   run: |
+                     export CQ_VERSION=$(grep "project(ChronusQ" -A 7 CMakeLists.txt | grep "VERSION" | sed 's/ \+VERSION //')
+                     docker build -t uwligroup/chronusq:$CQ_VERSION .
+                     docker push uwligroup/chronusq:$CQ_VERSION
+                     docker tag uwligroup/chronusq:$CQ_VERSION uwligroup/chronusq:latest
+                     docker push uwligroup/chronusq:latest
                 -
                   name: after_script
                   run: docker logout
